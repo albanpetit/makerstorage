@@ -7,15 +7,12 @@ import reactSvg from '/assets/react.svg'
 
 import cs from './index.module.css'
 
-import { Button } from "@/components/retroui/Button";
-
 export default function InertiaExample(
   { rails_version, ruby_version, rack_version, inertia_rails_version }:
   { rails_version: string, ruby_version: string, rack_version: string, inertia_rails_version: string }
 ) {
   return (
     <div className={cs.root}>
-      <Button>Click Me!</Button>
       <Head title="Ruby on Rails + Inertia + React" />
 
       <nav className={cs.subNav}>
