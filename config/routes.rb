@@ -6,6 +6,10 @@ Rails.application.routes.draw do
     match "logout", to: "users/sessions#destroy", as: :destroy_user_session, via: Devise.mappings[:user].sign_out_via
     get "signup", to: "users/registrations#new", as: :new_user_registration
     post "signup", to: "users/registrations#create", as: :user_registration
+    get "forgot-password", to: "users/passwords#new", as: :new_user_password
+    post "forgot-password", to: "users/passwords#create", as: :user_password
+    get "reset-password", to: "users/passwords#edit", as: :edit_user_password
+    put "reset-password", to: "users/passwords#update", as: :update_user_password
   end
 
   # Redirect to localhost from 127.0.0.1 to use same IP address with Vite server
