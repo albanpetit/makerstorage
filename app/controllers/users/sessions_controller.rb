@@ -10,11 +10,17 @@ class Users::SessionsController < Devise::SessionsController
 
   # POST /login
   def create
-    self.resource = warden.authenticate!(auth_options)
-    set_flash_message!(:notice, :signed_in)
-    sign_in(resource_name, resource)
-    yield resource if block_given?
-    redirect_to after_sign_in_path_for(resource)
+    self.resource = warden.authenticate(auth_options)
+
+    if resource
+      set_flash_message!(:notice, :signed_in)
+      sign_in(resource_name, resource)
+      yield resource if block_given?
+      redirect_to after_sign_in_path_for(resource)
+    else
+      flash[:alert] = I18n.t("devise.failure.invalid", authentication_keys: "Email")
+      redirect_to new_user_session_path
+    end
   end
 
   # DELETE /logout

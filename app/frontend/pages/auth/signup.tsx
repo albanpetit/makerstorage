@@ -5,28 +5,25 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Field, FieldContent, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
-import { Checkbox } from "@/components/ui/checkbox"
 import { FlashMessages } from '@/components/flash-messages'
 
-import reactSvg from '/assets/auth.jpeg'
-
-export default function Login() {
+export default function Signup() {
   const { data, setData, post, processing, errors } = useForm({
     user: {
       email: '',
       password: '',
+      password_confirmation: '',
     },
-    remember_me: false,
   })
 
   const submit: FormEventHandler = (e) => {
     e.preventDefault()
-    post('/login')
+    post('/signup')
   }
 
   return (
     <>
-      <Head title="Log in" />
+      <Head title="Sign up" />
 
       <div className="grid min-h-svh lg:grid-cols-2 bg-background text-foreground">
         <div className="flex flex-col gap-4 p-6 md:p-10 bg-background text-foreground">
@@ -37,9 +34,9 @@ export default function Login() {
               <form onSubmit={submit} className="space-y-4 mt-4">
                 <FieldGroup>
                   <div className="flex flex-col items-center gap-1 text-center">
-                    <h1 className="text-2xl font-bold">Login to your account</h1>
+                    <h1 className="text-2xl font-bold">Create an account</h1>
                     <p className="text-muted-foreground text-sm text-balance">
-                      Enter your email below to login to your account
+                      Enter your details below to create your account
                     </p>
                   </div>
 
@@ -65,17 +62,9 @@ export default function Login() {
 
                   {/* Password Field */}
                   <Field>
-                    <div className='flex items-center'>
-                      <FieldLabel className='flex'>
-                          <Label htmlFor="password">Password</Label>
-                      </FieldLabel>
-                      <a
-                        href="#"
-                        className="text-sm ml-auto text-muted-foreground hover:text-foreground transition-colors underline-offset-4 hover:underline"
-                      >
-                        Forgot password?
-                      </a>
-                    </div>
+                    <FieldLabel>
+                      <Label htmlFor="password">Password</Label>
+                    </FieldLabel>
                     <FieldContent>
                       <Input
                         id="password"
@@ -83,24 +72,31 @@ export default function Login() {
                         value={data.user.password}
                         onChange={(e) => setData('user', { ...data.user, password: e.target.value })}
                         required
-                        autoComplete="current-password"
+                        autoComplete="new-password"
                         aria-invalid={!!errors['user.password']}
                       />
                     </FieldContent>
                     {errors['user.password'] && <FieldError>{errors['user.password']}</FieldError>}
                   </Field>
 
-                  {/* Remember Me Checkbox */}
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="remember_me"
-                      checked={data.remember_me}
-                      onCheckedChange={(checked) => setData('remember_me', checked === true)}
-                    />
-                    <Label htmlFor="remember_me" className="text-sm font-normal cursor-pointer">
-                      Remember me
-                    </Label>
-                  </div>
+                  {/* Password Confirmation Field */}
+                  <Field>
+                    <FieldLabel>
+                      <Label htmlFor="password_confirmation">Confirm Password</Label>
+                    </FieldLabel>
+                    <FieldContent>
+                      <Input
+                        id="password_confirmation"
+                        type="password"
+                        value={data.user.password_confirmation}
+                        onChange={(e) => setData('user', { ...data.user, password_confirmation: e.target.value })}
+                        required
+                        autoComplete="new-password"
+                        aria-invalid={!!errors['user.password_confirmation']}
+                      />
+                    </FieldContent>
+                    {errors['user.password_confirmation'] && <FieldError>{errors['user.password_confirmation']}</FieldError>}
+                  </Field>
 
                   {/* Submit Button */}
                   <Button
@@ -108,17 +104,17 @@ export default function Login() {
                     className="w-full"
                     disabled={processing}
                   >
-                    {processing ? 'Logging in...' : 'Log in'}
+                    {processing ? 'Creating account...' : 'Sign up'}
                   </Button>
 
-                  {/* Sign up link */}
+                  {/* Login link */}
                   <div className="text-center text-sm">
-                    <span className="text-muted-foreground">Don't have an account? </span>
+                    <span className="text-muted-foreground">Already have an account? </span>
                     <Link
-                      href="/signup"
+                      href="/login"
                       className="text-foreground hover:text-primary transition-colors underline-offset-4 hover:underline font-medium"
                     >
-                      Sign up
+                      Log in
                     </Link>
                   </div>
                 </FieldGroup>
@@ -126,14 +122,14 @@ export default function Login() {
             </div>
           </div>
         </div>
-      <div className=" relative hidden lg:block">
-        <img
-          src={reactSvg}
-          alt="Image"
-          className="absolute inset-0 h-full w-full object-cover dark:brightness-[0.8]"
-        />
+        <div className="bg-muted relative hidden lg:block">
+          <img
+            src="/placeholder.svg"
+            alt="Image"
+            className="absolute inset-0 h-full w-full object-cover dark:brightness-[0.2] dark:grayscale"
+          />
+        </div>
       </div>
-    </div>
     </>
   )
 }

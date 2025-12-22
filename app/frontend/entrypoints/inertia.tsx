@@ -1,6 +1,11 @@
-import { createInertiaApp, type ResolvedComponent } from '@inertiajs/react'
+import { createInertiaApp, router, type ResolvedComponent } from '@inertiajs/react'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+
+// Disable the error modal - errors handled via flash messages
+router.on('invalid', (event) => {
+  event.preventDefault()
+})
 
 void createInertiaApp({
   // Set default page title
@@ -46,7 +51,7 @@ void createInertiaApp({
     future: {
       useScriptElementForInitialPage: true,
       useDataInertiaHeadAttribute: true,
-      useDialogForErrorModal: true,
+      useDialogForErrorModal: false,
       preserveEqualProps: true,
     },
   },
