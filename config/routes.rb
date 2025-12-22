@@ -1,12 +1,17 @@
 Rails.application.routes.draw do
-  devise_for :users
+  devise_for :users, skip: [ :sessions, :passwords, :registrations ]
+  as :user do
+    get "login", to: "users/sessions#new", as: :new_user_session
+    post "login", to: "users/sessions#create", as: :user_session
+    match "logout", to: "users/sessions#destroy", as: :destroy_user_session, via: Devise.mappings[:user].sign_out_via
+  end
 
   # Redirect to localhost from 127.0.0.1 to use same IP address with Vite server
   constraints(host: "127.0.0.1") do
     get "(*path)", to: redirect { |params, req| "#{req.protocol}localhost:#{req.port}/#{params[:path]}" }
   end
-  root 'inertia_example#index'
-  get 'inertia-example', to: 'inertia_example#index'
+  root "inertia_example#index"
+  get "inertia-example", to: "inertia_example#index"
   # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
 
   # Reveal health status on /up that returns 200 if the app boots with no exceptions, otherwise 500.
