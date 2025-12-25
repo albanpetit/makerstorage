@@ -10,7 +10,27 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2025_12_22_093522) do
+ActiveRecord::Schema[8.1].define(version: 2025_12_25_213242) do
+  create_table "organization_memberships", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+  end
+
+  create_table "organizations", force: :cascade do |t|
+    t.string "address_line1"
+    t.string "address_line2"
+    t.string "city"
+    t.string "country"
+    t.datetime "created_at", null: false
+    t.string "email"
+    t.string "name", null: false
+    t.string "phone"
+    t.string "postcode"
+    t.datetime "updated_at", null: false
+    t.index ["email"], name: "index_organizations_on_email"
+    t.index ["name"], name: "index_organizations_on_name"
+  end
+
   create_table "users", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.string "email", default: "", null: false
