@@ -52,7 +52,7 @@ class User < ApplicationRecord
   # Automatically create a personal organization when the user is created
   def create_personal_organization
     organization = Organization.create!(
-      name: "#{name}'s Organization"
+      name: "#{firstname}'s Organization"
     )
 
     OrganizationMembership.create!(

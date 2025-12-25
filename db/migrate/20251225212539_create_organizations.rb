@@ -6,6 +6,7 @@ class CreateOrganizations < ActiveRecord::Migration[8.1]
       # Contact information
       t.string :email
       t.string :phone
+      t.string :website
 
       # Address
       t.string :address_line1

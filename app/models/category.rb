@@ -48,7 +48,7 @@ class Category < ApplicationRecord
   private
 
   def cannot_be_its_own_parent
-    if parent_id == id
+    if id.present? && parent_id == id
       errors.add(:parent_id, "cannot be itself")
     end
   end
