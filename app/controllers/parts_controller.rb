@@ -29,7 +29,7 @@ class PartsController < ApplicationController
     if part.save
       redirect_to parts_path, notice: "Part created successfully."
     else
-      redirect_to new_part_path, inertia: { errors: part.errors }
+      redirect_to new_part_path, alert: "Failed to create part.", inertia: { errors: part.errors }
     end
   end
 
