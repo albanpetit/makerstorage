@@ -10,6 +10,8 @@ import { FlashMessages } from '@/components/flash-messages'
 export default function Signup() {
   const { data, setData, post, processing, errors } = useForm({
     user: {
+      firstname: '',
+      lastname: '',
       email: '',
       password: '',
       password_confirmation: '',
@@ -40,6 +42,46 @@ export default function Signup() {
                     </p>
                   </div>
 
+                  {/* Name Fields */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <Field>
+                      <FieldLabel>
+                        <Label htmlFor="firstname">First name</Label>
+                      </FieldLabel>
+                      <FieldContent>
+                        <Input
+                          id="firstname"
+                          type="text"
+                          value={data.user.firstname}
+                          onChange={(e) => setData('user', { ...data.user, firstname: e.target.value })}
+                          required
+                          autoFocus
+                          autoComplete="given-name"
+                          aria-invalid={!!errors['user.firstname']}
+                        />
+                      </FieldContent>
+                      {errors['user.firstname'] && <FieldError>{errors['user.firstname']}</FieldError>}
+                    </Field>
+
+                    <Field>
+                      <FieldLabel>
+                        <Label htmlFor="lastname">Last name</Label>
+                      </FieldLabel>
+                      <FieldContent>
+                        <Input
+                          id="lastname"
+                          type="text"
+                          value={data.user.lastname}
+                          onChange={(e) => setData('user', { ...data.user, lastname: e.target.value })}
+                          required
+                          autoComplete="family-name"
+                          aria-invalid={!!errors['user.lastname']}
+                        />
+                      </FieldContent>
+                      {errors['user.lastname'] && <FieldError>{errors['user.lastname']}</FieldError>}
+                    </Field>
+                  </div>
+
                   {/* Email Field */}
                   <Field>
                     <FieldLabel>
@@ -52,7 +94,6 @@ export default function Signup() {
                         value={data.user.email}
                         onChange={(e) => setData('user', { ...data.user, email: e.target.value })}
                         required
-                        autoFocus
                         autoComplete="email"
                         aria-invalid={!!errors['user.email']}
                       />
