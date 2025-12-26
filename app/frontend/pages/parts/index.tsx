@@ -2,6 +2,7 @@ import { Head, Link } from '@inertiajs/react'
 import { Plus, Search, Package } from 'lucide-react'
 
 import { AppLayout } from '@/layouts/app-layout'
+import { FlashMessages } from '@/components/flash-messages'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -74,6 +75,8 @@ export default function PartsIndex({ parts }: PartsIndexProps) {
       <Head title="Parts" />
 
       <div className="space-y-4">
+        <FlashMessages />
+
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
