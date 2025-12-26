@@ -13,12 +13,34 @@ class PartsController < ApplicationController
     }
   end
 
+  def new
+    render inertia: "parts/new", props: {
+      categories: serialize_categories,
+      footprints: serialize_footprints,
+      suppliers: serialize_suppliers
+    }
+  end
+
+  def create
+    part = current_organization.parts.build(part_params)
+
+    if part.save
+      redirect_to parts_path, notice: "Part created successfully."
+    else
+      redirect_to new_part_path, inertia: { errors: part.errors }
+    end
+  end
+
   private
 
-  def current_organization
-    # For now, get the first organization of the current user
-    # Later this should be based on session/selected organization
-    current_user.organizations.first
+  def part_params
+    params.require(:part).permit(
+      :name, :mpn, :sku, :barcode, :manufacturer, :description,
+      :value, :tolerance, :voltage_rating, :power_rating, :package_type,
+      :category_id, :footprint_id, :preferred_supplier_id, :supplier_sku,
+      :unit_price, :min_stock_threshold, :target_stock, :lead_time_days,
+      :status, :rohs_compliant, :storage_notes
+    )
   end
 
   def serialize_part(part)
@@ -36,5 +58,23 @@ class PartsController < ApplicationController
       category: part.category ? { id: part.category.id, name: part.category.name } : nil,
       footprint: part.footprint ? { id: part.footprint.id, name: part.footprint.name } : nil
     }
+  end
+
+  def serialize_categories
+    current_organization.categories.alphabetical.map do |category|
+      { id: category.id, name: category.full_path }
+    end
+  end
+
+  def serialize_footprints
+    current_organization.footprints.alphabetical.map do |footprint|
+      { id: footprint.id, name: footprint.name, mounting_type: footprint.mounting_type }
+    end
+  end
+
+  def serialize_suppliers
+    current_organization.suppliers.order(:name).map do |supplier|
+      { id: supplier.id, name: supplier.name }
+    end
   end
 end

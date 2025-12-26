@@ -1,4 +1,4 @@
-import { Link, usePage } from '@inertiajs/react'
+import { Link, usePage, router } from '@inertiajs/react'
 import {
   Package,
   Tags,
@@ -10,6 +10,9 @@ import {
   LogOut,
   User,
   Building2,
+  ChevronsUpDown,
+  Check,
+  Plus,
 } from 'lucide-react'
 
 import {
@@ -28,6 +31,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
@@ -61,36 +65,103 @@ const navigationItems = [
   },
 ]
 
+interface Organization {
+  id: number
+  name: string
+}
+
+interface UserInfo {
+  email: string
+  firstname: string
+  lastname: string
+}
+
 interface PageProps {
   auth?: {
-    user?: string
+    user?: UserInfo
+    current_organization?: Organization
+    organizations?: Organization[]
   }
 }
 
 export function AppSidebar() {
   const { auth } = usePage<PageProps>().props
-  const userEmail = auth?.user || 'User'
-  const userInitials = userEmail
-    .split('@')[0]
-    .slice(0, 2)
-    .toUpperCase()
+  const user = auth?.user
+  const currentOrganization = auth?.current_organization
+  const organizations = auth?.organizations || []
+
+  const userDisplayName = user
+    ? `${user.firstname} ${user.lastname}`.trim() || user.email.split('@')[0]
+    : 'User'
+  const userEmail = user?.email || ''
+  const userInitials = user
+    ? `${user.firstname?.[0] || ''}${user.lastname?.[0] || ''}`.toUpperCase() || user.email.slice(0, 2).toUpperCase()
+    : 'U'
+
+  const handleOrganizationSwitch = (orgId: number) => {
+    router.post(`/organizations/${orgId}/switch`, {}, {
+      preserveState: false,
+      preserveScroll: true,
+    })
+  }
 
   return (
     <Sidebar>
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size="lg" asChild>
-              <Link href="/">
-                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                  <Building2 className="size-4" />
-                </div>
-                <div className="flex flex-col gap-0.5 leading-none">
-                  <span className="font-semibold">PartsTable</span>
-                  <span className="text-xs text-muted-foreground">Inventory Manager</span>
-                </div>
-              </Link>
-            </SidebarMenuButton>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <SidebarMenuButton
+                  size="lg"
+                  className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+                >
+                  <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                    <Building2 className="size-4" />
+                  </div>
+                  <div className="grid flex-1 text-left text-sm leading-tight">
+                    <span className="truncate font-semibold">
+                      {currentOrganization?.name || 'Select Organization'}
+                    </span>
+                    <span className="truncate text-xs text-muted-foreground">
+                      {organizations.length} organization{organizations.length !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+                  <ChevronsUpDown className="ml-auto size-4" />
+                </SidebarMenuButton>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg"
+                align="start"
+                sideOffset={4}
+              >
+                <DropdownMenuLabel className="text-xs text-muted-foreground">
+                  Organizations
+                </DropdownMenuLabel>
+                {organizations.map((org) => (
+                  <DropdownMenuItem
+                    key={org.id}
+                    onClick={() => handleOrganizationSwitch(org.id)}
+                    className="cursor-pointer gap-2 p-2"
+                  >
+                    <div className="flex size-6 items-center justify-center rounded-sm border">
+                      <Building2 className="size-4 shrink-0" />
+                    </div>
+                    <span className="flex-1 truncate">{org.name}</span>
+                    {currentOrganization?.id === org.id && (
+                      <Check className="size-4 shrink-0" />
+                    )}
+                  </DropdownMenuItem>
+                ))}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem className="gap-2 p-2 cursor-pointer">
+                  <div className="flex size-6 items-center justify-center rounded-md border bg-background">
+                    <Plus className="size-4" />
+                  </div>
+                  <span className="text-muted-foreground">Create organization</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
@@ -144,7 +215,7 @@ export function AppSidebar() {
                     <AvatarFallback className="rounded-lg">{userInitials}</AvatarFallback>
                   </Avatar>
                   <div className="grid flex-1 text-left text-sm leading-tight">
-                    <span className="truncate font-semibold">{userEmail.split('@')[0]}</span>
+                    <span className="truncate font-semibold">{userDisplayName}</span>
                     <span className="truncate text-xs text-muted-foreground">{userEmail}</span>
                   </div>
                   <ChevronUp className="ml-auto size-4" />
