@@ -25,7 +25,7 @@ class ApplicationController < ActionController::Base
 
     @current_organization ||= begin
       org_id = session[:current_organization_id]
-      if org_id && current_user.organizations.exists?(id: org_id)
+      if org_id && current_user.member_of_organization?(org_id)
         current_user.organizations.find(org_id)
       else
         org = current_user.organizations.first
@@ -42,5 +42,26 @@ class ApplicationController < ActionController::Base
       id: org.id,
       name: org.name
     }
+  end
+
+  # Verify user has access to current organization
+  def verify_organization_access
+    unless current_organization && current_user.member_of_organization?(current_organization.id)
+      redirect_to root_path, alert: "You don't have access to this organization"
+    end
+  end
+
+  # Verify user is admin/owner of current organization (for sensitive operations)
+  def verify_organization_admin
+    unless current_organization && current_user.admin_of?(current_organization)
+      redirect_to root_path, alert: "You don't have admin access to this organization"
+    end
+  end
+
+  # Verify user is owner of current organization (for critical operations)
+  def verify_organization_owner
+    unless current_organization && current_user.owner_of?(current_organization)
+      redirect_to root_path, alert: "You must be an owner to perform this action"
+    end
   end
 end
