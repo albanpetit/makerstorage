@@ -7,6 +7,18 @@ interface FlashMessagesProps {
   errors?: Record<string, string | string[]>
 }
 
+// Convert field key to human-readable label
+function humanizeFieldName(key: string): string {
+  // Handle nested keys like 'part.category' -> 'Category'
+  const fieldName = key.includes('.') ? key.split('.').pop()! : key
+
+  // Convert snake_case or camelCase to Title Case with spaces
+  return fieldName
+    .replace(/_/g, ' ')
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/\b\w/g, (char) => char.toUpperCase())
+}
+
 export function FlashMessages({ errors }: FlashMessagesProps = {}) {
   const { flash } = usePage<{ flash: Flash }>().props
 
@@ -18,17 +30,26 @@ export function FlashMessages({ errors }: FlashMessagesProps = {}) {
     errorMessages.push(flash.alert)
   }
 
-  // Add form errors (filter out field-specific nested errors like 'user.email')
+  // Add form errors with field names
   if (errors) {
     Object.entries(errors).forEach(([key, message]) => {
-      // Show base/general errors or non-nested field errors
-      if (key === 'base' || !key.includes('.')) {
-        if (Array.isArray(message)) {
-          errorMessages.push(...message)
-        } else {
-          errorMessages.push(message)
-        }
+      // Skip nested field errors (like 'user.email') - these are shown inline
+      if (key.includes('.')) {
+        return
       }
+
+      const fieldLabel = humanizeFieldName(key)
+      const messages = Array.isArray(message) ? message : [message]
+
+      messages.forEach((msg) => {
+        // For 'base' errors, show message as-is
+        // For field errors, prepend the field name
+        if (key === 'base') {
+          errorMessages.push(msg)
+        } else {
+          errorMessages.push(`${fieldLabel} ${msg}`)
+        }
+      })
     })
   }
 
