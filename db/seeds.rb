@@ -438,7 +438,7 @@ parts_data = [
     status: "active",
     rohs_compliant: true,
     preferred_supplier: suppliers["LCSC"],
-    tag_list: ["RoHS", "Popular", "Project A"]
+    tag_list: [ "RoHS", "Popular", "Project A" ]
   },
   {
     name: "ESP32-WROOM-32",
