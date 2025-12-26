@@ -32,6 +32,11 @@ class User < ApplicationRecord
     organizations.include?(organization)
   end
 
+  # Check if the user is a member of an organization by ID (more efficient)
+  def member_of_organization?(organization_id)
+    organization_memberships.exists?(organization_id: organization_id)
+  end
+
   # Check if the user is an owner of an organization
   def owner_of?(organization)
     organization_memberships.exists?(organization: organization, role: "owner")

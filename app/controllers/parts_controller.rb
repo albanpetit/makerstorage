@@ -3,6 +3,8 @@
 class PartsController < ApplicationController
   include Auth
 
+  before_action :verify_organization_access
+
   def index
     parts = current_organization.parts
       .includes(:category, :footprint)
