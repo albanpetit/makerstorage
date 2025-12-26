@@ -20,6 +20,9 @@ class Part < ApplicationRecord
   # Constants
   STATUSES = %w[active discontinued obsolete].freeze
 
+  # Callbacks - convert empty strings to nil for unique indexed fields
+  before_validation :normalize_blank_values
+
   # Validations
   validates :name, presence: true, length: { minimum: 2, maximum: 255 }
   validates :mpn, uniqueness: { scope: :organization_id, case_sensitive: false }, allow_blank: true
@@ -165,6 +168,13 @@ class Part < ApplicationRecord
   end
 
   private
+
+  # Convert blank strings to nil for unique indexed fields
+  def normalize_blank_values
+    self.sku = nil if sku.blank?
+    self.mpn = nil if mpn.blank?
+    self.barcode = nil if barcode.blank?
+  end
 
   def category_must_belong_to_same_organization
     if category.present? && category.organization_id != organization_id
