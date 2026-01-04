@@ -1,8 +1,9 @@
-import { Head, useForm, Link } from '@inertiajs/react'
+import { Head, useForm, Link, router } from '@inertiajs/react'
 import { FormEventHandler, useState } from 'react'
-import { ArrowLeft, Plus, Trash2, Star } from 'lucide-react'
+import { ArrowLeft, Plus, Trash2, Star, ExternalLink } from 'lucide-react'
 
 import { AppLayout } from '@/layouts/app-layout'
+import { FlashMessages } from '@/components/flash-messages'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -22,7 +23,13 @@ import {
   FieldGroup,
   FieldLabel,
 } from '@/components/ui/field'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
 import {
   Table,
   TableBody,
@@ -32,7 +39,6 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
-import { FlashMessages } from '@/components/flash-messages'
 
 interface Category {
   id: number
@@ -50,114 +56,78 @@ interface Supplier {
   name: string
 }
 
-interface PendingSupplier {
-  tempId: string
-  supplier_id: string
+interface PartSupplier {
+  id: number
+  supplier_id: number
   supplier_name: string
-  supplier_sku: string
-  unit_price: string
-  lead_time_days: string
-  url: string
+  supplier_sku: string | null
+  unit_price: number | null
+  lead_time_days: number | null
+  url: string | null
   is_preferred: boolean
-  notes: string
+  notes: string | null
 }
 
-interface NewPartProps {
+interface Part {
+  id: number
+  name: string
+  mpn: string | null
+  sku: string | null
+  barcode: string | null
+  manufacturer: string | null
+  description: string | null
+  value: string | null
+  tolerance: string | null
+  voltage_rating: string | null
+  power_rating: string | null
+  package_type: string | null
+  status: string
+  unit_price: number | null
+  min_stock_threshold: number
+  target_stock: number | null
+  rohs_compliant: boolean
+  storage_notes: string | null
+  category_id: number
+  footprint_id: number | null
+  part_suppliers: PartSupplier[]
+}
+
+interface EditPartProps {
+  part: Part
   categories: Category[]
   footprints: Footprint[]
   suppliers: Supplier[]
 }
 
-export default function NewPart({ categories, footprints, suppliers }: NewPartProps) {
-  const [pendingSuppliers, setPendingSuppliers] = useState<PendingSupplier[]>([])
+export default function EditPart({ part, categories, footprints, suppliers }: EditPartProps) {
   const [showAddSupplier, setShowAddSupplier] = useState(false)
-  const [newSupplier, setNewSupplier] = useState<Omit<PendingSupplier, 'tempId' | 'supplier_name'>>({
-    supplier_id: '',
-    supplier_sku: '',
-    unit_price: '',
-    lead_time_days: '',
-    url: '',
-    is_preferred: false,
-    notes: '',
-  })
 
-  const { data, setData, post, processing, errors, transform } = useForm({
+  const { data, setData, put, processing, errors } = useForm({
     part: {
-      name: '',
-      mpn: '',
-      sku: '',
-      barcode: '',
-      manufacturer: '',
-      description: '',
-      value: '',
-      tolerance: '',
-      voltage_rating: '',
-      power_rating: '',
-      package_type: '',
-      category_id: '',
-      footprint_id: '',
-      unit_price: '',
-      min_stock_threshold: '0',
-      target_stock: '',
-      status: 'active',
-      rohs_compliant: false,
-      storage_notes: '',
+      name: part.name,
+      mpn: part.mpn || '',
+      sku: part.sku || '',
+      barcode: part.barcode || '',
+      manufacturer: part.manufacturer || '',
+      description: part.description || '',
+      value: part.value || '',
+      tolerance: part.tolerance || '',
+      voltage_rating: part.voltage_rating || '',
+      power_rating: part.power_rating || '',
+      package_type: part.package_type || '',
+      category_id: part.category_id.toString(),
+      footprint_id: part.footprint_id?.toString() || '',
+      unit_price: part.unit_price?.toString() || '',
+      min_stock_threshold: part.min_stock_threshold.toString(),
+      target_stock: part.target_stock?.toString() || '',
+      status: part.status,
+      rohs_compliant: part.rohs_compliant,
+      storage_notes: part.storage_notes || '',
     },
   })
 
-  // Transform data before submission to include part_suppliers_attributes
-  transform((formData) => ({
-    part: {
-      ...formData.part,
-      part_suppliers_attributes: pendingSuppliers.map((ps) => ({
-        supplier_id: ps.supplier_id,
-        supplier_sku: ps.supplier_sku || null,
-        unit_price: ps.unit_price || null,
-        lead_time_days: ps.lead_time_days || null,
-        url: ps.url || null,
-        is_preferred: ps.is_preferred,
-        notes: ps.notes || null,
-      })),
-    },
-  }))
-
-  const breadcrumbs = [
-    { label: 'Parts', href: '/parts' },
-    { label: 'New Part' },
-  ]
-
-  const submit: FormEventHandler = (e) => {
-    e.preventDefault()
-    post('/parts')
-  }
-
-  const handleSelectChange = (field: string, value: string) => {
-    setData('part', { ...data.part, [field]: value === 'none' ? '' : value })
-  }
-
-  const handleAddSupplier = () => {
-    if (!newSupplier.supplier_id) return
-
-    const supplier = suppliers.find((s) => s.id.toString() === newSupplier.supplier_id)
-    if (!supplier) return
-
-    // If marking as preferred, unset other preferred suppliers
-    let updatedPendingSuppliers = pendingSuppliers
-    if (newSupplier.is_preferred) {
-      updatedPendingSuppliers = pendingSuppliers.map((ps) => ({ ...ps, is_preferred: false }))
-    }
-
-    setPendingSuppliers([
-      ...updatedPendingSuppliers,
-      {
-        ...newSupplier,
-        tempId: crypto.randomUUID(),
-        supplier_name: supplier.name,
-      },
-    ])
-
-    // Reset form
-    setNewSupplier({
+  const newSupplierForm = useForm({
+    part_supplier: {
       supplier_id: '',
       supplier_sku: '',
       unit_price: '',
@@ -165,31 +135,52 @@ export default function NewPart({ categories, footprints, suppliers }: NewPartPr
       url: '',
       is_preferred: false,
       notes: '',
+    },
+  })
+
+  const breadcrumbs = [
+    { label: 'Parts', href: '/parts' },
+    { label: part.name, href: `/parts/${part.id}` },
+    { label: 'Edit' },
+  ]
+
+  const submit: FormEventHandler = (e) => {
+    e.preventDefault()
+    put(`/parts/${part.id}`)
+  }
+
+  const handleSelectChange = (field: string, value: string) => {
+    setData('part', { ...data.part, [field]: value === 'none' ? '' : value })
+  }
+
+  const handleAddSupplier: FormEventHandler = (e) => {
+    e.preventDefault()
+    newSupplierForm.post(`/parts/${part.id}/part_suppliers`, {
+      onSuccess: () => {
+        setShowAddSupplier(false)
+        newSupplierForm.reset()
+      },
     })
-    setShowAddSupplier(false)
   }
 
-  const handleRemoveSupplier = (tempId: string) => {
-    setPendingSuppliers(pendingSuppliers.filter((ps) => ps.tempId !== tempId))
+  const handleRemoveSupplier = (supplierId: number) => {
+    if (confirm('Are you sure you want to remove this supplier?')) {
+      router.delete(`/parts/${part.id}/part_suppliers/${supplierId}`)
+    }
   }
 
-  const handleSetPreferred = (tempId: string) => {
-    setPendingSuppliers(
-      pendingSuppliers.map((ps) => ({
-        ...ps,
-        is_preferred: ps.tempId === tempId,
-      }))
-    )
+  const handleSetPreferred = (supplierId: number) => {
+    router.post(`/parts/${part.id}/part_suppliers/${supplierId}/set_preferred`)
   }
 
-  // Get available suppliers (not already added)
+  // Get available suppliers (not already linked)
   const availableSuppliers = suppliers.filter(
-    (s) => !pendingSuppliers.some((ps) => ps.supplier_id === s.id.toString())
+    (s) => !part.part_suppliers.some((ps) => ps.supplier_id === s.id)
   )
 
   return (
     <AppLayout breadcrumbs={breadcrumbs}>
-      <Head title="New Part" />
+      <Head title={`Edit ${part.name}`} />
 
       <div className="space-y-6">
         {/* Header */}
@@ -200,8 +191,8 @@ export default function NewPart({ categories, footprints, suppliers }: NewPartPr
             </Link>
           </Button>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">New Part</h1>
-            <p className="text-muted-foreground">Add a new part to your inventory</p>
+            <h1 className="text-2xl font-bold tracking-tight">Edit Part</h1>
+            <p className="text-muted-foreground">{part.name}</p>
           </div>
         </div>
 
@@ -216,7 +207,6 @@ export default function NewPart({ categories, footprints, suppliers }: NewPartPr
             </CardHeader>
             <CardContent>
               <FieldGroup className="grid gap-4 md:grid-cols-2">
-                {/* Name */}
                 <Field className="md:col-span-2">
                   <FieldLabel>
                     <Label htmlFor="name">Name *</Label>
@@ -226,15 +216,12 @@ export default function NewPart({ categories, footprints, suppliers }: NewPartPr
                       id="name"
                       value={data.part.name}
                       onChange={(e) => setData('part', { ...data.part, name: e.target.value })}
-                      placeholder="e.g., 10K Resistor"
                       required
-                      autoFocus
                     />
                   </FieldContent>
                   {errors['part.name'] && <FieldError>{errors['part.name']}</FieldError>}
                 </Field>
 
-                {/* MPN */}
                 <Field>
                   <FieldLabel>
                     <Label htmlFor="mpn">Manufacturer Part Number (MPN)</Label>
@@ -244,13 +231,11 @@ export default function NewPart({ categories, footprints, suppliers }: NewPartPr
                       id="mpn"
                       value={data.part.mpn}
                       onChange={(e) => setData('part', { ...data.part, mpn: e.target.value })}
-                      placeholder="e.g., RC0805FR-0710KL"
                     />
                   </FieldContent>
                   {errors['part.mpn'] && <FieldError>{errors['part.mpn']}</FieldError>}
                 </Field>
 
-                {/* SKU */}
                 <Field>
                   <FieldLabel>
                     <Label htmlFor="sku">Internal SKU</Label>
@@ -260,13 +245,11 @@ export default function NewPart({ categories, footprints, suppliers }: NewPartPr
                       id="sku"
                       value={data.part.sku}
                       onChange={(e) => setData('part', { ...data.part, sku: e.target.value })}
-                      placeholder="e.g., RES-10K-0805"
                     />
                   </FieldContent>
                   {errors['part.sku'] && <FieldError>{errors['part.sku']}</FieldError>}
                 </Field>
 
-                {/* Barcode */}
                 <Field>
                   <FieldLabel>
                     <Label htmlFor="barcode">Barcode</Label>
@@ -276,13 +259,11 @@ export default function NewPart({ categories, footprints, suppliers }: NewPartPr
                       id="barcode"
                       value={data.part.barcode}
                       onChange={(e) => setData('part', { ...data.part, barcode: e.target.value })}
-                      placeholder="Scan or enter barcode"
                     />
                   </FieldContent>
                   {errors['part.barcode'] && <FieldError>{errors['part.barcode']}</FieldError>}
                 </Field>
 
-                {/* Manufacturer */}
                 <Field>
                   <FieldLabel>
                     <Label htmlFor="manufacturer">Manufacturer</Label>
@@ -292,13 +273,11 @@ export default function NewPart({ categories, footprints, suppliers }: NewPartPr
                       id="manufacturer"
                       value={data.part.manufacturer}
                       onChange={(e) => setData('part', { ...data.part, manufacturer: e.target.value })}
-                      placeholder="e.g., Yageo"
                     />
                   </FieldContent>
                   {errors['part.manufacturer'] && <FieldError>{errors['part.manufacturer']}</FieldError>}
                 </Field>
 
-                {/* Description */}
                 <Field className="md:col-span-2">
                   <FieldLabel>
                     <Label htmlFor="description">Description</Label>
@@ -308,7 +287,6 @@ export default function NewPart({ categories, footprints, suppliers }: NewPartPr
                       id="description"
                       value={data.part.description}
                       onChange={(e) => setData('part', { ...data.part, description: e.target.value })}
-                      placeholder="Detailed description of the part"
                       rows={3}
                     />
                   </FieldContent>
@@ -326,7 +304,6 @@ export default function NewPart({ categories, footprints, suppliers }: NewPartPr
             </CardHeader>
             <CardContent>
               <FieldGroup className="grid gap-4 md:grid-cols-2">
-                {/* Category */}
                 <Field>
                   <FieldLabel>
                     <Label>Category *</Label>
@@ -349,10 +326,8 @@ export default function NewPart({ categories, footprints, suppliers }: NewPartPr
                     </Select>
                   </FieldContent>
                   {errors['part.category_id'] && <FieldError>{errors['part.category_id']}</FieldError>}
-                  {errors['part.category'] && <FieldError>{errors['part.category']}</FieldError>}
                 </Field>
 
-                {/* Footprint */}
                 <Field>
                   <FieldLabel>
                     <Label>Footprint</Label>
@@ -379,7 +354,6 @@ export default function NewPart({ categories, footprints, suppliers }: NewPartPr
                   {errors['part.footprint_id'] && <FieldError>{errors['part.footprint_id']}</FieldError>}
                 </Field>
 
-                {/* Status */}
                 <Field>
                   <FieldLabel>
                     <Label>Status</Label>
@@ -402,7 +376,6 @@ export default function NewPart({ categories, footprints, suppliers }: NewPartPr
                   {errors['part.status'] && <FieldError>{errors['part.status']}</FieldError>}
                 </Field>
 
-                {/* Package Type */}
                 <Field>
                   <FieldLabel>
                     <Label htmlFor="package_type">Package Type</Label>
@@ -412,7 +385,6 @@ export default function NewPart({ categories, footprints, suppliers }: NewPartPr
                       id="package_type"
                       value={data.part.package_type}
                       onChange={(e) => setData('part', { ...data.part, package_type: e.target.value })}
-                      placeholder="e.g., Tape & Reel"
                     />
                   </FieldContent>
                   {errors['part.package_type'] && <FieldError>{errors['part.package_type']}</FieldError>}
@@ -429,7 +401,6 @@ export default function NewPart({ categories, footprints, suppliers }: NewPartPr
             </CardHeader>
             <CardContent>
               <FieldGroup className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                {/* Value */}
                 <Field>
                   <FieldLabel>
                     <Label htmlFor="value">Value</Label>
@@ -439,13 +410,11 @@ export default function NewPart({ categories, footprints, suppliers }: NewPartPr
                       id="value"
                       value={data.part.value}
                       onChange={(e) => setData('part', { ...data.part, value: e.target.value })}
-                      placeholder="e.g., 10K, 100nF"
                     />
                   </FieldContent>
                   {errors['part.value'] && <FieldError>{errors['part.value']}</FieldError>}
                 </Field>
 
-                {/* Tolerance */}
                 <Field>
                   <FieldLabel>
                     <Label htmlFor="tolerance">Tolerance</Label>
@@ -455,13 +424,11 @@ export default function NewPart({ categories, footprints, suppliers }: NewPartPr
                       id="tolerance"
                       value={data.part.tolerance}
                       onChange={(e) => setData('part', { ...data.part, tolerance: e.target.value })}
-                      placeholder="e.g., 1%, 5%"
                     />
                   </FieldContent>
                   {errors['part.tolerance'] && <FieldError>{errors['part.tolerance']}</FieldError>}
                 </Field>
 
-                {/* Voltage Rating */}
                 <Field>
                   <FieldLabel>
                     <Label htmlFor="voltage_rating">Voltage Rating</Label>
@@ -471,13 +438,11 @@ export default function NewPart({ categories, footprints, suppliers }: NewPartPr
                       id="voltage_rating"
                       value={data.part.voltage_rating}
                       onChange={(e) => setData('part', { ...data.part, voltage_rating: e.target.value })}
-                      placeholder="e.g., 50V, 100V"
                     />
                   </FieldContent>
                   {errors['part.voltage_rating'] && <FieldError>{errors['part.voltage_rating']}</FieldError>}
                 </Field>
 
-                {/* Power Rating */}
                 <Field>
                   <FieldLabel>
                     <Label htmlFor="power_rating">Power Rating</Label>
@@ -487,13 +452,11 @@ export default function NewPart({ categories, footprints, suppliers }: NewPartPr
                       id="power_rating"
                       value={data.part.power_rating}
                       onChange={(e) => setData('part', { ...data.part, power_rating: e.target.value })}
-                      placeholder="e.g., 0.125W, 1W"
                     />
                   </FieldContent>
                   {errors['part.power_rating'] && <FieldError>{errors['part.power_rating']}</FieldError>}
                 </Field>
 
-                {/* RoHS Compliant */}
                 <Field className="md:col-span-2 lg:col-span-4">
                   <div className="flex items-center space-x-2">
                     <Checkbox
@@ -512,15 +475,14 @@ export default function NewPart({ categories, footprints, suppliers }: NewPartPr
             </CardContent>
           </Card>
 
-          {/* Pricing */}
+          {/* Pricing & Stock */}
           <Card>
             <CardHeader>
-              <CardTitle>Pricing</CardTitle>
-              <CardDescription>Default unit price (supplier-specific prices can be set below)</CardDescription>
+              <CardTitle>Pricing & Stock</CardTitle>
+              <CardDescription>Inventory thresholds and pricing</CardDescription>
             </CardHeader>
             <CardContent>
-              <FieldGroup className="grid gap-4 md:grid-cols-2">
-                {/* Unit Price */}
+              <FieldGroup className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 <Field>
                   <FieldLabel>
                     <Label htmlFor="unit_price">Unit Price ($)</Label>
@@ -533,27 +495,14 @@ export default function NewPart({ categories, footprints, suppliers }: NewPartPr
                       min="0"
                       value={data.part.unit_price}
                       onChange={(e) => setData('part', { ...data.part, unit_price: e.target.value })}
-                      placeholder="0.00"
                     />
                   </FieldContent>
                   {errors['part.unit_price'] && <FieldError>{errors['part.unit_price']}</FieldError>}
                 </Field>
-              </FieldGroup>
-            </CardContent>
-          </Card>
 
-          {/* Stock Management */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Stock Management</CardTitle>
-              <CardDescription>Inventory thresholds and notes</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <FieldGroup className="grid gap-4 md:grid-cols-2">
-                {/* Min Stock Threshold */}
                 <Field>
                   <FieldLabel>
-                    <Label htmlFor="min_stock_threshold">Minimum Stock Threshold</Label>
+                    <Label htmlFor="min_stock_threshold">Min Stock Threshold</Label>
                   </FieldLabel>
                   <FieldContent>
                     <Input
@@ -562,16 +511,14 @@ export default function NewPart({ categories, footprints, suppliers }: NewPartPr
                       min="0"
                       value={data.part.min_stock_threshold}
                       onChange={(e) => setData('part', { ...data.part, min_stock_threshold: e.target.value })}
-                      placeholder="0"
                     />
                   </FieldContent>
                   {errors['part.min_stock_threshold'] && <FieldError>{errors['part.min_stock_threshold']}</FieldError>}
                 </Field>
 
-                {/* Target Stock */}
                 <Field>
                   <FieldLabel>
-                    <Label htmlFor="target_stock">Target Stock Level</Label>
+                    <Label htmlFor="target_stock">Target Stock</Label>
                   </FieldLabel>
                   <FieldContent>
                     <Input
@@ -580,14 +527,12 @@ export default function NewPart({ categories, footprints, suppliers }: NewPartPr
                       min="1"
                       value={data.part.target_stock}
                       onChange={(e) => setData('part', { ...data.part, target_stock: e.target.value })}
-                      placeholder="e.g., 100"
                     />
                   </FieldContent>
                   {errors['part.target_stock'] && <FieldError>{errors['part.target_stock']}</FieldError>}
                 </Field>
 
-                {/* Storage Notes */}
-                <Field className="md:col-span-2">
+                <Field className="md:col-span-2 lg:col-span-4">
                   <FieldLabel>
                     <Label htmlFor="storage_notes">Storage Notes</Label>
                   </FieldLabel>
@@ -596,7 +541,6 @@ export default function NewPart({ categories, footprints, suppliers }: NewPartPr
                       id="storage_notes"
                       value={data.part.storage_notes}
                       onChange={(e) => setData('part', { ...data.part, storage_notes: e.target.value })}
-                      placeholder="Special storage requirements or handling instructions"
                       rows={2}
                     />
                   </FieldContent>
@@ -606,234 +550,253 @@ export default function NewPart({ categories, footprints, suppliers }: NewPartPr
             </CardContent>
           </Card>
 
-          {/* Suppliers Section */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle>Suppliers</CardTitle>
-                  <CardDescription>Link suppliers to this part (optional)</CardDescription>
-                </div>
-                {availableSuppliers.length > 0 && !showAddSupplier && (
-                  <Button type="button" onClick={() => setShowAddSupplier(true)} size="sm">
-                    <Plus className="mr-2 size-4" />
-                    Add Supplier
-                  </Button>
-                )}
-              </div>
-            </CardHeader>
-            <CardContent>
-              {/* Add Supplier Form */}
-              {showAddSupplier && (
-                <div className="mb-6 p-4 border rounded-lg bg-muted/50">
-                  <h4 className="font-medium mb-4">Add Supplier</h4>
-                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    <div className="space-y-2">
-                      <Label>Supplier *</Label>
-                      <Select
-                        value={newSupplier.supplier_id}
-                        onValueChange={(value) =>
-                          setNewSupplier({ ...newSupplier, supplier_id: value })
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select supplier" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {availableSuppliers.map((supplier) => (
-                            <SelectItem key={supplier.id} value={supplier.id.toString()}>
-                              {supplier.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="new_supplier_sku">Supplier SKU</Label>
-                      <Input
-                        id="new_supplier_sku"
-                        value={newSupplier.supplier_sku}
-                        onChange={(e) =>
-                          setNewSupplier({ ...newSupplier, supplier_sku: e.target.value })
-                        }
-                        placeholder="Supplier's part number"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="new_unit_price">Unit Price ($)</Label>
-                      <Input
-                        id="new_unit_price"
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={newSupplier.unit_price}
-                        onChange={(e) =>
-                          setNewSupplier({ ...newSupplier, unit_price: e.target.value })
-                        }
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="new_lead_time">Lead Time (days)</Label>
-                      <Input
-                        id="new_lead_time"
-                        type="number"
-                        min="0"
-                        value={newSupplier.lead_time_days}
-                        onChange={(e) =>
-                          setNewSupplier({ ...newSupplier, lead_time_days: e.target.value })
-                        }
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="new_url">Product URL</Label>
-                      <Input
-                        id="new_url"
-                        type="url"
-                        value={newSupplier.url}
-                        onChange={(e) =>
-                          setNewSupplier({ ...newSupplier, url: e.target.value })
-                        }
-                        placeholder="https://..."
-                      />
-                    </div>
-
-                    <div className="flex items-end space-x-2">
-                      <Checkbox
-                        id="new_is_preferred"
-                        checked={newSupplier.is_preferred}
-                        onCheckedChange={(checked) =>
-                          setNewSupplier({ ...newSupplier, is_preferred: checked === true })
-                        }
-                      />
-                      <Label htmlFor="new_is_preferred" className="font-normal cursor-pointer">
-                        Preferred supplier
-                      </Label>
-                    </div>
-                  </div>
-
-                  <div className="flex justify-end gap-2 mt-4">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => {
-                        setShowAddSupplier(false)
-                        setNewSupplier({
-                          supplier_id: '',
-                          supplier_sku: '',
-                          unit_price: '',
-                          lead_time_days: '',
-                          url: '',
-                          is_preferred: false,
-                          notes: '',
-                        })
-                      }}
-                    >
-                      Cancel
-                    </Button>
-                    <Button type="button" onClick={handleAddSupplier} disabled={!newSupplier.supplier_id}>
-                      Add Supplier
-                    </Button>
-                  </div>
-                </div>
-              )}
-
-              {/* Pending Suppliers Table */}
-              {pendingSuppliers.length > 0 ? (
-                <div className="rounded-md border">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Supplier</TableHead>
-                        <TableHead>Supplier SKU</TableHead>
-                        <TableHead className="text-right">Unit Price</TableHead>
-                        <TableHead className="text-right">Lead Time</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="w-[100px]">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {pendingSuppliers.map((ps) => (
-                        <TableRow key={ps.tempId}>
-                          <TableCell className="font-medium">{ps.supplier_name}</TableCell>
-                          <TableCell>{ps.supplier_sku || '-'}</TableCell>
-                          <TableCell className="text-right font-mono">
-                            {ps.unit_price ? `$${parseFloat(ps.unit_price).toFixed(2)}` : '-'}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {ps.lead_time_days ? `${ps.lead_time_days} days` : '-'}
-                          </TableCell>
-                          <TableCell>
-                            {ps.is_preferred && (
-                              <Badge variant="default">
-                                <Star className="mr-1 size-3" />
-                                Preferred
-                              </Badge>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-1">
-                              {!ps.is_preferred && (
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => handleSetPreferred(ps.tempId)}
-                                  title="Set as preferred"
-                                >
-                                  <Star className="size-4" />
-                                </Button>
-                              )}
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleRemoveSupplier(ps.tempId)}
-                                title="Remove supplier"
-                              >
-                                <Trash2 className="size-4 text-destructive" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              ) : (
-                <p className="text-muted-foreground text-center py-8">
-                  No suppliers added yet.
-                  {availableSuppliers.length > 0 && !showAddSupplier && (
-                    <>
-                      {' '}
-                      <Button
-                        type="button"
-                        variant="link"
-                        onClick={() => setShowAddSupplier(true)}
-                        className="p-0"
-                      >
-                        Add one now
-                      </Button>
-                    </>
-                  )}
-                </p>
-              )}
-            </CardContent>
-          </Card>
-
           {/* Actions */}
           <div className="flex items-center justify-end gap-4">
             <Button variant="outline" asChild>
               <Link href="/parts">Cancel</Link>
             </Button>
             <Button type="submit" disabled={processing}>
-              {processing ? 'Creating...' : 'Create Part'}
+              {processing ? 'Saving...' : 'Save Changes'}
             </Button>
           </div>
         </form>
+
+        {/* Suppliers Section */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Suppliers</CardTitle>
+                <CardDescription>Manage suppliers for this part</CardDescription>
+              </div>
+              {availableSuppliers.length > 0 && !showAddSupplier && (
+                <Button onClick={() => setShowAddSupplier(true)} size="sm">
+                  <Plus className="mr-2 size-4" />
+                  Add Supplier
+                </Button>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent>
+            {/* Add Supplier Form */}
+            {showAddSupplier && (
+              <form onSubmit={handleAddSupplier} className="mb-6 p-4 border rounded-lg bg-muted/50">
+                <h4 className="font-medium mb-4">Add New Supplier</h4>
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  <div className="space-y-2">
+                    <Label>Supplier *</Label>
+                    <Select
+                      value={newSupplierForm.data.part_supplier.supplier_id}
+                      onValueChange={(value) =>
+                        newSupplierForm.setData('part_supplier', {
+                          ...newSupplierForm.data.part_supplier,
+                          supplier_id: value,
+                        })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select supplier" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableSuppliers.map((supplier) => (
+                          <SelectItem key={supplier.id} value={supplier.id.toString()}>
+                            {supplier.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="new_supplier_sku">Supplier SKU</Label>
+                    <Input
+                      id="new_supplier_sku"
+                      value={newSupplierForm.data.part_supplier.supplier_sku}
+                      onChange={(e) =>
+                        newSupplierForm.setData('part_supplier', {
+                          ...newSupplierForm.data.part_supplier,
+                          supplier_sku: e.target.value,
+                        })
+                      }
+                      placeholder="Supplier's part number"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="new_unit_price">Unit Price ($)</Label>
+                    <Input
+                      id="new_unit_price"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={newSupplierForm.data.part_supplier.unit_price}
+                      onChange={(e) =>
+                        newSupplierForm.setData('part_supplier', {
+                          ...newSupplierForm.data.part_supplier,
+                          unit_price: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="new_lead_time">Lead Time (days)</Label>
+                    <Input
+                      id="new_lead_time"
+                      type="number"
+                      min="0"
+                      value={newSupplierForm.data.part_supplier.lead_time_days}
+                      onChange={(e) =>
+                        newSupplierForm.setData('part_supplier', {
+                          ...newSupplierForm.data.part_supplier,
+                          lead_time_days: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="new_url">Product URL</Label>
+                    <Input
+                      id="new_url"
+                      type="url"
+                      value={newSupplierForm.data.part_supplier.url}
+                      onChange={(e) =>
+                        newSupplierForm.setData('part_supplier', {
+                          ...newSupplierForm.data.part_supplier,
+                          url: e.target.value,
+                        })
+                      }
+                      placeholder="https://..."
+                    />
+                  </div>
+
+                  <div className="flex items-end space-x-2">
+                    <Checkbox
+                      id="new_is_preferred"
+                      checked={newSupplierForm.data.part_supplier.is_preferred}
+                      onCheckedChange={(checked) =>
+                        newSupplierForm.setData('part_supplier', {
+                          ...newSupplierForm.data.part_supplier,
+                          is_preferred: checked === true,
+                        })
+                      }
+                    />
+                    <Label htmlFor="new_is_preferred" className="font-normal cursor-pointer">
+                      Preferred supplier
+                    </Label>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-2 mt-4">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setShowAddSupplier(false)
+                      newSupplierForm.reset()
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={newSupplierForm.processing}>
+                    {newSupplierForm.processing ? 'Adding...' : 'Add Supplier'}
+                  </Button>
+                </div>
+              </form>
+            )}
+
+            {/* Suppliers Table */}
+            {part.part_suppliers.length > 0 ? (
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Supplier</TableHead>
+                      <TableHead>Supplier SKU</TableHead>
+                      <TableHead className="text-right">Unit Price</TableHead>
+                      <TableHead className="text-right">Lead Time</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="w-[100px]">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {part.part_suppliers.map((ps) => (
+                      <TableRow key={ps.id}>
+                        <TableCell className="font-medium">
+                          {ps.supplier_name}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            {ps.supplier_sku || '-'}
+                            {ps.url && (
+                              <a
+                                href={ps.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-muted-foreground hover:text-foreground"
+                              >
+                                <ExternalLink className="size-3" />
+                              </a>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right font-mono">
+                          {ps.unit_price != null ? `$${ps.unit_price.toFixed(2)}` : '-'}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {ps.lead_time_days != null ? `${ps.lead_time_days} days` : '-'}
+                        </TableCell>
+                        <TableCell>
+                          {ps.is_preferred && (
+                            <Badge variant="default">
+                              <Star className="mr-1 size-3" />
+                              Preferred
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1">
+                            {!ps.is_preferred && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleSetPreferred(ps.id)}
+                                title="Set as preferred"
+                              >
+                                <Star className="size-4" />
+                              </Button>
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleRemoveSupplier(ps.id)}
+                              title="Remove supplier"
+                            >
+                              <Trash2 className="size-4 text-destructive" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            ) : (
+              <p className="text-muted-foreground text-center py-8">
+                No suppliers linked to this part yet.
+                {availableSuppliers.length > 0 && (
+                  <>
+                    {' '}
+                    <Button variant="link" onClick={() => setShowAddSupplier(true)} className="p-0">
+                      Add one now
+                    </Button>
+                  </>
+                )}
+              </p>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </AppLayout>
   )

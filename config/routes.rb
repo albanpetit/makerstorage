@@ -24,7 +24,13 @@ Rails.application.routes.draw do
   end
 
   # Inventory resources
-  resources :parts
+  resources :parts do
+    resources :part_suppliers, only: %i[create update destroy] do
+      member do
+        post :set_preferred
+      end
+    end
+  end
 
   root "parts#index"
   # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html

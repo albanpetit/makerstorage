@@ -506,6 +506,7 @@ parts_data = [
 
 parts_data.each do |data|
   tag_names = data.delete(:tag_list) || []
+  preferred_supplier = data.delete(:preferred_supplier)
 
   part = Part.find_or_create_by!(organization: org, mpn: data[:mpn]) do |p|
     p.name = data[:name]
@@ -522,7 +523,14 @@ parts_data.each do |data|
     p.target_stock = data[:target_stock]
     p.status = data[:status]
     p.rohs_compliant = data[:rohs_compliant]
-    p.preferred_supplier = data[:preferred_supplier]
+  end
+
+  # Add preferred supplier
+  if preferred_supplier
+    PartSupplier.find_or_create_by!(part: part, supplier: preferred_supplier) do |ps|
+      ps.is_preferred = true
+      ps.unit_price = data[:unit_price]
+    end
   end
 
   # Add tags
@@ -550,6 +558,7 @@ puts "  - #{Footprint.count} footprints"
 puts "  - #{Tag.count} tags"
 puts "  - #{Supplier.count} suppliers"
 puts "  - #{Part.count} parts"
+puts "  - #{PartSupplier.count} part-supplier links"
 puts ""
 puts "Login credentials:"
 puts "  - admin@example.com / password123 (Owner)"
