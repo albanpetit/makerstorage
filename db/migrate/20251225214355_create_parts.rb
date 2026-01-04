@@ -33,7 +33,6 @@ class CreateParts < ActiveRecord::Migration[8.1]
 
       # Supplier information
       t.string :supplier_sku
-      t.integer :lead_time_days
 
       # Notes
       t.text :storage_notes

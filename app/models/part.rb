@@ -3,13 +3,16 @@ class Part < ApplicationRecord
   belongs_to :organization
   belongs_to :category
   belongs_to :footprint, optional: true
-  belongs_to :preferred_supplier, class_name: "Supplier", optional: true
 
   has_many :part_storages, dependent: :destroy
   # has_many :storage_locations, through: :part_storages
 
   has_many :part_tags, dependent: :destroy
   has_many :tags, through: :part_tags
+
+  has_many :part_suppliers, dependent: :destroy
+  has_many :suppliers, through: :part_suppliers
+  accepts_nested_attributes_for :part_suppliers, allow_destroy: true, reject_if: :all_blank
 
   has_many :purchase_lines, dependent: :restrict_with_error
 
@@ -35,7 +38,6 @@ class Part < ApplicationRecord
   validates :lead_time_days, numericality: { greater_than_or_equal_to: 0 }, allow_nil: true
   validate :category_must_belong_to_same_organization
   validate :footprint_must_belong_to_same_organization
-  validate :supplier_must_belong_to_same_organization
 
   # Scopes
   scope :active, -> { where(status: "active") }
@@ -142,9 +144,17 @@ class Part < ApplicationRecord
     refs = []
     refs << "SKU: #{sku}" if sku.present?
     refs << "MPN: #{mpn}" if mpn.present?
-    refs << "Supplier SKU: #{supplier_sku}" if supplier_sku.present?
     refs << "Barcode: #{barcode}" if barcode.present?
     refs.join(" | ")
+  end
+
+  # Methods - Suppliers
+  def preferred_supplier
+    part_suppliers.find_by(is_preferred: true)&.supplier
+  end
+
+  def preferred_part_supplier
+    part_suppliers.find_by(is_preferred: true)
   end
 
   # Methods - Technical specs
@@ -185,12 +195,6 @@ class Part < ApplicationRecord
   def footprint_must_belong_to_same_organization
     if footprint.present? && footprint.organization_id != organization_id
       errors.add(:footprint, "must belong to the same organization")
-    end
-  end
-
-  def supplier_must_belong_to_same_organization
-    if preferred_supplier.present? && preferred_supplier.organization_id != organization_id
-      errors.add(:preferred_supplier, "must belong to the same organization")
     end
   end
 end

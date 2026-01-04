@@ -2,7 +2,8 @@ class Supplier < ApplicationRecord
   # Associations
   belongs_to :organization
   has_many :purchases, dependent: :restrict_with_error
-  has_many :parts, foreign_key: :preferred_supplier_id, dependent: :nullify
+  has_many :part_suppliers, dependent: :destroy
+  has_many :parts, through: :part_suppliers
 
   # Active Storage
   has_one_attached :logo

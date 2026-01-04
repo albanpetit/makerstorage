@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2025_12_25_215111) do
+ActiveRecord::Schema[8.1].define(version: 2026_01_03_232126) do
   create_table "categories", force: :cascade do |t|
     t.string "color"
     t.datetime "created_at", null: false
@@ -72,6 +72,23 @@ ActiveRecord::Schema[8.1].define(version: 2025_12_25_215111) do
     t.index ["name"], name: "index_organizations_on_name"
   end
 
+  create_table "part_suppliers", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.boolean "is_preferred", default: false, null: false
+    t.integer "lead_time_days"
+    t.text "notes"
+    t.integer "part_id", null: false
+    t.integer "supplier_id", null: false
+    t.string "supplier_sku"
+    t.decimal "unit_price", precision: 10, scale: 2
+    t.datetime "updated_at", null: false
+    t.string "url"
+    t.index ["part_id", "supplier_id"], name: "index_part_suppliers_on_part_id_and_supplier_id", unique: true
+    t.index ["part_id"], name: "index_part_suppliers_on_part_id"
+    t.index ["supplier_id"], name: "index_part_suppliers_on_supplier_id"
+    t.index ["supplier_sku"], name: "index_part_suppliers_on_supplier_sku"
+  end
+
   create_table "part_tags", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.integer "part_id", null: false
@@ -96,12 +113,10 @@ ActiveRecord::Schema[8.1].define(version: 2025_12_25_215111) do
     t.integer "organization_id", null: false
     t.string "package_type"
     t.string "power_rating"
-    t.integer "preferred_supplier_id"
     t.boolean "rohs_compliant", default: false
     t.string "sku"
     t.string "status", default: "active", null: false
     t.text "storage_notes"
-    t.string "supplier_sku"
     t.integer "target_stock"
     t.string "tolerance"
     t.decimal "unit_price", precision: 10, scale: 2
@@ -116,7 +131,6 @@ ActiveRecord::Schema[8.1].define(version: 2025_12_25_215111) do
     t.index ["organization_id", "mpn"], name: "index_parts_on_organization_id_and_mpn", unique: true, where: "mpn IS NOT NULL"
     t.index ["organization_id", "sku"], name: "index_parts_on_organization_id_and_sku", unique: true, where: "sku IS NOT NULL"
     t.index ["organization_id"], name: "index_parts_on_organization_id"
-    t.index ["preferred_supplier_id"], name: "index_parts_on_preferred_supplier_id"
     t.index ["status"], name: "index_parts_on_status"
     t.index ["value"], name: "index_parts_on_value"
   end
@@ -179,12 +193,13 @@ ActiveRecord::Schema[8.1].define(version: 2025_12_25_215111) do
   add_foreign_key "organization_memberships", "organizations"
   add_foreign_key "organization_memberships", "users"
   add_foreign_key "organization_memberships", "users", column: "invited_by_id"
+  add_foreign_key "part_suppliers", "parts"
+  add_foreign_key "part_suppliers", "suppliers"
   add_foreign_key "part_tags", "parts"
   add_foreign_key "part_tags", "tags"
   add_foreign_key "parts", "categories"
   add_foreign_key "parts", "footprints"
   add_foreign_key "parts", "organizations"
-  add_foreign_key "parts", "suppliers", column: "preferred_supplier_id"
   add_foreign_key "suppliers", "organizations"
   add_foreign_key "tags", "organizations"
 end

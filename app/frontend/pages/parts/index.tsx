@@ -1,5 +1,5 @@
 import { Head, Link } from '@inertiajs/react'
-import { Plus, Search, Package } from 'lucide-react'
+import { Plus, Search, Package, Pencil } from 'lucide-react'
 
 import { AppLayout } from '@/layouts/app-layout'
 import { FlashMessages } from '@/components/flash-messages'
@@ -118,6 +118,7 @@ export default function PartsIndex({ parts }: PartsIndexProps) {
                   <TableHead className="text-right">Unit Price</TableHead>
                   <TableHead>Stock Status</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead className="w-[80px]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -167,6 +168,13 @@ export default function PartsIndex({ parts }: PartsIndexProps) {
                       <Badge variant={getStatusBadgeVariant(part.status)}>
                         {part.status}
                       </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Button variant="ghost" size="icon" asChild>
+                        <Link href={`/parts/${part.id}/edit`}>
+                          <Pencil className="size-4" />
+                        </Link>
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}
