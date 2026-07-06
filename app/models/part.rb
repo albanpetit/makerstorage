@@ -5,7 +5,7 @@ class Part < ApplicationRecord
   belongs_to :footprint, optional: true
 
   has_many :part_storages, dependent: :destroy
-  # has_many :storage_locations, through: :part_storages
+  has_many :storage_locations, through: :part_storages
 
   has_many :part_tags, dependent: :destroy
   has_many :tags, through: :part_tags
@@ -81,17 +81,17 @@ class Part < ApplicationRecord
   scope :recent, -> { order(created_at: :desc) }
 
   # Methods - Stock
-  # def total_quantity
-  #   part_storages.sum(:quantity)
-  # end
+  def total_quantity
+    part_storages.sum(:quantity)
+  end
 
-  # def low_stock?
-  #   total_quantity < min_stock_threshold
-  # end
+  def low_stock?
+    total_quantity < min_stock_threshold
+  end
 
-  # def out_of_stock?
-  #   total_quantity.zero?
-  # end
+  def out_of_stock?
+    total_quantity.zero?
+  end
 
   def stock_status
     return :out_of_stock if out_of_stock?
