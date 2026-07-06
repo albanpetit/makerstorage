@@ -121,11 +121,6 @@ export default function NewPart({ categories, footprints, suppliers }: NewPartPr
     },
   }))
 
-  const breadcrumbs = [
-    { label: 'Parts', href: '/parts' },
-    { label: 'New Part' },
-  ]
-
   const submit: FormEventHandler = (e) => {
     e.preventDefault()
     post('/parts')
@@ -188,7 +183,7 @@ export default function NewPart({ categories, footprints, suppliers }: NewPartPr
   )
 
   return (
-    <AppLayout breadcrumbs={breadcrumbs}>
+    <AppLayout>
       <Head title="New Part" />
 
       <div className="space-y-6">

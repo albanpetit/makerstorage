@@ -67,8 +67,6 @@ function formatDate(iso: string) {
 }
 
 export default function Dashboard({ stats, category_breakdown, recent_movements }: DashboardProps) {
-  const breadcrumbs = [{ label: 'Dashboard' }]
-
   const statCards = [
     { label: 'References', value: stats.references_count.toLocaleString(), icon: Package },
     { label: 'Units in stock', value: stats.total_units.toLocaleString(), icon: Boxes },
@@ -77,7 +75,7 @@ export default function Dashboard({ stats, category_breakdown, recent_movements 
   ]
 
   return (
-    <AppLayout breadcrumbs={breadcrumbs}>
+    <AppLayout>
       <Head title="Dashboard" />
 
       <div className="space-y-6">

@@ -97,4 +97,19 @@ class PartTest < ActiveSupport::TestCase
     part = create_part(organization: @org, category: @category, target_stock: nil)
     assert_equal 0, part.quantity_to_order
   end
+
+  test "search matches across name, mpn, sku, manufacturer, value, and barcode, case-insensitively" do
+    resistor = create_part(organization: @org, category: @category, name: "Resistor 10k", mpn: "RES-10K-0603")
+    capacitor = create_part(organization: @org, category: @category, name: "Capacitor 100nF", mpn: "CAP-100N")
+
+    assert_includes Part.search("resistor"), resistor
+    assert_not_includes Part.search("resistor"), capacitor
+    assert_includes Part.search("RES-10K"), resistor
+    assert_includes Part.search("100nf"), capacitor
+  end
+
+  test "search returns nothing for a query matching no fields" do
+    create_part(organization: @org, category: @category, name: "Resistor 10k")
+    assert_empty Part.search("nonexistent-query-xyz")
+  end
 end
