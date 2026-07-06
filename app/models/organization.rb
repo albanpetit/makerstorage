@@ -16,10 +16,19 @@ class Organization < ApplicationRecord
   # Active Storage
   has_one_attached :logo
 
+  # Constants
+  IPN_SEPARATORS = %w[- . _ /].freeze
+
   # Validations
   validates :name, presence: true, length: { minimum: 2, maximum: 100 }
   validates :email, format: { with: URI::MailTo::EMAIL_REGEXP }, allow_blank: true
   validates :website, format: { with: URI::DEFAULT_PARSER.make_regexp(%w[http https]) }, allow_blank: true
+  validates :ipn_prefix, presence: true, length: { maximum: 6 }
+  validates :ipn_separator, inclusion: { in: IPN_SEPARATORS }, allow_blank: true
+  validates :ipn_digits, numericality: { only_integer: true, greater_than_or_equal_to: 3, less_than_or_equal_to: 8 }
+  validates :ipn_next_sequence, numericality: { only_integer: true, greater_than: 0 }
+  validates :currency, presence: true
+  validates :default_low_stock_threshold, numericality: { only_integer: true, greater_than_or_equal_to: 0 }
 
   # Callbacks
   validate :must_have_at_least_one_owner, on: :update
@@ -54,6 +63,14 @@ class Organization < ApplicationRecord
 
   def admin?(user)
     organization_memberships.exists?(user: user, role: %w[owner admin])
+  end
+
+  # Methods - IPN numbering
+  def next_ipn(category_code: nil)
+    segments = [ ipn_prefix ]
+    segments << category_code if ipn_use_category_code && category_code.present?
+    segments << ipn_next_sequence.to_s.rjust(ipn_digits, "0")
+    segments.join(ipn_separator)
   end
 
   # Methods - Address
