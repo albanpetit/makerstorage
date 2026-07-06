@@ -13,7 +13,8 @@ class ApplicationController < ActionController::Base
           lastname: current_user.lastname
         },
         current_organization: current_organization ? serialize_organization(current_organization) : nil,
-        organizations: current_user.organizations.order(:name).map { |org| serialize_organization(org) }
+        organizations: current_user.organizations.order(:name).map { |org| serialize_organization(org) },
+        alerts_count: current_organization&.low_stock_parts_count || 0
       }
     end
   }
@@ -40,7 +41,8 @@ class ApplicationController < ActionController::Base
   def serialize_organization(org)
     {
       id: org.id,
-      name: org.name
+      name: org.name,
+      member_count: org.organization_memberships.active.count
     }
   end
 
