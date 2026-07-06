@@ -8,7 +8,7 @@ class PartsController < ApplicationController
 
   def index
     parts = current_organization.parts
-      .includes(:category, :footprint)
+      .includes(:category, :footprint, :part_storages)
       .alphabetical
 
     render inertia: "parts/index", props: {
@@ -91,6 +91,7 @@ class PartsController < ApplicationController
       manufacturer: part.manufacturer,
       value: part.value,
       status: part.status,
+      total_quantity: part.total_quantity,
       min_stock_threshold: part.min_stock_threshold,
       unit_price: part.unit_price,
       category: part.category ? { id: part.category.id, name: part.category.name } : nil,

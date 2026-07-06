@@ -121,6 +121,18 @@ class Organization < ApplicationRecord
     parts.sum("COALESCE(unit_price, 0) * COALESCE((SELECT SUM(quantity) FROM part_storages WHERE part_storages.part_id = parts.id), 0)")
   end
 
+  def total_stock_units
+    parts.joins(:part_storages).sum("part_storages.quantity")
+  end
+
+  def category_breakdown
+    counts = parts.joins(:category).group("categories.name").count
+    max = counts.values.max || 1
+    counts.sort_by { |_, count| -count }.map do |name, count|
+      { name: name, count: count, pct: (count.to_f / max * 100).round }
+    end
+  end
+
   private
 
   def must_have_at_least_one_owner

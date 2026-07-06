@@ -154,10 +154,10 @@ export default function PartsIndex({ parts }: PartsIndexProps) {
                       {part.total_quantity}
                     </TableCell>
                     <TableCell className="text-right font-mono">
-                      {/* {part.unit_price != null
-                        ? `$${part.unit_price.toFixed(2)}`
+                      {part.unit_price != null
+                        ? part.unit_price.toFixed(2)
                         : <span className="text-muted-foreground">-</span>
-                      } */}
+                      }
                     </TableCell>
                     <TableCell>
                       <Badge variant={getStockBadgeVariant(part.total_quantity, part.min_stock_threshold)}>

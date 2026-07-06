@@ -2,6 +2,11 @@ ENV["RAILS_ENV"] ||= "test"
 require_relative "../config/environment"
 require "rails/test_help"
 
+# Routes (and therefore Devise's mappings) are loaded lazily on first request.
+# Force them to load now so Devise::Test::IntegrationHelpers#sign_in works
+# even when called before any request in a test.
+Rails.application.reload_routes!
+
 module ActiveSupport
   class TestCase
     # Run tests in parallel with specified workers
@@ -36,5 +41,13 @@ module ActiveSupport
     def create_supplier(organization:, name: "Supplier #{SecureRandom.hex(4)}", **attrs)
       Supplier.create!(organization: organization, name: name, **attrs)
     end
+
+    def create_user(email: "user_#{SecureRandom.hex(4)}@example.com", **attrs)
+      User.create!(firstname: "Test", lastname: "User", email: email, password: "password123", **attrs)
+    end
   end
+end
+
+class ActionDispatch::IntegrationTest
+  include Devise::Test::IntegrationHelpers
 end
