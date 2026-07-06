@@ -97,4 +97,41 @@ class OrganizationTest < ActiveSupport::TestCase
     assert_equal 1, org.out_of_stock_parts_count
     assert_kind_of Integer, org.out_of_stock_parts_count
   end
+
+  test "total_stock_units sums quantity across all parts and locations" do
+    org = create_organization
+    cat = create_category(organization: org)
+    location = create_storage_location(organization: org)
+    part_a = create_part(organization: org, category: cat)
+    part_b = create_part(organization: org, category: cat)
+    PartStorage.create!(part: part_a, storage_location: location, quantity: 30)
+    PartStorage.create!(part: part_b, storage_location: location, quantity: 12)
+
+    assert_equal 42, org.total_stock_units
+  end
+
+  test "total_stock_units is zero with no stock" do
+    org = create_organization
+    assert_equal 0, org.total_stock_units
+  end
+
+  test "category_breakdown returns counts sorted descending with pct relative to the max" do
+    org = create_organization
+    resistors = create_category(organization: org, name: "Resistors")
+    capacitors = create_category(organization: org, name: "Capacitors")
+
+    2.times { create_part(organization: org, category: capacitors) }
+    4.times { create_part(organization: org, category: resistors) }
+
+    breakdown = org.category_breakdown
+    assert_equal [
+      { name: "Resistors", count: 4, pct: 100 },
+      { name: "Capacitors", count: 2, pct: 50 }
+    ], breakdown
+  end
+
+  test "category_breakdown is empty with no parts" do
+    org = create_organization
+    assert_equal [], org.category_breakdown
+  end
 end
