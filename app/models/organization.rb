@@ -6,6 +6,7 @@ class Organization < ApplicationRecord
   # Associations - Data
   has_many :parts, dependent: :destroy
   has_many :storage_locations, dependent: :destroy
+  has_many :stock_movements, dependent: :destroy
   has_many :purchases, dependent: :destroy
   has_many :categories, dependent: :destroy
   has_many :footprints, dependent: :destroy
