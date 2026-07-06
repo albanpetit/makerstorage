@@ -57,6 +57,10 @@ group :test do
   # Use system testing [https://guides.rubyonrails.org/testing.html#system-testing]
   gem "capybara"
   gem "selenium-webdriver"
+
+  # minitest 6.x changed Runnable#run's signature in a way that's incompatible
+  # with Rails 8.1.1's test_unit/line_filtering railtie (breaks `bin/rails test`).
+  gem "minitest", "~> 5.25"
 end
 
 gem "inertia_rails", "~> 3.15"
