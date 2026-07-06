@@ -25,6 +25,10 @@ Rails.application.routes.draw do
 
   # Inventory resources
   resources :parts do
+    collection do
+      post :import
+    end
+
     resources :part_suppliers, only: %i[create update destroy] do
       member do
         post :set_preferred

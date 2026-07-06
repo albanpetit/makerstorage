@@ -78,7 +78,7 @@ class Part < ApplicationRecord
 
   # Extended search
   scope :search, ->(query) {
-    where("parts.name ILIKE ? OR parts.mpn ILIKE ? OR parts.description ILIKE ? OR parts.sku ILIKE ? OR parts.manufacturer ILIKE ? OR parts.value ILIKE ? OR parts.barcode ILIKE ?",
+    where("parts.name LIKE ? OR parts.mpn LIKE ? OR parts.description LIKE ? OR parts.sku LIKE ? OR parts.manufacturer LIKE ? OR parts.value LIKE ? OR parts.barcode LIKE ?",
           "%#{query}%", "%#{query}%", "%#{query}%", "%#{query}%", "%#{query}%", "%#{query}%", "%#{query}%")
   }
 

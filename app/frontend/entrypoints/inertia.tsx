@@ -2,6 +2,8 @@ import { createInertiaApp, router, type ResolvedComponent } from '@inertiajs/rea
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 
+import { Toaster } from '@/components/ui/sonner'
+
 // Disable the error modal - errors handled via flash messages
 router.on('invalid', (event) => {
   event.preventDefault()
@@ -40,6 +42,7 @@ void createInertiaApp({
     createRoot(el).render(
       <StrictMode>
         <App {...props} />
+        <Toaster />
       </StrictMode>
     )
   },
