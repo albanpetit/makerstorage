@@ -5,6 +5,7 @@ class CreateCategories < ActiveRecord::Migration[8.1]
       t.references :parent, foreign_key: { to_table: :categories }, null: true
 
       t.string :name, null: false
+      t.string :code
       t.text :description
       t.string :icon
       t.string :color
@@ -13,5 +14,6 @@ class CreateCategories < ActiveRecord::Migration[8.1]
     end
 
     add_index :categories, [ :organization_id, :name ]
+    add_index :categories, [ :organization_id, :code ]
   end
 end

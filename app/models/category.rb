@@ -8,6 +8,7 @@ class Category < ApplicationRecord
   # Validations
   validates :name, presence: true, length: { minimum: 2, maximum: 100 }
   validates :name, uniqueness: { scope: :organization_id }
+  validates :code, uniqueness: { scope: :organization_id, case_sensitive: false }, length: { maximum: 10 }, allow_blank: true
   validates :color, format: { with: /\A#[0-9A-F]{6}\z/i }, allow_blank: true
   validate :cannot_be_its_own_parent
   validate :parent_must_belong_to_same_organization

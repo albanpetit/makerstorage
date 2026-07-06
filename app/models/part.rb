@@ -25,6 +25,7 @@ class Part < ApplicationRecord
 
   # Constants
   STATUSES = %w[active discontinued obsolete].freeze
+  UNITS = %w[piece meter roll lot].freeze
 
   # Callbacks - convert empty strings to nil for unique indexed fields
   before_validation :normalize_blank_values
@@ -35,6 +36,7 @@ class Part < ApplicationRecord
   validates :sku, uniqueness: { scope: :organization_id, case_sensitive: false }, allow_blank: true
   validates :barcode, uniqueness: true, allow_blank: true
   validates :status, presence: true, inclusion: { in: STATUSES }
+  validates :unit, presence: true, inclusion: { in: UNITS }
   validates :unit_price, numericality: { greater_than_or_equal_to: 0 }, allow_nil: true
   validates :min_stock_threshold, numericality: { greater_than_or_equal_to: 0 }
   validates :target_stock, numericality: { greater_than: 0 }, allow_nil: true
