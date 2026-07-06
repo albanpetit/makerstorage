@@ -3,7 +3,7 @@ class OrganizationMembership < ApplicationRecord
   belongs_to :organization
   belongs_to :invited_by, class_name: "User", optional: true
 
-  validates :role, presence: true, inclusion: { in: %w[owner admin member] }
+  validates :role, presence: true, inclusion: { in: %w[owner admin member viewer] }
   validates :user_id, uniqueness: { scope: :organization_id }
   validates :invitation_token, uniqueness: true, allow_nil: true
 
@@ -12,6 +12,7 @@ class OrganizationMembership < ApplicationRecord
 
   scope :owners, -> { where(role: "owner") }
   scope :admins, -> { where(role: %w[owner admin]) }
+  scope :viewers, -> { where(role: "viewer") }
   scope :members, -> { where(role: "member") }
   scope :active, -> { where(active: true) }
   scope :inactive, -> { where(active: false) }
@@ -30,6 +31,10 @@ class OrganizationMembership < ApplicationRecord
 
   def member?
     role == "member"
+  end
+
+  def viewer?
+    role == "viewer"
   end
 
   def active?

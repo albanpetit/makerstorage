@@ -53,6 +53,11 @@ class Organization < ApplicationRecord
          .where(organization_memberships: { role: "member" })
   end
 
+  def viewers
+    users.joins(:organization_memberships)
+         .where(organization_memberships: { role: "viewer" })
+  end
+
   def member?(user)
     users.include?(user)
   end
