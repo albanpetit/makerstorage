@@ -17,6 +17,7 @@ class Part < ApplicationRecord
   accepts_nested_attributes_for :part_suppliers, allow_destroy: true, reject_if: :all_blank
 
   has_many :purchase_lines, dependent: :restrict_with_error
+  has_many :purchases, through: :purchase_lines
 
   # Active Storage for images and datasheets
   has_many_attached :images
