@@ -41,21 +41,25 @@ class Organization < ApplicationRecord
   def owners
     users.joins(:organization_memberships)
          .where(organization_memberships: { role: "owner" })
+         .distinct
   end
 
   def admins
     users.joins(:organization_memberships)
          .where(organization_memberships: { role: %w[owner admin] })
+         .distinct
   end
 
   def members
     users.joins(:organization_memberships)
          .where(organization_memberships: { role: "member" })
+         .distinct
   end
 
   def viewers
     users.joins(:organization_memberships)
          .where(organization_memberships: { role: "viewer" })
+         .distinct
   end
 
   def member?(user)
@@ -106,11 +110,11 @@ class Organization < ApplicationRecord
   end
 
   def low_stock_parts_count
-    parts.low_stock.count
+    parts.low_stock.length
   end
 
   def out_of_stock_parts_count
-    parts.out_of_stock.count
+    parts.out_of_stock.length
   end
 
   def total_stock_value

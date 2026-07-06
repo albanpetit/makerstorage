@@ -7,7 +7,7 @@ class OrganizationMembership < ApplicationRecord
   validates :user_id, uniqueness: { scope: :organization_id }
   validates :invitation_token, uniqueness: true, allow_nil: true
 
-  validate :organization_must_have_owner, on: :destroy
+  before_destroy :organization_must_have_owner
   validate :organization_must_have_owner_on_role_change, on: :update
 
   scope :owners, -> { where(role: "owner") }
