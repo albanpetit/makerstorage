@@ -560,9 +560,11 @@ parts_data.each do |data|
 
   # Add preferred supplier
   if preferred_supplier
+    lead_times = { "DigiKey" => 6, "Mouser Electronics" => 5, "LCSC" => 15, "Farnell" => 8, "RS Components" => 7 }
     PartSupplier.find_or_create_by!(part: part, supplier: preferred_supplier) do |ps|
       ps.is_preferred = true
       ps.unit_price = data[:unit_price]
+      ps.lead_time_days = lead_times[preferred_supplier.name]
     end
   end
 
@@ -641,6 +643,47 @@ else
 end
 
 # =============================================================================
+# Purchases
+# =============================================================================
+puts "Creating purchases..."
+
+if org.purchases.none?
+  purchases_data = [
+    { supplier: "DigiKey", reference: "DK-55102", status: "received", ordered_at: 18.days.ago.to_date, total_amount: 184.20,
+      lines: [ { mpn: "ATMEGA328P-AU", quantity: 50, unit_price: 2.50 } ] },
+    { supplier: "DigiKey", reference: "DK-55240", status: "shipped", ordered_at: 4.days.ago.to_date, total_amount: 92.50,
+      lines: [ { mpn: "RC0805FR-0710KL", quantity: 500, unit_price: 0.01 }, { mpn: "RC0805FR-071KL", quantity: 500, unit_price: 0.01 } ] },
+    { supplier: "LCSC", reference: "LC-90112", status: "received", ordered_at: 15.days.ago.to_date, total_amount: 56.40,
+      lines: [ { mpn: "CL21B104KBCNNNC", quantity: 500, unit_price: 0.02 } ] },
+    { supplier: "LCSC", reference: "LC-90344", status: "pending", ordered_at: 1.day.ago.to_date, total_amount: 132.00,
+      lines: [ { mpn: "STM32F103C8T6", quantity: 30, unit_price: 3.50 } ] },
+    { supplier: "Mouser Electronics", reference: "MO-43712", status: "received", ordered_at: 25.days.ago.to_date, total_amount: 210.00,
+      lines: [ { mpn: "RC0603FR-074K7L", quantity: 500, unit_price: 0.008 } ] }
+  ]
+
+  purchases_data.each do |data|
+    supplier = suppliers[data[:supplier]]
+    next unless supplier
+
+    purchase = Purchase.create!(
+      organization: org, supplier: supplier, reference: data[:reference],
+      status: data[:status], ordered_at: data[:ordered_at], total_amount: data[:total_amount]
+    )
+
+    data[:lines].each do |line|
+      part = parts_by_mpn[line[:mpn]]
+      next unless part
+
+      PurchaseLine.create!(purchase: purchase, part: part, quantity: line[:quantity], unit_price: line[:unit_price])
+    end
+  end
+
+  puts "  Created #{org.purchases.count} purchases"
+else
+  puts "  Skipping (purchases already exist)"
+end
+
+# =============================================================================
 # Summary
 # =============================================================================
 puts ""
@@ -660,6 +703,8 @@ puts "  - #{PartSupplier.count} part-supplier links"
 puts "  - #{StorageLocation.count} storage locations"
 puts "  - #{StockMovement.count} stock movements"
 puts "  - #{PartStorage.count} part-storage entries"
+puts "  - #{Purchase.count} purchases"
+puts "  - #{PurchaseLine.count} purchase lines"
 puts ""
 puts "Login credentials:"
 puts "  - admin@example.com / password123 (Owner)"
