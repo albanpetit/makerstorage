@@ -27,6 +27,15 @@ interface CategoryBreakdownEntry {
   pct: number
 }
 
+interface LowStockPart {
+  id: number
+  reference: string
+  name: string
+  location_name: string | null
+  quantity: number
+  min_stock_threshold: number
+}
+
 interface RecentMovement {
   id: number
   part_name: string
@@ -41,6 +50,7 @@ interface RecentMovement {
 interface DashboardProps {
   stats: Stats
   category_breakdown: CategoryBreakdownEntry[]
+  low_stock_parts: LowStockPart[]
   recent_movements: RecentMovement[]
 }
 
@@ -66,7 +76,7 @@ function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString(undefined, { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
-export default function Dashboard({ stats, category_breakdown, recent_movements }: DashboardProps) {
+export default function Dashboard({ stats, category_breakdown, low_stock_parts, recent_movements }: DashboardProps) {
   const statCards = [
     { label: 'References', value: stats.references_count.toLocaleString(), icon: Package },
     { label: 'Units in stock', value: stats.total_units.toLocaleString(), icon: Boxes },
@@ -99,7 +109,57 @@ export default function Dashboard({ stats, category_breakdown, recent_movements 
           ))}
         </div>
 
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="grid gap-4 lg:grid-cols-[1.6fr_1fr]">
+          {/* Low stock alerts */}
+          <Card className="gap-0 py-0">
+            <CardHeader className="flex flex-row items-center justify-between border-b py-4">
+              <div>
+                <CardTitle>Low stock alerts</CardTitle>
+                <p className="text-xs text-muted-foreground">References under their minimum threshold</p>
+              </div>
+              <Link href="/alerts" className="text-sm font-medium text-muted-foreground hover:text-foreground">
+                See all →
+              </Link>
+            </CardHeader>
+            <CardContent className="p-0">
+              {low_stock_parts.length > 0 ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Reference</TableHead>
+                      <TableHead>Location</TableHead>
+                      <TableHead className="text-right">Stock</TableHead>
+                      <TableHead className="text-right">Threshold</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {low_stock_parts.map((part) => (
+                      <TableRow key={part.id}>
+                        <TableCell>
+                          <Link href={`/parts/${part.id}`} className="font-mono text-sm font-semibold hover:underline">
+                            {part.reference}
+                          </Link>
+                          <div className="text-xs text-muted-foreground">{part.name}</div>
+                        </TableCell>
+                        <TableCell className="font-mono text-sm text-muted-foreground">
+                          {part.location_name || '-'}
+                        </TableCell>
+                        <TableCell className="text-right font-mono font-semibold text-destructive">
+                          {part.quantity}
+                        </TableCell>
+                        <TableCell className="text-right font-mono text-muted-foreground">
+                          {part.min_stock_threshold}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                <p className="p-6 text-sm text-muted-foreground">Nothing below threshold.</p>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Category breakdown */}
           <Card>
             <CardHeader>
@@ -128,54 +188,57 @@ export default function Dashboard({ stats, category_breakdown, recent_movements 
               )}
             </CardContent>
           </Card>
-
-          {/* Recent movements */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Recent movements</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {recent_movements.length > 0 ? (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Part</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead className="text-right">Qty</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {recent_movements.map((movement) => (
-                      <TableRow key={movement.id}>
-                        <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
-                          {formatDate(movement.created_at)}
-                        </TableCell>
-                        <TableCell>
-                          <div className="font-medium">{movement.part_name}</div>
-                          <div className="text-xs text-muted-foreground">
-                            {movement.location_name}
-                            {movement.reason ? ` · ${movement.reason}` : ''}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={MOVEMENT_META[movement.movement_type].className} variant="outline">
-                            {MOVEMENT_META[movement.movement_type].label}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right font-mono">
-                          {movement.quantity_delta > 0 ? `+${movement.quantity_delta}` : movement.quantity_delta}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              ) : (
-                <p className="text-sm text-muted-foreground">No stock movements yet.</p>
-              )}
-            </CardContent>
-          </Card>
         </div>
+
+        {/* Recent movements */}
+        <Card className="gap-0 py-0">
+          <CardHeader className="flex flex-row items-center justify-between border-b py-4">
+            <CardTitle>Recent movements</CardTitle>
+            <Link href="/stock_movements" className="text-sm font-medium text-muted-foreground hover:text-foreground">
+              See all →
+            </Link>
+          </CardHeader>
+          <CardContent className="p-0">
+            {recent_movements.length > 0 ? (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Part</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead className="text-right">Qty</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {recent_movements.map((movement) => (
+                    <TableRow key={movement.id}>
+                      <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
+                        {formatDate(movement.created_at)}
+                      </TableCell>
+                      <TableCell>
+                        <div className="font-medium">{movement.part_name}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {movement.location_name}
+                          {movement.reason ? ` · ${movement.reason}` : ''}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge className={MOVEMENT_META[movement.movement_type].className} variant="outline">
+                          {MOVEMENT_META[movement.movement_type].label}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right font-mono">
+                        {movement.quantity_delta > 0 ? `+${movement.quantity_delta}` : movement.quantity_delta}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            ) : (
+              <p className="p-6 text-sm text-muted-foreground">No stock movements yet.</p>
+            )}
+          </CardContent>
+        </Card>
 
         {stats.references_count === 0 && (
           <Card>

@@ -15,11 +15,28 @@ class DashboardController < ApplicationController
         currency: current_organization.currency
       },
       category_breakdown: current_organization.category_breakdown,
+      low_stock_parts: serialize_low_stock_parts,
       recent_movements: serialize_recent_movements
     }
   end
 
   private
+
+  def serialize_low_stock_parts
+    current_organization.parts.low_stock.includes(:storage_locations)
+      .sort_by { |part| part.total_quantity.to_f / part.min_stock_threshold }
+      .first(6)
+      .map do |part|
+        {
+          id: part.id,
+          reference: part.mpn.presence || part.sku.presence || part.name,
+          name: part.name,
+          location_name: part.storage_locations.first&.name,
+          quantity: part.total_quantity,
+          min_stock_threshold: part.min_stock_threshold
+        }
+      end
+  end
 
   def serialize_recent_movements
     current_organization.stock_movements

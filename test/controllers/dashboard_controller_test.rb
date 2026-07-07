@@ -36,6 +36,32 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     assert_equal 1, props["stats"]["alerts_count"]
   end
 
+  test "low_stock_parts lists parts under threshold, most critical first" do
+    user = create_user
+    org = user.organizations.first
+    category = create_category(organization: org)
+    location = create_storage_location(organization: org, name: "Shelf A")
+
+    barely_low = create_part(organization: org, category: category, mpn: "RES-BARELY", min_stock_threshold: 100)
+    PartStorage.create!(part: barely_low, storage_location: location, quantity: 90)
+
+    critically_low = create_part(organization: org, category: category, mpn: "RES-CRITICAL", min_stock_threshold: 100)
+    PartStorage.create!(part: critically_low, storage_location: location, quantity: 1)
+
+    ok = create_part(organization: org, category: category, mpn: "RES-OK", min_stock_threshold: 10)
+    PartStorage.create!(part: ok, storage_location: location, quantity: 100)
+
+    sign_in user
+    get root_path
+    assert_response :success
+
+    low_stock = inertia_props["low_stock_parts"]
+    assert_equal [ "RES-CRITICAL", "RES-BARELY" ], low_stock.map { |p| p["reference"] }
+    assert_equal "Shelf A", low_stock.first["location_name"]
+    assert_equal 1, low_stock.first["quantity"]
+    assert_equal 100, low_stock.first["min_stock_threshold"]
+  end
+
   private
 
   def inertia_props
