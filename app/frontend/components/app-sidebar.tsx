@@ -1,4 +1,6 @@
 import { Link, usePage, router } from '@inertiajs/react'
+import { useEffect, useState } from 'react'
+import { useTheme } from 'next-themes'
 import {
   LayoutDashboard,
   List,
@@ -15,6 +17,8 @@ import {
   ChevronsUpDown,
   Check,
   Plus,
+  Sun,
+  Moon,
 } from 'lucide-react'
 
 import {
@@ -39,6 +43,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Button } from '@/components/ui/button'
 
 const navigationItems = [
   { title: 'Dashboard', url: '/', icon: LayoutDashboard },
@@ -55,6 +60,24 @@ const navigationItems = [
 const ORG_BADGE_COLORS = [
   'bg-blue-600', 'bg-purple-600', 'bg-emerald-600', 'bg-amber-600', 'bg-pink-600', 'bg-cyan-600',
 ]
+
+function ThemeToggle() {
+  const { resolvedTheme, setTheme } = useTheme()
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => setMounted(true), [])
+
+  return (
+    <Button
+      variant="ghost"
+      size="icon-sm"
+      aria-label="Toggle theme"
+      onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
+    >
+      {mounted && resolvedTheme === 'light' ? <Moon /> : <Sun />}
+    </Button>
+  )
+}
 
 function initials(name: string) {
   const words = name.trim().split(/\s+/)
@@ -208,12 +231,12 @@ export function AppSidebar() {
 
       <SidebarFooter>
         <SidebarMenu>
-          <SidebarMenuItem>
+          <SidebarMenuItem className="flex items-center gap-2">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <SidebarMenuButton
                   size="lg"
-                  className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+                  className="flex-1 data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
                 >
                   <Avatar className="size-8">
                     <AvatarFallback>{userInitials}</AvatarFallback>
@@ -252,6 +275,7 @@ export function AppSidebar() {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+            <ThemeToggle />
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
