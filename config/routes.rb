@@ -40,6 +40,8 @@ Rails.application.routes.draw do
 
   resources :stock_movements, only: %i[index create]
 
+  resources :suppliers, only: %i[index create update destroy]
+
   root "dashboard#index"
   # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
 
