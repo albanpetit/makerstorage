@@ -36,6 +36,8 @@ Rails.application.routes.draw do
     end
   end
 
+  resources :storage_locations, only: %i[index create update destroy]
+
   root "dashboard#index"
   # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
 
