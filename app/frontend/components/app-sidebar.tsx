@@ -33,6 +33,7 @@ import {
   SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarSeparator,
 } from '@/components/ui/sidebar'
 import {
   DropdownMenu,
@@ -204,6 +205,8 @@ export function AppSidebar() {
         </SidebarMenu>
       </SidebarHeader>
 
+      <SidebarSeparator className="mx-0" />
+
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel>General</SidebarGroupLabel>
@@ -228,6 +231,8 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
+
+      <SidebarSeparator className="mx-0" />
 
       <SidebarFooter>
         <SidebarMenu>
