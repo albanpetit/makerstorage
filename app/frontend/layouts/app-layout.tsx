@@ -10,10 +10,10 @@ export function AppLayout({ children }: AppLayoutProps) {
   return (
     <SidebarProvider>
       <AppSidebar />
-      <SidebarInset>
-        <main className="flex-1 p-4">
+      <SidebarInset className="min-w-0">
+        <div className="min-w-0 flex-1 p-4">
           {children}
-        </main>
+        </div>
       </SidebarInset>
     </SidebarProvider>
   )

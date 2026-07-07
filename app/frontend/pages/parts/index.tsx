@@ -646,7 +646,7 @@ export default function PartsIndex({ parts, initial_query }: PartsIndexProps) {
             </p>
           </div>
         ) : (
-          <div className="-mx-4 overflow-hidden border-y">
+          <div className="-mx-4 overflow-x-auto border-y">
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted hover:bg-muted">
