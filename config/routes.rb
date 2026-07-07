@@ -42,6 +42,10 @@ Rails.application.routes.draw do
 
   resources :suppliers, only: %i[index create update destroy]
 
+  get "alerts", to: "alerts#index"
+  post "alerts/purchase_orders", to: "alerts#create_purchase_orders", as: :alert_purchase_orders
+  patch "alerts/orders/:id/advance", to: "alerts#advance_order", as: :advance_alert_order
+
   root "dashboard#index"
   # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
 
