@@ -344,7 +344,6 @@ export default function NewPart({ categories, footprints, suppliers }: NewPartPr
                     </Select>
                   </FieldContent>
                   {errors['part.category_id'] && <FieldError>{errors['part.category_id']}</FieldError>}
-                  {errors['part.category'] && <FieldError>{errors['part.category']}</FieldError>}
                 </Field>
 
                 {/* Footprint */}

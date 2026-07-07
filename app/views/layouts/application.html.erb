@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <script>
+    <script nonce="<%= request.content_security_policy_nonce %>">
       // Applied before first paint so the correct theme (persisted by
       // next-themes under the "theme" key) is set with no flash. Keep this
       // default in sync with the ThemeProvider's defaultTheme in inertia.tsx.
