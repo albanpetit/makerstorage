@@ -506,7 +506,7 @@ export default function PartsIndex({ parts, initial_query }: PartsIndexProps) {
         )}
 
         {/* Facet groups */}
-        <div className="flex flex-wrap items-start gap-x-6 gap-y-2">
+        <div className="flex flex-col gap-2">
           {statusOptions.length > 0 && (
             <div className="flex flex-wrap items-center gap-1.5">
               <span className="text-xs font-medium text-muted-foreground">Status</span>
