@@ -15,7 +15,9 @@ class PartsController < ApplicationController
 
     render inertia: "parts/index", props: {
       parts: parts.map { |part| serialize_part(part) },
-      initial_query: params[:search].to_s
+      initial_query: params[:search].to_s,
+      categories: serialize_categories,
+      storage_locations: serialize_storage_locations
     }
   end
 
@@ -46,9 +48,10 @@ class PartsController < ApplicationController
     part = current_organization.parts.build(part_params)
 
     if part.save
+      assign_initial_stock(part)
       redirect_to parts_path, notice: "Part created successfully."
     else
-      redirect_to new_part_path, alert: "Failed to create part.", inertia: { errors: part.errors }
+      redirect_back_or_to new_part_path, alert: "Failed to create part.", inertia: { errors: part.errors }
     end
   end
 
@@ -169,6 +172,24 @@ class PartsController < ApplicationController
     end
   end
 
+  def assign_initial_stock(part)
+    quantity = params[:initial_quantity].to_i
+    return if params[:initial_location_id].blank? || quantity <= 0
+
+    location = current_organization.storage_locations.find_by(id: params[:initial_location_id])
+    return unless location
+
+    StockMovement.create!(
+      organization: current_organization,
+      part: part,
+      storage_location: location,
+      user: current_user,
+      movement_type: "in",
+      quantity_delta: quantity,
+      reason: "Initial stock"
+    )
+  end
+
   def set_part
     @part = current_organization.parts.find(params[:id])
   end
@@ -254,6 +275,12 @@ class PartsController < ApplicationController
   def serialize_suppliers
     current_organization.suppliers.order(:name).map do |supplier|
       { id: supplier.id, name: supplier.name }
+    end
+  end
+
+  def serialize_storage_locations
+    current_organization.storage_locations.alphabetical.map do |location|
+      { id: location.id, name: location.full_path }
     end
   end
 end

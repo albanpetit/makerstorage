@@ -57,6 +57,78 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "resistor", inertia_props["initial_query"]
   end
 
+  test "index provides categories and storage_locations for the add-part modal" do
+    user = create_user
+    org = user.organizations.first
+    category = create_category(organization: org, name: "Resistors")
+    location = create_storage_location(organization: org, name: "Shelf A")
+
+    sign_in user
+    get parts_path
+    assert_response :success
+
+    props = inertia_props
+    assert_includes props["categories"].map { |c| c["id"] }, category.id
+    assert_includes props["storage_locations"].map { |l| l["id"] }, location.id
+  end
+
+  test "create builds a part from the quick-add modal" do
+    user = create_user
+    org = user.organizations.first
+    category = create_category(organization: org, name: "Resistors")
+
+    sign_in user
+    assert_difference -> { Part.count } => 1 do
+      post parts_path, params: { part: { name: "Resistor 10k", category_id: category.id } }
+    end
+
+    assert_redirected_to parts_path
+    part = Part.find_by(name: "Resistor 10k")
+    assert_equal category, part.category
+  end
+
+  test "create assigns initial stock via a stock movement when a location and quantity are given" do
+    user = create_user
+    org = user.organizations.first
+    category = create_category(organization: org, name: "Resistors")
+    location = create_storage_location(organization: org, name: "Shelf A")
+
+    sign_in user
+    assert_difference -> { StockMovement.count } => 1 do
+      post parts_path, params: {
+        part: { name: "Resistor 10k", category_id: category.id },
+        initial_location_id: location.id,
+        initial_quantity: "25"
+      }
+    end
+
+    part = Part.find_by(name: "Resistor 10k")
+    assert_equal 25, part.total_quantity
+    movement = StockMovement.last
+    assert_equal "in", movement.movement_type
+    assert_equal location, movement.storage_location
+  end
+
+  test "create does not assign stock when no location is given" do
+    user = create_user
+    org = user.organizations.first
+    category = create_category(organization: org, name: "Resistors")
+
+    sign_in user
+    assert_no_difference "StockMovement.count" do
+      post parts_path, params: { part: { name: "Resistor 10k", category_id: category.id }, initial_quantity: "25" }
+    end
+  end
+
+  test "create redirects back to the referring page on validation failure" do
+    user = create_user
+
+    sign_in user
+    post parts_path, params: { part: { name: "", category_id: "" } }, headers: { "HTTP_REFERER" => parts_url }
+
+    assert_redirected_to parts_path
+  end
+
   test "import creates new parts and auto-creates missing categories" do
     user = create_user
     sign_in user

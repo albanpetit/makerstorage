@@ -1,5 +1,5 @@
-import { Head, Link } from '@inertiajs/react'
-import { useMemo, useRef, useState } from 'react'
+import { Head, Link, useForm } from '@inertiajs/react'
+import { FormEvent, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import {
   Plus, Search, Package, Pencil, Download, Upload,
@@ -10,6 +10,7 @@ import { AppLayout } from '@/layouts/app-layout'
 import { FlashMessages } from '@/components/flash-messages'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
@@ -19,6 +20,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { Field, FieldContent, FieldError, FieldLabel } from '@/components/ui/field'
 import {
   Table,
   TableBody,
@@ -27,6 +29,13 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 
 const PAGE_SIZE = 20
 
@@ -55,9 +64,43 @@ interface Part {
   } | null
 }
 
+interface Category {
+  id: number
+  name: string
+}
+
+interface StorageLocationOption {
+  id: number
+  name: string
+}
+
 interface PartsIndexProps {
   parts: Part[]
   initial_query: string
+  categories: Category[]
+  storage_locations: StorageLocationOption[]
+}
+
+type SortKey = 'ref' | 'crit' | 'qtyDesc' | 'qtyAsc' | 'priceDesc'
+
+const SORT_OPTIONS: { value: SortKey; label: string }[] = [
+  { value: 'ref', label: 'Reference (A→Z)' },
+  { value: 'crit', label: 'Stock criticality' },
+  { value: 'qtyDesc', label: 'Stock (high→low)' },
+  { value: 'qtyAsc', label: 'Stock (low→high)' },
+  { value: 'priceDesc', label: 'Unit price (high→low)' },
+]
+
+function partRef(part: Part): string {
+  return part.mpn || part.sku || part.name
+}
+
+const SORT_FNS: Record<SortKey, (a: Part, b: Part) => number> = {
+  ref: (a, b) => partRef(a).localeCompare(partRef(b)),
+  crit: (a, b) => a.total_quantity / Math.max(a.min_stock_threshold, 1) - b.total_quantity / Math.max(b.min_stock_threshold, 1),
+  qtyDesc: (a, b) => b.total_quantity - a.total_quantity,
+  qtyAsc: (a, b) => a.total_quantity - b.total_quantity,
+  priceDesc: (a, b) => (b.unit_price ?? 0) - (a.unit_price ?? 0),
 }
 
 const STOCK_STATUS_META = {
@@ -224,7 +267,7 @@ function parseCsvPreview(text: string): { rows: ParsedImportRow[] } | { error: s
   return { rows }
 }
 
-export default function PartsIndex({ parts, initial_query }: PartsIndexProps) {
+export default function PartsIndex({ parts, initial_query, categories, storage_locations }: PartsIndexProps) {
   const [query, setQuery] = useState(initial_query || '')
   const [categoryId, setCategoryId] = useState<number | 'all'>('all')
   const [fStatus, setFStatus] = useState<string[]>([])
@@ -233,12 +276,42 @@ export default function PartsIndex({ parts, initial_query }: PartsIndexProps) {
   const [fSupplier, setFSupplier] = useState<string[]>([])
   const [selected, setSelected] = useState<number[]>([])
   const [page, setPage] = useState(0)
+  const [sortKey, setSortKey] = useState<SortKey>('ref')
 
   const [importOpen, setImportOpen] = useState(false)
   const [importRows, setImportRows] = useState<ParsedImportRow[] | null>(null)
   const [importError, setImportError] = useState('')
   const [importFileName, setImportFileName] = useState('')
   const importFormRef = useRef<HTMLFormElement>(null)
+
+  const [addOpen, setAddOpen] = useState(false)
+  const addForm = useForm({
+    part: {
+      name: '',
+      category_id: '',
+      value: '',
+      package_type: '',
+      min_stock_threshold: '0',
+      unit_price: '',
+    },
+    initial_location_id: '',
+    initial_quantity: '',
+  })
+
+  const openAddDialog = () => {
+    addForm.reset()
+    addForm.clearErrors()
+    setAddOpen(true)
+  }
+
+  const submitAdd = (e: FormEvent) => {
+    e.preventDefault()
+    addForm.post('/parts', {
+      preserveScroll: true,
+      preserveState: true,
+      onSuccess: () => setAddOpen(false),
+    })
+  }
 
   const categoryChips = useMemo(() => {
     const counts = new Map<number, { name: string; count: number }>()
@@ -329,6 +402,8 @@ export default function PartsIndex({ parts, initial_query }: PartsIndexProps) {
     return result
   }, [afterSearchAndCategory, fStatus, fPackage, fFootprint, fSupplier])
 
+  const sorted = useMemo(() => [ ...filtered ].sort(SORT_FNS[sortKey]), [filtered, sortKey])
+
   const toggleFacet = (list: string[], setList: (v: string[]) => void, value: string) => {
     setList(list.includes(value) ? list.filter((v) => v !== value) : [ ...list, value ])
   }
@@ -370,11 +445,11 @@ export default function PartsIndex({ parts, initial_query }: PartsIndexProps) {
 
   const totalUnits = useMemo(() => filtered.reduce((sum, part) => sum + part.total_quantity, 0), [filtered])
 
-  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+  const pageCount = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE))
   const clampedPage = Math.min(page, pageCount - 1)
-  const pageSlice = filtered.slice(clampedPage * PAGE_SIZE, clampedPage * PAGE_SIZE + PAGE_SIZE)
+  const pageSlice = sorted.slice(clampedPage * PAGE_SIZE, clampedPage * PAGE_SIZE + PAGE_SIZE)
 
-  const allIds = filtered.map((p) => p.id)
+  const allIds = sorted.map((p) => p.id)
   const allSelected = allIds.length > 0 && allIds.every((id) => selected.includes(id))
   const someSelected = allIds.some((id) => selected.includes(id))
 
@@ -436,74 +511,89 @@ export default function PartsIndex({ parts, initial_query }: PartsIndexProps) {
     <AppLayout>
       <Head title="Parts" />
 
-      <div className="space-y-4">
-        <FlashMessages />
-
-        {/* Header */}
-        <div className="flex flex-wrap items-end justify-between gap-3">
+      <div className="-m-4 flex h-screen flex-col">
+        {/* Topbar */}
+        <div className="flex shrink-0 flex-wrap items-center gap-3 border-b bg-background px-5 py-3">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">Inventory</h1>
-            <p className="text-muted-foreground text-sm">
+            <h1 className="text-base font-semibold tracking-tight">Inventory</h1>
+            <p className="text-xs text-muted-foreground">
               {filtered.length} reference{filtered.length !== 1 ? 's' : ''} · {totalUnits.toLocaleString()} units in stock
             </p>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <div className="relative w-64">
-              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Reference, value, location…"
-                className="pl-9"
-                value={query}
-                onChange={(e) => { setQuery(e.target.value); setPage(0) }}
-              />
-            </div>
-            <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
-              <Upload className="size-4" />
-              Import CSV
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => exportCsv(filtered)}>
-              <Download className="size-4" />
-              Export CSV
-            </Button>
-            <Button asChild size="sm">
-              <Link href="/parts/new">
-                <Plus className="size-4" />
-                Add Part
-              </Link>
-            </Button>
+          <div className="flex-1" />
+          <div className="relative w-64">
+            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Reference, value, location…"
+              className="pl-9"
+              value={query}
+              onChange={(e) => { setQuery(e.target.value); setPage(0) }}
+            />
           </div>
+          <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
+            <Upload className="size-4" />
+            Import CSV
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => exportCsv(sorted)}>
+            <Download className="size-4" />
+            Export CSV
+          </Button>
+          <Button size="sm" onClick={openAddDialog}>
+            <Plus className="size-4" />
+            Add Part
+          </Button>
         </div>
 
-        {/* Category filter chips */}
-        {categoryChips.length > 0 && (
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              onClick={() => { setCategoryId('all'); setPage(0) }}
-              className={`inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-sm font-medium transition-colors ${
-                categoryId === 'all'
-                  ? 'border-primary bg-primary text-primary-foreground'
-                  : 'border-border bg-background hover:bg-accent'
-              }`}
-            >
-              All
-              <span className="text-xs opacity-75">{parts.length}</span>
-            </button>
-            {categoryChips.map((chip) => (
-              <button
-                key={chip.id}
-                onClick={() => { setCategoryId(chip.id); setPage(0) }}
-                className={`inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-sm font-medium transition-colors ${
-                  categoryId === chip.id
-                    ? 'border-primary bg-primary text-primary-foreground'
-                    : 'border-border bg-background hover:bg-accent'
-                }`}
-              >
-                {chip.name}
-                <span className="text-xs opacity-75">{chip.count}</span>
-              </button>
-            ))}
+        <div className="px-5 pt-3 empty:pt-0">
+          <FlashMessages />
+        </div>
+
+        {/* Toolbar */}
+        <div className="flex shrink-0 flex-col gap-2 border-b bg-background px-5 py-3">
+        {/* Category filter chips + sort */}
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-1 flex-wrap items-center gap-2">
+            {categoryChips.length > 0 && (
+              <>
+                <button
+                  onClick={() => { setCategoryId('all'); setPage(0) }}
+                  className={`inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-sm font-medium transition-colors ${
+                    categoryId === 'all'
+                      ? 'border-primary bg-primary text-primary-foreground'
+                      : 'border-border bg-background hover:bg-accent'
+                  }`}
+                >
+                  All
+                  <span className="text-xs opacity-75">{parts.length}</span>
+                </button>
+                {categoryChips.map((chip) => (
+                  <button
+                    key={chip.id}
+                    onClick={() => { setCategoryId(chip.id); setPage(0) }}
+                    className={`inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-sm font-medium transition-colors ${
+                      categoryId === chip.id
+                        ? 'border-primary bg-primary text-primary-foreground'
+                        : 'border-border bg-background hover:bg-accent'
+                    }`}
+                  >
+                    {chip.name}
+                    <span className="text-xs opacity-75">{chip.count}</span>
+                  </button>
+                ))}
+              </>
+            )}
           </div>
-        )}
+          <Select value={sortKey} onValueChange={(value) => setSortKey(value as SortKey)}>
+            <SelectTrigger className="h-8 w-[190px] text-xs" size="sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {SORT_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
 
         {/* Facet groups */}
         <div className="flex flex-col gap-2">
@@ -600,10 +690,11 @@ export default function PartsIndex({ parts, initial_query }: PartsIndexProps) {
             </button>
           </div>
         )}
+        </div>
 
         {/* Bulk action bar */}
         {selected.length > 0 && (
-          <div className="flex items-center gap-3 rounded-lg bg-foreground px-4 py-2.5 text-background">
+          <div className="flex shrink-0 items-center gap-3 bg-foreground px-5 py-2.5 text-background">
             <span className="text-sm font-medium">{selected.length} selected</span>
             <div className="h-5 w-px bg-background/25" />
             {bulkActions.map((action) => (
@@ -624,31 +715,30 @@ export default function PartsIndex({ parts, initial_query }: PartsIndexProps) {
         )}
 
         {/* Table */}
+        <div className="min-h-0 flex-1 overflow-auto bg-muted/40">
         {parts.length === 0 ? (
-          <div className="flex flex-col items-center justify-center rounded-lg border border-dashed p-12">
+          <div className="flex flex-col items-center justify-center p-16">
             <Package className="size-12 text-muted-foreground" />
             <h3 className="mt-4 text-lg font-semibold">No parts yet</h3>
             <p className="mt-2 text-sm text-muted-foreground">
               Get started by adding your first part.
             </p>
-            <Button asChild className="mt-4">
-              <Link href="/parts/new">
-                <Plus className="mr-2 size-4" />
-                Add Part
-              </Link>
+            <Button className="mt-4" onClick={openAddDialog}>
+              <Plus className="mr-2 size-4" />
+              Add Part
             </Button>
           </div>
         ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center rounded-lg border border-dashed p-12 text-center">
+          <div className="flex flex-col items-center justify-center p-16 text-center">
             <h3 className="text-lg font-semibold">No results found</h3>
             <p className="mt-2 text-sm text-muted-foreground">
               Try a different search or filter.
             </p>
           </div>
         ) : (
-          <div className="-mx-4 overflow-x-auto border-y">
-            <Table>
-              <TableHeader>
+          <>
+            <Table className="bg-background" containerClassName="overflow-visible">
+              <TableHeader className="sticky top-0 z-10">
                 <TableRow className="bg-muted hover:bg-muted">
                   <TableHead className="w-10 py-2">
                     <Checkbox
@@ -750,9 +840,9 @@ export default function PartsIndex({ parts, initial_query }: PartsIndexProps) {
             </Table>
 
             {pageCount > 1 && (
-              <div className="flex items-center justify-between border-t px-4 py-2.5 text-sm text-muted-foreground">
+              <div className="sticky bottom-0 flex items-center justify-between border-t bg-background px-5 py-2.5 text-sm text-muted-foreground">
                 <span>
-                  {clampedPage * PAGE_SIZE + 1}–{Math.min(clampedPage * PAGE_SIZE + PAGE_SIZE, filtered.length)} of {filtered.length}
+                  {clampedPage * PAGE_SIZE + 1}–{Math.min(clampedPage * PAGE_SIZE + PAGE_SIZE, filtered.length)} of {filtered.length} · Page {clampedPage + 1}/{pageCount}
                 </span>
                 <div className="flex gap-2">
                   <Button variant="outline" size="sm" disabled={clampedPage === 0} onClick={() => setPage(Math.max(0, clampedPage - 1))}>
@@ -766,9 +856,150 @@ export default function PartsIndex({ parts, initial_query }: PartsIndexProps) {
                 </div>
               </div>
             )}
-          </div>
+          </>
         )}
+        </div>
       </div>
+
+      {/* Add Part modal */}
+      <Dialog open={addOpen} onOpenChange={setAddOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add part</DialogTitle>
+            <DialogDescription>Quickly add a reference to the inventory.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={submitAdd} className="flex flex-col gap-4">
+            <div className="grid grid-cols-2 gap-4">
+              <Field className="col-span-2">
+                <FieldLabel>
+                  <Label>Name</Label>
+                </FieldLabel>
+                <FieldContent>
+                  <Input
+                    placeholder="e.g. Resistor 10k 1% 0603"
+                    value={addForm.data.part.name}
+                    onChange={(e) => addForm.setData('part', { ...addForm.data.part, name: e.target.value })}
+                  />
+                </FieldContent>
+                {addForm.errors['part.name'] && <FieldError>{addForm.errors['part.name']}</FieldError>}
+              </Field>
+              <Field className="col-span-2">
+                <FieldLabel>
+                  <Label>Category</Label>
+                </FieldLabel>
+                <FieldContent>
+                  <Select
+                    value={addForm.data.part.category_id}
+                    onValueChange={(value) => addForm.setData('part', { ...addForm.data.part, category_id: value })}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select a category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categories.map((category) => (
+                        <SelectItem key={category.id} value={category.id.toString()}>{category.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </FieldContent>
+                {addForm.errors['part.category_id'] && <FieldError>{addForm.errors['part.category_id']}</FieldError>}
+              </Field>
+              <Field>
+                <FieldLabel>
+                  <Label>Value</Label>
+                </FieldLabel>
+                <FieldContent>
+                  <Input
+                    placeholder="e.g. 10 kΩ"
+                    value={addForm.data.part.value}
+                    onChange={(e) => addForm.setData('part', { ...addForm.data.part, value: e.target.value })}
+                  />
+                </FieldContent>
+              </Field>
+              <Field>
+                <FieldLabel>
+                  <Label>Package</Label>
+                </FieldLabel>
+                <FieldContent>
+                  <Input
+                    placeholder="e.g. 0603"
+                    value={addForm.data.part.package_type}
+                    onChange={(e) => addForm.setData('part', { ...addForm.data.part, package_type: e.target.value })}
+                  />
+                </FieldContent>
+              </Field>
+              <Field>
+                <FieldLabel>
+                  <Label>Initial location</Label>
+                </FieldLabel>
+                <FieldContent>
+                  <Select
+                    value={addForm.data.initial_location_id || 'none'}
+                    onValueChange={(value) => addForm.setData('initial_location_id', value === 'none' ? '' : value)}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="No location" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No location</SelectItem>
+                      {storage_locations.map((location) => (
+                        <SelectItem key={location.id} value={location.id.toString()}>{location.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </FieldContent>
+              </Field>
+              <Field>
+                <FieldLabel>
+                  <Label>Quantity</Label>
+                </FieldLabel>
+                <FieldContent>
+                  <Input
+                    inputMode="numeric"
+                    placeholder="0"
+                    disabled={!addForm.data.initial_location_id}
+                    value={addForm.data.initial_quantity}
+                    onChange={(e) => addForm.setData('initial_quantity', e.target.value.replace(/[^0-9]/g, ''))}
+                  />
+                </FieldContent>
+              </Field>
+              <Field>
+                <FieldLabel>
+                  <Label>Min. threshold</Label>
+                </FieldLabel>
+                <FieldContent>
+                  <Input
+                    inputMode="numeric"
+                    value={addForm.data.part.min_stock_threshold}
+                    onChange={(e) => addForm.setData('part', { ...addForm.data.part, min_stock_threshold: e.target.value.replace(/[^0-9]/g, '') })}
+                  />
+                </FieldContent>
+              </Field>
+              <Field>
+                <FieldLabel>
+                  <Label>Unit price</Label>
+                </FieldLabel>
+                <FieldContent>
+                  <Input
+                    placeholder="0.00"
+                    value={addForm.data.part.unit_price}
+                    onChange={(e) => addForm.setData('part', { ...addForm.data.part, unit_price: e.target.value })}
+                  />
+                </FieldContent>
+              </Field>
+            </div>
+            <DialogFooter className="items-center sm:justify-between">
+              <Link href="/parts/new" className="text-sm text-muted-foreground underline underline-offset-4">
+                Need more fields? Use the full form
+              </Link>
+              <div className="flex gap-2">
+                <Button type="button" variant="outline" onClick={() => setAddOpen(false)}>Cancel</Button>
+                <Button type="submit" disabled={addForm.processing}>Add part</Button>
+              </div>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* CSV Import modal */}
       <Dialog open={importOpen} onOpenChange={(open) => (open ? setImportOpen(true) : closeImport())}>
