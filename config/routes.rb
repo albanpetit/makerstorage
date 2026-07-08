@@ -40,6 +40,9 @@ Rails.application.routes.draw do
 
   resources :stock_movements, only: %i[index create]
 
+  get "scan", to: "scans#index", as: :scan
+  post "scan/movements", to: "scans#create_movement", as: :scan_movements
+
   resources :suppliers, only: %i[index create update destroy]
 
   get "alerts", to: "alerts#index"
