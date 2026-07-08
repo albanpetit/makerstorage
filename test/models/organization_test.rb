@@ -67,6 +67,46 @@ class OrganizationTest < ActiveSupport::TestCase
     assert_equal [ "MS-002", "MS-003" ], preview[:examples]
   end
 
+  test "defaults to the incremental generation mode with a numeric charset" do
+    org = create_organization
+    assert_equal "incremental", org.ipn_generation_mode
+    assert_equal "numeric", org.ipn_charset
+  end
+
+  test "rejects an unknown generation mode or charset" do
+    org = create_organization
+    org.ipn_generation_mode = "quantum"
+    assert_not org.valid?
+    assert_includes org.errors[:ipn_generation_mode], "is not included in the list"
+
+    org.ipn_generation_mode = "random"
+    org.ipn_charset = "emoji"
+    assert_not org.valid?
+    assert_includes org.errors[:ipn_charset], "is not included in the list"
+  end
+
+  test "category_sequence mode always includes the category and previews from 1" do
+    org = create_organization(ipn_generation_mode: "category_sequence", ipn_prefix: "MS", ipn_use_category_code: false, ipn_separator: "-", ipn_digits: 5, ipn_next_sequence: 99)
+    preview = org.ipn_preview(category_code: "CAP", example_count: 2)
+    assert_equal "MS-CAP-00001", preview[:next]
+    assert_equal [ "MS-CAP-00002", "MS-CAP-00003" ], preview[:examples]
+  end
+
+  test "random mode draws a stable body from the configured charset" do
+    org = create_organization(ipn_generation_mode: "random", ipn_charset: "numeric", ipn_prefix: "MS", ipn_use_category_code: false, ipn_separator: "-", ipn_digits: 6)
+    first = org.next_ipn(sequence: 5)
+    assert_match(/\AMS-\d{6}\z/, first)
+    assert_equal first, org.next_ipn(sequence: 5), "same seed must reproduce the same reference"
+
+    org.ipn_charset = "alphanumeric"
+    assert_match(/\AMS-[A-Z0-9]{6}\z/, org.next_ipn(sequence: 5))
+  end
+
+  test "manual mode still produces an incremental suggested value" do
+    org = create_organization(ipn_generation_mode: "manual", ipn_prefix: "MS", ipn_use_category_code: false, ipn_separator: "-", ipn_digits: 4, ipn_next_sequence: 12)
+    assert_equal "MS-0012", org.ipn_preview[:next]
+  end
+
   test "rejects a currency outside the allowed set" do
     org = create_organization
     org.currency = "JPY"

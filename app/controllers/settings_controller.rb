@@ -30,6 +30,7 @@ class SettingsController < ApplicationController
       :name, :email, :phone, :website,
       :address_line1, :address_line2, :city, :postcode, :country,
       :currency, :timezone,
+      :ipn_generation_mode, :ipn_charset,
       :ipn_prefix, :ipn_separator, :ipn_digits, :ipn_use_category_code, :ipn_next_sequence,
       :default_low_stock_threshold, :allow_negative_stock
     )
@@ -43,6 +44,7 @@ class SettingsController < ApplicationController
       address_line1: org.address_line1, address_line2: org.address_line2,
       city: org.city, postcode: org.postcode, country: org.country,
       currency: org.currency, timezone: org.timezone,
+      ipn_generation_mode: org.ipn_generation_mode, ipn_charset: org.ipn_charset,
       ipn_prefix: org.ipn_prefix, ipn_separator: org.ipn_separator, ipn_digits: org.ipn_digits,
       ipn_use_category_code: org.ipn_use_category_code, ipn_next_sequence: org.ipn_next_sequence,
       default_low_stock_threshold: org.default_low_stock_threshold, allow_negative_stock: org.allow_negative_stock,
