@@ -46,6 +46,8 @@ class DashboardController < ApplicationController
       .map do |movement|
         {
           id: movement.id,
+          part_id: movement.part_id,
+          reference: movement.part.mpn.presence || movement.part.sku.presence || movement.part.name,
           part_name: movement.part.name,
           location_name: movement.storage_location.name,
           movement_type: movement.movement_type,
