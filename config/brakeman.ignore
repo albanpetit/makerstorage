@@ -1,0 +1,29 @@
+{
+  "ignored_warnings": [
+    {
+      "warning_type": "Mass Assignment",
+      "warning_code": 105,
+      "fingerprint": "7fa65d98ab05eedd7f91310e68b014aaf6882b3a55dd3749432da0a2ff79cce9",
+      "check_name": "PermitAttributes",
+      "message": "Potentially dangerous key allowed for mass assignment",
+      "file": "app/controllers/members_controller.rb",
+      "line": 68,
+      "link": "https://brakemanscanner.org/docs/warning_types/mass_assignment/",
+      "code": "params.require(:member).permit(:role)",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "MembersController",
+        "method": "member_params"
+      },
+      "user_input": null,
+      "confidence": "Medium",
+      "cwe_id": [
+        915
+      ],
+      "note": "Reviewed: create/update/destroy are gated behind verify_organization_admin (org admin/owner only), so only trusted org admins can set a member's role."
+    }
+  ],
+  "updated": "2026-07-08 09:45:00 +0000",
+  "brakeman_version": "8.0.5"
+}

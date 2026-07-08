@@ -137,6 +137,50 @@ class MembersControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to members_path
   end
 
+  test "create is forbidden for a non-admin member" do
+    owner = create_user
+    org = owner.organizations.first
+    member = create_user(email: "member@example.com")
+    OrganizationMembership.create!(organization: org, user: member, role: "member")
+    invitee = create_user(email: "invitee@example.com")
+
+    sign_in member
+    assert_no_difference "OrganizationMembership.count" do
+      post members_path, params: { member: { email: "invitee@example.com", role: "owner" } }
+    end
+
+    assert_redirected_to root_path
+  end
+
+  test "update is forbidden for a non-admin member, preventing role self-escalation" do
+    owner = create_user
+    org = owner.organizations.first
+    member = create_user(email: "member@example.com")
+    membership = OrganizationMembership.create!(organization: org, user: member, role: "member")
+
+    sign_in member
+    patch member_path(membership), params: { member: { role: "owner" } }
+
+    assert_redirected_to root_path
+    assert_equal "member", membership.reload.role
+  end
+
+  test "destroy is forbidden for a non-admin member" do
+    owner = create_user
+    org = owner.organizations.first
+    member = create_user(email: "member@example.com")
+    teammate = create_user(email: "teammate@example.com")
+    membership = OrganizationMembership.create!(organization: org, user: member, role: "member")
+    OrganizationMembership.create!(organization: org, user: teammate, role: "viewer")
+
+    sign_in member
+    assert_no_difference "OrganizationMembership.count" do
+      delete member_path(OrganizationMembership.find_by(organization: org, user: teammate))
+    end
+
+    assert_redirected_to root_path
+  end
+
   private
 
   def inertia_props
