@@ -174,3 +174,9 @@
     @apply bg-background text-foreground;
   }
 }
+/* Scanner page viewfinder sweep (used via animate-[scan-line_...]) */
+@keyframes scan-line {
+  0% { top: 8%; }
+  50% { top: 88%; }
+  100% { top: 8%; }
+}
