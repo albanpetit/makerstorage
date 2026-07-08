@@ -16,9 +16,5 @@ class CreatePartSuppliers < ActiveRecord::Migration[8.1]
     # Unique constraint: one supplier SKU per part-supplier combination
     add_index :part_suppliers, [ :part_id, :supplier_id ], unique: true
     add_index :part_suppliers, :supplier_sku
-
-    # Remove old supplier fields from parts
-    remove_reference :parts, :preferred_supplier, foreign_key: { to_table: :suppliers }
-    remove_column :parts, :supplier_sku, :string
   end
 end

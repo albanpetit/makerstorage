@@ -5,7 +5,6 @@ class CreateParts < ActiveRecord::Migration[8.1]
       t.references :organization, null: false, foreign_key: true
       t.references :category, null: false, foreign_key: true
       t.references :footprint, null: true, foreign_key: true
-      t.references :preferred_supplier, foreign_key: { to_table: :suppliers }, null: true
 
       # Basic information
       t.string :name, null: false
@@ -28,11 +27,9 @@ class CreateParts < ActiveRecord::Migration[8.1]
 
       # Pricing & inventory
       t.decimal :unit_price, precision: 10, scale: 2
+      t.string :unit, default: 'piece', null: false
       t.integer :min_stock_threshold, default: 0, null: false
       t.integer :target_stock
-
-      # Supplier information
-      t.string :supplier_sku
 
       # Notes
       t.text :storage_notes

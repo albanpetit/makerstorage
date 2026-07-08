@@ -5,7 +5,9 @@ class Part < ApplicationRecord
   belongs_to :footprint, optional: true
 
   has_many :part_storages, dependent: :destroy
-  # has_many :storage_locations, through: :part_storages
+  has_many :storage_locations, through: :part_storages
+
+  has_many :stock_movements, dependent: :restrict_with_error
 
   has_many :part_tags, dependent: :destroy
   has_many :tags, through: :part_tags
@@ -15,6 +17,7 @@ class Part < ApplicationRecord
   accepts_nested_attributes_for :part_suppliers, allow_destroy: true, reject_if: :all_blank
 
   has_many :purchase_lines, dependent: :restrict_with_error
+  has_many :purchases, through: :purchase_lines
 
   # Active Storage for images and datasheets
   has_many_attached :images
@@ -22,6 +25,7 @@ class Part < ApplicationRecord
 
   # Constants
   STATUSES = %w[active discontinued obsolete].freeze
+  UNITS = %w[piece meter roll lot].freeze
 
   # Callbacks - convert empty strings to nil for unique indexed fields
   before_validation :normalize_blank_values
@@ -32,6 +36,7 @@ class Part < ApplicationRecord
   validates :sku, uniqueness: { scope: :organization_id, case_sensitive: false }, allow_blank: true
   validates :barcode, uniqueness: true, allow_blank: true
   validates :status, presence: true, inclusion: { in: STATUSES }
+  validates :unit, presence: true, inclusion: { in: UNITS }
   validates :unit_price, numericality: { greater_than_or_equal_to: 0 }, allow_nil: true
   validates :min_stock_threshold, numericality: { greater_than_or_equal_to: 0 }
   validates :target_stock, numericality: { greater_than: 0 }, allow_nil: true
@@ -73,7 +78,7 @@ class Part < ApplicationRecord
 
   # Extended search
   scope :search, ->(query) {
-    where("parts.name ILIKE ? OR parts.mpn ILIKE ? OR parts.description ILIKE ? OR parts.sku ILIKE ? OR parts.manufacturer ILIKE ? OR parts.value ILIKE ? OR parts.barcode ILIKE ?",
+    where("parts.name LIKE ? OR parts.mpn LIKE ? OR parts.description LIKE ? OR parts.sku LIKE ? OR parts.manufacturer LIKE ? OR parts.value LIKE ? OR parts.barcode LIKE ?",
           "%#{query}%", "%#{query}%", "%#{query}%", "%#{query}%", "%#{query}%", "%#{query}%", "%#{query}%")
   }
 
@@ -81,17 +86,17 @@ class Part < ApplicationRecord
   scope :recent, -> { order(created_at: :desc) }
 
   # Methods - Stock
-  # def total_quantity
-  #   part_storages.sum(:quantity)
-  # end
+  def total_quantity
+    part_storages.sum(:quantity)
+  end
 
-  # def low_stock?
-  #   total_quantity < min_stock_threshold
-  # end
+  def low_stock?
+    total_quantity < min_stock_threshold
+  end
 
-  # def out_of_stock?
-  #   total_quantity.zero?
-  # end
+  def out_of_stock?
+    total_quantity.zero?
+  end
 
   def stock_status
     return :out_of_stock if out_of_stock?

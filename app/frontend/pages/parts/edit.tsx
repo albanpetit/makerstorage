@@ -138,12 +138,6 @@ export default function EditPart({ part, categories, footprints, suppliers }: Ed
     },
   })
 
-  const breadcrumbs = [
-    { label: 'Parts', href: '/parts' },
-    { label: part.name, href: `/parts/${part.id}` },
-    { label: 'Edit' },
-  ]
-
   const submit: FormEventHandler = (e) => {
     e.preventDefault()
     put(`/parts/${part.id}`)
@@ -179,7 +173,7 @@ export default function EditPart({ part, categories, footprints, suppliers }: Ed
   )
 
   return (
-    <AppLayout breadcrumbs={breadcrumbs}>
+    <AppLayout>
       <Head title={`Edit ${part.name}`} />
 
       <div className="space-y-6">
