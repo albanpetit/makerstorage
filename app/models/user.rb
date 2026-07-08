@@ -47,6 +47,11 @@ class User < ApplicationRecord
     organization_memberships.exists?(organization: organization, role: %w[owner admin])
   end
 
+  # Check if the user may write in an organization (everyone except viewers)
+  def writer_of?(organization)
+    organization_memberships.exists?(organization: organization, role: %w[owner admin member])
+  end
+
   # Get the user's role in an organization
   def role_in(organization)
     organization_memberships.find_by(organization: organization)&.role

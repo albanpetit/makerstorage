@@ -4,6 +4,7 @@ class ScansController < ApplicationController
   include Auth
 
   before_action :verify_organization_access
+  before_action :verify_organization_writer, only: %i[create_movement]
 
   # Movements created from the scanner page carry this reason so the
   # "Recent scans" feed can be rebuilt from the ledger without a scan table.

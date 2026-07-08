@@ -6,6 +6,8 @@ import {
 } from 'lucide-react'
 
 import { AppLayout } from '@/layouts/app-layout'
+import { usePermissions } from '@/hooks/use-permissions'
+import { ReadOnlyBadge } from '@/components/read-only-badge'
 import { FlashMessages } from '@/components/flash-messages'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -134,6 +136,7 @@ interface MovementFormData {
 }
 
 export default function PartShow({ part, storages, movements, storage_locations }: PartShowProps) {
+  const { canWrite } = usePermissions()
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [mvtOpen, setMvtOpen] = useState(false)
 
@@ -214,19 +217,26 @@ export default function PartShow({ part, storages, movements, storage_locations 
             <span className="font-mono font-medium text-foreground">{partRef(part)}</span>
           </div>
           <div className="flex-1" />
-          <Button variant="outline" size="icon-sm" className="text-destructive" onClick={() => setDeleteOpen(true)} aria-label="Delete part">
-            <Trash2 className="size-4" />
-          </Button>
-          <Button variant="outline" size="sm" asChild>
-            <Link href={`/parts/${part.id}/edit`}>
-              <Pencil className="size-4" />
-              Edit
-            </Link>
-          </Button>
-          <Button size="sm" onClick={() => openMovement('in')}>
-            <ArrowLeftRight className="size-4" />
-            Stock in / out
-          </Button>
+          <ReadOnlyBadge />
+          {canWrite && (
+            <Button variant="outline" size="icon-sm" className="text-destructive" onClick={() => setDeleteOpen(true)} aria-label="Delete part">
+              <Trash2 className="size-4" />
+            </Button>
+          )}
+          {canWrite && (
+            <Button variant="outline" size="sm" asChild>
+              <Link href={`/parts/${part.id}/edit`}>
+                <Pencil className="size-4" />
+                Edit
+              </Link>
+            </Button>
+          )}
+          {canWrite && (
+            <Button size="sm" onClick={() => openMovement('in')}>
+              <ArrowLeftRight className="size-4" />
+              Stock in / out
+            </Button>
+          )}
         </header>
       }
     >
@@ -325,16 +335,18 @@ export default function PartShow({ part, storages, movements, storage_locations 
                     ▲ threshold {part.min_stock_threshold}
                   </div>
                 </div>
-                <div className="mt-2 flex gap-2.5">
-                  <Button variant="outline" className="flex-1 text-emerald-600 dark:text-emerald-400" onClick={() => openMovement('in')}>
-                    <ArrowDown className="size-4" />
-                    Stock in
-                  </Button>
-                  <Button variant="outline" className="flex-1 text-red-600 dark:text-red-400" onClick={() => openMovement('out')}>
-                    <ArrowUp className="size-4" />
-                    Stock out
-                  </Button>
-                </div>
+                {canWrite && (
+                  <div className="mt-2 flex gap-2.5">
+                    <Button variant="outline" className="flex-1 text-emerald-600 dark:text-emerald-400" onClick={() => openMovement('in')}>
+                      <ArrowDown className="size-4" />
+                      Stock in
+                    </Button>
+                    <Button variant="outline" className="flex-1 text-red-600 dark:text-red-400" onClick={() => openMovement('out')}>
+                      <ArrowUp className="size-4" />
+                      Stock out
+                    </Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
 

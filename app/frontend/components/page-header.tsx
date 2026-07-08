@@ -1,5 +1,7 @@
 import { ReactNode } from 'react'
 
+import { ReadOnlyBadge } from '@/components/read-only-badge'
+
 interface PageHeaderProps {
   title: string
   subtitle?: string
@@ -14,6 +16,7 @@ export function PageHeader({ title, subtitle, children }: PageHeaderProps) {
         {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
       </div>
       <div className="flex-1" />
+      <ReadOnlyBadge />
       {children}
     </header>
   )

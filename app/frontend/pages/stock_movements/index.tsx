@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 import { Plus, Download, ArrowDown, ArrowUp, ArrowLeftRight, Package, Filter, ChevronLeft, ChevronRight } from 'lucide-react'
 
 import { AppLayout } from '@/layouts/app-layout'
+import { usePermissions } from '@/hooks/use-permissions'
 import { PageHeader } from '@/components/page-header'
 import { FlashMessages } from '@/components/flash-messages'
 import { Button } from '@/components/ui/button'
@@ -132,6 +133,7 @@ interface MovementFormData {
 }
 
 export default function StockMovementsIndex({ movements, parts, storage_locations }: StockMovementsPageProps) {
+  const { canWrite } = usePermissions()
   const [filter, setFilter] = useState<'all' | Movement['movement_type']>('all')
   const [page, setPage] = useState(0)
   const [newOpen, setNewOpen] = useState(false)
@@ -205,10 +207,12 @@ export default function StockMovementsIndex({ movements, parts, storage_location
             <Download className="size-4" />
             Export CSV
           </Button>
-          <Button size="sm" onClick={openNewDialog}>
-            <Plus className="size-4" />
-            New Movement
-          </Button>
+          {canWrite && (
+            <Button size="sm" onClick={openNewDialog}>
+              <Plus className="size-4" />
+              New Movement
+            </Button>
+          )}
         </PageHeader>
       }
     >
@@ -265,12 +269,14 @@ export default function StockMovementsIndex({ movements, parts, storage_location
               <Package className="size-10 text-muted-foreground" />
               <h3 className="mt-4 text-lg font-semibold">No movements yet</h3>
               <p className="mt-2 text-sm text-muted-foreground">
-                Record your first stock movement to start building the ledger.
+                {canWrite ? 'Record your first stock movement to start building the ledger.' : 'No stock movements have been recorded yet.'}
               </p>
-              <Button className="mt-4" onClick={openNewDialog}>
-                <Plus className="mr-2 size-4" />
-                New Movement
-              </Button>
+              {canWrite && (
+                <Button className="mt-4" onClick={openNewDialog}>
+                  <Plus className="mr-2 size-4" />
+                  New Movement
+                </Button>
+              )}
             </div>
           ) : (
             <>

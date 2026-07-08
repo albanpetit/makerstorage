@@ -4,6 +4,7 @@ class AlertsController < ApplicationController
   include Auth
 
   before_action :verify_organization_access
+  before_action :verify_organization_writer, only: %i[create_purchase_orders advance_order]
 
   ORDER_STATUS_SEQUENCE = %w[pending shipped received].freeze
 

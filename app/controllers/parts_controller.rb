@@ -6,6 +6,7 @@ class PartsController < ApplicationController
   include Auth
 
   before_action :verify_organization_access
+  before_action :verify_organization_writer, only: %i[create update destroy import]
   before_action :set_part, only: %i[show edit update destroy]
 
   def index

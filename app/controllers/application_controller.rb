@@ -15,7 +15,9 @@ class ApplicationController < ActionController::Base
         current_organization: current_organization ? serialize_organization(current_organization) : nil,
         organizations: current_user.organizations.order(:name).map { |org| serialize_organization(org) },
         alerts_count: current_organization&.low_stock_parts_count || 0,
-        is_organization_admin: current_organization ? current_user.admin_of?(current_organization) : false
+        is_organization_admin: current_organization ? current_user.admin_of?(current_organization) : false,
+        is_organization_writer: current_organization ? current_user.writer_of?(current_organization) : false,
+        organization_role: current_organization ? current_user.role_in(current_organization) : nil
       }
     end
   }
@@ -51,6 +53,13 @@ class ApplicationController < ActionController::Base
   def verify_organization_access
     unless current_organization && current_user.member_of_organization?(current_organization.id)
       redirect_to root_path, alert: "You don't have access to this organization"
+    end
+  end
+
+  # Verify user may write in the current organization (blocks viewers)
+  def verify_organization_writer
+    unless current_organization && current_user.writer_of?(current_organization)
+      redirect_back_or_to root_path, alert: "Your role is read-only for this organization."
     end
   end
 
