@@ -4,6 +4,7 @@ class MembersController < ApplicationController
   include Auth
 
   before_action :verify_organization_access
+  before_action :verify_organization_admin, only: %i[create update destroy]
   before_action :set_membership, only: %i[update destroy]
 
   def index
