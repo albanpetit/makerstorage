@@ -70,11 +70,14 @@ class SettingsControllerTest < ActionDispatch::IntegrationTest
 
     sign_in user
     patch settings_path, params: { organization: {
+      ipn_generation_mode: "random", ipn_charset: "alphanumeric",
       ipn_prefix: "ZZ", ipn_separator: "_", ipn_digits: 6, ipn_use_category_code: false, ipn_next_sequence: 99
     } }
 
     assert_redirected_to settings_path
     org.reload
+    assert_equal "random", org.ipn_generation_mode
+    assert_equal "alphanumeric", org.ipn_charset
     assert_equal "ZZ", org.ipn_prefix
     assert_equal "_", org.ipn_separator
     assert_equal 6, org.ipn_digits

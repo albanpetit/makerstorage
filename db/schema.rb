@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_07_204115) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_08_202025) do
   create_table "active_storage_attachments", force: :cascade do |t|
     t.bigint "blob_id", null: false
     t.datetime "created_at", null: false
@@ -96,7 +96,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_07_204115) do
     t.string "currency", default: "EUR", null: false
     t.integer "default_low_stock_threshold", default: 50, null: false
     t.string "email"
+    t.string "ipn_charset", default: "numeric", null: false
     t.integer "ipn_digits", default: 5, null: false
+    t.string "ipn_generation_mode", default: "incremental", null: false
     t.integer "ipn_next_sequence", default: 1, null: false
     t.string "ipn_prefix", default: "MS", null: false
     t.string "ipn_separator", default: "-", null: false

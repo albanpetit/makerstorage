@@ -18,6 +18,8 @@ class Organization < ApplicationRecord
 
   # Constants
   IPN_SEPARATORS = %w[- . _ /].freeze
+  IPN_GENERATION_MODES = %w[incremental random category_sequence manual].freeze
+  IPN_CHARSETS = %w[numeric alphanumeric].freeze
   CURRENCIES = %w[EUR USD GBP CHF].freeze
 
   # Validations
@@ -26,6 +28,8 @@ class Organization < ApplicationRecord
   validates :website, format: { with: URI::DEFAULT_PARSER.make_regexp(%w[http https]) }, allow_blank: true
   validates :ipn_prefix, presence: true, length: { maximum: 6 }
   validates :ipn_separator, inclusion: { in: IPN_SEPARATORS }, allow_blank: true
+  validates :ipn_generation_mode, inclusion: { in: IPN_GENERATION_MODES }
+  validates :ipn_charset, inclusion: { in: IPN_CHARSETS }
   validates :ipn_digits, numericality: { only_integer: true, greater_than_or_equal_to: 3, less_than_or_equal_to: 8 }
   validates :ipn_next_sequence, numericality: { only_integer: true, greater_than: 0 }
   validates :currency, presence: true, inclusion: { in: CURRENCIES }
@@ -76,17 +80,30 @@ class Organization < ApplicationRecord
   end
 
   # Methods - IPN numbering
+  #
+  # The generation mode decides how the numeric segment is produced:
+  #   incremental       — zero-padded running counter (ordered, predictable)
+  #   category_sequence — same, but the category code is always included and the
+  #                       counter is conceptually per-category (preview starts at 1)
+  #   random            — a random draw from the configured charset (unpredictable)
+  #   manual            — operator types the reference; this yields the suggested value
+  # `sequence` seeds the numeric/random body so previews are stable and reproducible.
   def next_ipn(category_code: nil, sequence: ipn_next_sequence)
-    segments = [ ipn_prefix ]
-    segments << category_code if ipn_use_category_code && category_code.present?
-    segments << sequence.to_s.rjust(ipn_digits, "0")
-    segments.join(ipn_separator)
+    include_category = ipn_generation_mode == "category_sequence" || (ipn_use_category_code && category_code.present?)
+    resolved_category = category_code.presence || ("RES" if ipn_generation_mode == "category_sequence")
+
+    body = ipn_generation_mode == "random" ? random_ipn_body(sequence) : sequence.to_s.rjust(ipn_digits, "0")
+
+    [ ipn_prefix.presence, (resolved_category if include_category), body ].compact.join(ipn_separator)
   end
 
   def ipn_preview(category_code: nil, example_count: 3)
+    start = ipn_generation_mode == "category_sequence" ? 1 : ipn_next_sequence
+    effective_category = ipn_generation_mode == "category_sequence" ? (category_code.presence || "RES") : category_code
+
     {
-      next: next_ipn(category_code: category_code),
-      examples: (1..example_count).map { |i| next_ipn(category_code: category_code, sequence: ipn_next_sequence + i) }
+      next: next_ipn(category_code: effective_category, sequence: start),
+      examples: (1..example_count).map { |i| next_ipn(category_code: effective_category, sequence: start + i) }
     }
   end
 
@@ -142,6 +159,12 @@ class Organization < ApplicationRecord
   end
 
   private
+
+  def random_ipn_body(seed)
+    alphabet = ipn_charset == "alphanumeric" ? (("A".."Z").to_a + ("0".."9").to_a) : ("0".."9").to_a
+    rng = Random.new(Integer(seed))
+    Array.new(ipn_digits) { alphabet[rng.rand(alphabet.length)] }.join
+  end
 
   def must_have_at_least_one_owner
     if organization_memberships.owners.count.zero?
