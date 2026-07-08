@@ -62,6 +62,25 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     assert_equal 100, low_stock.first["min_stock_threshold"]
   end
 
+  test "recent_movements expose the part reference and reason for the ledger columns" do
+    user = create_user
+    org = user.organizations.first
+    category = create_category(organization: org)
+    location = create_storage_location(organization: org, name: "Shelf A")
+    part = create_part(organization: org, category: category, mpn: "RES-10K")
+    StockMovement.create!(organization: org, part: part, storage_location: location,
+                          movement_type: "in", quantity_delta: 25, reason: "Restock")
+
+    sign_in user
+    get root_path
+    assert_response :success
+
+    movement = inertia_props["recent_movements"].first
+    assert_equal "RES-10K", movement["reference"]
+    assert_equal part.id, movement["part_id"]
+    assert_equal "Restock", movement["reason"]
+  end
+
   private
 
   def inertia_props

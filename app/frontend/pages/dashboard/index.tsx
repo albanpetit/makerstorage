@@ -1,8 +1,11 @@
 import { Head, Link } from '@inertiajs/react'
-import { Package, Boxes, Coins, AlertTriangle } from 'lucide-react'
+import { Package, Boxes, Coins, AlertTriangle, Plus } from 'lucide-react'
 
 import { AppLayout } from '@/layouts/app-layout'
+import { usePermissions } from '@/hooks/use-permissions'
 import { PageHeader } from '@/components/page-header'
+import { GlobalSearch } from '@/components/global-search'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -39,6 +42,8 @@ interface LowStockPart {
 
 interface RecentMovement {
   id: number
+  part_id: number
+  reference: string
   part_name: string
   location_name: string
   movement_type: 'in' | 'out' | 'adjustment'
@@ -78,6 +83,7 @@ function formatDate(iso: string) {
 }
 
 export default function Dashboard({ stats, category_breakdown, low_stock_parts, recent_movements }: DashboardProps) {
+  const { canWrite } = usePermissions()
   const statCards = [
     { label: 'References', value: stats.references_count.toLocaleString(), icon: Package },
     { label: 'Units in stock', value: stats.total_units.toLocaleString(), icon: Boxes },
@@ -86,7 +92,21 @@ export default function Dashboard({ stats, category_breakdown, low_stock_parts, 
   ]
 
   return (
-    <AppLayout header={<PageHeader title="Dashboard" subtitle="Overview of your inventory" />}>
+    <AppLayout
+      header={
+        <PageHeader title="Dashboard" subtitle="Overview of your inventory">
+          <GlobalSearch />
+          {canWrite && (
+            <Button size="sm" asChild>
+              <Link href="/parts/new">
+                <Plus className="size-4" />
+                New component
+              </Link>
+            </Button>
+          )}
+        </PageHeader>
+      }
+    >
       <Head title="Dashboard" />
 
       <div className="space-y-6">
@@ -200,8 +220,9 @@ export default function Dashboard({ stats, category_breakdown, low_stock_parts, 
                 <TableHeader>
                   <TableRow>
                     <TableHead>Date</TableHead>
-                    <TableHead>Part</TableHead>
                     <TableHead>Type</TableHead>
+                    <TableHead>Reference</TableHead>
+                    <TableHead>Reason</TableHead>
                     <TableHead className="text-right">Qty</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -212,16 +233,18 @@ export default function Dashboard({ stats, category_breakdown, low_stock_parts, 
                         {formatDate(movement.created_at)}
                       </TableCell>
                       <TableCell>
-                        <div className="font-medium">{movement.part_name}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {movement.location_name}
-                          {movement.reason ? ` · ${movement.reason}` : ''}
-                        </div>
-                      </TableCell>
-                      <TableCell>
                         <Badge className={MOVEMENT_META[movement.movement_type].className} variant="outline">
                           {MOVEMENT_META[movement.movement_type].label}
                         </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Link href={`/parts/${movement.part_id}`} className="font-mono text-sm font-semibold hover:underline">
+                          {movement.reference}
+                        </Link>
+                        <div className="text-xs text-muted-foreground">{movement.location_name}</div>
+                      </TableCell>
+                      <TableCell className="max-w-[220px] truncate text-sm text-muted-foreground">
+                        {movement.reason || '-'}
                       </TableCell>
                       <TableCell className="text-right font-mono">
                         {movement.quantity_delta > 0 ? `+${movement.quantity_delta}` : movement.quantity_delta}
