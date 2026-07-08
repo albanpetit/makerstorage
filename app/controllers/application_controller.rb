@@ -14,7 +14,8 @@ class ApplicationController < ActionController::Base
         },
         current_organization: current_organization ? serialize_organization(current_organization) : nil,
         organizations: current_user.organizations.order(:name).map { |org| serialize_organization(org) },
-        alerts_count: current_organization&.low_stock_parts_count || 0
+        alerts_count: current_organization&.low_stock_parts_count || 0,
+        is_organization_admin: current_organization ? current_user.admin_of?(current_organization) : false
       }
     end
   }

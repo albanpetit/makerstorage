@@ -55,7 +55,7 @@ const navigationItems = [
   { title: 'Suppliers', url: '/suppliers', icon: Truck },
   { title: 'Alerts', url: '/alerts', icon: AlertTriangle, badgeKey: 'alerts' as const },
   { title: 'Members & Roles', url: '/members', icon: Users },
-  { title: 'Settings', url: '/settings', icon: Settings },
+  { title: 'Settings', url: '/settings', icon: Settings, adminOnly: true },
 ]
 
 const ORG_BADGE_COLORS = [
@@ -106,6 +106,7 @@ interface PageProps {
     current_organization?: Organization
     organizations?: Organization[]
     alerts_count?: number
+    is_organization_admin?: boolean
   }
 }
 
@@ -117,6 +118,8 @@ export function AppSidebar() {
   const currentOrganization = auth?.current_organization
   const organizations = auth?.organizations || []
   const alertsCount = auth?.alerts_count || 0
+  const isOrganizationAdmin = auth?.is_organization_admin || false
+  const visibleNavigationItems = navigationItems.filter((item) => !item.adminOnly || isOrganizationAdmin)
 
   const userDisplayName = user
     ? `${user.firstname} ${user.lastname}`.trim() || user.email.split('@')[0]
@@ -212,7 +215,7 @@ export function AppSidebar() {
           <SidebarGroupLabel>General</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {navigationItems.map((item) => (
+              {visibleNavigationItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild tooltip={item.title} isActive={currentPath === item.url}>
                     <Link href={item.url}>
@@ -265,12 +268,14 @@ export function AppSidebar() {
                     Profile
                   </Link>
                 </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/settings" className="cursor-pointer">
-                    <Settings className="mr-2 size-4" />
-                    Settings
-                  </Link>
-                </DropdownMenuItem>
+                {isOrganizationAdmin && (
+                  <DropdownMenuItem asChild>
+                    <Link href="/settings" className="cursor-pointer">
+                      <Settings className="mr-2 size-4" />
+                      Settings
+                    </Link>
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
                   <Link href="/logout" method="delete" as="button" className="w-full cursor-pointer">

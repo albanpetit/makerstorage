@@ -48,6 +48,8 @@ Rails.application.routes.draw do
 
   resources :members, only: %i[index create update destroy]
 
+  resource :settings, only: %i[show update]
+
   root "dashboard#index"
   # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
 

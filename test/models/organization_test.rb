@@ -54,6 +54,26 @@ class OrganizationTest < ActiveSupport::TestCase
     assert_no_match(/RES/, org.next_ipn(category_code: "RES"))
   end
 
+  test "next_ipn accepts an explicit sequence without mutating ipn_next_sequence" do
+    org = create_organization(ipn_prefix: "MS", ipn_use_category_code: false, ipn_separator: "-", ipn_digits: 3, ipn_next_sequence: 10)
+    assert_equal "MS-015", org.next_ipn(sequence: 15)
+    assert_equal 10, org.ipn_next_sequence
+  end
+
+  test "ipn_preview returns the next reference plus a run of examples" do
+    org = create_organization(ipn_prefix: "MS", ipn_use_category_code: false, ipn_separator: "-", ipn_digits: 3, ipn_next_sequence: 1)
+    preview = org.ipn_preview(example_count: 2)
+    assert_equal "MS-001", preview[:next]
+    assert_equal [ "MS-002", "MS-003" ], preview[:examples]
+  end
+
+  test "rejects a currency outside the allowed set" do
+    org = create_organization
+    org.currency = "JPY"
+    assert_not org.valid?
+    assert_includes org.errors[:currency], "is not included in the list"
+  end
+
   test "must have at least one owner on update" do
     org = create_organization
     user = User.create!(firstname: "A", lastname: "B", email: "owner_test@example.com", password: "password123")

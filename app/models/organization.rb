@@ -18,6 +18,7 @@ class Organization < ApplicationRecord
 
   # Constants
   IPN_SEPARATORS = %w[- . _ /].freeze
+  CURRENCIES = %w[EUR USD GBP CHF].freeze
 
   # Validations
   validates :name, presence: true, length: { minimum: 2, maximum: 100 }
@@ -27,7 +28,7 @@ class Organization < ApplicationRecord
   validates :ipn_separator, inclusion: { in: IPN_SEPARATORS }, allow_blank: true
   validates :ipn_digits, numericality: { only_integer: true, greater_than_or_equal_to: 3, less_than_or_equal_to: 8 }
   validates :ipn_next_sequence, numericality: { only_integer: true, greater_than: 0 }
-  validates :currency, presence: true
+  validates :currency, presence: true, inclusion: { in: CURRENCIES }
   validates :default_low_stock_threshold, numericality: { only_integer: true, greater_than_or_equal_to: 0 }
 
   # Callbacks
@@ -75,11 +76,18 @@ class Organization < ApplicationRecord
   end
 
   # Methods - IPN numbering
-  def next_ipn(category_code: nil)
+  def next_ipn(category_code: nil, sequence: ipn_next_sequence)
     segments = [ ipn_prefix ]
     segments << category_code if ipn_use_category_code && category_code.present?
-    segments << ipn_next_sequence.to_s.rjust(ipn_digits, "0")
+    segments << sequence.to_s.rjust(ipn_digits, "0")
     segments.join(ipn_separator)
+  end
+
+  def ipn_preview(category_code: nil, example_count: 3)
+    {
+      next: next_ipn(category_code: category_code),
+      examples: (1..example_count).map { |i| next_ipn(category_code: category_code, sequence: ipn_next_sequence + i) }
+    }
   end
 
   # Methods - Address
