@@ -43,6 +43,8 @@ Rails.application.routes.draw do
   get "scan", to: "scans#index", as: :scan
   post "scan/movements", to: "scans#create_movement", as: :scan_movements
 
+  get "search", to: "search#index", as: :search
+
   resources :suppliers, only: %i[index create update destroy]
 
   get "alerts", to: "alerts#index"
