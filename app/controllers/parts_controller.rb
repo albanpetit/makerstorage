@@ -22,8 +22,16 @@ class PartsController < ApplicationController
   end
 
   def show
+    movements = @part.stock_movements
+      .includes(:storage_location, :user)
+      .order(created_at: :desc)
+      .limit(10)
+
     render inertia: "parts/show", props: {
-      part: serialize_part_full(@part)
+      part: serialize_part_full(@part),
+      storages: @part.part_storages.includes(:storage_location).map { |ps| serialize_part_storage(ps) },
+      movements: movements.map { |movement| serialize_part_movement(movement) },
+      storage_locations: serialize_storage_locations
     }
   end
 
@@ -64,8 +72,11 @@ class PartsController < ApplicationController
   end
 
   def destroy
-    @part.destroy
-    redirect_to parts_path, notice: "Part deleted successfully."
+    if @part.destroy
+      redirect_to parts_path, notice: "Part deleted successfully."
+    else
+      redirect_back_or_to part_path(@part), alert: @part.errors.full_messages.to_sentence
+    end
   end
 
   # Column names accepted per logical field, checked in order (French/English/
@@ -244,6 +255,28 @@ class PartsController < ApplicationController
       footprint_id: part.footprint_id,
       part_suppliers: part.part_suppliers.includes(:supplier).map { |ps| serialize_part_supplier(ps) }
     )
+  end
+
+  def serialize_part_storage(ps)
+    location = ps.storage_location
+    {
+      location_id: location.id,
+      location_name: location.name,
+      location_path: (location.ancestors.reverse + [ location ]).map(&:name),
+      quantity: ps.quantity
+    }
+  end
+
+  def serialize_part_movement(movement)
+    {
+      id: movement.id,
+      created_at: movement.created_at.iso8601,
+      movement_type: movement.movement_type,
+      quantity_delta: movement.quantity_delta,
+      reason: movement.reason,
+      location_name: movement.storage_location.name,
+      user_name: movement.user ? "#{movement.user.firstname} #{movement.user.lastname}".strip : nil
+    }
   end
 
   def serialize_part_supplier(ps)

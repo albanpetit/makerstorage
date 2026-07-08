@@ -48,6 +48,67 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
     assert_equal 9.99, part_json["part_suppliers"].first["unit_price"]
   end
 
+  test "show provides storages with location paths, movements, and location options" do
+    user = create_user
+    org = user.organizations.first
+    category = create_category(organization: org)
+    room = create_storage_location(organization: org, name: "Workshop", location_type: "room")
+    shelf = create_storage_location(organization: org, name: "Shelf B2", location_type: "shelf", parent: room)
+    part = create_part(organization: org, category: category)
+    PartStorage.create!(part: part, storage_location: shelf, quantity: 40)
+    StockMovement.create!(
+      organization: org, part: part, storage_location: shelf, user: user,
+      movement_type: "out", quantity_delta: -5, reason: "Project X"
+    )
+
+    sign_in user
+    get part_path(part)
+    assert_response :success
+
+    storage = inertia_props["storages"].first
+    assert_equal [ "Workshop", "Shelf B2" ], storage["location_path"]
+    assert_equal 35, storage["quantity"]
+
+    movement = inertia_props["movements"].first
+    assert_equal "out", movement["movement_type"]
+    assert_equal(-5, movement["quantity_delta"])
+    assert_equal "Project X", movement["reason"]
+    assert_equal "Shelf B2", movement["location_name"]
+
+    assert inertia_props["storage_locations"].any? { |l| l["name"].include?("Shelf B2") }
+  end
+
+  test "destroy deletes a part without movements" do
+    user = create_user
+    org = user.organizations.first
+    part = create_part(organization: org)
+
+    sign_in user
+    assert_difference -> { Part.count } => -1 do
+      delete part_path(part)
+    end
+    assert_redirected_to parts_path
+  end
+
+  test "destroy refuses a part with recorded movements and reports the error" do
+    user = create_user
+    org = user.organizations.first
+    location = create_storage_location(organization: org)
+    part = create_part(organization: org)
+    StockMovement.create!(
+      organization: org, part: part, storage_location: location, user: user,
+      movement_type: "in", quantity_delta: 10
+    )
+
+    sign_in user
+    assert_no_difference "Part.count" do
+      delete part_path(part)
+    end
+    assert_redirected_to part_path(part)
+    follow_redirect!
+    assert flash[:alert].present?
+  end
+
   test "index passes through the search query param as initial_query" do
     user = create_user
     sign_in user

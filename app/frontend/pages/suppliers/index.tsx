@@ -3,6 +3,7 @@ import { FormEvent, useMemo, useState } from 'react'
 import { Plus, Mail, Truck, Package, Clock, Pencil, Trash2 } from 'lucide-react'
 
 import { AppLayout } from '@/layouts/app-layout'
+import { PageHeader } from '@/components/page-header'
 import { FlashMessages } from '@/components/flash-messages'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -187,22 +188,20 @@ export default function SuppliersIndex({ suppliers }: SuppliersPageProps) {
   }, [suppliers])
 
   return (
-    <AppLayout>
-      <Head title="Suppliers" />
-
-      <div className="space-y-6">
-        <FlashMessages />
-
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Suppliers</h1>
-            <p className="text-muted-foreground text-sm">Sourcing and lead times</p>
-          </div>
+    <AppLayout
+      header={
+        <PageHeader title="Suppliers" subtitle="Sourcing and lead times">
           <Button size="sm" onClick={openNewDialog}>
             <Plus className="size-4" />
             Add Supplier
           </Button>
-        </div>
+        </PageHeader>
+      }
+    >
+      <Head title="Suppliers" />
+
+      <div className="space-y-6">
+        <FlashMessages />
 
         {/* Stats */}
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
