@@ -26,7 +26,7 @@ class StockMovementsController < ApplicationController
     movement.quantity_delta = signed_quantity
 
     if movement.save
-      redirect_to stock_movements_path, notice: "Movement recorded successfully."
+      redirect_back_or_to stock_movements_path, notice: "Movement recorded successfully."
     else
       redirect_back_or_to stock_movements_path, alert: "Failed to record movement.", inertia: { errors: movement.errors }
     end

@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 import { Plus, Download, ArrowDown, ArrowUp, ArrowLeftRight, Package, Filter, ChevronLeft, ChevronRight } from 'lucide-react'
 
 import { AppLayout } from '@/layouts/app-layout'
+import { PageHeader } from '@/components/page-header'
 import { FlashMessages } from '@/components/flash-messages'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -197,28 +198,24 @@ export default function StockMovementsIndex({ movements, parts, storage_location
   }
 
   return (
-    <AppLayout>
+    <AppLayout
+      header={
+        <PageHeader title="Movements" subtitle="Inbound, outbound, and adjustments">
+          <Button variant="outline" size="sm" onClick={() => exportCsv(filtered)}>
+            <Download className="size-4" />
+            Export CSV
+          </Button>
+          <Button size="sm" onClick={openNewDialog}>
+            <Plus className="size-4" />
+            New Movement
+          </Button>
+        </PageHeader>
+      }
+    >
       <Head title="Movements" />
 
       <div className="space-y-6">
         <FlashMessages />
-
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Movements</h1>
-            <p className="text-muted-foreground text-sm">Inbound, outbound, and adjustments</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button variant="outline" size="sm" onClick={() => exportCsv(filtered)}>
-              <Download className="size-4" />
-              Export CSV
-            </Button>
-            <Button size="sm" onClick={openNewDialog}>
-              <Plus className="size-4" />
-              New Movement
-            </Button>
-          </div>
-        </div>
 
         {/* Stats */}
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">

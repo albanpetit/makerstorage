@@ -3,6 +3,7 @@ import { FormEvent, useMemo, useState } from 'react'
 import { Building2, Hash, Package, Info } from 'lucide-react'
 
 import { AppLayout } from '@/layouts/app-layout'
+import { PageHeader } from '@/components/page-header'
 import { FlashMessages } from '@/components/flash-messages'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card'
@@ -193,16 +194,11 @@ export default function SettingsIndex({ organization, currencies, ipn_separators
   }, [ipnForm.data.organization])
 
   return (
-    <AppLayout>
+    <AppLayout header={<PageHeader title="Settings" subtitle="Organization configuration and preferences" />}>
       <Head title="Settings" />
 
       <div className="space-y-6">
         <FlashMessages />
-
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
-          <p className="text-sm text-muted-foreground">Organization configuration and preferences</p>
-        </div>
 
         <div className="flex flex-col gap-6 lg:flex-row">
           {/* Section nav */}
@@ -222,8 +218,8 @@ export default function SettingsIndex({ organization, currencies, ipn_separators
             ))}
           </nav>
 
-          {/* Content */}
-          <div className="min-w-0 flex-1 space-y-4">
+          {/* Content — centered and capped like the mockup's 780px column */}
+          <div className="mx-auto w-full min-w-0 max-w-[780px] space-y-4">
             {section === 'general' && (
               <form onSubmit={submitGeneral} className="space-y-4">
                 <div>

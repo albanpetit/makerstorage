@@ -2,6 +2,7 @@ import { Head, Link } from '@inertiajs/react'
 import { Package, Boxes, Coins, AlertTriangle } from 'lucide-react'
 
 import { AppLayout } from '@/layouts/app-layout'
+import { PageHeader } from '@/components/page-header'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -85,15 +86,10 @@ export default function Dashboard({ stats, category_breakdown, low_stock_parts, 
   ]
 
   return (
-    <AppLayout>
+    <AppLayout header={<PageHeader title="Dashboard" subtitle="Overview of your inventory" />}>
       <Head title="Dashboard" />
 
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
-          <p className="text-muted-foreground">Overview of your inventory</p>
-        </div>
-
         {/* Stat cards */}
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           {statCards.map((stat) => (

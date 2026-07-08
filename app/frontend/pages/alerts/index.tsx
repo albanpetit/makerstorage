@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react'
 import { AlertTriangle, CheckCircle2, FileText, Printer } from 'lucide-react'
 
 import { AppLayout } from '@/layouts/app-layout'
+import { PageHeader } from '@/components/page-header'
 import { FlashMessages } from '@/components/flash-messages'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -166,24 +167,22 @@ export default function AlertsIndex({ alerts, orders }: AlertsPageProps) {
   }
 
   return (
-    <AppLayout>
-      <Head title="Alerts" />
-
-      <div className="space-y-6">
-        <FlashMessages />
-
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Alerts</h1>
-            <p className="text-muted-foreground text-sm">References under their minimum threshold to restock</p>
-          </div>
+    <AppLayout
+      header={
+        <PageHeader title="Alerts" subtitle="References under their minimum threshold to restock">
           {groups.length > 0 && (
             <Button size="sm" onClick={() => setPoOpen(true)}>
               <FileText className="size-4" />
               Generate Purchase Order
             </Button>
           )}
-        </div>
+        </PageHeader>
+      }
+    >
+      <Head title="Alerts" />
+
+      <div className="space-y-6">
+        <FlashMessages />
 
         {/* Stats */}
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">

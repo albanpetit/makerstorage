@@ -3,6 +3,7 @@ import { FormEvent, useMemo, useState } from 'react'
 import { Crown, Shield, Wrench, Eye, UserPlus, MoreHorizontal, Check, X } from 'lucide-react'
 
 import { AppLayout } from '@/layouts/app-layout'
+import { PageHeader } from '@/components/page-header'
 import { FlashMessages } from '@/components/flash-messages'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -164,22 +165,20 @@ export default function MembersIndex({ members }: MembersPageProps) {
   ), [members])
 
   return (
-    <AppLayout>
-      <Head title="Members & Roles" />
-
-      <div className="space-y-6">
-        <FlashMessages />
-
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Members & Roles</h1>
-            <p className="text-muted-foreground text-sm">Manage your team's access to the workshop</p>
-          </div>
+    <AppLayout
+      header={
+        <PageHeader title="Members & Roles" subtitle="Manage your team's access to the workshop">
           <Button size="sm" onClick={openInviteDialog}>
             <UserPlus className="size-4" />
             Invite Member
           </Button>
-        </div>
+        </PageHeader>
+      }
+    >
+      <Head title="Members & Roles" />
+
+      <div className="space-y-6">
+        <FlashMessages />
 
         {/* Stats */}
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
