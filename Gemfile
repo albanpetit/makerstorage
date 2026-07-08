@@ -66,7 +66,7 @@ group :test do
   gem "minitest", "~> 5.25"
 end
 
-gem "inertia_rails", "~> 3.15"
+gem "inertia_rails", "~> 3.16"
 
 gem "vite_rails", "~> 3.0"
 
