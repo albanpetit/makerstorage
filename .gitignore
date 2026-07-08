@@ -45,3 +45,6 @@ node_modules
 design-makerstorage
 .claude
 CLAUDE.md
+
+# Local-only design audit notes (kept for tracking future fixes, not committed)
+DESIGN_AUDIT.md
