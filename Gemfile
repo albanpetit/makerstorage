@@ -34,6 +34,9 @@ gem "thruster", require: false
 # Use Active Storage variants [https://guides.rubyonrails.org/active_storage_overview.html#transforming-images]
 gem "image_processing", "~> 1.2"
 
+# CSV became a bundled (non-default) gem as of Ruby 3.4; needed for parts CSV import.
+gem "csv"
+
 group :development, :test do
   # See https://guides.rubyonrails.org/debugging_rails_applications.html#debugging-with-the-debug-gem
   gem "debug", platforms: %i[ mri windows ], require: "debug/prelude"
@@ -57,6 +60,10 @@ group :test do
   # Use system testing [https://guides.rubyonrails.org/testing.html#system-testing]
   gem "capybara"
   gem "selenium-webdriver"
+
+  # minitest 6.x changed Runnable#run's signature in a way that's incompatible
+  # with Rails 8.1.1's test_unit/line_filtering railtie (breaks `bin/rails test`).
+  gem "minitest", "~> 5.25"
 end
 
 gem "inertia_rails", "~> 3.16"

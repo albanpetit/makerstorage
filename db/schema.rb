@@ -10,8 +10,37 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_01_03_232126) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_07_204115) do
+  create_table "active_storage_attachments", force: :cascade do |t|
+    t.bigint "blob_id", null: false
+    t.datetime "created_at", null: false
+    t.string "name", null: false
+    t.bigint "record_id", null: false
+    t.string "record_type", null: false
+    t.index ["blob_id"], name: "index_active_storage_attachments_on_blob_id"
+    t.index ["record_type", "record_id", "name", "blob_id"], name: "index_active_storage_attachments_uniqueness", unique: true
+  end
+
+  create_table "active_storage_blobs", force: :cascade do |t|
+    t.bigint "byte_size", null: false
+    t.string "checksum"
+    t.string "content_type"
+    t.datetime "created_at", null: false
+    t.string "filename", null: false
+    t.string "key", null: false
+    t.text "metadata"
+    t.string "service_name", null: false
+    t.index ["key"], name: "index_active_storage_blobs_on_key", unique: true
+  end
+
+  create_table "active_storage_variant_records", force: :cascade do |t|
+    t.bigint "blob_id", null: false
+    t.string "variation_digest", null: false
+    t.index ["blob_id", "variation_digest"], name: "index_active_storage_variant_records_uniqueness", unique: true
+  end
+
   create_table "categories", force: :cascade do |t|
+    t.string "code"
     t.string "color"
     t.datetime "created_at", null: false
     t.text "description"
@@ -20,6 +49,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_03_232126) do
     t.integer "organization_id", null: false
     t.integer "parent_id"
     t.datetime "updated_at", null: false
+    t.index ["organization_id", "code"], name: "index_categories_on_organization_id_and_code"
     t.index ["organization_id", "name"], name: "index_categories_on_organization_id_and_name"
     t.index ["organization_id"], name: "index_categories_on_organization_id"
     t.index ["parent_id"], name: "index_categories_on_parent_id"
@@ -59,17 +89,37 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_03_232126) do
   create_table "organizations", force: :cascade do |t|
     t.string "address_line1"
     t.string "address_line2"
+    t.boolean "allow_negative_stock", default: false, null: false
     t.string "city"
     t.string "country"
     t.datetime "created_at", null: false
+    t.string "currency", default: "EUR", null: false
+    t.integer "default_low_stock_threshold", default: 50, null: false
     t.string "email"
+    t.integer "ipn_digits", default: 5, null: false
+    t.integer "ipn_next_sequence", default: 1, null: false
+    t.string "ipn_prefix", default: "MS", null: false
+    t.string "ipn_separator", default: "-", null: false
+    t.boolean "ipn_use_category_code", default: true, null: false
     t.string "name", null: false
     t.string "phone"
     t.string "postcode"
+    t.string "timezone", default: "Europe/Paris", null: false
     t.datetime "updated_at", null: false
     t.string "website"
     t.index ["email"], name: "index_organizations_on_email"
     t.index ["name"], name: "index_organizations_on_name"
+  end
+
+  create_table "part_storages", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.integer "part_id", null: false
+    t.integer "quantity", default: 0, null: false
+    t.integer "storage_location_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["part_id", "storage_location_id"], name: "index_part_storages_on_part_and_location", unique: true
+    t.index ["part_id"], name: "index_part_storages_on_part_id"
+    t.index ["storage_location_id"], name: "index_part_storages_on_storage_location_id"
   end
 
   create_table "part_suppliers", force: :cascade do |t|
@@ -119,6 +169,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_03_232126) do
     t.text "storage_notes"
     t.integer "target_stock"
     t.string "tolerance"
+    t.string "unit", default: "piece", null: false
     t.decimal "unit_price", precision: 10, scale: 2
     t.datetime "updated_at", null: false
     t.string "value"
@@ -133,6 +184,66 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_03_232126) do
     t.index ["organization_id"], name: "index_parts_on_organization_id"
     t.index ["status"], name: "index_parts_on_status"
     t.index ["value"], name: "index_parts_on_value"
+  end
+
+  create_table "purchase_lines", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.integer "part_id", null: false
+    t.integer "purchase_id", null: false
+    t.integer "quantity", null: false
+    t.decimal "unit_price", precision: 10, scale: 2
+    t.datetime "updated_at", null: false
+    t.index ["part_id"], name: "index_purchase_lines_on_part_id"
+    t.index ["purchase_id"], name: "index_purchase_lines_on_purchase_id"
+  end
+
+  create_table "purchases", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.date "ordered_at"
+    t.integer "organization_id", null: false
+    t.string "reference"
+    t.string "status", default: "pending", null: false
+    t.integer "supplier_id", null: false
+    t.decimal "total_amount", precision: 10, scale: 2
+    t.datetime "updated_at", null: false
+    t.index ["organization_id"], name: "index_purchases_on_organization_id"
+    t.index ["reference"], name: "index_purchases_on_reference"
+    t.index ["status"], name: "index_purchases_on_status"
+    t.index ["supplier_id"], name: "index_purchases_on_supplier_id"
+  end
+
+  create_table "stock_movements", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "movement_type", null: false
+    t.integer "organization_id", null: false
+    t.integer "part_id", null: false
+    t.integer "quantity_delta", null: false
+    t.text "reason"
+    t.string "reference"
+    t.integer "storage_location_id", null: false
+    t.datetime "updated_at", null: false
+    t.integer "user_id"
+    t.index ["created_at"], name: "index_stock_movements_on_created_at"
+    t.index ["movement_type"], name: "index_stock_movements_on_movement_type"
+    t.index ["organization_id"], name: "index_stock_movements_on_organization_id"
+    t.index ["part_id"], name: "index_stock_movements_on_part_id"
+    t.index ["storage_location_id"], name: "index_stock_movements_on_storage_location_id"
+    t.index ["user_id"], name: "index_stock_movements_on_user_id"
+  end
+
+  create_table "storage_locations", force: :cascade do |t|
+    t.string "code"
+    t.datetime "created_at", null: false
+    t.string "location_type", null: false
+    t.string "name", null: false
+    t.integer "organization_id", null: false
+    t.integer "parent_id"
+    t.datetime "updated_at", null: false
+    t.index ["code"], name: "index_storage_locations_on_code"
+    t.index ["location_type"], name: "index_storage_locations_on_location_type"
+    t.index ["organization_id", "name"], name: "index_storage_locations_on_organization_id_and_name"
+    t.index ["organization_id"], name: "index_storage_locations_on_organization_id"
+    t.index ["parent_id"], name: "index_storage_locations_on_parent_id"
   end
 
   create_table "suppliers", force: :cascade do |t|
@@ -187,12 +298,16 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_03_232126) do
     t.index ["unlock_token"], name: "index_users_on_unlock_token", unique: true
   end
 
+  add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
+  add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "categories", "categories", column: "parent_id"
   add_foreign_key "categories", "organizations"
   add_foreign_key "footprints", "organizations"
   add_foreign_key "organization_memberships", "organizations"
   add_foreign_key "organization_memberships", "users"
   add_foreign_key "organization_memberships", "users", column: "invited_by_id"
+  add_foreign_key "part_storages", "parts"
+  add_foreign_key "part_storages", "storage_locations"
   add_foreign_key "part_suppliers", "parts"
   add_foreign_key "part_suppliers", "suppliers"
   add_foreign_key "part_tags", "parts"
@@ -200,6 +315,16 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_03_232126) do
   add_foreign_key "parts", "categories"
   add_foreign_key "parts", "footprints"
   add_foreign_key "parts", "organizations"
+  add_foreign_key "purchase_lines", "parts"
+  add_foreign_key "purchase_lines", "purchases"
+  add_foreign_key "purchases", "organizations"
+  add_foreign_key "purchases", "suppliers"
+  add_foreign_key "stock_movements", "organizations"
+  add_foreign_key "stock_movements", "parts"
+  add_foreign_key "stock_movements", "storage_locations"
+  add_foreign_key "stock_movements", "users"
+  add_foreign_key "storage_locations", "organizations"
+  add_foreign_key "storage_locations", "storage_locations", column: "parent_id"
   add_foreign_key "suppliers", "organizations"
   add_foreign_key "tags", "organizations"
 end
