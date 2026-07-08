@@ -25,6 +25,10 @@ Rails.application.routes.draw do
 
   # Inventory resources
   resources :parts do
+    collection do
+      post :import
+    end
+
     resources :part_suppliers, only: %i[create update destroy] do
       member do
         post :set_preferred
@@ -32,7 +36,19 @@ Rails.application.routes.draw do
     end
   end
 
-  root "parts#index"
+  resources :storage_locations, only: %i[index create update destroy]
+
+  resources :stock_movements, only: %i[index create]
+
+  resources :suppliers, only: %i[index create update destroy]
+
+  get "alerts", to: "alerts#index"
+  post "alerts/purchase_orders", to: "alerts#create_purchase_orders", as: :alert_purchase_orders
+  patch "alerts/orders/:id/advance", to: "alerts#advance_order", as: :advance_alert_order
+
+  resources :members, only: %i[index create update destroy]
+
+  root "dashboard#index"
   # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
 
   # Reveal health status on /up that returns 200 if the app boots with no exceptions, otherwise 500.

@@ -1,6 +1,9 @@
 import { createInertiaApp, router, type ResolvedComponent } from '@inertiajs/react'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+import { ThemeProvider } from 'next-themes'
+
+import { Toaster } from '@/components/ui/sonner'
 
 // Disable the error modal - errors handled via flash messages
 router.on('invalid', (event) => {
@@ -39,7 +42,10 @@ void createInertiaApp({
   setup({ el, App, props }) {
     createRoot(el).render(
       <StrictMode>
-        <App {...props} />
+        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
+          <App {...props} />
+          <Toaster />
+        </ThemeProvider>
       </StrictMode>
     )
   },

@@ -5,10 +5,9 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Field, FieldContent, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
-import { Checkbox } from "@/components/ui/checkbox"
+import { Checkbox } from '@/components/ui/checkbox'
 import { FlashMessages } from '@/components/flash-messages'
-
-import reactSvg from '/assets/auth.jpeg'
+import { AuthLayout } from '@/components/auth-layout'
 
 export default function Login() {
   const { data, setData, post, processing, errors } = useForm({
@@ -28,112 +27,91 @@ export default function Login() {
     <>
       <Head title="Log in" />
 
-      <div className="grid min-h-svh lg:grid-cols-2 bg-background text-foreground">
-        <div className="flex flex-col gap-4 p-6 md:p-10 bg-background text-foreground">
-          <div className="flex flex-1 items-center justify-center">
-            <div className="w-full max-w-xs">
-              <FlashMessages errors={errors} />
+      <AuthLayout
+        eyebrow="Stock management"
+        headline="Every resistor has its place, every withdrawal tracked."
+        description="Component inventory, physical storage locations, stock movements, and restock alerts — all in one place."
+      >
+        <FlashMessages errors={errors} />
 
-              <form onSubmit={submit} className="space-y-4 mt-4">
-                <FieldGroup>
-                  <div className="flex flex-col items-center gap-1 text-center">
-                    <h1 className="text-2xl font-bold">Login to your account</h1>
-                    <p className="text-muted-foreground text-sm text-balance">
-                      Enter your email below to login to your account
-                    </p>
-                  </div>
-
-                  {/* Email Field */}
-                  <Field>
-                    <FieldLabel>
-                      <Label htmlFor="email">Email</Label>
-                    </FieldLabel>
-                    <FieldContent>
-                      <Input
-                        id="email"
-                        type="email"
-                        value={data.user.email}
-                        onChange={(e) => setData('user', { ...data.user, email: e.target.value })}
-                        required
-                        autoFocus
-                        autoComplete="email"
-                        aria-invalid={!!errors['user.email']}
-                      />
-                    </FieldContent>
-                    {errors['user.email'] && <FieldError>{errors['user.email']}</FieldError>}
-                  </Field>
-
-                  {/* Password Field */}
-                  <Field>
-                    <div className='flex items-center'>
-                      <FieldLabel className='flex'>
-                          <Label htmlFor="password">Password</Label>
-                      </FieldLabel>
-                      <Link
-                        href="/forgot-password"
-                        className="text-sm ml-auto text-muted-foreground hover:text-foreground transition-colors underline-offset-4 hover:underline"
-                      >
-                        Forgot password?
-                      </Link>
-                    </div>
-                    <FieldContent>
-                      <Input
-                        id="password"
-                        type="password"
-                        value={data.user.password}
-                        onChange={(e) => setData('user', { ...data.user, password: e.target.value })}
-                        required
-                        autoComplete="current-password"
-                        aria-invalid={!!errors['user.password']}
-                      />
-                    </FieldContent>
-                    {errors['user.password'] && <FieldError>{errors['user.password']}</FieldError>}
-                  </Field>
-
-                  {/* Remember Me Checkbox */}
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="remember_me"
-                      checked={data.remember_me}
-                      onCheckedChange={(checked) => setData('remember_me', checked === true)}
-                    />
-                    <Label htmlFor="remember_me" className="text-sm font-normal cursor-pointer">
-                      Remember me
-                    </Label>
-                  </div>
-
-                  {/* Submit Button */}
-                  <Button
-                    type="submit"
-                    className="w-full"
-                    disabled={processing}
-                  >
-                    {processing ? 'Logging in...' : 'Log in'}
-                  </Button>
-
-                  {/* Sign up link */}
-                  <div className="text-center text-sm">
-                    <span className="text-muted-foreground">Don't have an account? </span>
-                    <Link
-                      href="/signup"
-                      className="text-foreground hover:text-primary transition-colors underline-offset-4 hover:underline font-medium"
-                    >
-                      Sign up
-                    </Link>
-                  </div>
-                </FieldGroup>
-              </form>
-            </div>
-          </div>
+        <div className="mb-6">
+          <h2 className="text-2xl font-semibold tracking-tight">Welcome back</h2>
+          <p className="text-muted-foreground mt-1 text-sm">Log in to access your inventory.</p>
         </div>
-      <div className=" relative hidden lg:block">
-        <img
-          src={reactSvg}
-          alt="Image"
-          className="absolute inset-0 h-full w-full object-cover dark:brightness-[0.8]"
-        />
-      </div>
-    </div>
+
+        <form onSubmit={submit}>
+          <FieldGroup>
+            <Field>
+              <FieldLabel>
+                <Label htmlFor="email">Email address</Label>
+              </FieldLabel>
+              <FieldContent>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="you@workshop.io"
+                  value={data.user.email}
+                  onChange={(e) => setData('user', { ...data.user, email: e.target.value })}
+                  required
+                  autoFocus
+                  autoComplete="email"
+                  aria-invalid={!!errors['user.email']}
+                />
+              </FieldContent>
+              {errors['user.email'] && <FieldError>{errors['user.email']}</FieldError>}
+            </Field>
+
+            <Field>
+              <div className="flex items-center">
+                <FieldLabel className="flex">
+                  <Label htmlFor="password">Password</Label>
+                </FieldLabel>
+                <Link
+                  href="/forgot-password"
+                  className="text-muted-foreground hover:text-foreground ml-auto text-xs transition-colors"
+                >
+                  Forgot password?
+                </Link>
+              </div>
+              <FieldContent>
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={data.user.password}
+                  onChange={(e) => setData('user', { ...data.user, password: e.target.value })}
+                  required
+                  autoComplete="current-password"
+                  aria-invalid={!!errors['user.password']}
+                />
+              </FieldContent>
+              {errors['user.password'] && <FieldError>{errors['user.password']}</FieldError>}
+            </Field>
+
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="remember_me"
+                checked={data.remember_me}
+                onCheckedChange={(checked) => setData('remember_me', checked === true)}
+              />
+              <Label htmlFor="remember_me" className="text-muted-foreground cursor-pointer text-sm font-normal">
+                Stay logged in on this device
+              </Label>
+            </div>
+
+            <Button type="submit" className="mt-1 w-full" disabled={processing}>
+              {processing ? 'Logging in...' : 'Log in'}
+            </Button>
+          </FieldGroup>
+        </form>
+
+        <div className="mt-6 text-center text-sm">
+          <span className="text-muted-foreground">Don't have an account? </span>
+          <Link href="/signup" className="font-medium underline underline-offset-4">
+            Sign up
+          </Link>
+        </div>
+      </AuthLayout>
     </>
   )
 }

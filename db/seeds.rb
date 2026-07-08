@@ -233,6 +233,37 @@ end
 puts "  Created #{Supplier.count} suppliers"
 
 # =============================================================================
+# Storage Locations
+# =============================================================================
+puts "Creating storage locations..."
+
+locations_data = [
+  { key: "Workshop", name: "Electronics Workshop", type: "room", code: "WS", parent: nil },
+  { key: "Cabinet A", name: "Cabinet A — Actives", type: "cabinet", code: "A", parent: "Workshop" },
+  { key: "Shelf A1", name: "Shelf A1 — MCUs", type: "shelf", code: "A1", parent: "Cabinet A" },
+  { key: "Drawer A1-01", name: "Drawer A1-01", type: "drawer", code: "A1-01", parent: "Shelf A1" },
+  { key: "Shelf A3", name: "Shelf A3 — Diodes & LEDs", type: "shelf", code: "A3", parent: "Cabinet A" },
+  { key: "Cabinet B", name: "Cabinet B — Passives", type: "cabinet", code: "B", parent: "Workshop" },
+  { key: "Shelf B2", name: "Shelf B2 — Resistors", type: "shelf", code: "B2", parent: "Cabinet B" },
+  { key: "Box B2-T04", name: "Box B2-T04", type: "box", code: "B2-T04", parent: "Shelf B2" },
+  { key: "Box B2-T05", name: "Box B2-T05", type: "box", code: "B2-T05", parent: "Shelf B2" },
+  { key: "Shelf B3", name: "Shelf B3 — Capacitors", type: "shelf", code: "B3", parent: "Cabinet B" },
+  { key: "Box B3-T01", name: "Box B3-T01", type: "box", code: "B3-T01", parent: "Shelf B3" },
+  { key: "Workbench C", name: "Workbench C — Connectics", type: "bench", code: "C", parent: "Workshop" }
+]
+
+locations = {}
+locations_data.each do |data|
+  locations[data[:key]] = StorageLocation.find_or_create_by!(organization: org, name: data[:name]) do |l|
+    l.location_type = data[:type]
+    l.code = data[:code]
+    l.parent = data[:parent] ? locations[data[:parent]] : nil
+  end
+end
+
+puts "  Created #{StorageLocation.count} storage locations"
+
+# =============================================================================
 # Parts
 # =============================================================================
 puts "Creating parts..."
@@ -504,6 +535,8 @@ parts_data = [
   }
 ]
 
+parts_by_mpn = {}
+
 parts_data.each do |data|
   tag_names = data.delete(:tag_list) || []
   preferred_supplier = data.delete(:preferred_supplier)
@@ -527,9 +560,11 @@ parts_data.each do |data|
 
   # Add preferred supplier
   if preferred_supplier
+    lead_times = { "DigiKey" => 6, "Mouser Electronics" => 5, "LCSC" => 15, "Farnell" => 8, "RS Components" => 7 }
     PartSupplier.find_or_create_by!(part: part, supplier: preferred_supplier) do |ps|
       ps.is_preferred = true
       ps.unit_price = data[:unit_price]
+      ps.lead_time_days = lead_times[preferred_supplier.name]
     end
   end
 
@@ -538,9 +573,115 @@ parts_data.each do |data|
     tag = tags[tag_name]
     PartTag.find_or_create_by!(part: part, tag: tag) if tag
   end
+
+  parts_by_mpn[part.mpn] = part
 end
 
 puts "  Created #{Part.count} parts"
+
+# =============================================================================
+# Stock movements & initial inventory
+# =============================================================================
+puts "Creating stock movements..."
+
+if org.stock_movements.none?
+  # For each part: an inbound receipt, followed (for most) by usage that brings
+  # it down to a realistic on-hand level relative to its min_stock_threshold —
+  # a few intentionally sit below threshold or at zero to populate the
+  # low-stock/out-of-stock alerts and dashboard widgets with real data.
+  stock_plan = {
+    "RC0805FR-0710KL" => { location: "Box B2-T04", received: 500, final: 380 },
+    "RC0805FR-071KL" => { location: "Box B2-T04", received: 500, final: 420 },
+    "RC0805FR-07100RL" => { location: "Box B2-T05", received: 300, final: 45 },
+    "RC0603FR-074K7L" => { location: "Box B2-T05", received: 500, final: 310 },
+    "CL21B104KBCNNNC" => { location: "Box B3-T01", received: 500, final: 480 },
+    "CL21A106KAYNNNE" => { location: "Box B3-T01", received: 200, final: 15 },
+    "CL21B105KAFNNNE" => { location: "Shelf B3", received: 200, final: 140 },
+    "19-217/R6C-AL1M2VY/3T" => { location: "Shelf A3", received: 200, final: 85 },
+    "19-217/GHC-YR1S2/3T" => { location: "Shelf A3", received: 150, final: 60 },
+    "19-217/BHC-ZL1M2RY/3T" => { location: "Shelf A3", received: 100, final: 12 },
+    "ATMEGA328P-AU" => { location: "Drawer A1-01", received: 50, final: 22 },
+    "STM32F103C8T6" => { location: "Drawer A1-01", received: 30, final: 8 },
+    "ESP32-WROOM-32E" => { location: "Shelf A1", received: 20, final: 0 },
+    "1N4148W-7-F" => { location: "Shelf A3", received: 400, final: 340 },
+    "SS14" => { location: "Shelf A3", received: 150, final: 95 }
+  }
+
+  reasons = [
+    "Project — Sensor board v3", "Project — LED matrix badge", "Workshop class kit",
+    "Prototype build", "Repair job — amp module", "Project — Motor driver"
+  ]
+
+  stock_plan.each_with_index do |(mpn, plan), index|
+    part = parts_by_mpn[mpn]
+    next unless part
+
+    location = locations.fetch(plan[:location])
+    recorded_by = index.even? ? admin_user : test_user
+
+    StockMovement.create!(
+      organization: org, part: part, storage_location: location, user: recorded_by,
+      movement_type: "in", quantity_delta: plan[:received],
+      reason: "Received order ##{40000 + index}",
+      created_at: 21.days.ago - index.hours
+    )
+
+    used_qty = plan[:received] - plan[:final]
+    next unless used_qty.positive?
+
+    StockMovement.create!(
+      organization: org, part: part, storage_location: location, user: recorded_by,
+      movement_type: "out", quantity_delta: -used_qty,
+      reason: reasons[index % reasons.length],
+      created_at: (index + 1).days.ago
+    )
+  end
+
+  puts "  Created #{org.stock_movements.count} stock movements"
+else
+  puts "  Skipping (stock movements already exist)"
+end
+
+# =============================================================================
+# Purchases
+# =============================================================================
+puts "Creating purchases..."
+
+if org.purchases.none?
+  purchases_data = [
+    { supplier: "DigiKey", reference: "DK-55102", status: "received", ordered_at: 18.days.ago.to_date, total_amount: 184.20,
+      lines: [ { mpn: "ATMEGA328P-AU", quantity: 50, unit_price: 2.50 } ] },
+    { supplier: "DigiKey", reference: "DK-55240", status: "shipped", ordered_at: 4.days.ago.to_date, total_amount: 92.50,
+      lines: [ { mpn: "RC0805FR-0710KL", quantity: 500, unit_price: 0.01 }, { mpn: "RC0805FR-071KL", quantity: 500, unit_price: 0.01 } ] },
+    { supplier: "LCSC", reference: "LC-90112", status: "received", ordered_at: 15.days.ago.to_date, total_amount: 56.40,
+      lines: [ { mpn: "CL21B104KBCNNNC", quantity: 500, unit_price: 0.02 } ] },
+    { supplier: "LCSC", reference: "LC-90344", status: "pending", ordered_at: 1.day.ago.to_date, total_amount: 132.00,
+      lines: [ { mpn: "STM32F103C8T6", quantity: 30, unit_price: 3.50 } ] },
+    { supplier: "Mouser Electronics", reference: "MO-43712", status: "received", ordered_at: 25.days.ago.to_date, total_amount: 210.00,
+      lines: [ { mpn: "RC0603FR-074K7L", quantity: 500, unit_price: 0.008 } ] }
+  ]
+
+  purchases_data.each do |data|
+    supplier = suppliers[data[:supplier]]
+    next unless supplier
+
+    purchase = Purchase.create!(
+      organization: org, supplier: supplier, reference: data[:reference],
+      status: data[:status], ordered_at: data[:ordered_at], total_amount: data[:total_amount]
+    )
+
+    data[:lines].each do |line|
+      part = parts_by_mpn[line[:mpn]]
+      next unless part
+
+      PurchaseLine.create!(purchase: purchase, part: part, quantity: line[:quantity], unit_price: line[:unit_price])
+    end
+  end
+
+  puts "  Created #{org.purchases.count} purchases"
+else
+  puts "  Skipping (purchases already exist)"
+end
 
 # =============================================================================
 # Summary
@@ -559,6 +700,11 @@ puts "  - #{Tag.count} tags"
 puts "  - #{Supplier.count} suppliers"
 puts "  - #{Part.count} parts"
 puts "  - #{PartSupplier.count} part-supplier links"
+puts "  - #{StorageLocation.count} storage locations"
+puts "  - #{StockMovement.count} stock movements"
+puts "  - #{PartStorage.count} part-storage entries"
+puts "  - #{Purchase.count} purchases"
+puts "  - #{PurchaseLine.count} purchase lines"
 puts ""
 puts "Login credentials:"
 puts "  - admin@example.com / password123 (Owner)"
