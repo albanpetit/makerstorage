@@ -7,6 +7,8 @@ import {
 } from 'lucide-react'
 
 import { AppLayout } from '@/layouts/app-layout'
+import { usePermissions } from '@/hooks/use-permissions'
+import { ReadOnlyBadge } from '@/components/read-only-badge'
 import { FlashMessages } from '@/components/flash-messages'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -268,6 +270,7 @@ function parseCsvPreview(text: string): { rows: ParsedImportRow[] } | { error: s
 }
 
 export default function PartsIndex({ parts, initial_query, categories, storage_locations }: PartsIndexProps) {
+  const { canWrite } = usePermissions()
   const [query, setQuery] = useState(initial_query || '')
   const [categoryId, setCategoryId] = useState<number | 'all'>('all')
   const [fStatus, setFStatus] = useState<string[]>([])
@@ -530,18 +533,23 @@ export default function PartsIndex({ parts, initial_query, categories, storage_l
               onChange={(e) => { setQuery(e.target.value); setPage(0) }}
             />
           </div>
-          <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
-            <Upload className="size-4" />
-            Import CSV
-          </Button>
+          <ReadOnlyBadge />
+          {canWrite && (
+            <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
+              <Upload className="size-4" />
+              Import CSV
+            </Button>
+          )}
           <Button variant="outline" size="sm" onClick={() => exportCsv(sorted)}>
             <Download className="size-4" />
             Export CSV
           </Button>
-          <Button size="sm" onClick={openAddDialog}>
-            <Plus className="size-4" />
-            Add Part
-          </Button>
+          {canWrite && (
+            <Button size="sm" onClick={openAddDialog}>
+              <Plus className="size-4" />
+              Add Part
+            </Button>
+          )}
         </div>
 
         <div className="px-5 pt-3 empty:pt-0">
@@ -693,7 +701,7 @@ export default function PartsIndex({ parts, initial_query, categories, storage_l
         </div>
 
         {/* Bulk action bar */}
-        {selected.length > 0 && (
+        {canWrite && selected.length > 0 && (
           <div className="flex shrink-0 items-center gap-3 bg-foreground px-5 py-2.5 text-background">
             <span className="text-sm font-medium">{selected.length} selected</span>
             <div className="h-5 w-px bg-background/25" />
@@ -721,12 +729,14 @@ export default function PartsIndex({ parts, initial_query, categories, storage_l
             <Package className="size-12 text-muted-foreground" />
             <h3 className="mt-4 text-lg font-semibold">No parts yet</h3>
             <p className="mt-2 text-sm text-muted-foreground">
-              Get started by adding your first part.
+              {canWrite ? 'Get started by adding your first part.' : 'No parts have been added yet.'}
             </p>
-            <Button className="mt-4" onClick={openAddDialog}>
-              <Plus className="mr-2 size-4" />
-              Add Part
-            </Button>
+            {canWrite && (
+              <Button className="mt-4" onClick={openAddDialog}>
+                <Plus className="mr-2 size-4" />
+                Add Part
+              </Button>
+            )}
           </div>
         ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center p-16 text-center">
@@ -827,11 +837,13 @@ export default function PartsIndex({ parts, initial_query, categories, storage_l
                         {stockValue != null ? stockValue.toFixed(2) : '-'}
                       </TableCell>
                       <TableCell className="py-2.5">
-                        <Button variant="ghost" size="icon" asChild>
-                          <Link href={`/parts/${part.id}/edit`}>
-                            <Pencil className="size-4" />
-                          </Link>
-                        </Button>
+                        {canWrite && (
+                          <Button variant="ghost" size="icon" asChild>
+                            <Link href={`/parts/${part.id}/edit`}>
+                              <Pencil className="size-4" />
+                            </Link>
+                          </Button>
+                        )}
                       </TableCell>
                     </TableRow>
                   )

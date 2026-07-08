@@ -3,6 +3,7 @@ import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { Box, Check, Cpu, ExternalLink, MapPin, ScanLine } from 'lucide-react'
 
 import { AppLayout } from '@/layouts/app-layout'
+import { usePermissions } from '@/hooks/use-permissions'
 import { PageHeader } from '@/components/page-header'
 import { FlashMessages } from '@/components/flash-messages'
 import { Badge } from '@/components/ui/badge'
@@ -112,6 +113,7 @@ function ResultCardHeader({ tone, label, code }: { tone: 'success' | 'error'; la
 }
 
 export default function ScansIndex({ code, result, recent_scans, today_count, allow_negative_stock, errors }: ScanPageProps) {
+  const { canWrite } = usePermissions()
   const [codeInput, setCodeInput] = useState('')
   const [delta, setDelta] = useState(0)
   const [locationId, setLocationId] = useState('')
@@ -275,7 +277,7 @@ export default function ScansIndex({ code, result, recent_scans, today_count, al
                     </div>
                   )}
 
-                  {part.locations.length === 0 ? (
+                  {!canWrite ? null : part.locations.length === 0 ? (
                     <div className="mt-4 rounded-xl bg-muted p-4 text-center text-sm text-muted-foreground">
                       No storage zone exists yet.{' '}
                       <Link href="/storage_locations" className="font-medium text-foreground underline underline-offset-2">
@@ -327,14 +329,16 @@ export default function ScansIndex({ code, result, recent_scans, today_count, al
                         Open part
                       </Link>
                     </Button>
-                    <Button
-                      className="flex-1"
-                      disabled={delta === 0 || !selectedLocation || submitting}
-                      onClick={validateMovement}
-                    >
-                      <Check className="size-4" />
-                      Validate movement
-                    </Button>
+                    {canWrite && (
+                      <Button
+                        className="flex-1"
+                        disabled={delta === 0 || !selectedLocation || submitting}
+                        onClick={validateMovement}
+                      >
+                        <Check className="size-4" />
+                        Validate movement
+                      </Button>
+                    )}
                   </div>
                 </CardContent>
               </Card>

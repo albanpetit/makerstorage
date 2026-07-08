@@ -4,6 +4,7 @@ class PartSuppliersController < ApplicationController
   include Auth
 
   before_action :verify_organization_access
+  before_action :verify_organization_writer, only: %i[create update destroy set_preferred]
   before_action :set_part
   before_action :set_part_supplier, only: %i[update destroy set_preferred]
 

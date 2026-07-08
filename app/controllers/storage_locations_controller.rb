@@ -4,6 +4,7 @@ class StorageLocationsController < ApplicationController
   include Auth
 
   before_action :verify_organization_access
+  before_action :verify_organization_writer, only: %i[create update destroy]
   before_action :set_storage_location, only: %i[update destroy]
 
   def index

@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react'
 import { AlertTriangle, CheckCircle2, FileText, Printer } from 'lucide-react'
 
 import { AppLayout } from '@/layouts/app-layout'
+import { usePermissions } from '@/hooks/use-permissions'
 import { PageHeader } from '@/components/page-header'
 import { FlashMessages } from '@/components/flash-messages'
 import { Button } from '@/components/ui/button'
@@ -66,6 +67,7 @@ function formatDate(iso: string) {
 }
 
 export default function AlertsIndex({ alerts, orders }: AlertsPageProps) {
+  const { canWrite } = usePermissions()
   const [filter, setFilter] = useState<'all' | Alert['severity']>('all')
   const [poOpen, setPoOpen] = useState(false)
 
@@ -170,7 +172,7 @@ export default function AlertsIndex({ alerts, orders }: AlertsPageProps) {
     <AppLayout
       header={
         <PageHeader title="Alerts" subtitle="References under their minimum threshold to restock">
-          {groups.length > 0 && (
+          {canWrite && groups.length > 0 && (
             <Button size="sm" onClick={() => setPoOpen(true)}>
               <FileText className="size-4" />
               Generate Purchase Order
@@ -252,14 +254,16 @@ export default function AlertsIndex({ alerts, orders }: AlertsPageProps) {
                 <Button variant="outline" size="sm" asChild>
                   <Link href={`/parts/${alert.id}`}>View</Link>
                 </Button>
-                <Button
-                  size="sm"
-                  disabled={!alert.supplier_name}
-                  title={alert.supplier_name ? undefined : 'No preferred supplier to order from'}
-                  onClick={() => orderSingle(alert)}
-                >
-                  Order
-                </Button>
+                {canWrite && (
+                  <Button
+                    size="sm"
+                    disabled={!alert.supplier_name}
+                    title={alert.supplier_name ? undefined : 'No preferred supplier to order from'}
+                    onClick={() => orderSingle(alert)}
+                  >
+                    Order
+                  </Button>
+                )}
               </Card>
             ))}
           </div>
@@ -283,7 +287,7 @@ export default function AlertsIndex({ alerts, orders }: AlertsPageProps) {
                     {ORDER_STATUS_META[order.status].label}
                   </Badge>
                   <span className="w-20 shrink-0 text-right font-mono font-semibold">{formatMoney(order.total_amount)}</span>
-                  {ORDER_STATUS_META[order.status].next && (
+                  {canWrite && ORDER_STATUS_META[order.status].next && (
                     <Button variant="outline" size="sm" onClick={() => advanceOrder(order)}>
                       {ORDER_STATUS_META[order.status].next}
                     </Button>

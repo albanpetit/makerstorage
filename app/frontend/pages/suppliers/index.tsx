@@ -3,6 +3,7 @@ import { FormEvent, useMemo, useState } from 'react'
 import { Plus, Mail, Truck, Package, Clock, Pencil, Trash2 } from 'lucide-react'
 
 import { AppLayout } from '@/layouts/app-layout'
+import { usePermissions } from '@/hooks/use-permissions'
 import { PageHeader } from '@/components/page-header'
 import { FlashMessages } from '@/components/flash-messages'
 import { Button } from '@/components/ui/button'
@@ -116,6 +117,7 @@ const EMPTY_FORM: SupplierFormData['supplier'] = {
 }
 
 export default function SuppliersIndex({ suppliers }: SuppliersPageProps) {
+  const { canWrite } = usePermissions()
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const [newOpen, setNewOpen] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
@@ -191,10 +193,12 @@ export default function SuppliersIndex({ suppliers }: SuppliersPageProps) {
     <AppLayout
       header={
         <PageHeader title="Suppliers" subtitle="Sourcing and lead times">
-          <Button size="sm" onClick={openNewDialog}>
-            <Plus className="size-4" />
-            Add Supplier
-          </Button>
+          {canWrite && (
+            <Button size="sm" onClick={openNewDialog}>
+              <Plus className="size-4" />
+              Add Supplier
+            </Button>
+          )}
         </PageHeader>
       }
     >
@@ -225,12 +229,16 @@ export default function SuppliersIndex({ suppliers }: SuppliersPageProps) {
               <Truck className="size-8 text-muted-foreground" />
               <div>
                 <p className="font-medium">No suppliers yet</p>
-                <p className="text-sm text-muted-foreground">Add your first supplier to start tracking sourcing.</p>
+                <p className="text-sm text-muted-foreground">
+                  {canWrite ? 'Add your first supplier to start tracking sourcing.' : 'No suppliers have been added yet.'}
+                </p>
               </div>
-              <Button onClick={openNewDialog}>
-                <Plus className="size-4" />
-                Add Supplier
-              </Button>
+              {canWrite && (
+                <Button onClick={openNewDialog}>
+                  <Plus className="size-4" />
+                  Add Supplier
+                </Button>
+              )}
             </CardContent>
           </Card>
         ) : (
@@ -583,15 +591,17 @@ export default function SuppliersIndex({ suppliers }: SuppliersPageProps) {
                 </div>
               </div>
 
-              <SheetFooter className="flex-row border-t">
-                <Button variant="outline" className="flex-1" onClick={openEditDialog}>
-                  <Pencil className="size-4" />
-                  Edit
-                </Button>
-                <Button variant="outline" className="text-destructive" onClick={() => setDeleteOpen(true)}>
-                  <Trash2 className="size-4" />
-                </Button>
-              </SheetFooter>
+              {canWrite && (
+                <SheetFooter className="flex-row border-t">
+                  <Button variant="outline" className="flex-1" onClick={openEditDialog}>
+                    <Pencil className="size-4" />
+                    Edit
+                  </Button>
+                  <Button variant="outline" className="text-destructive" onClick={() => setDeleteOpen(true)}>
+                    <Trash2 className="size-4" />
+                  </Button>
+                </SheetFooter>
+              )}
             </>
           )}
         </SheetContent>

@@ -17,6 +17,8 @@ import {
 } from 'lucide-react'
 
 import { AppLayout } from '@/layouts/app-layout'
+import { usePermissions } from '@/hooks/use-permissions'
+import { ReadOnlyBadge } from '@/components/read-only-badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -134,6 +136,7 @@ interface ZoneFormData {
 }
 
 export default function StorageLocationsIndex({ storage_locations, part_storages, recent_movements }: StorageLocationsPageProps) {
+  const { canWrite } = usePermissions()
   const [query, setQuery] = useState('')
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const [expanded, setExpanded] = useState<Set<number>>(
@@ -347,12 +350,16 @@ export default function StorageLocationsIndex({ storage_locations, part_storages
               <Archive className="size-8 text-muted-foreground" />
               <div>
                 <p className="font-medium">No storage zones yet</p>
-                <p className="text-sm text-muted-foreground">Create your first zone to start organizing your inventory.</p>
+                <p className="text-sm text-muted-foreground">
+                  {canWrite ? 'Create your first zone to start organizing your inventory.' : 'No storage zones have been created yet.'}
+                </p>
               </div>
-              <Button onClick={() => openNewDialog(null)}>
-                <Plus className="size-4" />
-                New Zone
-              </Button>
+              {canWrite && (
+                <Button onClick={() => openNewDialog(null)}>
+                  <Plus className="size-4" />
+                  New Zone
+                </Button>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -491,10 +498,13 @@ export default function StorageLocationsIndex({ storage_locations, part_storages
               onChange={(e) => setQuery(e.target.value)}
             />
           </div>
-          <Button size="sm" onClick={() => openNewDialog(effectiveSelected?.id)}>
-            <Plus className="size-4" />
-            New Zone
-          </Button>
+          <ReadOnlyBadge />
+          {canWrite && (
+            <Button size="sm" onClick={() => openNewDialog(effectiveSelected?.id)}>
+              <Plus className="size-4" />
+              New Zone
+            </Button>
+          )}
         </div>
 
         <div className="flex min-h-0 flex-1">
@@ -586,14 +596,18 @@ export default function StorageLocationsIndex({ storage_locations, part_storages
                       )}
                     </div>
                   </div>
-                  <div className="flex shrink-0 gap-2">
-                    <Button variant="outline" size="sm" onClick={openEditDialog}>
-                      <Pencil className="size-4" />
-                      Edit
-                    </Button>
-                    <Button variant="outline" size="icon-sm" className="text-destructive" onClick={() => setDeleteOpen(true)}>
-                      <Trash2 className="size-4" />
-                    </Button>
+                  <div className="flex shrink-0 gap-2 empty:hidden">
+                    {canWrite && (
+                      <Button variant="outline" size="sm" onClick={openEditDialog}>
+                        <Pencil className="size-4" />
+                        Edit
+                      </Button>
+                    )}
+                    {canWrite && (
+                      <Button variant="outline" size="icon-sm" className="text-destructive" onClick={() => setDeleteOpen(true)}>
+                        <Trash2 className="size-4" />
+                      </Button>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -616,10 +630,12 @@ export default function StorageLocationsIndex({ storage_locations, part_storages
                   <h2 className="text-sm font-semibold">
                     Sub-zones <span className="font-normal text-muted-foreground">· {selChildren.length}</span>
                   </h2>
-                  <Button variant="ghost" size="sm" className="text-xs text-muted-foreground" onClick={() => openNewDialog(effectiveSelected.id)}>
-                    <Plus className="size-3.5" />
-                    Add here
-                  </Button>
+                  {canWrite && (
+                    <Button variant="ghost" size="sm" className="text-xs text-muted-foreground" onClick={() => openNewDialog(effectiveSelected.id)}>
+                      <Plus className="size-3.5" />
+                      Add here
+                    </Button>
+                  )}
                 </div>
                 {selChildren.length > 0 ? (
                   <div className="grid gap-3 sm:grid-cols-2">

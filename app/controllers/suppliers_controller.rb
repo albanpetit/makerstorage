@@ -4,6 +4,7 @@ class SuppliersController < ApplicationController
   include Auth
 
   before_action :verify_organization_access
+  before_action :verify_organization_writer, only: %i[create update destroy]
   before_action :set_supplier, only: %i[update destroy]
 
   def index
