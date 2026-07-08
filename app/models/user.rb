@@ -11,7 +11,7 @@ class User < ApplicationRecord
 
   # Get the user's personal organization
   def personal_organization
-    organizations.find_by(name: "#{name}'s Organization") ||
+    organizations.find_by(name: "#{firstname}'s Organization") ||
     organizations.first
   end
 
