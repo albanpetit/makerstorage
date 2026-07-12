@@ -68,6 +68,6 @@ end
 
 gem "inertia_rails", "~> 3.21"
 
-gem "vite_rails", "~> 3.0"
+gem "vite_rails", "~> 3.11"
 
 gem "devise", "~> 5.0"
