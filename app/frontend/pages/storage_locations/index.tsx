@@ -146,6 +146,10 @@ export default function StorageLocationsIndex({ storage_locations, part_storages
   const [editOpen, setEditOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
 
+  // Drag-and-drop re-parenting state
+  const [dragId, setDragId] = useState<number | null>(null)
+  const [dropTargetId, setDropTargetId] = useState<number | 'root' | null>(null)
+
   const byId = useMemo(() => new Map(storage_locations.map((z) => [z.id, z])), [storage_locations])
 
   const childrenByParent = useMemo(() => {
@@ -335,6 +339,31 @@ export default function StorageLocationsIndex({ storage_locations, part_storages
     })
   }
 
+  // A zone can be dropped anywhere except onto itself or one of its own
+  // descendants (which would create a cycle). 'root' means the top level.
+  function canDropOn(targetId: number | 'root'): boolean {
+    if (dragId == null) return false
+    if (targetId === 'root') return byId.get(dragId)?.parent_id != null
+    return targetId !== dragId && !subtreeIds(dragId).includes(targetId)
+  }
+
+  function moveZone(id: number, newParentId: number | null) {
+    const rec = byId.get(id)
+    if (!rec || (rec.parent_id ?? null) === (newParentId ?? null)) return
+    router.patch(`/storage_locations/${id}`, { storage_location: { parent_id: newParentId } }, {
+      preserveScroll: true,
+      preserveState: true,
+      onSuccess: () => {
+        if (newParentId != null) setExpanded((prev) => new Set(prev).add(newParentId))
+      },
+    })
+  }
+
+  function endDrag() {
+    setDragId(null)
+    setDropTargetId(null)
+  }
+
   if (storage_locations.length === 0) {
     return (
       <AppLayout>
@@ -480,7 +509,6 @@ export default function StorageLocationsIndex({ storage_locations, part_storages
   return (
     <AppLayout>
       <Head title="Storage Zones" />
-      <FlashMessages />
 
       <div className="-m-4 flex h-screen flex-col">
         <div className="flex shrink-0 flex-wrap items-center gap-3 border-b bg-background px-5 py-3">
@@ -507,6 +535,10 @@ export default function StorageLocationsIndex({ storage_locations, part_storages
           )}
         </div>
 
+        <div className="shrink-0 border-b bg-background px-5 py-3 empty:hidden">
+          <FlashMessages />
+        </div>
+
         <div className="flex min-h-0 flex-1">
           {/* Tree explorer */}
           <div className="flex w-72 shrink-0 flex-col border-r bg-card">
@@ -526,11 +558,37 @@ export default function StorageLocationsIndex({ storage_locations, part_storages
                   const Icon = meta.icon
                   const isSelected = effectiveSelected?.id === row.location.id
                   const isExpanded = visibleIds ? true : expanded.has(row.location.id)
+                  const isDragging = dragId === row.location.id
+                  const isDropTarget = dropTargetId === row.location.id && canDropOn(row.location.id)
                   return (
                     <div
                       key={row.location.id}
+                      draggable={canWrite}
                       onClick={() => setSelectedId(row.location.id)}
-                      className={`flex cursor-pointer items-center gap-1.5 rounded-md py-1.5 pr-2 text-sm hover:bg-accent ${isSelected ? 'bg-muted font-semibold' : ''}`}
+                      onDragStart={canWrite ? (e) => {
+                        setDragId(row.location.id)
+                        e.dataTransfer.effectAllowed = 'move'
+                        e.dataTransfer.setData('text/plain', String(row.location.id))
+                      } : undefined}
+                      onDragEnd={endDrag}
+                      onDragOver={canWrite ? (e) => {
+                        e.stopPropagation()
+                        if (canDropOn(row.location.id)) {
+                          e.preventDefault()
+                          e.dataTransfer.dropEffect = 'move'
+                          setDropTargetId(row.location.id)
+                        } else {
+                          setDropTargetId(null)
+                        }
+                      } : undefined}
+                      onDragLeave={() => setDropTargetId((cur) => (cur === row.location.id ? null : cur))}
+                      onDrop={canWrite ? (e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        if (dragId != null && canDropOn(row.location.id)) moveZone(dragId, row.location.id)
+                        endDrag()
+                      } : undefined}
+                      className={`flex cursor-pointer items-center gap-1.5 rounded-md py-1.5 pr-2 text-sm hover:bg-accent ${isSelected ? 'bg-muted font-semibold' : ''} ${isDragging ? 'opacity-50' : ''} ${isDropTarget ? 'ring-2 ring-inset ring-primary bg-accent' : ''}`}
                       style={{ paddingLeft: `${8 + row.depth * 16}px` }}
                     >
                       <span
@@ -549,6 +607,16 @@ export default function StorageLocationsIndex({ storage_locations, part_storages
                     </div>
                   )
                 })
+              )}
+              {canWrite && dragId != null && canDropOn('root') && (
+                <div
+                  onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setDropTargetId('root') }}
+                  onDragLeave={() => setDropTargetId((cur) => (cur === 'root' ? null : cur))}
+                  onDrop={(e) => { e.preventDefault(); if (dragId != null) moveZone(dragId, null); endDrag() }}
+                  className={`mt-1 rounded-md border border-dashed px-2 py-2 text-center text-xs text-muted-foreground ${dropTargetId === 'root' ? 'border-primary bg-accent text-foreground' : ''}`}
+                >
+                  Drop here to move to top level
+                </div>
               )}
             </div>
           </div>
