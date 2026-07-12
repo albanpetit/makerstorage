@@ -32,7 +32,7 @@ gem "kamal", require: false
 gem "thruster", require: false
 
 # Use Active Storage variants [https://guides.rubyonrails.org/active_storage_overview.html#transforming-images]
-gem "image_processing", "~> 1.2"
+gem "image_processing", "~> 2.0"
 
 # CSV became a bundled (non-default) gem as of Ruby 3.4; needed for parts CSV import.
 gem "csv"
@@ -63,11 +63,11 @@ group :test do
 
   # minitest 6.x changed Runnable#run's signature in a way that's incompatible
   # with Rails 8.1.1's test_unit/line_filtering railtie (breaks `bin/rails test`).
-  gem "minitest", "~> 5.25"
+  gem "minitest", "~> 6.0"
 end
 
-gem "inertia_rails", "~> 3.16"
+gem "inertia_rails", "~> 3.21"
 
-gem "vite_rails", "~> 3.0"
+gem "vite_rails", "~> 3.11"
 
 gem "devise", "~> 5.0"
