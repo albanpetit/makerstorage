@@ -1,6 +1,7 @@
 import { Head, Link, router } from '@inertiajs/react'
-import { FormEvent, useEffect, useMemo, useState } from 'react'
-import { Box, Check, Cpu, ExternalLink, MapPin, ScanLine } from 'lucide-react'
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
+import { Box, Camera, CameraOff, Check, Cpu, ExternalLink, MapPin, ScanLine } from 'lucide-react'
+import type { IScannerControls } from '@zxing/browser'
 
 import { AppLayout } from '@/layouts/app-layout'
 import { usePermissions } from '@/hooks/use-permissions'
@@ -82,6 +83,20 @@ const QR_GHOST_CELLS: Array<[number, number]> = [
   [1, 5], [2, 5], [4, 5], [5, 5],
 ]
 
+function describeCameraError(err: unknown): string {
+  const e = err as { name?: string; message?: string }
+  if (e?.name === 'NotAllowedError' || e?.name === 'SecurityError') {
+    return 'Camera permission was denied. Allow camera access in your browser and try again.'
+  }
+  if (e?.name === 'NotFoundError' || e?.name === 'OverconstrainedError' || e?.name === 'DevicesNotFoundError') {
+    return 'No camera was found on this device.'
+  }
+  if (e?.name === 'NotReadableError' || e?.name === 'TrackStartError') {
+    return 'The camera is already in use by another application.'
+  }
+  return e?.message || 'Could not start the camera.'
+}
+
 function formatAgo(iso: string) {
   const seconds = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000)
   if (seconds < 60) return 'just now'
@@ -118,6 +133,59 @@ export default function ScansIndex({ code, result, recent_scans, today_count, al
   const [delta, setDelta] = useState(0)
   const [locationId, setLocationId] = useState('')
   const [submitting, setSubmitting] = useState(false)
+
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const controlsRef = useRef<IScannerControls | null>(null)
+  const [cameraActive, setCameraActive] = useState(false)
+  const [cameraStarting, setCameraStarting] = useState(false)
+  const [cameraError, setCameraError] = useState<string | null>(null)
+
+  const stopCamera = () => {
+    controlsRef.current?.stop()
+    controlsRef.current = null
+    setCameraActive(false)
+  }
+
+  const handleDecoded = (text: string) => {
+    const trimmed = text.trim()
+    if (!trimmed) return
+    stopCamera()
+    router.get('/scan', { code: trimmed }, { preserveState: true, preserveScroll: true })
+  }
+
+  const startCamera = async () => {
+    setCameraError(null)
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setCameraError(
+        window.isSecureContext
+          ? 'This browser does not support camera access.'
+          : 'Camera access requires HTTPS. Open the app over https:// (or on localhost) to scan.',
+      )
+      return
+    }
+    setCameraStarting(true)
+    setCameraActive(true)
+    try {
+      // Loaded on demand so the ~large decoder only ships when the camera is used.
+      const { BrowserMultiFormatReader } = await import('@zxing/browser')
+      const reader = new BrowserMultiFormatReader()
+      controlsRef.current = await reader.decodeFromConstraints(
+        { video: { facingMode: 'environment' } },
+        videoRef.current!,
+        (decoded) => {
+          if (decoded) handleDecoded(decoded.getText())
+        },
+      )
+    } catch (err) {
+      stopCamera()
+      setCameraError(describeCameraError(err))
+    } finally {
+      setCameraStarting(false)
+    }
+  }
+
+  // Always release the camera when leaving the page.
+  useEffect(() => () => controlsRef.current?.stop(), [])
 
   useEffect(() => {
     setDelta(0)
@@ -175,39 +243,77 @@ export default function ScansIndex({ code, result, recent_scans, today_count, al
           {/* Viewfinder */}
           <div className="rounded-2xl border border-zinc-800 bg-zinc-950 p-4 shadow-sm">
             <div className="relative aspect-square overflow-hidden rounded-xl bg-[radial-gradient(circle_at_50%_40%,#1c1c22_0%,#0c0c0e_75%)]">
-              <div className="absolute inset-[14%]">
-                <div className="absolute top-0 left-0 size-8 rounded-tl-lg border-t-[3px] border-l-[3px] border-primary" />
-                <div className="absolute top-0 right-0 size-8 rounded-tr-lg border-t-[3px] border-r-[3px] border-primary" />
-                <div className="absolute bottom-0 left-0 size-8 rounded-bl-lg border-b-[3px] border-l-[3px] border-primary" />
-                <div className="absolute right-0 bottom-0 size-8 rounded-br-lg border-r-[3px] border-b-[3px] border-primary" />
-                <div className="absolute inset-x-[6%] h-0.5 animate-[scan-line_2.6s_ease-in-out_infinite] bg-gradient-to-r from-transparent via-primary to-transparent shadow-[0_0_12px_2px_var(--primary)]" />
-              </div>
-              <svg
-                viewBox="0 0 6 6"
-                className="absolute top-1/2 left-1/2 size-28 -translate-x-1/2 -translate-y-1/2 opacity-[0.18]"
-                fill="#ffffff"
-                aria-hidden
-              >
-                {QR_GHOST_CELLS.map(([x, y], i) => (
-                  <rect key={i} x={x} y={y} width={1} height={1} />
-                ))}
-              </svg>
-              <div className="absolute inset-x-0 bottom-3 text-center text-xs text-zinc-400">
-                Use a hardware scanner or type a code below
-              </div>
+              {/* Live camera feed — always mounted so the decoder can attach to it */}
+              <video
+                ref={videoRef}
+                className={`absolute inset-0 size-full object-cover transition-opacity ${cameraActive ? 'opacity-100' : 'opacity-0'}`}
+                muted
+                playsInline
+              />
+
+              {/* Framing overlay — only meaningful while the camera is live */}
+              {cameraActive && (
+                <div className="absolute inset-[14%]">
+                  <div className="absolute top-0 left-0 size-8 rounded-tl-lg border-t-[3px] border-l-[3px] border-primary" />
+                  <div className="absolute top-0 right-0 size-8 rounded-tr-lg border-t-[3px] border-r-[3px] border-primary" />
+                  <div className="absolute bottom-0 left-0 size-8 rounded-bl-lg border-b-[3px] border-l-[3px] border-primary" />
+                  <div className="absolute right-0 bottom-0 size-8 rounded-br-lg border-r-[3px] border-b-[3px] border-primary" />
+                  <div className="absolute inset-x-[6%] h-0.5 animate-[scan-line_2.6s_ease-in-out_infinite] bg-gradient-to-r from-transparent via-primary to-transparent shadow-[0_0_12px_2px_var(--primary)]" />
+                </div>
+              )}
+
+              {/* Idle state — ghost QR + start button */}
+              {!cameraActive && (
+                <>
+                  <svg
+                    viewBox="0 0 6 6"
+                    className="absolute top-1/2 left-1/2 size-28 -translate-x-1/2 -translate-y-1/2 opacity-[0.18]"
+                    fill="#ffffff"
+                    aria-hidden
+                  >
+                    {QR_GHOST_CELLS.map(([x, y], i) => (
+                      <rect key={i} x={x} y={y} width={1} height={1} />
+                    ))}
+                  </svg>
+                  <div className="absolute inset-x-0 bottom-4 flex flex-col items-center gap-2 px-4">
+                    <Button type="button" onClick={startCamera} disabled={cameraStarting} className="h-10">
+                      <Camera className="size-4" />
+                      {cameraStarting ? 'Starting camera…' : 'Start camera'}
+                    </Button>
+                    <span className="text-xs text-zinc-400">…or use a hardware scanner / type a code below</span>
+                  </div>
+                </>
+              )}
+
+              {/* Stop control while live */}
+              {cameraActive && (
+                <button
+                  type="button"
+                  onClick={stopCamera}
+                  className="absolute top-2.5 right-2.5 inline-flex items-center gap-1.5 rounded-lg border border-white/20 bg-black/40 px-2.5 py-1.5 text-xs font-medium text-white backdrop-blur transition-colors hover:bg-black/60"
+                >
+                  <CameraOff className="size-3.5" />
+                  Stop
+                </button>
+              )}
             </div>
+
+            {cameraError && (
+              <div className="mt-3 rounded-lg border border-red-900/50 bg-red-950/40 px-3 py-2 text-xs text-red-300">
+                {cameraError}
+              </div>
+            )}
 
             <form onSubmit={submitScan} className="mt-3.5 space-y-2">
               <Input
-                autoFocus
                 value={codeInput}
                 onChange={(e) => setCodeInput(e.target.value)}
                 placeholder="Barcode, SKU, MPN, or zone code…"
                 className="h-11 border-zinc-800 bg-zinc-900 text-zinc-50 placeholder:text-zinc-500"
               />
-              <Button type="submit" className="h-11 w-full">
+              <Button type="submit" variant="outline" className="h-11 w-full border-zinc-700 bg-zinc-900 text-zinc-50 hover:bg-zinc-800 hover:text-zinc-50">
                 <ScanLine className="size-4" />
-                Scan code
+                Look up code
               </Button>
             </form>
 
