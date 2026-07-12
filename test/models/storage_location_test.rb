@@ -38,6 +38,25 @@ class StorageLocationTest < ActiveSupport::TestCase
     assert_includes child.errors[:parent], "must belong to the same organization"
   end
 
+  test "cannot be moved under one of its own descendants" do
+    room = create_storage_location(organization: @org, location_type: "room")
+    cabinet = create_storage_location(organization: @org, location_type: "cabinet", parent: room)
+    box = create_storage_location(organization: @org, location_type: "box", parent: cabinet)
+
+    room.parent = box
+    assert_not room.valid?
+    assert_includes room.errors[:parent_id], "cannot be moved under one of its own sub-zones"
+  end
+
+  test "can be moved under an unrelated zone" do
+    room_a = create_storage_location(organization: @org, name: "Room A", location_type: "room")
+    room_b = create_storage_location(organization: @org, name: "Room B", location_type: "room")
+    box = create_storage_location(organization: @org, location_type: "box", parent: room_a)
+
+    box.parent = room_b
+    assert box.valid?
+  end
+
   test "root? and has_children?" do
     room = create_storage_location(organization: @org, location_type: "room")
     box = create_storage_location(organization: @org, location_type: "box", parent: room)

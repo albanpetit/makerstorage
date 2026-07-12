@@ -15,6 +15,7 @@ class StorageLocation < ApplicationRecord
   validates :name, presence: true, length: { minimum: 1, maximum: 100 }
   validates :location_type, presence: true, inclusion: { in: LOCATION_TYPES }
   validate :cannot_be_its_own_parent
+  validate :parent_is_not_a_descendant
   validate :parent_must_belong_to_same_organization
 
   # Scopes
@@ -59,6 +60,24 @@ class StorageLocation < ApplicationRecord
   def cannot_be_its_own_parent
     if id.present? && parent_id == id
       errors.add(:parent_id, "cannot be itself")
+    end
+  end
+
+  # Walk up the proposed parent's ancestry; reaching self means the new parent
+  # is one of this zone's own descendants, which would create a cycle. The
+  # visited guard keeps the check safe even against pre-existing bad data.
+  def parent_is_not_a_descendant
+    return if parent_id.blank? || id.blank?
+
+    seen = []
+    node = parent
+    while node && seen.exclude?(node.id)
+      if node.id == id
+        errors.add(:parent_id, "cannot be moved under one of its own sub-zones")
+        break
+      end
+      seen << node.id
+      node = node.parent
     end
   end
 

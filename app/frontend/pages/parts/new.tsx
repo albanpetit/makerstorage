@@ -23,6 +23,7 @@ import {
   FieldLabel,
 } from '@/components/ui/field'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { CategorySelect } from '@/components/category-select'
 import {
   Table,
   TableBody,
@@ -327,21 +328,11 @@ export default function NewPart({ categories, footprints, suppliers }: NewPartPr
                     <Label>Category *</Label>
                   </FieldLabel>
                   <FieldContent>
-                    <Select
+                    <CategorySelect
+                      categories={categories}
                       value={data.part.category_id}
                       onValueChange={(value) => handleSelectChange('category_id', value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a category" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {categories.map((category) => (
-                          <SelectItem key={category.id} value={category.id.toString()}>
-                            {category.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    />
                   </FieldContent>
                   {errors['part.category_id'] && <FieldError>{errors['part.category_id']}</FieldError>}
                 </Field>
