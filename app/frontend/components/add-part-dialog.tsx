@@ -1,7 +1,8 @@
 import { useForm } from '@inertiajs/react'
-import { FormEvent, ReactNode, useState } from 'react'
-import { ChevronRight, Plus, Trash2, Star } from 'lucide-react'
+import { FormEvent, ReactNode, useEffect, useState } from 'react'
+import { ChevronRight, CircleAlert, Plus, Trash2, Star } from 'lucide-react'
 
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -119,6 +120,16 @@ const EMPTY_SUPPLIER = {
   notes: '',
 }
 
+// Turns a (possibly dotted, nested) error key into a readable label, e.g.
+// 'part.min_stock_threshold' -> 'Min Stock Threshold'.
+function fieldLabel(key: string): string {
+  const name = key.includes('.') ? key.split('.').pop()! : key
+  return name
+    .replace(/_/g, ' ')
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/\b\w/g, (char) => char.toUpperCase())
+}
+
 // Lightweight disclosure section — no Radix Collapsible in the library, so a
 // button + conditional render (same pattern the parts form already uses).
 function Section({
@@ -180,6 +191,20 @@ export function AddPartDialog({
     initial_quantity: '',
   })
   const { data, setData, errors } = form
+
+  // A flat, human-readable list of every validation error so nothing is hidden —
+  // fields living inside collapsed sections would otherwise show no error.
+  const errorMessages = Object.entries(errors).map(([key, message]) =>
+    key.endsWith('.base') ? String(message) : `${fieldLabel(key)} ${message}`
+  )
+
+  // Expand any collapsed section that contains an error so its inline message is
+  // actually visible when the server rejects the submission.
+  useEffect(() => {
+    const keys = Object.keys(errors)
+    if (keys.some((k) => ['part.mpn', 'part.sku'].includes(k))) setDetailsOpen(true)
+    if (keys.some((k) => k.includes('part_suppliers'))) setSuppliersOpen(true)
+  }, [errors])
 
   // Fold the pending suppliers and catalog asset URLs into the payload right
   // before it goes over the wire.
@@ -285,6 +310,25 @@ export function AddPartDialog({
 
         <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col">
           <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-5">
+            {/* Validation summary — keeps errors inside the modal (not on the
+                page behind it) and surfaces those in collapsed sections. */}
+            {errorMessages.length > 0 && (
+              <Alert variant="destructive">
+                <CircleAlert />
+                <AlertDescription>
+                  {errorMessages.length === 1 ? (
+                    errorMessages[0]
+                  ) : (
+                    <ul className="list-inside list-disc space-y-1">
+                      {errorMessages.map((msg, i) => (
+                        <li key={i}>{msg}</li>
+                      ))}
+                    </ul>
+                  )}
+                </AlertDescription>
+              </Alert>
+            )}
+
             {/* Supplier catalog lookup */}
             {supplierLookupEnabled && (
               <SupplierLookup
