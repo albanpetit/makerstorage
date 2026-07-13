@@ -36,7 +36,7 @@ Rails.application.routes.draw do
     end
   end
 
-  resources :categories, only: %i[create]
+  resources :categories, only: %i[index create update destroy]
 
   resources :footprints, only: %i[index create update destroy]
 

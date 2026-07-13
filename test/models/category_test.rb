@@ -51,6 +51,16 @@ class CategoryTest < ActiveSupport::TestCase
     assert_includes child.errors[:parent], "must belong to the same organization"
   end
 
+  test "parent cannot be a descendant of the category" do
+    grandparent = create_category(organization: @org, name: "Passives")
+    parent = create_category(organization: @org, name: "Resistors", parent: grandparent)
+    child = create_category(organization: @org, name: "SMD", parent: parent)
+
+    grandparent.parent = child
+    assert_not grandparent.valid?
+    assert_includes grandparent.errors[:parent], "cannot be a descendant of this category"
+  end
+
   test "root? and has_children?" do
     parent = create_category(organization: @org)
     child = create_category(organization: @org, parent: parent)
@@ -76,5 +86,14 @@ class CategoryTest < ActiveSupport::TestCase
 
     assert_equal [ parent, grandparent ], child.ancestors
     assert_equal [ parent, child ], grandparent.descendants
+  end
+
+  test "self_and_descendant_ids covers the whole subtree" do
+    grandparent = create_category(organization: @org, name: "Passives")
+    parent = create_category(organization: @org, name: "Resistors", parent: grandparent)
+    child = create_category(organization: @org, name: "SMD", parent: parent)
+
+    assert_equal [ grandparent.id, parent.id, child.id ].sort, grandparent.self_and_descendant_ids.sort
+    assert_equal [ child.id ], child.self_and_descendant_ids
   end
 end
