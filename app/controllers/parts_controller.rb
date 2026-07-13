@@ -12,6 +12,7 @@ class PartsController < ApplicationController
   def index
     parts = current_organization.parts
       .includes(:category, :footprint, :part_storages, :storage_locations, part_suppliers: :supplier)
+      .with_attached_images
       .alphabetical
 
     render inertia: "parts/index", props: {
@@ -268,6 +269,18 @@ class PartsController < ApplicationController
     )
   end
 
+  # Lazily-resolved URL for a small thumbnail of the part's first image, if any.
+  # The variant is generated on first request by Active Storage's representations
+  # controller, so building the URL here stays cheap even across the full list.
+  def part_thumbnail_url(part)
+    return nil unless part.images.attached?
+
+    image = part.images.first
+    return nil unless image.variable?
+
+    rails_representation_path(image.representation(resize_to_limit: [ 96, 96 ]))
+  end
+
   def serialize_part(part)
     {
       id: part.id,
@@ -278,6 +291,7 @@ class PartsController < ApplicationController
       value: part.value,
       package_type: part.package_type,
       status: part.status,
+      thumbnail_url: part_thumbnail_url(part),
       total_quantity: part.total_quantity,
       min_stock_threshold: part.min_stock_threshold,
       unit_price: part.unit_price&.to_f,

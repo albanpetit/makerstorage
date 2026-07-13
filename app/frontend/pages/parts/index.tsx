@@ -51,6 +51,7 @@ interface Part {
   value: string | null
   package_type: string | null
   status: 'active' | 'discontinued' | 'obsolete'
+  thumbnail_url: string | null
   total_quantity: number
   min_stock_threshold: number
   unit_price: number | null
@@ -783,15 +784,31 @@ export default function PartsIndex({ parts, initial_query, categories, footprint
                         />
                       </TableCell>
                       <TableCell className="py-2.5">
-                        <Link
-                          href={`/parts/${part.id}`}
-                          title={part.mpn || part.sku || part.name}
-                          className="block max-w-[240px] truncate font-mono text-sm font-semibold hover:underline"
-                        >
-                          {part.mpn || part.sku || part.name}
-                        </Link>
-                        <div className="max-w-[240px] truncate text-xs text-muted-foreground" title={part.name}>
-                          {part.name}
+                        <div className="flex items-center gap-3">
+                          <div className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-muted">
+                            {part.thumbnail_url ? (
+                              <img
+                                src={part.thumbnail_url}
+                                alt=""
+                                loading="lazy"
+                                className="size-full object-cover"
+                              />
+                            ) : (
+                              <Package className="size-4 text-muted-foreground" />
+                            )}
+                          </div>
+                          <div className="min-w-0">
+                            <Link
+                              href={`/parts/${part.id}`}
+                              title={part.mpn || part.sku || part.name}
+                              className="block max-w-[240px] truncate font-mono text-sm font-semibold hover:underline"
+                            >
+                              {part.mpn || part.sku || part.name}
+                            </Link>
+                            <div className="max-w-[240px] truncate text-xs text-muted-foreground" title={part.name}>
+                              {part.name}
+                            </div>
+                          </div>
                         </div>
                       </TableCell>
                       <TableCell className="py-2.5">
