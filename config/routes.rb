@@ -38,6 +38,8 @@ Rails.application.routes.draw do
 
   resources :categories, only: %i[create]
 
+  resources :footprints, only: %i[index create update destroy]
+
   resources :storage_locations, only: %i[index create update destroy]
 
   resources :stock_movements, only: %i[index create]
