@@ -39,6 +39,21 @@ class RoleAuthorizationTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "viewer cannot create a tag" do
+    act_as @viewer
+    assert_no_difference -> { Tag.count } do
+      post tags_path, params: { tag: { name: "nope" } }
+    end
+    assert_match(/read-only/i, flash[:alert])
+  end
+
+  test "member can create a tag" do
+    act_as @member
+    assert_difference -> { Tag.count } => 1 do
+      post tags_path, params: { tag: { name: "favorite" } }
+    end
+  end
+
   test "viewer cannot create a part" do
     act_as @viewer
     assert_no_difference -> { Part.count } do

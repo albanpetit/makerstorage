@@ -40,7 +40,8 @@ class PartsController < ApplicationController
     render inertia: "parts/new", props: {
       categories: serialize_categories,
       footprints: serialize_footprints,
-      suppliers: serialize_suppliers
+      suppliers: serialize_suppliers,
+      tags: serialize_tags
     }
   end
 
@@ -49,7 +50,8 @@ class PartsController < ApplicationController
       part: serialize_part_full(@part),
       categories: serialize_categories,
       footprints: serialize_footprints,
-      suppliers: serialize_suppliers
+      suppliers: serialize_suppliers,
+      tags: serialize_tags
     }
   end
 
@@ -213,6 +215,7 @@ class PartsController < ApplicationController
       :category_id, :footprint_id,
       :unit_price, :min_stock_threshold, :target_stock,
       :status, :rohs_compliant, :storage_notes,
+      tag_ids: [],
       part_suppliers_attributes: [
         :id, :supplier_id, :supplier_sku, :unit_price, :lead_time_days,
         :url, :is_preferred, :notes, :_destroy
@@ -254,6 +257,8 @@ class PartsController < ApplicationController
       storage_notes: part.storage_notes,
       category_id: part.category_id,
       footprint_id: part.footprint_id,
+      tag_ids: part.tag_ids,
+      tags: part.tags.map { |tag| { id: tag.id, name: tag.name, color: tag.color } },
       part_suppliers: part.part_suppliers.includes(:supplier).map { |ps| serialize_part_supplier(ps) }
     )
   end
@@ -309,6 +314,12 @@ class PartsController < ApplicationController
   def serialize_suppliers
     current_organization.suppliers.order(:name).map do |supplier|
       { id: supplier.id, name: supplier.name }
+    end
+  end
+
+  def serialize_tags
+    current_organization.tags.alphabetical.map do |tag|
+      { id: tag.id, name: tag.name, color: tag.color }
     end
   end
 

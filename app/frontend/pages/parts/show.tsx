@@ -73,6 +73,7 @@ interface PartDetail {
   storage_notes: string | null
   category: { id: number; name: string; color: string | null } | null
   footprint: { id: number; name: string } | null
+  tags: { id: number; name: string; color: string | null }[]
   part_suppliers: PartSupplierEntry[]
 }
 
@@ -290,6 +291,24 @@ export default function PartShow({ part, storages, movements, storage_locations 
               </div>
               {part.description && (
                 <p className="mt-2 max-w-xl text-sm text-muted-foreground">{part.description}</p>
+              )}
+              {part.tags.length > 0 && (
+                <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                  {part.tags.map((tag) => (
+                    <Badge
+                      key={tag.id}
+                      variant="outline"
+                      className="gap-1.5"
+                      style={tag.color ? { borderColor: tag.color } : undefined}
+                    >
+                      <span
+                        className="size-2 rounded-full border"
+                        style={{ backgroundColor: tag.color || 'var(--muted)' }}
+                      />
+                      {tag.name}
+                    </Badge>
+                  ))}
+                </div>
               )}
             </div>
           </CardContent>
