@@ -29,6 +29,10 @@ module ActiveSupport
       Footprint.create!(organization: organization, name: name, **attrs)
     end
 
+    def create_tag(organization:, name: "Tag #{SecureRandom.hex(4)}", **attrs)
+      Tag.create!(organization: organization, name: name, **attrs)
+    end
+
     def create_part(organization:, category: nil, name: "Part #{SecureRandom.hex(4)}", **attrs)
       category ||= create_category(organization: organization)
       Part.create!(organization: organization, category: category, name: name, **attrs)

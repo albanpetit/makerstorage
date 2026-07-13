@@ -148,6 +148,73 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
     assert_equal category, part.category
   end
 
+  test "create attaches the tags named by tag_ids" do
+    user = create_user
+    org = user.organizations.first
+    category = create_category(organization: org, name: "Resistors")
+    tag_a = create_tag(organization: org, name: "RoHS")
+    tag_b = create_tag(organization: org, name: "favorite")
+
+    sign_in user
+    post parts_path, params: { part: { name: "Resistor 10k", category_id: category.id, tag_ids: [ tag_a.id, tag_b.id ] } }
+
+    part = Part.find_by(name: "Resistor 10k")
+    assert_equal [ tag_a, tag_b ].sort, part.tags.sort
+  end
+
+  test "update replaces the set of attached tags" do
+    user = create_user
+    org = user.organizations.first
+    part = create_part(organization: org)
+    old_tag = create_tag(organization: org, name: "old")
+    new_tag = create_tag(organization: org, name: "new")
+    part.tags << old_tag
+
+    sign_in user
+    patch part_path(part), params: { part: { name: part.name, category_id: part.category_id, tag_ids: [ new_tag.id ] } }
+
+    assert_equal [ new_tag ], part.reload.tags
+  end
+
+  test "update clears tags when tag_ids is empty" do
+    user = create_user
+    org = user.organizations.first
+    part = create_part(organization: org)
+    part.tags << create_tag(organization: org)
+
+    sign_in user
+    patch part_path(part), params: { part: { name: part.name, category_id: part.category_id, tag_ids: [] } }
+
+    assert_empty part.reload.tags
+  end
+
+  test "create rejects a tag from another organization" do
+    user = create_user
+    org = user.organizations.first
+    category = create_category(organization: org, name: "Resistors")
+    foreign_tag = create_tag(organization: create_organization, name: "foreign")
+
+    sign_in user
+    assert_no_difference -> { Part.count } do
+      post parts_path, params: { part: { name: "Resistor 10k", category_id: category.id, tag_ids: [ foreign_tag.id ] } }
+    end
+  end
+
+  test "edit serializes the tag options and the part's current tag_ids" do
+    user = create_user
+    org = user.organizations.first
+    part = create_part(organization: org)
+    tag = create_tag(organization: org, name: "RoHS")
+    part.tags << tag
+
+    sign_in user
+    get edit_part_path(part)
+    assert_response :success
+
+    assert_includes inertia_props["part"]["tag_ids"], tag.id
+    assert_includes inertia_props["tags"].map { |t| t["name"] }, "RoHS"
+  end
+
   test "create assigns initial stock via a stock movement when a location and quantity are given" do
     user = create_user
     org = user.organizations.first

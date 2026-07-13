@@ -24,6 +24,7 @@ import {
 } from '@/components/ui/field'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { CategorySelect } from '@/components/category-select'
+import { TagPicker } from '@/components/tag-picker'
 import {
   Table,
   TableBody,
@@ -51,6 +52,12 @@ interface Supplier {
   name: string
 }
 
+interface Tag {
+  id: number
+  name: string
+  color: string | null
+}
+
 interface PendingSupplier {
   tempId: string
   supplier_id: string
@@ -67,9 +74,10 @@ interface NewPartProps {
   categories: Category[]
   footprints: Footprint[]
   suppliers: Supplier[]
+  tags: Tag[]
 }
 
-export default function NewPart({ categories, footprints, suppliers }: NewPartProps) {
+export default function NewPart({ categories, footprints, suppliers, tags }: NewPartProps) {
   const [pendingSuppliers, setPendingSuppliers] = useState<PendingSupplier[]>([])
   const [showAddSupplier, setShowAddSupplier] = useState(false)
   const [newSupplier, setNewSupplier] = useState<Omit<PendingSupplier, 'tempId' | 'supplier_name'>>({
@@ -103,6 +111,7 @@ export default function NewPart({ categories, footprints, suppliers }: NewPartPr
       status: 'active',
       rohs_compliant: false,
       storage_notes: '',
+      tag_ids: [] as number[],
     },
   })
 
@@ -362,6 +371,21 @@ export default function NewPart({ categories, footprints, suppliers }: NewPartPr
                     </Select>
                   </FieldContent>
                   {errors['part.footprint_id'] && <FieldError>{errors['part.footprint_id']}</FieldError>}
+                </Field>
+
+                {/* Tags */}
+                <Field className="md:col-span-2">
+                  <FieldLabel>
+                    <Label>Tags</Label>
+                  </FieldLabel>
+                  <FieldContent>
+                    <TagPicker
+                      tags={tags}
+                      value={data.part.tag_ids}
+                      onChange={(ids) => setData('part', { ...data.part, tag_ids: ids })}
+                    />
+                  </FieldContent>
+                  {errors['part.tag_ids'] && <FieldError>{errors['part.tag_ids']}</FieldError>}
                 </Field>
 
                 {/* Status */}
