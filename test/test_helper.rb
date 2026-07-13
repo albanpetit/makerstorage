@@ -17,6 +17,18 @@ module ActiveSupport
 
     # Add more helper methods to be used by all tests here...
 
+    # Temporarily replaces a singleton (class/module) method for the duration of
+    # the block, restoring the original afterwards. Minitest 6 dropped the
+    # bundled `minitest/mock`, so this covers the small amount of stubbing we need.
+    def stub_singleton(receiver, name, replacement)
+      singleton = receiver.singleton_class
+      original = singleton.instance_method(name)
+      singleton.send(:define_method, name) { |*args, **kwargs, &blk| replacement.call(*args, **kwargs, &blk) }
+      yield
+    ensure
+      singleton.send(:define_method, name, original)
+    end
+
     def create_organization(name: "Test Org #{SecureRandom.hex(4)}", **attrs)
       Organization.create!(name: name, **attrs)
     end

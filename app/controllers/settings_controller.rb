@@ -28,14 +28,32 @@ class SettingsController < ApplicationController
   private
 
   def organization_params
-    params.require(:organization).permit(
+    permitted = params.require(:organization).permit(
       :name, :email, :phone, :website, :logo,
       :address_line1, :address_line2, :city, :postcode, :country,
       :currency, :timezone,
       :ipn_generation_mode, :ipn_charset,
       :ipn_prefix, :ipn_separator, :ipn_digits, :ipn_use_category_code, :ipn_next_sequence,
-      :default_low_stock_threshold, :allow_negative_stock
+      :default_low_stock_threshold, :allow_negative_stock,
+      :mouser_api_key, :remove_mouser_api_key
     )
+
+    normalize_mouser_api_key(permitted)
+    permitted
+  end
+
+  # The Mouser key field is write-only: a blank submit leaves the stored key
+  # untouched, an explicit remove flag clears it, and a new value replaces it.
+  def normalize_mouser_api_key(permitted)
+    remove = ActiveModel::Type::Boolean.new.cast(permitted.delete(:remove_mouser_api_key))
+
+    if remove
+      permitted[:mouser_api_key] = nil
+    elsif permitted[:mouser_api_key].blank?
+      permitted.delete(:mouser_api_key)
+    else
+      permitted[:mouser_api_key] = permitted[:mouser_api_key].strip
+    end
   end
 
   def serialize_organization_settings
@@ -52,6 +70,7 @@ class SettingsController < ApplicationController
       ipn_prefix: org.ipn_prefix, ipn_separator: org.ipn_separator, ipn_digits: org.ipn_digits,
       ipn_use_category_code: org.ipn_use_category_code, ipn_next_sequence: org.ipn_next_sequence,
       default_low_stock_threshold: org.default_low_stock_threshold, allow_negative_stock: org.allow_negative_stock,
+      mouser_api_key_present: org.mouser_api_key.present?,
       ipn_preview: org.ipn_preview(category_code: org.ipn_use_category_code ? "RES" : nil)
     }
   end

@@ -101,6 +101,7 @@ interface PartsIndexProps {
   suppliers: Supplier[]
   tags: Tag[]
   storage_locations: StorageLocationOption[]
+  supplier_lookup_enabled: boolean
   open_add: boolean
 }
 
@@ -290,7 +291,7 @@ function parseCsvPreview(text: string): { rows: ParsedImportRow[] } | { error: s
   return { rows }
 }
 
-export default function PartsIndex({ parts, initial_query, categories, footprints, suppliers, tags, storage_locations, open_add }: PartsIndexProps) {
+export default function PartsIndex({ parts, initial_query, categories, footprints, suppliers, tags, storage_locations, supplier_lookup_enabled, open_add }: PartsIndexProps) {
   const { canWrite } = usePermissions()
   const [query, setQuery] = useState(initial_query || '')
   const [categoryId, setCategoryId] = useState<number | 'all'>('all')
@@ -878,6 +879,7 @@ export default function PartsIndex({ parts, initial_query, categories, footprint
         suppliers={suppliers}
         tags={tags}
         storageLocations={storage_locations}
+        supplierLookupEnabled={supplier_lookup_enabled}
       />
 
       {/* CSV Import modal */}
