@@ -17,7 +17,7 @@ Rails.application.routes.draw do
     get "(*path)", to: redirect { |params, req| "#{req.protocol}localhost:#{req.port}/#{params[:path]}" }
   end
   # Organizations
-  resources :organizations, only: [ :destroy ] do
+  resources :organizations, only: [ :create, :destroy ] do
     member do
       post :switch
     end

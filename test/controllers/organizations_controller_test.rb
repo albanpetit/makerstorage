@@ -58,4 +58,45 @@ class OrganizationsControllerTest < ActionDispatch::IntegrationTest
 
     assert Organization.exists?(stranger_org.id)
   end
+
+  test "create requires authentication" do
+    post organizations_path, params: { organization: { name: "Nope" } }
+    assert_redirected_to new_user_session_path
+  end
+
+  test "create makes an organization, adds the user as owner, and switches to it" do
+    user = create_user
+
+    sign_in user
+    assert_difference -> { Organization.count }, 1 do
+      post organizations_path, params: { organization: { name: "New Fablab" } }
+    end
+
+    assert_redirected_to root_path
+    org = Organization.find_by(name: "New Fablab")
+    assert user.owner_of?(org)
+    assert org.organization_memberships.owners.active.exists?(user: user)
+
+    follow_redirect!
+    current_org = inertia_props.dig("auth", "current_organization")
+    assert_equal org.id, current_org["id"]
+  end
+
+  test "create rejects a blank name with a namespaced error and creates nothing" do
+    user = create_user
+
+    sign_in user
+    assert_no_difference -> { Organization.count } do
+      post organizations_path, params: { organization: { name: "" } }
+    end
+
+    follow_redirect!
+    assert inertia_props.dig("errors", "organization.name").present?
+  end
+
+  private
+
+  def inertia_props
+    JSON.parse(@response.body[/data-page="app" type="application\/json">(.*?)<\/script>/m, 1])["props"]
+  end
 end

@@ -1,5 +1,5 @@
-import { Link, usePage, router } from '@inertiajs/react'
-import { useEffect, useState } from 'react'
+import { Link, usePage, router, useForm } from '@inertiajs/react'
+import { FormEvent, useEffect, useState } from 'react'
 import { useTheme } from 'next-themes'
 import {
   LayoutDashboard,
@@ -46,8 +46,19 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Field, FieldContent, FieldError, FieldLabel } from '@/components/ui/field'
 
 const navigationItems = [
   { title: 'Dashboard', url: '/', icon: LayoutDashboard },
@@ -143,7 +154,25 @@ export function AppSidebar() {
     })
   }
 
+  const [createOpen, setCreateOpen] = useState(false)
+  const createForm = useForm({ organization: { name: '' } })
+
+  const openCreateDialog = () => {
+    createForm.reset()
+    createForm.clearErrors()
+    setCreateOpen(true)
+  }
+
+  const submitCreate = (e: FormEvent) => {
+    e.preventDefault()
+    createForm.post('/organizations', {
+      preserveScroll: true,
+      onSuccess: () => setCreateOpen(false),
+    })
+  }
+
   return (
+    <>
     <Sidebar>
       <SidebarHeader>
         <div className="flex items-center gap-2.5 px-2 pt-1 pb-2">
@@ -213,7 +242,7 @@ export function AppSidebar() {
                   </DropdownMenuItem>
                 ))}
                 <DropdownMenuSeparator />
-                <DropdownMenuItem className="gap-2 p-2 cursor-pointer">
+                <DropdownMenuItem onClick={openCreateDialog} className="gap-2 p-2 cursor-pointer">
                   <div className="flex size-6 items-center justify-center rounded-md border bg-background">
                     <Plus className="size-4" />
                   </div>
@@ -299,5 +328,47 @@ export function AppSidebar() {
         </SidebarMenu>
       </SidebarFooter>
     </Sidebar>
+
+    <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+      <DialogContent>
+        <form onSubmit={submitCreate}>
+          <DialogHeader>
+            <DialogTitle>Create organization</DialogTitle>
+            <DialogDescription>
+              You'll be added as its owner and switched to it right away.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Field>
+              <FieldLabel>
+                <Label htmlFor="new-org-name">Name</Label>
+              </FieldLabel>
+              <FieldContent>
+                <Input
+                  id="new-org-name"
+                  value={createForm.data.organization.name}
+                  onChange={(e) => createForm.setData('organization', { name: e.target.value })}
+                  placeholder="Acme Fablab"
+                  autoFocus
+                  aria-invalid={!!createForm.errors['organization.name']}
+                />
+              </FieldContent>
+              {createForm.errors['organization.name'] && (
+                <FieldError>{createForm.errors['organization.name']}</FieldError>
+              )}
+            </Field>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={createForm.processing}>
+              Create
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+    </>
   )
 }

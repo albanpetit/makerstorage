@@ -3,6 +3,22 @@
 class OrganizationsController < ApplicationController
   include Auth
 
+  def create
+    organization = Organization.new(organization_params)
+
+    ActiveRecord::Base.transaction do
+      organization.save!
+      organization.organization_memberships.create!(user: current_user, role: "owner")
+    end
+
+    session[:current_organization_id] = organization.id
+    redirect_to root_path, notice: "Organization \"#{organization.name}\" created."
+  rescue ActiveRecord::RecordInvalid
+    redirect_back fallback_location: root_path,
+                  inertia: { errors: inertia_errors(organization, as: :organization) },
+                  alert: "Failed to create organization."
+  end
+
   def switch
     organization = current_user.organizations.find_by(id: params[:id])
 
@@ -32,5 +48,11 @@ class OrganizationsController < ApplicationController
     session[:current_organization_id] = next_org&.id
 
     redirect_to root_path, notice: "Organization \"#{organization.name}\" was deleted."
+  end
+
+  private
+
+  def organization_params
+    params.require(:organization).permit(:name)
   end
 end
