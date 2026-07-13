@@ -19,8 +19,16 @@ class PartSupplier < ApplicationRecord
 
   # Callbacks
   before_save :ensure_single_preferred
+  # Keep the part's cost basis (Part#unit_price) mirroring its preferred
+  # supplier's price whenever a link is added, repriced, re-preferred, or removed.
+  after_save :sync_part_unit_price
+  after_destroy :sync_part_unit_price
 
   private
+
+  def sync_part_unit_price
+    part.sync_unit_price_from_preferred!
+  end
 
   def supplier_must_belong_to_same_organization
     return unless part && supplier

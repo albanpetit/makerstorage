@@ -11,7 +11,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Badge } from '@/components/ui/badge'
 import { CategorySelect } from '@/components/category-select'
 import { TagPicker } from '@/components/tag-picker'
-import { SupplierLookup, LookupResult } from '@/components/supplier-lookup'
+import { SupplierLookup, LookupResult, matchProviderSupplier } from '@/components/supplier-lookup'
 import {
   Dialog,
   DialogContent,
@@ -51,6 +51,8 @@ interface Footprint {
 interface Supplier {
   id: number
   name: string
+  website?: string | null
+  catalog_provider?: string | null
 }
 
 interface Tag {
@@ -368,6 +370,49 @@ export function EditPartDialog({
     })
     setAttach({ datasheet_url: result.datasheet_url, image_url: result.image_url })
     setDetailsOpen(true)
+    applySupplierFromResult(result)
+  }
+
+  // Pre-fill the Suppliers section from a catalog match: link the provider's own
+  // supplier (Mouser/DigiKey) with the fetched price, SKU and product URL. Only
+  // runs when that supplier exists in the org and the result carries data;
+  // re-running a lookup refreshes the existing row instead of duplicating it.
+  const applySupplierFromResult = (result: LookupResult) => {
+    const supplier = matchProviderSupplier(suppliers, result.provider)
+    if (!supplier) return
+    if (!result.unit_price && !result.supplier_sku && !result.product_url) return
+
+    const supplierId = supplier.id.toString()
+    setPendingSuppliers((prev) => {
+      const existing = prev.find((ps) => ps.supplier_id === supplierId)
+      if (existing) {
+        return prev.map((ps) =>
+          ps.supplier_id === supplierId
+            ? {
+                ...ps,
+                supplier_sku: result.supplier_sku || ps.supplier_sku,
+                unit_price: result.unit_price || ps.unit_price,
+                url: result.product_url || ps.url,
+              }
+            : ps
+        )
+      }
+      return [
+        ...prev,
+        {
+          tempId: crypto.randomUUID(),
+          supplier_id: supplierId,
+          supplier_name: supplier.name,
+          supplier_sku: result.supplier_sku || '',
+          unit_price: result.unit_price || '',
+          lead_time_days: '',
+          url: result.product_url || '',
+          is_preferred: prev.length === 0,
+          notes: '',
+        },
+      ]
+    })
+    setSuppliersOpen(true)
   }
 
   const handleOpenChange = (next: boolean) => {
@@ -543,6 +588,7 @@ export function EditPartDialog({
                       onChange={(e) => setPart({ unit_price: e.target.value })}
                     />
                   </FieldContent>
+                  <p className="text-xs text-muted-foreground">Auto-set from your preferred supplier's price on save.</p>
                   {errors['part.unit_price'] && <FieldError>{errors['part.unit_price']}</FieldError>}
                 </Field>
               </div>

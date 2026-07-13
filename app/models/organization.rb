@@ -26,6 +26,8 @@ class Organization < ApplicationRecord
 
   # Encrypted secrets - supplier catalog integration (see SupplierCatalog)
   encrypts :mouser_api_key
+  encrypts :digikey_client_id
+  encrypts :digikey_client_secret
 
   # Constants
   IPN_SEPARATORS = %w[- . _ /].freeze
@@ -48,6 +50,7 @@ class Organization < ApplicationRecord
 
   # Callbacks
   validate :must_have_at_least_one_owner, on: :update
+  after_create :seed_catalog_suppliers
 
   # Scopes
   scope :alphabetical, -> { order(:name) }
@@ -141,9 +144,15 @@ class Organization < ApplicationRecord
   end
 
   # Methods - Supplier catalog integration
-  # Whether an external supplier catalog (Mouser, ...) can be queried for this org.
+  # Whether an external supplier catalog (Mouser, DigiKey, ...) can be queried
+  # for this org.
   def supplier_lookup_configured?
-    mouser_api_key.present?
+    mouser_api_key.present? || digikey_configured?
+  end
+
+  # DigiKey needs both halves of the OAuth2 client-credentials pair to work.
+  def digikey_configured?
+    digikey_client_id.present? && digikey_client_secret.present?
   end
 
   # Methods - Stats
@@ -176,6 +185,13 @@ class Organization < ApplicationRecord
   end
 
   private
+
+  # Every org starts with a supplier for each external catalog provider so the
+  # lookup-driven price auto-fill has a target to link (see SupplierCatalog and
+  # Supplier.ensure_catalog_provider).
+  def seed_catalog_suppliers
+    Supplier::CATALOG_PROVIDERS.each { |provider| Supplier.ensure_catalog_provider(self, provider) }
+  end
 
   def random_ipn_body(seed)
     alphabet = ipn_charset == "alphanumeric" ? (("A".."Z").to_a + ("0".."9").to_a) : ("0".."9").to_a

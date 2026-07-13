@@ -162,6 +162,17 @@ class Part < ApplicationRecord
     part_suppliers.find_by(is_preferred: true)
   end
 
+  # Mirrors unit_price (the part's cost basis for stock valuation) onto the
+  # preferred supplier's price. Called from PartSupplier when links change so
+  # the two never drift. Leaves a manually-entered price untouched when there is
+  # no preferred supplier price to sync from.
+  def sync_unit_price_from_preferred!
+    price = preferred_part_supplier&.unit_price
+    return if price.nil? || unit_price == price
+
+    update_column(:unit_price, price)
+  end
+
   # Methods - Technical specs
   def technical_specs
     specs = {}

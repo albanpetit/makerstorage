@@ -39,9 +39,44 @@ interface SupplierLookupProps {
   attached?: { datasheet: boolean; image: boolean }
 }
 
-// Search an external supplier catalog (Mouser) by manufacturer part number and
-// let the user pick a match. Owns the query/results state; the parent owns what
-// happens to the chosen result via `onApply`.
+// Human-readable label for a result's source catalog.
+const PROVIDER_LABELS: Record<string, string> = {
+  mouser: 'Mouser',
+  digikey: 'DigiKey',
+}
+
+function providerLabel(provider: string): string {
+  return PROVIDER_LABELS[provider] ?? provider
+}
+
+// Domains used to match a catalog result's provider to one of the org's own
+// Supplier records, so a lookup can pre-fill that supplier's price/SKU/URL.
+const PROVIDER_DOMAINS: Record<string, string> = {
+  mouser: 'mouser.com',
+  digikey: 'digikey.com',
+}
+
+// Finds the supplier that corresponds to a result's provider: the explicit
+// catalog_provider tag first, then website domain, then a normalized name
+// contains-check as a last resort (so "Mouser Electronics" / "Digi-Key" still
+// match older untagged records). Returns undefined if none fit.
+export function matchProviderSupplier<
+  T extends { name: string; website?: string | null; catalog_provider?: string | null },
+>(suppliers: T[], provider: string): T | undefined {
+  const tagged = suppliers.find((supplier) => supplier.catalog_provider === provider)
+  if (tagged) return tagged
+
+  const domain = PROVIDER_DOMAINS[provider]
+  const key = provider.toLowerCase()
+  return suppliers.find((supplier) => {
+    if (domain && supplier.website && supplier.website.toLowerCase().includes(domain)) return true
+    return supplier.name.toLowerCase().replace(/[^a-z0-9]/g, '').includes(key)
+  })
+}
+
+// Search external supplier catalogs (Mouser, DigiKey) by manufacturer part
+// number and let the user pick a match. Owns the query/results state; the
+// parent owns what happens to the chosen result via `onApply`.
 export function SupplierLookup({ defaultQuery = '', onApply, attached }: SupplierLookupProps) {
   const [query, setQuery] = useState(defaultQuery)
   const [loading, setLoading] = useState(false)
@@ -93,7 +128,7 @@ export function SupplierLookup({ defaultQuery = '', onApply, attached }: Supplie
 
   return (
     <div className="rounded-lg border border-dashed bg-muted/40 p-4">
-      <Label className="text-sm font-medium">Look up from Mouser</Label>
+      <Label className="text-sm font-medium">Look up from supplier catalog</Label>
       <p className="mb-2.5 text-xs text-muted-foreground">
         Enter a manufacturer part number to auto-fill details, datasheet and image.
       </p>
@@ -143,6 +178,7 @@ export function SupplierLookup({ defaultQuery = '', onApply, attached }: Supplie
                     {result.manufacturer && (
                       <Badge variant="secondary" className="shrink-0 text-[10px]">{result.manufacturer}</Badge>
                     )}
+                    <Badge variant="outline" className="ml-auto shrink-0 text-[10px]">{providerLabel(result.provider)}</Badge>
                   </div>
                   {result.description && <p className="truncate text-xs text-muted-foreground">{result.description}</p>}
                   <div className="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-muted-foreground">

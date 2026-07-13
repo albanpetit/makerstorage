@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_13_130000) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_13_150000) do
   create_table "active_storage_attachments", force: :cascade do |t|
     t.bigint "blob_id", null: false
     t.datetime "created_at", null: false
@@ -95,6 +95,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_13_130000) do
     t.datetime "created_at", null: false
     t.string "currency", default: "EUR", null: false
     t.integer "default_low_stock_threshold", default: 50, null: false
+    t.text "digikey_client_id"
+    t.text "digikey_client_secret"
     t.string "email"
     t.string "ipn_charset", default: "numeric", null: false
     t.integer "ipn_digits", default: 5, null: false
@@ -253,6 +255,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_13_130000) do
   create_table "suppliers", force: :cascade do |t|
     t.string "address_line1"
     t.string "address_line2"
+    t.string "catalog_provider"
     t.string "city"
     t.string "country"
     t.datetime "created_at", null: false
@@ -264,6 +267,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_13_130000) do
     t.string "postcode"
     t.datetime "updated_at", null: false
     t.string "website"
+    t.index ["organization_id", "catalog_provider"], name: "index_suppliers_on_organization_id_and_catalog_provider", unique: true, where: "catalog_provider IS NOT NULL"
     t.index ["organization_id", "name"], name: "index_suppliers_on_organization_id_and_name"
     t.index ["organization_id"], name: "index_suppliers_on_organization_id"
   end

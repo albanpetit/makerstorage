@@ -80,6 +80,13 @@ interface Supplier {
   order_count: number
   components: LinkedComponent[]
   orders: Order[]
+  catalog_provider: string | null
+}
+
+// Human-readable name of the catalog integration a supplier fronts, if any.
+const CATALOG_PROVIDER_LABELS: Record<string, string> = {
+  mouser: 'Mouser',
+  digikey: 'DigiKey',
 }
 
 interface SuppliersPageProps {
@@ -490,6 +497,13 @@ export default function SuppliersIndex({ suppliers }: SuppliersPageProps) {
             <AlertDialogTitle>Delete this supplier?</AlertDialogTitle>
             <AlertDialogDescription>
               <span className="font-semibold text-foreground">{selected?.name}</span> will be removed along with its linked component pricing.
+              {selected?.catalog_provider && (
+                <span className="mt-2 block font-medium text-destructive">
+                  This also disables the {CATALOG_PROVIDER_LABELS[selected.catalog_provider] ?? selected.catalog_provider} catalog
+                  integration and clears its saved API {selected.catalog_provider === 'digikey' ? 'credentials' : 'key'}. You can
+                  re-enable it later from Settings → Integrations.
+                </span>
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

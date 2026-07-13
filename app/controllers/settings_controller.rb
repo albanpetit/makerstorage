@@ -19,13 +19,30 @@ class SettingsController < ApplicationController
     current_organization.logo.purge if ActiveModel::Type::Boolean.new.cast(params.dig(:organization, :remove_logo))
 
     if current_organization.update(organization_params)
-      redirect_to settings_path, notice: "Settings updated successfully."
+      created = ensure_catalog_suppliers
+      notice = "Settings updated successfully."
+      notice += " Added #{created.to_sentence} to your suppliers." if created.any?
+      redirect_to settings_path, notice: notice
     else
       redirect_to settings_path, inertia: { errors: inertia_errors(current_organization, as: :organization) }, alert: "Failed to update settings."
     end
   end
 
   private
+
+  # Make sure each configured catalog integration has its supplier record so a
+  # lookup can auto-fill that supplier's price. Returns the names of any newly
+  # created suppliers, so the user can be told a supplier was set up for them.
+  def ensure_catalog_suppliers
+    providers = []
+    providers << "mouser" if current_organization.mouser_api_key.present?
+    providers << "digikey" if current_organization.digikey_configured?
+
+    providers.filter_map do |provider|
+      _supplier, created = Supplier.ensure_catalog_provider(current_organization, provider)
+      Supplier::CATALOG_PROVIDER_DEFAULTS.dig(provider, :name) if created
+    end
+  end
 
   def organization_params
     permitted = params.require(:organization).permit(
@@ -35,10 +52,12 @@ class SettingsController < ApplicationController
       :ipn_generation_mode, :ipn_charset,
       :ipn_prefix, :ipn_separator, :ipn_digits, :ipn_use_category_code, :ipn_next_sequence,
       :default_low_stock_threshold, :allow_negative_stock,
-      :mouser_api_key, :remove_mouser_api_key
+      :mouser_api_key, :remove_mouser_api_key,
+      :digikey_client_id, :digikey_client_secret, :remove_digikey
     )
 
     normalize_mouser_api_key(permitted)
+    normalize_digikey_credentials(permitted)
     permitted
   end
 
@@ -53,6 +72,25 @@ class SettingsController < ApplicationController
       permitted.delete(:mouser_api_key)
     else
       permitted[:mouser_api_key] = permitted[:mouser_api_key].strip
+    end
+  end
+
+  # DigiKey's Client ID + Secret are write-only as a pair: a blank field leaves
+  # the stored value untouched, an explicit remove flag clears both, and a new
+  # value replaces it.
+  def normalize_digikey_credentials(permitted)
+    if ActiveModel::Type::Boolean.new.cast(permitted.delete(:remove_digikey))
+      permitted[:digikey_client_id] = nil
+      permitted[:digikey_client_secret] = nil
+      return
+    end
+
+    %i[digikey_client_id digikey_client_secret].each do |key|
+      if permitted[key].blank?
+        permitted.delete(key)
+      else
+        permitted[key] = permitted[key].strip
+      end
     end
   end
 
@@ -71,6 +109,7 @@ class SettingsController < ApplicationController
       ipn_use_category_code: org.ipn_use_category_code, ipn_next_sequence: org.ipn_next_sequence,
       default_low_stock_threshold: org.default_low_stock_threshold, allow_negative_stock: org.allow_negative_stock,
       mouser_api_key_present: org.mouser_api_key.present?,
+      digikey_configured: org.digikey_configured?,
       ipn_preview: org.ipn_preview(category_code: org.ipn_use_category_code ? "RES" : nil)
     }
   end

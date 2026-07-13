@@ -19,29 +19,13 @@ module SupplierCatalog
     # Note: Mouser's public API usually only returns *packaging* attributes
     # (Conditionnement / Quantité standard du lot), not the parametric specs.
     # The parametric values are instead embedded in the Description, which
-    # #parse_description recovers as a fallback (see PARAMETRIC_PATTERNS).
+    # DescriptionParser recovers as a fallback.
     ATTRIBUTE_MAP = {
       value: [ "Resistance", "Capacitance", "Inductance", "Value", "Résistance", "Capacité", "Inductance", "Valeur" ],
       package_type: [ "Package / Case", "Supplier Device Package", "Mounting Style", "Boîtier", "Boitier", "Type de boîtier", "Package / Boîtier" ],
       tolerance: [ "Tolerance", "Tolérance" ],
       voltage_rating: [ "Voltage Rating", "Voltage Rating - DC", "Voltage - Rated", "Voltage Rating (Vdc)", "Tension nominale", "Tension assignée", "Tension" ],
       power_rating: [ "Power (Watts)", "Power Rating", "Power - Max", "Puissance", "Puissance nominale", "Puissance (Watts)" ]
-    }.freeze
-
-    # Whitelisted SMD chip sizes — matched as exact tokens so a stray "1000"
-    # never reads as a package.
-    SMD_SIZES = %w[0201 0402 0603 0805 1206 1210 1218 1812 2010 2220 2512 2920].freeze
-
-    # Common through-hole/SMD package families, optionally suffixed with a pin count.
-    PACKAGE_FAMILY = /\b(?:SOT|SOD|SOIC|SO|TSSOP|VSSOP|MSOP|SSOP|QSOP|TSOP|QFN|DFN|VQFN|WQFN|QFP|TQFP|LQFP|BGA|LGA|WLCSP|DIP|PDIP|SIP|TO|DPAK|D2PAK|SMA|SMB|SMC|MELF)-?\d*[A-Z]?\b/i
-
-    # Parametric values embedded in the Description, recovered per field. Order
-    # inside a field doesn't matter; the first match in the text is used.
-    PARAMETRIC_PATTERNS = {
-      value: /\b\d+(?:[.,]\d+)?\s?[kKMmµuµnpGT]?(?:Ohms?|Ω|F|H)\b/i,
-      tolerance: /(?<![\/\d])\b\d+(?:[.,]\d+)?\s?%/,
-      power_rating: %r{\b\d+(?:[./]\d+)?\s?[mµu]?W\b}i,
-      voltage_rating: /\b\d+(?:[.,]\d+)?\s?V(?:DC|AC)?\b/i
     }.freeze
 
     def initialize(api_key:)
@@ -118,7 +102,7 @@ module SupplierCatalog
       description = part["Description"].to_s
       # Description is the fallback source for parametric fields Mouser doesn't
       # expose as structured attributes.
-      parsed = parse_description(description)
+      parsed = DescriptionParser.parse(description)
 
       PartResult.new(
         name: description.slice(0, 255).presence,
@@ -152,25 +136,6 @@ module SupplierCatalog
         return value if value.present?
       end
       nil
-    end
-
-    # Recovers parametric fields from the free-text Description. Conservative:
-    # each pattern requires a unit (Ω/F/H, %, W, V) or a known package token, so
-    # non-passive descriptions (e.g. an EEPROM) simply yield nothing rather than
-    # a wrong guess.
-    def parse_description(text)
-      return {} if text.blank?
-
-      result = { package_type: extract_package(text) }
-      PARAMETRIC_PATTERNS.each do |field, pattern|
-        match = text[pattern]
-        result[field] = match.strip if match
-      end
-      result
-    end
-
-    def extract_package(text)
-      SMD_SIZES.find { |size| text.match?(/(?<!\d)#{size}(?!\d)/) } || text[PACKAGE_FAMILY]
     end
 
     # Lowest-quantity price break, parsed to a numeric string (strips currency
