@@ -96,6 +96,7 @@ function initials(name: string) {
 interface Organization {
   id: number
   name: string
+  logo_url?: string | null
   member_count: number
 }
 
@@ -161,9 +162,15 @@ export function AppSidebar() {
                   className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
                 >
                   <div
-                    className={`flex aspect-square size-8 items-center justify-center rounded-md text-xs font-bold text-white ${currentOrganization ? ORG_BADGE_COLORS[currentOrganization.id % ORG_BADGE_COLORS.length] : 'bg-muted-foreground'}`}
+                    className={`flex aspect-square size-8 items-center justify-center overflow-hidden rounded-md text-xs font-bold text-white ${currentOrganization?.logo_url ? 'bg-muted' : currentOrganization ? ORG_BADGE_COLORS[currentOrganization.id % ORG_BADGE_COLORS.length] : 'bg-muted-foreground'}`}
                   >
-                    {currentOrganization ? initials(currentOrganization.name) : '–'}
+                    {currentOrganization?.logo_url ? (
+                      <img src={currentOrganization.logo_url} alt="" className="size-full object-cover" />
+                    ) : currentOrganization ? (
+                      initials(currentOrganization.name)
+                    ) : (
+                      '–'
+                    )}
                   </div>
                   <div className="grid flex-1 text-left text-sm leading-tight">
                     <span className="truncate font-semibold">
@@ -192,8 +199,12 @@ export function AppSidebar() {
                     onClick={() => handleOrganizationSwitch(org.id)}
                     className="cursor-pointer gap-2 p-2"
                   >
-                    <div className={`flex size-6 items-center justify-center rounded-sm text-[10px] font-bold text-white ${ORG_BADGE_COLORS[org.id % ORG_BADGE_COLORS.length]}`}>
-                      {initials(org.name)}
+                    <div className={`flex size-6 items-center justify-center overflow-hidden rounded-sm text-[10px] font-bold text-white ${org.logo_url ? 'bg-muted' : ORG_BADGE_COLORS[org.id % ORG_BADGE_COLORS.length]}`}>
+                      {org.logo_url ? (
+                        <img src={org.logo_url} alt="" className="size-full object-cover" />
+                      ) : (
+                        initials(org.name)
+                      )}
                     </div>
                     <span className="flex-1 truncate">{org.name}</span>
                     {currentOrganization?.id === org.id && (
