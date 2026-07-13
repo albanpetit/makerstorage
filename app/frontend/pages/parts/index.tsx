@@ -1,5 +1,5 @@
-import { Head, Link, useForm } from '@inertiajs/react'
-import { FormEvent, useMemo, useRef, useState } from 'react'
+import { Head, Link } from '@inertiajs/react'
+import { useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import {
   Plus, Search, Package, Pencil, Download, Upload,
@@ -13,8 +13,8 @@ import { ReadOnlyBadge } from '@/components/read-only-badge'
 import { FlashMessages } from '@/components/flash-messages'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
+import { AddPartDialog } from '@/components/add-part-dialog'
 import {
   Dialog,
   DialogContent,
@@ -23,7 +23,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Field, FieldContent, FieldError, FieldLabel } from '@/components/ui/field'
 import {
   Table,
   TableBody,
@@ -72,6 +71,23 @@ interface Category {
   name: string
 }
 
+interface Footprint {
+  id: number
+  name: string
+  mounting_type: string | null
+}
+
+interface Supplier {
+  id: number
+  name: string
+}
+
+interface Tag {
+  id: number
+  name: string
+  color: string | null
+}
+
 interface StorageLocationOption {
   id: number
   name: string
@@ -81,7 +97,11 @@ interface PartsIndexProps {
   parts: Part[]
   initial_query: string
   categories: Category[]
+  footprints: Footprint[]
+  suppliers: Supplier[]
+  tags: Tag[]
   storage_locations: StorageLocationOption[]
+  open_add: boolean
 }
 
 type SortKey = 'ref' | 'crit' | 'qtyDesc' | 'qtyAsc' | 'priceDesc'
@@ -270,7 +290,7 @@ function parseCsvPreview(text: string): { rows: ParsedImportRow[] } | { error: s
   return { rows }
 }
 
-export default function PartsIndex({ parts, initial_query, categories, storage_locations }: PartsIndexProps) {
+export default function PartsIndex({ parts, initial_query, categories, footprints, suppliers, tags, storage_locations, open_add }: PartsIndexProps) {
   const { canWrite } = usePermissions()
   const [query, setQuery] = useState(initial_query || '')
   const [categoryId, setCategoryId] = useState<number | 'all'>('all')
@@ -288,34 +308,8 @@ export default function PartsIndex({ parts, initial_query, categories, storage_l
   const [importFileName, setImportFileName] = useState('')
   const importFormRef = useRef<HTMLFormElement>(null)
 
-  const [addOpen, setAddOpen] = useState(false)
-  const addForm = useForm({
-    part: {
-      name: '',
-      category_id: '',
-      value: '',
-      package_type: '',
-      min_stock_threshold: '0',
-      unit_price: '',
-    },
-    initial_location_id: '',
-    initial_quantity: '',
-  })
-
-  const openAddDialog = () => {
-    addForm.reset()
-    addForm.clearErrors()
-    setAddOpen(true)
-  }
-
-  const submitAdd = (e: FormEvent) => {
-    e.preventDefault()
-    addForm.post('/parts', {
-      preserveScroll: true,
-      preserveState: true,
-      onSuccess: () => setAddOpen(false),
-    })
-  }
+  const [addOpen, setAddOpen] = useState(open_add)
+  const openAddDialog = () => setAddOpen(true)
 
   const categoryChips = useMemo(() => {
     const counts = new Map<number, { name: string; count: number }>()
@@ -876,144 +870,15 @@ export default function PartsIndex({ parts, initial_query, categories, storage_l
       </div>
 
       {/* Add Part modal */}
-      <Dialog open={addOpen} onOpenChange={setAddOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Add part</DialogTitle>
-            <DialogDescription>Quickly add a reference to the inventory.</DialogDescription>
-          </DialogHeader>
-          <form onSubmit={submitAdd} className="flex flex-col gap-4">
-            <div className="grid grid-cols-2 gap-4">
-              <Field className="col-span-2">
-                <FieldLabel>
-                  <Label>Name</Label>
-                </FieldLabel>
-                <FieldContent>
-                  <Input
-                    placeholder="e.g. Resistor 10k 1% 0603"
-                    value={addForm.data.part.name}
-                    onChange={(e) => addForm.setData('part', { ...addForm.data.part, name: e.target.value })}
-                  />
-                </FieldContent>
-                {addForm.errors['part.name'] && <FieldError>{addForm.errors['part.name']}</FieldError>}
-              </Field>
-              <Field className="col-span-2">
-                <FieldLabel>
-                  <Label>Category</Label>
-                </FieldLabel>
-                <FieldContent>
-                  <Select
-                    value={addForm.data.part.category_id}
-                    onValueChange={(value) => addForm.setData('part', { ...addForm.data.part, category_id: value })}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select a category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {categories.map((category) => (
-                        <SelectItem key={category.id} value={category.id.toString()}>{category.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </FieldContent>
-                {addForm.errors['part.category_id'] && <FieldError>{addForm.errors['part.category_id']}</FieldError>}
-              </Field>
-              <Field>
-                <FieldLabel>
-                  <Label>Value</Label>
-                </FieldLabel>
-                <FieldContent>
-                  <Input
-                    placeholder="e.g. 10 kΩ"
-                    value={addForm.data.part.value}
-                    onChange={(e) => addForm.setData('part', { ...addForm.data.part, value: e.target.value })}
-                  />
-                </FieldContent>
-              </Field>
-              <Field>
-                <FieldLabel>
-                  <Label>Package</Label>
-                </FieldLabel>
-                <FieldContent>
-                  <Input
-                    placeholder="e.g. 0603"
-                    value={addForm.data.part.package_type}
-                    onChange={(e) => addForm.setData('part', { ...addForm.data.part, package_type: e.target.value })}
-                  />
-                </FieldContent>
-              </Field>
-              <Field>
-                <FieldLabel>
-                  <Label>Initial location</Label>
-                </FieldLabel>
-                <FieldContent>
-                  <Select
-                    value={addForm.data.initial_location_id || 'none'}
-                    onValueChange={(value) => addForm.setData('initial_location_id', value === 'none' ? '' : value)}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="No location" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">No location</SelectItem>
-                      {storage_locations.map((location) => (
-                        <SelectItem key={location.id} value={location.id.toString()}>{location.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </FieldContent>
-              </Field>
-              <Field>
-                <FieldLabel>
-                  <Label>Quantity</Label>
-                </FieldLabel>
-                <FieldContent>
-                  <Input
-                    inputMode="numeric"
-                    placeholder="0"
-                    disabled={!addForm.data.initial_location_id}
-                    value={addForm.data.initial_quantity}
-                    onChange={(e) => addForm.setData('initial_quantity', e.target.value.replace(/[^0-9]/g, ''))}
-                  />
-                </FieldContent>
-              </Field>
-              <Field>
-                <FieldLabel>
-                  <Label>Min. threshold</Label>
-                </FieldLabel>
-                <FieldContent>
-                  <Input
-                    inputMode="numeric"
-                    value={addForm.data.part.min_stock_threshold}
-                    onChange={(e) => addForm.setData('part', { ...addForm.data.part, min_stock_threshold: e.target.value.replace(/[^0-9]/g, '') })}
-                  />
-                </FieldContent>
-              </Field>
-              <Field>
-                <FieldLabel>
-                  <Label>Unit price</Label>
-                </FieldLabel>
-                <FieldContent>
-                  <Input
-                    placeholder="0.00"
-                    value={addForm.data.part.unit_price}
-                    onChange={(e) => addForm.setData('part', { ...addForm.data.part, unit_price: e.target.value })}
-                  />
-                </FieldContent>
-              </Field>
-            </div>
-            <DialogFooter className="items-center sm:justify-between">
-              <Link href="/parts/new" className="text-sm text-muted-foreground underline underline-offset-4">
-                Need more fields? Use the full form
-              </Link>
-              <div className="flex gap-2">
-                <Button type="button" variant="outline" onClick={() => setAddOpen(false)}>Cancel</Button>
-                <Button type="submit" disabled={addForm.processing}>Add part</Button>
-              </div>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+      <AddPartDialog
+        open={addOpen}
+        onOpenChange={setAddOpen}
+        categories={categories}
+        footprints={footprints}
+        suppliers={suppliers}
+        tags={tags}
+        storageLocations={storage_locations}
+      />
 
       {/* CSV Import modal */}
       <Dialog open={importOpen} onOpenChange={(open) => (open ? setImportOpen(true) : closeImport())}>

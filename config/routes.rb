@@ -24,7 +24,7 @@ Rails.application.routes.draw do
   end
 
   # Inventory resources
-  resources :parts do
+  resources :parts, except: %i[new] do
     collection do
       post :import
     end

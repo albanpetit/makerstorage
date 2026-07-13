@@ -133,6 +133,35 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
     assert_includes props["storage_locations"].map { |l| l["id"] }, location.id
   end
 
+  test "index provides footprints, suppliers, and tags for the add-part modal" do
+    user = create_user
+    org = user.organizations.first
+    footprint = create_footprint(organization: org, name: "0603")
+    supplier = create_supplier(organization: org, name: "Mouser")
+    tag = create_tag(organization: org, name: "smd")
+
+    sign_in user
+    get parts_path
+    assert_response :success
+
+    props = inertia_props
+    assert_includes props["footprints"].map { |f| f["id"] }, footprint.id
+    assert_includes props["suppliers"].map { |s| s["id"] }, supplier.id
+    assert_includes props["tags"].map { |t| t["id"] }, tag.id
+  end
+
+  test "index opens the add-part modal when the new param is present" do
+    user = create_user
+
+    sign_in user
+    get parts_path(new: 1)
+    assert_response :success
+    assert_equal true, inertia_props["open_add"]
+
+    get parts_path
+    assert_equal false, inertia_props["open_add"]
+  end
+
   test "create builds a part from the quick-add modal" do
     user = create_user
     org = user.organizations.first
