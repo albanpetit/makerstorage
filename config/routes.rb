@@ -61,6 +61,8 @@ Rails.application.routes.draw do
 
   resource :settings, only: %i[show update]
 
+  resource :profile, only: %i[show update]
+
   root "dashboard#index"
   # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
 

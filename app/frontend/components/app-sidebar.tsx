@@ -285,14 +285,6 @@ export function AppSidebar() {
                     Profile
                   </Link>
                 </DropdownMenuItem>
-                {isOrganizationAdmin && (
-                  <DropdownMenuItem asChild>
-                    <Link href="/settings" className="cursor-pointer">
-                      <Settings className="mr-2 size-4" />
-                      Settings
-                    </Link>
-                  </DropdownMenuItem>
-                )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
                   <Link href="/logout" method="delete" as="button" className="w-full cursor-pointer">
