@@ -21,7 +21,7 @@ class SettingsController < ApplicationController
     if current_organization.update(organization_params)
       redirect_to settings_path, notice: "Settings updated successfully."
     else
-      redirect_to settings_path, inertia: { errors: current_organization.errors }, alert: "Failed to update settings."
+      redirect_to settings_path, inertia: { errors: inertia_errors(current_organization, as: :organization) }, alert: "Failed to update settings."
     end
   end
 

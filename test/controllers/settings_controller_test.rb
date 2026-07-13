@@ -146,6 +146,9 @@ class SettingsControllerTest < ActionDispatch::IntegrationTest
     follow_redirect!
     assert_match(/Failed to update settings/, flash[:alert])
     assert_equal "EUR", org.reload.currency
+    # Error keys are namespaced to match the nested `organization` form so the
+    # frontend can render them inline (Rails' flat keys would never match).
+    assert inertia_props.dig("errors", "organization.currency").present?
   end
 
   private

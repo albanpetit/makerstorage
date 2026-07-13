@@ -23,7 +23,7 @@ class StorageLocationsController < ApplicationController
     if location.save
       redirect_to storage_locations_path, notice: "Storage zone created successfully."
     else
-      redirect_to storage_locations_path, alert: location.errors.full_messages.to_sentence, inertia: { errors: location.errors }
+      redirect_to storage_locations_path, alert: location.errors.full_messages.to_sentence, inertia: { errors: inertia_errors(location, as: :storage_location) }
     end
   end
 
@@ -31,7 +31,7 @@ class StorageLocationsController < ApplicationController
     if @storage_location.update(storage_location_params)
       redirect_to storage_locations_path, notice: "Storage zone updated successfully."
     else
-      redirect_to storage_locations_path, alert: @storage_location.errors.full_messages.to_sentence, inertia: { errors: @storage_location.errors }
+      redirect_to storage_locations_path, alert: @storage_location.errors.full_messages.to_sentence, inertia: { errors: inertia_errors(@storage_location, as: :storage_location) }
     end
   end
 

@@ -38,7 +38,7 @@ class MembersController < ApplicationController
     if membership.save
       redirect_to members_path, notice: "#{user.email} added to the organization."
     else
-      redirect_back_or_to members_path, alert: "Failed to add member.", inertia: { errors: membership.errors }
+      redirect_back_or_to members_path, alert: "Failed to add member.", inertia: { errors: inertia_errors(membership, as: :member) }
     end
   end
 

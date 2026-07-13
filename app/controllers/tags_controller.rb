@@ -28,7 +28,7 @@ class TagsController < ApplicationController
     if tag.save
       redirect_back_or_to tags_path, notice: "Tag \"#{tag.name}\" created."
     else
-      redirect_back_or_to tags_path, alert: "Failed to create tag.", inertia: { errors: tag.errors }
+      redirect_back_or_to tags_path, alert: "Failed to create tag.", inertia: { errors: inertia_errors(tag, as: :tag) }
     end
   end
 
@@ -36,7 +36,7 @@ class TagsController < ApplicationController
     if @tag.update(tag_params)
       redirect_to tags_path, notice: "Tag updated successfully."
     else
-      redirect_back_or_to tags_path, alert: "Failed to update tag.", inertia: { errors: @tag.errors }
+      redirect_back_or_to tags_path, alert: "Failed to update tag.", inertia: { errors: inertia_errors(@tag, as: :tag) }
     end
   end
 

@@ -28,7 +28,7 @@ class Users::RegistrationsController < Devise::RegistrationsController
     else
       clean_up_passwords resource
       set_minimum_password_length
-      redirect_to new_user_registration_path, inertia: { errors: resource.errors.to_hash }
+      redirect_to new_user_registration_path, inertia: { errors: inertia_errors(resource, as: :user) }
     end
   end
 
