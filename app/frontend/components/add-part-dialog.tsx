@@ -345,7 +345,7 @@ export function AddPartDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="flex max-h-[90svh] flex-col gap-0 p-0 sm:max-w-2xl">
+      <DialogContent className="flex max-h-[90svh] flex-col gap-0 p-0 sm:max-w-2xl lg:max-w-4xl">
         <DialogHeader className="border-b px-6 py-4">
           <DialogTitle>Add part</DialogTitle>
           <DialogDescription>
@@ -354,7 +354,7 @@ export function AddPartDialog({
         </DialogHeader>
 
         <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col">
-          <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-5">
+          <div className="@container min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-5">
             {/* Validation summary — keeps errors inside the modal (not on the
                 page behind it) and surfaces those in collapsed sections. */}
             {errorMessages.length > 0 && (
@@ -384,8 +384,8 @@ export function AddPartDialog({
             )}
 
             {/* Essentials */}
-            <div className="grid grid-cols-2 gap-4">
-              <Field className="col-span-2">
+            <div className="grid grid-cols-2 gap-4 @2xl:grid-cols-4">
+              <Field className="col-span-2 @2xl:col-span-4">
                 <FieldLabel>
                   <Label>Name *</Label>
                 </FieldLabel>
@@ -399,7 +399,7 @@ export function AddPartDialog({
                 </FieldContent>
                 {errors['part.name'] && <FieldError>{errors['part.name']}</FieldError>}
               </Field>
-              <Field className="col-span-2">
+              <Field className="col-span-2 @2xl:col-span-4">
                 <FieldLabel>
                   <Label>Category *</Label>
                 </FieldLabel>
@@ -506,7 +506,7 @@ export function AddPartDialog({
               open={detailsOpen}
               onToggle={() => setDetailsOpen((v) => !v)}
             >
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-4 @2xl:grid-cols-4">
                 <Field>
                   <FieldLabel>
                     <Label>MPN</Label>
@@ -557,7 +557,7 @@ export function AddPartDialog({
                     />
                   </FieldContent>
                 </Field>
-                <Field className="col-span-2">
+                <Field className="col-span-2 @2xl:col-span-4">
                   <FieldLabel>
                     <Label>Description</Label>
                   </FieldLabel>
@@ -614,7 +614,7 @@ export function AddPartDialog({
                     </Select>
                   </FieldContent>
                 </Field>
-                <Field className="col-span-2">
+                <Field className="col-span-2 @2xl:col-span-4">
                   <FieldLabel>
                     <Label>Tags</Label>
                   </FieldLabel>
@@ -675,7 +675,7 @@ export function AddPartDialog({
                     />
                   </FieldContent>
                 </Field>
-                <Field className="col-span-2">
+                <Field className="col-span-2 @2xl:col-span-4">
                   <FieldLabel>
                     <Label>Storage notes</Label>
                   </FieldLabel>
@@ -688,7 +688,7 @@ export function AddPartDialog({
                     />
                   </FieldContent>
                 </Field>
-                <Field className="col-span-2">
+                <Field className="col-span-2 @2xl:col-span-4">
                   <div className="flex items-center space-x-2">
                     <Checkbox
                       id="add_rohs_compliant"
