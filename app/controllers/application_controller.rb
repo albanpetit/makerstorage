@@ -41,6 +41,15 @@ class ApplicationController < ActionController::Base
 
   private
 
+  # Namespace an ActiveModel's validation errors so their keys match the nested
+  # Inertia form data. React forms use `useForm({ part: { name } })`, so Inertia
+  # types (and reads) errors as dotted paths like `part.name`. Rails' default
+  # `errors.to_hash` emits flat keys (`name`), which never match — so inline
+  # field errors silently fail to render unless we prefix them here.
+  def inertia_errors(model, as:)
+    model.errors.to_hash.transform_keys { |attribute| "#{as}.#{attribute}" }
+  end
+
   def serialize_organization(org)
     {
       id: org.id,

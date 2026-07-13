@@ -28,7 +28,7 @@ class CategoriesController < ApplicationController
     if category.save
       redirect_back_or_to categories_path, notice: "Category \"#{category.name}\" created."
     else
-      redirect_back_or_to categories_path, alert: "Failed to create category.", inertia: { errors: category.errors }
+      redirect_back_or_to categories_path, alert: "Failed to create category.", inertia: { errors: inertia_errors(category, as: :category) }
     end
   end
 
@@ -36,7 +36,7 @@ class CategoriesController < ApplicationController
     if @category.update(category_params)
       redirect_to categories_path, notice: "Category updated successfully."
     else
-      redirect_back_or_to categories_path, alert: "Failed to update category.", inertia: { errors: @category.errors }
+      redirect_back_or_to categories_path, alert: "Failed to update category.", inertia: { errors: inertia_errors(@category, as: :category) }
     end
   end
 

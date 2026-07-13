@@ -40,7 +40,7 @@ class ScansController < ApplicationController
     if movement.save
       redirect_back_or_to scan_path, notice: "Movement recorded successfully."
     else
-      redirect_back_or_to scan_path, alert: "Failed to record movement.", inertia: { errors: movement.errors }
+      redirect_back_or_to scan_path, alert: "Failed to record movement.", inertia: { errors: inertia_errors(movement, as: :stock_movement) }
     end
   end
 

@@ -23,7 +23,7 @@ class SuppliersController < ApplicationController
     if supplier.save
       redirect_to suppliers_path, notice: "Supplier created successfully."
     else
-      redirect_back_or_to suppliers_path, alert: "Failed to create supplier.", inertia: { errors: supplier.errors }
+      redirect_back_or_to suppliers_path, alert: "Failed to create supplier.", inertia: { errors: inertia_errors(supplier, as: :supplier) }
     end
   end
 
@@ -31,7 +31,7 @@ class SuppliersController < ApplicationController
     if @supplier.update(supplier_params)
       redirect_to suppliers_path, notice: "Supplier updated successfully."
     else
-      redirect_back_or_to suppliers_path, alert: "Failed to update supplier.", inertia: { errors: @supplier.errors }
+      redirect_back_or_to suppliers_path, alert: "Failed to update supplier.", inertia: { errors: inertia_errors(@supplier, as: :supplier) }
     end
   end
 

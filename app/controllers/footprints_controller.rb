@@ -26,7 +26,7 @@ class FootprintsController < ApplicationController
     if footprint.save
       redirect_to footprints_path, notice: "Footprint created successfully."
     else
-      redirect_back_or_to footprints_path, alert: "Failed to create footprint.", inertia: { errors: footprint.errors }
+      redirect_back_or_to footprints_path, alert: "Failed to create footprint.", inertia: { errors: inertia_errors(footprint, as: :footprint) }
     end
   end
 
@@ -34,7 +34,7 @@ class FootprintsController < ApplicationController
     if @footprint.update(footprint_params)
       redirect_to footprints_path, notice: "Footprint updated successfully."
     else
-      redirect_back_or_to footprints_path, alert: "Failed to update footprint.", inertia: { errors: @footprint.errors }
+      redirect_back_or_to footprints_path, alert: "Failed to update footprint.", inertia: { errors: inertia_errors(@footprint, as: :footprint) }
     end
   end
 

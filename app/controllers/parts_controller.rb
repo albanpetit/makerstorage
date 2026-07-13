@@ -62,7 +62,7 @@ class PartsController < ApplicationController
       assign_initial_stock(part)
       redirect_to parts_path, notice: "Part created successfully."
     else
-      redirect_back_or_to new_part_path, alert: "Failed to create part.", inertia: { errors: part.errors }
+      redirect_back_or_to new_part_path, alert: "Failed to create part.", inertia: { errors: inertia_errors(part, as: :part) }
     end
   end
 
@@ -70,7 +70,7 @@ class PartsController < ApplicationController
     if @part.update(part_params)
       redirect_to edit_part_path(@part), notice: "Part updated successfully."
     else
-      redirect_to edit_part_path(@part), alert: "Failed to update part.", inertia: { errors: @part.errors }
+      redirect_to edit_part_path(@part), alert: "Failed to update part.", inertia: { errors: inertia_errors(@part, as: :part) }
     end
   end
 
