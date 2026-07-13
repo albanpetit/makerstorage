@@ -217,6 +217,85 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
     assert_empty part.reload.tags
   end
 
+  test "edit responds with the full part as JSON for the edit modal" do
+    user = create_user
+    org = user.organizations.first
+    category = create_category(organization: org, name: "Resistors")
+    supplier = create_supplier(organization: org, name: "Mouser")
+    part = create_part(organization: org, category: category, mpn: "RES-10K", description: "10k resistor")
+    PartSupplier.create!(part: part, supplier: supplier, supplier_sku: "M-1", unit_price: 0.04)
+
+    sign_in user
+    get edit_part_path(part), headers: { "Accept" => "application/json" }
+    assert_response :success
+
+    body = JSON.parse(response.body)["part"]
+    assert_equal part.id, body["id"]
+    assert_equal "RES-10K", body["mpn"]
+    assert_equal "10k resistor", body["description"]
+    assert_equal category.id, body["category_id"]
+    assert_equal "M-1", body["part_suppliers"].first["supplier_sku"]
+  end
+
+  test "edit denies JSON access to a part from another organization" do
+    user = create_user
+    foreign_part = create_part(organization: create_organization)
+
+    sign_in user
+    get edit_part_path(foreign_part), headers: { "Accept" => "application/json" }
+    assert_response :not_found
+  end
+
+  test "update links a new supplier via nested attributes" do
+    user = create_user
+    org = user.organizations.first
+    part = create_part(organization: org)
+    supplier = create_supplier(organization: org, name: "Mouser")
+
+    sign_in user
+    assert_difference -> { part.part_suppliers.count }, 1 do
+      patch part_path(part), params: { part: {
+        name: part.name, category_id: part.category_id,
+        part_suppliers_attributes: [ { supplier_id: supplier.id, supplier_sku: "M-1", is_preferred: true } ]
+      } }
+    end
+
+    link = part.part_suppliers.reload.first
+    assert_equal supplier.id, link.supplier_id
+    assert_equal "M-1", link.supplier_sku
+    assert link.is_preferred
+  end
+
+  test "update removes a supplier via _destroy" do
+    user = create_user
+    org = user.organizations.first
+    part = create_part(organization: org)
+    supplier = create_supplier(organization: org)
+    link = PartSupplier.create!(part: part, supplier: supplier)
+
+    sign_in user
+    assert_difference -> { part.part_suppliers.count }, -1 do
+      patch part_path(part), params: { part: {
+        name: part.name, category_id: part.category_id,
+        part_suppliers_attributes: [ { id: link.id, _destroy: true } ]
+      } }
+    end
+  end
+
+  test "update returns to the referring page so the edit modal flow stays put" do
+    user = create_user
+    org = user.organizations.first
+    part = create_part(organization: org)
+
+    sign_in user
+    patch part_path(part),
+      params: { part: { name: "Renamed", category_id: part.category_id } },
+      headers: { "Referer" => parts_url }
+
+    assert_redirected_to parts_url
+    assert_equal "Renamed", part.reload.name
+  end
+
   test "create rejects a tag from another organization" do
     user = create_user
     org = user.organizations.first

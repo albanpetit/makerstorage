@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
 import { AddPartDialog } from '@/components/add-part-dialog'
+import { EditPartDialog } from '@/components/edit-part-dialog'
 import {
   Dialog,
   DialogContent,
@@ -311,6 +312,8 @@ export default function PartsIndex({ parts, initial_query, categories, footprint
 
   const [addOpen, setAddOpen] = useState(open_add)
   const openAddDialog = () => setAddOpen(true)
+
+  const [editPartId, setEditPartId] = useState<number | null>(null)
 
   const categoryChips = useMemo(() => {
     const counts = new Map<number, { name: string; count: number }>()
@@ -835,10 +838,8 @@ export default function PartsIndex({ parts, initial_query, categories, footprint
                       </TableCell>
                       <TableCell className="py-2.5">
                         {canWrite && (
-                          <Button variant="ghost" size="icon" asChild>
-                            <Link href={`/parts/${part.id}/edit`}>
-                              <Pencil className="size-4" />
-                            </Link>
+                          <Button variant="ghost" size="icon" onClick={() => setEditPartId(part.id)} aria-label="Edit part">
+                            <Pencil className="size-4" />
                           </Button>
                         )}
                       </TableCell>
@@ -879,6 +880,18 @@ export default function PartsIndex({ parts, initial_query, categories, footprint
         suppliers={suppliers}
         tags={tags}
         storageLocations={storage_locations}
+        supplierLookupEnabled={supplier_lookup_enabled}
+      />
+
+      {/* Edit Part modal */}
+      <EditPartDialog
+        partId={editPartId}
+        open={editPartId !== null}
+        onOpenChange={(open) => !open && setEditPartId(null)}
+        categories={categories}
+        footprints={footprints}
+        suppliers={suppliers}
+        tags={tags}
         supplierLookupEnabled={supplier_lookup_enabled}
       />
 
