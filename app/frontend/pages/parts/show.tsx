@@ -10,6 +10,7 @@ import { SidebarTrigger } from '@/components/ui/sidebar'
 import { usePermissions } from '@/hooks/use-permissions'
 import { ReadOnlyBadge } from '@/components/read-only-badge'
 import { FlashMessages } from '@/components/flash-messages'
+import { EditPartDialog } from '@/components/edit-part-dialog'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -105,6 +106,11 @@ interface PartShowProps {
   storages: StorageEntry[]
   movements: MovementEntry[]
   storage_locations: LocationOption[]
+  categories: { id: number; name: string }[]
+  footprints: { id: number; name: string; mounting_type: string | null }[]
+  suppliers: { id: number; name: string }[]
+  tags: { id: number; name: string; color: string | null }[]
+  supplier_lookup_enabled: boolean
 }
 
 const STOCK_STATUS_META = {
@@ -137,10 +143,11 @@ interface MovementFormData {
   }
 }
 
-export default function PartShow({ part, storages, movements, storage_locations }: PartShowProps) {
+export default function PartShow({ part, storages, movements, storage_locations, categories, footprints, suppliers, tags, supplier_lookup_enabled }: PartShowProps) {
   const { canWrite } = usePermissions()
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [mvtOpen, setMvtOpen] = useState(false)
+  const [editOpen, setEditOpen] = useState(false)
 
   const stockKey = part.total_quantity === 0 ? 'out' : part.total_quantity < part.min_stock_threshold ? 'low' : 'ok'
   const stockMeta = STOCK_STATUS_META[stockKey]
@@ -227,11 +234,9 @@ export default function PartShow({ part, storages, movements, storage_locations 
             </Button>
           )}
           {canWrite && (
-            <Button variant="outline" size="sm" asChild>
-              <Link href={`/parts/${part.id}/edit`}>
-                <Pencil className="size-4" />
-                Edit
-              </Link>
+            <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
+              <Pencil className="size-4" />
+              Edit
             </Button>
           )}
           {canWrite && (
@@ -587,6 +592,18 @@ export default function PartShow({ part, storages, movements, storage_locations 
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Edit Part modal */}
+      <EditPartDialog
+        partId={editOpen ? part.id : null}
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        categories={categories}
+        footprints={footprints}
+        suppliers={suppliers}
+        tags={tags}
+        supplierLookupEnabled={supplier_lookup_enabled}
+      />
     </AppLayout>
   )
 }

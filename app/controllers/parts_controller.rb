@@ -37,19 +37,32 @@ class PartsController < ApplicationController
       part: serialize_part_full(@part),
       storages: @part.part_storages.includes(:storage_location).map { |ps| serialize_part_storage(ps) },
       movements: movements.map { |movement| serialize_part_movement(movement) },
-      storage_locations: serialize_storage_locations
-    }
-  end
-
-  def edit
-    render inertia: "parts/edit", props: {
-      part: serialize_part_full(@part),
+      storage_locations: serialize_storage_locations,
+      # Options for the edit-part modal launched from this page.
       categories: serialize_categories,
       footprints: serialize_footprints,
       suppliers: serialize_suppliers,
       tags: serialize_tags,
       supplier_lookup_enabled: current_organization.supplier_lookup_configured?
     }
+  end
+
+  def edit
+    # JSON: the edit-part modal (opened from the list/detail pages) fetches the
+    # full part on demand. HTML: the standalone edit page, kept as a fallback.
+    respond_to do |format|
+      format.json { render json: { part: serialize_part_full(@part) } }
+      format.html do
+        render inertia: "parts/edit", props: {
+          part: serialize_part_full(@part),
+          categories: serialize_categories,
+          footprints: serialize_footprints,
+          suppliers: serialize_suppliers,
+          tags: serialize_tags,
+          supplier_lookup_enabled: current_organization.supplier_lookup_configured?
+        }
+      end
+    end
   end
 
   def create
@@ -84,9 +97,13 @@ class PartsController < ApplicationController
   def update
     if @part.update(part_params)
       attach_remote_assets(@part)
-      redirect_to edit_part_path(@part), notice: "Part updated successfully."
+      # Return to wherever the edit was launched (list, detail, or the standalone
+      # edit page) so the modal flow stays put instead of navigating away.
+      redirect_back_or_to edit_part_path(@part), notice: "Part updated successfully."
     else
-      redirect_to edit_part_path(@part), alert: "Failed to update part.", inertia: { errors: inertia_errors(@part, as: :part) }
+      # No page-level alert: the edit modal renders these errors inline, and one
+      # would otherwise surface behind the still-open dialog.
+      redirect_back_or_to edit_part_path(@part), inertia: { errors: inertia_errors(@part, as: :part) }
     end
   end
 
