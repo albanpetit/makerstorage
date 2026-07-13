@@ -62,6 +62,7 @@ interface OrganizationSettings {
   default_low_stock_threshold: number
   allow_negative_stock: boolean
   mouser_api_key_present: boolean
+  digikey_configured: boolean
   ipn_preview: IpnPreview
 }
 
@@ -203,6 +204,9 @@ interface IntegrationsFormData {
   organization: {
     mouser_api_key: string
     remove_mouser_api_key: boolean
+    digikey_client_id: string
+    digikey_client_secret: string
+    remove_digikey: boolean
   }
 }
 
@@ -253,7 +257,18 @@ export default function SettingsIndex({ organization, currencies, ipn_separators
     organization: {
       mouser_api_key: '',
       remove_mouser_api_key: false,
+      digikey_client_id: '',
+      digikey_client_secret: '',
+      remove_digikey: false,
     },
+  })
+
+  const resetIntegrations = () => integrationsForm.setData('organization', {
+    mouser_api_key: '',
+    remove_mouser_api_key: false,
+    digikey_client_id: '',
+    digikey_client_secret: '',
+    remove_digikey: false,
   })
 
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -307,18 +322,20 @@ export default function SettingsIndex({ organization, currencies, ipn_separators
     e.preventDefault()
     integrationsForm.patch('/settings', {
       preserveScroll: true,
-      onSuccess: () => integrationsForm.setData('organization', { mouser_api_key: '', remove_mouser_api_key: false }),
+      onSuccess: resetIntegrations,
     })
   }
 
-  const removeMouserKey = () => {
+  // Stage a one-off removal flag for a single provider, submit, then clear the
+  // form back to its neutral (write-only) state regardless of outcome.
+  const removeProvider = (flag: 'remove_mouser_api_key' | 'remove_digikey') => {
     integrationsForm.transform((data) => ({
-      organization: { ...data.organization, mouser_api_key: '', remove_mouser_api_key: true },
+      organization: { ...data.organization, [flag]: true },
     }))
     integrationsForm.patch('/settings', {
       preserveScroll: true,
-      onSuccess: () => {
-        integrationsForm.setData('organization', { mouser_api_key: '', remove_mouser_api_key: false })
+      onFinish: () => {
+        resetIntegrations()
         integrationsForm.transform((data) => data)
       },
     })
@@ -880,14 +897,102 @@ export default function SettingsIndex({ organization, currencies, ipn_separators
                         <FieldError>{integrationsForm.errors['organization.mouser_api_key']}</FieldError>
                       )}
                     </Field>
+                    <p className="text-xs text-muted-foreground">
+                      Saving a key sets up a “Mouser Electronics” supplier (if it doesn’t exist yet) so looked-up prices
+                      fill in automatically when you add parts.
+                    </p>
                   </CardContent>
                   <CardFooter className="justify-end gap-2 border-t">
                     {organization.mouser_api_key_present && (
-                      <Button type="button" variant="outline" onClick={removeMouserKey} disabled={integrationsForm.processing}>
+                      <Button type="button" variant="outline" onClick={() => removeProvider('remove_mouser_api_key')} disabled={integrationsForm.processing}>
                         Remove key
                       </Button>
                     )}
                     <Button type="submit" disabled={integrationsForm.processing || !integrationsForm.data.organization.mouser_api_key.trim()}>
+                      Save
+                    </Button>
+                  </CardFooter>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle>DigiKey Electronics</CardTitle>
+                    <CardDescription>
+                      Fetch a component's details, datasheet and image from DigiKey when adding a part.
+                      Create an app to get a Client ID and Secret from the{' '}
+                      <a
+                        href="https://developer.digikey.com/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-medium text-primary underline underline-offset-2"
+                      >
+                        DigiKey developer portal
+                      </a>
+                      .
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {organization.digikey_configured && (
+                      <div className="flex items-center gap-2 rounded-md border border-green-600/30 bg-green-600/10 px-3 py-2 text-sm text-green-700 dark:text-green-400">
+                        <CircleCheck className="size-4 shrink-0" />
+                        Credentials are configured. Enter new values below to replace them.
+                      </div>
+                    )}
+                    <Field>
+                      <FieldLabel><Label>Client ID</Label></FieldLabel>
+                      <FieldContent>
+                        <Input
+                          type="password"
+                          autoComplete="off"
+                          placeholder={organization.digikey_configured ? '••••••••••••••••' : 'Paste your DigiKey Client ID'}
+                          value={integrationsForm.data.organization.digikey_client_id}
+                          onChange={(e) => integrationsForm.setData('organization', {
+                            ...integrationsForm.data.organization,
+                            digikey_client_id: e.target.value,
+                          })}
+                        />
+                      </FieldContent>
+                      {integrationsForm.errors['organization.digikey_client_id'] && (
+                        <FieldError>{integrationsForm.errors['organization.digikey_client_id']}</FieldError>
+                      )}
+                    </Field>
+                    <Field>
+                      <FieldLabel><Label>Client Secret</Label></FieldLabel>
+                      <FieldContent>
+                        <Input
+                          type="password"
+                          autoComplete="off"
+                          placeholder={organization.digikey_configured ? '••••••••••••••••' : 'Paste your DigiKey Client Secret'}
+                          value={integrationsForm.data.organization.digikey_client_secret}
+                          onChange={(e) => integrationsForm.setData('organization', {
+                            ...integrationsForm.data.organization,
+                            digikey_client_secret: e.target.value,
+                          })}
+                        />
+                      </FieldContent>
+                      {integrationsForm.errors['organization.digikey_client_secret'] && (
+                        <FieldError>{integrationsForm.errors['organization.digikey_client_secret']}</FieldError>
+                      )}
+                    </Field>
+                    <p className="text-xs text-muted-foreground">
+                      Saving credentials sets up a “DigiKey” supplier (if it doesn’t exist yet) so looked-up prices fill in
+                      automatically when you add parts.
+                    </p>
+                  </CardContent>
+                  <CardFooter className="justify-end gap-2 border-t">
+                    {organization.digikey_configured && (
+                      <Button type="button" variant="outline" onClick={() => removeProvider('remove_digikey')} disabled={integrationsForm.processing}>
+                        Remove credentials
+                      </Button>
+                    )}
+                    <Button
+                      type="submit"
+                      disabled={
+                        integrationsForm.processing ||
+                        !integrationsForm.data.organization.digikey_client_id.trim() ||
+                        !integrationsForm.data.organization.digikey_client_secret.trim()
+                      }
+                    >
                       Save
                     </Button>
                   </CardFooter>

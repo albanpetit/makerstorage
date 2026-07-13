@@ -205,4 +205,10 @@ class OrganizationTest < ActiveSupport::TestCase
     org = create_organization
     assert_equal [], org.category_breakdown
   end
+
+  test "seeds a supplier for every catalog provider on creation" do
+    org = create_organization
+    assert_equal Supplier::CATALOG_PROVIDERS.sort,
+                 org.suppliers.catalog.pluck(:catalog_provider).sort
+  end
 end

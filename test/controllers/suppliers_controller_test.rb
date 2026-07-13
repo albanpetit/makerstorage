@@ -91,6 +91,42 @@ class SuppliersControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to suppliers_path
   end
 
+  test "index serializes the catalog_provider tag" do
+    user = create_user
+    org = user.organizations.first
+    sign_in user
+
+    get suppliers_path
+    providers = inertia_props["suppliers"].map { |s| s["catalog_provider"] }
+    assert_includes providers, "mouser"
+    assert_includes providers, "digikey"
+  end
+
+  test "destroy of a catalog supplier clears the provider's credentials" do
+    user = create_user
+    org = user.organizations.first
+    org.update!(mouser_api_key: "secret-key")
+    mouser = org.suppliers.find_by(catalog_provider: "mouser")
+
+    sign_in user
+    delete supplier_path(mouser)
+
+    assert_nil org.reload.mouser_api_key
+    assert_match(/Mouser Electronics/, flash[:notice])
+  end
+
+  test "destroy of a plain supplier leaves credentials intact" do
+    user = create_user
+    org = user.organizations.first
+    org.update!(mouser_api_key: "secret-key")
+    supplier = create_supplier(organization: org)
+
+    sign_in user
+    delete supplier_path(supplier)
+
+    assert_equal "secret-key", org.reload.mouser_api_key
+  end
+
   private
 
   def inertia_props

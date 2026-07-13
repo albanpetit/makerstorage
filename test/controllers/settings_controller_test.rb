@@ -186,6 +186,73 @@ class SettingsControllerTest < ActionDispatch::IntegrationTest
     assert_nil org.reload.mouser_api_key
   end
 
+  test "update stores DigiKey credentials without echoing the secret back" do
+    user = create_user
+    org = user.organizations.first
+    sign_in user
+
+    patch settings_path, params: { organization: { digikey_client_id: "  cid  ", digikey_client_secret: "  csecret  " } }
+    org.reload
+    assert_equal "cid", org.digikey_client_id
+    assert_equal "csecret", org.digikey_client_secret
+
+    get settings_path
+    organization = inertia_props["organization"]
+    assert_equal true, organization["digikey_configured"]
+    refute organization.key?("digikey_client_id")
+    refute organization.key?("digikey_client_secret")
+  end
+
+  test "update leaves existing DigiKey credentials untouched on a blank submit" do
+    user = create_user
+    org = user.organizations.first
+    org.update!(digikey_client_id: "existing-id", digikey_client_secret: "existing-secret")
+    sign_in user
+
+    patch settings_path, params: { organization: { name: "Renamed", digikey_client_id: "", digikey_client_secret: "" } }
+    org.reload
+    assert_equal "existing-id", org.digikey_client_id
+    assert_equal "existing-secret", org.digikey_client_secret
+    assert_equal "Renamed", org.name
+  end
+
+  test "update clears DigiKey credentials when the remove flag is set" do
+    user = create_user
+    org = user.organizations.first
+    org.update!(digikey_client_id: "existing-id", digikey_client_secret: "existing-secret")
+    sign_in user
+
+    patch settings_path, params: { organization: { remove_digikey: "true" } }
+    org.reload
+    assert_nil org.digikey_client_id
+    assert_nil org.digikey_client_secret
+  end
+
+  test "adding a Mouser key recreates its supplier and announces it" do
+    user = create_user
+    org = user.organizations.first
+    org.suppliers.where(catalog_provider: "mouser").destroy_all
+    sign_in user
+
+    assert_difference -> { org.suppliers.where(catalog_provider: "mouser").count } => 1 do
+      patch settings_path, params: { organization: { mouser_api_key: "secret-key" } }
+    end
+
+    assert_match "Mouser Electronics", flash[:notice]
+  end
+
+  test "adding a Mouser key does not duplicate an existing supplier" do
+    user = create_user
+    org = user.organizations.first # already seeded with a Mouser supplier
+    sign_in user
+
+    assert_no_difference -> { org.suppliers.where(catalog_provider: "mouser").count } do
+      patch settings_path, params: { organization: { mouser_api_key: "secret-key" } }
+    end
+
+    refute_match(/Mouser Electronics/, flash[:notice].to_s)
+  end
+
   private
 
   def inertia_props

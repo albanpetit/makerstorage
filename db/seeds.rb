@@ -189,14 +189,16 @@ suppliers_data = [
     email: "orders@digikey.com",
     website: "https://www.digikey.com",
     phone: "+1 800-344-4539",
-    country: "USA"
+    country: "USA",
+    catalog_provider: "digikey"
   },
   {
     name: "Mouser Electronics",
     email: "sales@mouser.com",
     website: "https://www.mouser.com",
     phone: "+1 800-346-6873",
-    country: "USA"
+    country: "USA",
+    catalog_provider: "mouser"
   },
   {
     name: "Farnell",
@@ -227,6 +229,7 @@ suppliers_data.each do |data|
     s.website = data[:website]
     s.phone = data[:phone]
     s.country = data[:country]
+    s.catalog_provider = data[:catalog_provider]
   end
 end
 

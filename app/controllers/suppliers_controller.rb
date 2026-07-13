@@ -36,14 +36,36 @@ class SuppliersController < ApplicationController
   end
 
   def destroy
+    provider = @supplier.catalog_provider
+
     if @supplier.destroy
-      redirect_to suppliers_path, notice: "Supplier deleted successfully."
+      clear_catalog_credentials(provider) if provider
+      redirect_to suppliers_path, notice: destroy_notice(provider)
     else
       redirect_to suppliers_path, alert: @supplier.errors.full_messages.to_sentence
     end
   end
 
   private
+
+  # Deleting a catalog supplier also removes the integration it fronts, so wipe
+  # the matching stored credentials — otherwise Settings would still claim the
+  # provider is configured with no supplier to fill prices into.
+  def clear_catalog_credentials(provider)
+    case provider
+    when "mouser"
+      current_organization.update!(mouser_api_key: nil)
+    when "digikey"
+      current_organization.update!(digikey_client_id: nil, digikey_client_secret: nil)
+    end
+  end
+
+  def destroy_notice(provider)
+    return "Supplier deleted successfully." unless provider
+
+    label = Supplier::CATALOG_PROVIDER_DEFAULTS.dig(provider, :name) || provider
+    "Supplier deleted. The #{label} catalog integration has been disabled."
+  end
 
   def set_supplier
     @supplier = current_organization.suppliers.find(params[:id])
@@ -67,6 +89,7 @@ class SuppliersController < ApplicationController
       website: supplier.website,
       country: supplier.country,
       city: supplier.city,
+      catalog_provider: supplier.catalog_provider,
       reference_count: part_suppliers.size,
       avg_lead_time_days: lead_times.any? ? (lead_times.sum.to_f / lead_times.size).round : nil,
       stock_value: stock_value.to_f,

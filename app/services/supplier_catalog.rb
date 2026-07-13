@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
 # Looks up electronic-component data from external supplier catalogs (Mouser,
-# and future providers) by manufacturer part number, returning normalized
-# results that map onto our Part model.
+# DigiKey, and future providers) by manufacturer part number, returning
+# normalized results that map onto our Part model.
 #
 #   SupplierCatalog.lookup(organization, mpn: "RC0805FR-0710KL")
 #   # => [ SupplierCatalog::PartResult, ... ]
@@ -21,18 +21,44 @@ module SupplierCatalog
 
   module_function
 
-  # Returns an Array<PartResult> (possibly empty) for the given part number.
+  # Returns an Array<PartResult> (possibly empty) for the given part number,
+  # merged across every configured provider so the user sees matches from all of
+  # them in one pick-list. A single provider failing doesn't sink the lookup —
+  # its error is only surfaced when *every* provider failed to return anything.
   def lookup(organization, mpn:)
-    provider = provider_for(organization)
-    raise NotConfiguredError, "No supplier catalog is configured for this organization" unless provider
+    providers = providers_for(organization)
+    raise NotConfiguredError, "No supplier catalog is configured for this organization" if providers.empty?
 
-    provider.search(mpn)
+    results = []
+    errors = []
+
+    providers.each do |provider|
+      results.concat(provider.search(mpn))
+    rescue LookupError => e
+      errors << e
+    end
+
+    raise errors.first if results.empty? && errors.any?
+
+    results
   end
 
-  # Picks the configured provider for an organization, or nil when none is set.
-  def provider_for(organization)
-    if organization.mouser_api_key.present?
-      Mouser.new(api_key: organization.mouser_api_key)
+  # Every configured provider for an organization, in preference order. Empty
+  # when none is set.
+  def providers_for(organization)
+    providers = []
+    providers << Mouser.new(api_key: organization.mouser_api_key) if organization.mouser_api_key.present?
+    if organization.digikey_configured?
+      providers << Digikey.new(
+        client_id: organization.digikey_client_id,
+        client_secret: organization.digikey_client_secret
+      )
     end
+    providers
+  end
+
+  # The first configured provider, or nil when none is set.
+  def provider_for(organization)
+    providers_for(organization).first
   end
 end

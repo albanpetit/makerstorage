@@ -89,7 +89,7 @@ class PartsController < ApplicationController
     results = SupplierCatalog.lookup(current_organization, mpn: mpn)
     render json: { results: results.map(&:as_json) }
   rescue SupplierCatalog::NotConfiguredError
-    render json: { error: "No supplier catalog is configured. Add a Mouser API key in Settings." }, status: :unprocessable_entity
+    render json: { error: "No supplier catalog is configured. Add a Mouser or DigiKey key in Settings." }, status: :unprocessable_entity
   rescue SupplierCatalog::LookupError => e
     render json: { error: e.message }, status: :bad_gateway
   end
@@ -358,7 +358,7 @@ class PartsController < ApplicationController
 
   def serialize_suppliers
     current_organization.suppliers.order(:name).map do |supplier|
-      { id: supplier.id, name: supplier.name }
+      { id: supplier.id, name: supplier.name, website: supplier.website, catalog_provider: supplier.catalog_provider }
     end
   end
 
