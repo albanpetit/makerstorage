@@ -29,6 +29,26 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "#F4A52B", part_json["category"]["color"]
   end
 
+  test "serializes a thumbnail_url for parts with an attached image" do
+    user = create_user
+    org = user.organizations.first
+    category = create_category(organization: org)
+    with_image = create_part(organization: org, category: category, name: "With image")
+    without_image = create_part(organization: org, category: category, name: "No image")
+    with_image.images.attach(
+      io: StringIO.new("fake-image-bytes"), filename: "part.png", content_type: "image/png"
+    )
+
+    sign_in user
+    get parts_path
+    assert_response :success
+
+    with_json = inertia_props["parts"].find { |p| p["id"] == with_image.id }
+    without_json = inertia_props["parts"].find { |p| p["id"] == without_image.id }
+    assert with_json["thumbnail_url"].present?, "expected a thumbnail URL for a part with an image"
+    assert_nil without_json["thumbnail_url"]
+  end
+
   test "serializes decimal fields as JSON numbers, not strings" do
     user = create_user
     org = user.organizations.first
