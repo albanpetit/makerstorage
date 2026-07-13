@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 
 import { AppLayout } from '@/layouts/app-layout'
+import { SidebarTrigger } from '@/components/ui/sidebar'
 import { usePermissions } from '@/hooks/use-permissions'
 import { ReadOnlyBadge } from '@/components/read-only-badge'
 import { Button } from '@/components/ui/button'
@@ -510,14 +511,15 @@ export default function StorageLocationsIndex({ storage_locations, part_storages
     <AppLayout>
       <Head title="Storage Zones" />
 
-      <div className="-m-4 flex h-screen flex-col">
-        <div className="flex shrink-0 flex-wrap items-center gap-3 border-b bg-background px-5 py-3">
+      <div className="-m-4 flex h-[100svh] flex-col">
+        <div className="flex shrink-0 flex-wrap items-center gap-3 border-b bg-background px-4 py-3 sm:px-5">
+          <SidebarTrigger className="-ml-1 md:hidden" />
           <div>
             <h1 className="text-base font-semibold tracking-tight">Storage Zones</h1>
             <p className="text-xs text-muted-foreground">Organize your locations hierarchically</p>
           </div>
           <div className="flex-1" />
-          <div className="relative w-64">
+          <div className="relative w-full sm:w-64">
             <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder="Search a zone…"
