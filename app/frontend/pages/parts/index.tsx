@@ -785,11 +785,12 @@ export default function PartsIndex({ parts, initial_query, categories, footprint
                       <TableCell className="py-2.5">
                         <Link
                           href={`/parts/${part.id}`}
-                          className="font-mono text-sm font-semibold hover:underline"
+                          title={part.mpn || part.sku || part.name}
+                          className="block max-w-[240px] truncate font-mono text-sm font-semibold hover:underline"
                         >
                           {part.mpn || part.sku || part.name}
                         </Link>
-                        <div className="max-w-[230px] text-xs text-muted-foreground">
+                        <div className="max-w-[240px] truncate text-xs text-muted-foreground" title={part.name}>
                           {part.name}
                         </div>
                       </TableCell>
