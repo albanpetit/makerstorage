@@ -98,7 +98,7 @@ export default function Dashboard({ stats, category_breakdown, low_stock_parts, 
           <GlobalSearch />
           {canWrite && (
             <Button size="sm" asChild>
-              <Link href="/parts/new">
+              <Link href="/parts?new=1">
                 <Plus className="size-4" />
                 New component
               </Link>
@@ -267,7 +267,7 @@ export default function Dashboard({ stats, category_breakdown, low_stock_parts, 
                 <p className="font-medium">No parts yet</p>
                 <p className="text-sm text-muted-foreground">Add your first part to start tracking inventory.</p>
               </div>
-              <Link href="/parts/new" className="text-sm font-medium underline underline-offset-4">
+              <Link href="/parts?new=1" className="text-sm font-medium underline underline-offset-4">
                 Add a part
               </Link>
             </CardContent>

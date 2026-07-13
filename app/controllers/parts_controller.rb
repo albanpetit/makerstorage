@@ -18,7 +18,11 @@ class PartsController < ApplicationController
       parts: parts.map { |part| serialize_part(part) },
       initial_query: params[:search].to_s,
       categories: serialize_categories,
-      storage_locations: serialize_storage_locations
+      footprints: serialize_footprints,
+      suppliers: serialize_suppliers,
+      tags: serialize_tags,
+      storage_locations: serialize_storage_locations,
+      open_add: params[:new].present?
     }
   end
 
@@ -33,15 +37,6 @@ class PartsController < ApplicationController
       storages: @part.part_storages.includes(:storage_location).map { |ps| serialize_part_storage(ps) },
       movements: movements.map { |movement| serialize_part_movement(movement) },
       storage_locations: serialize_storage_locations
-    }
-  end
-
-  def new
-    render inertia: "parts/new", props: {
-      categories: serialize_categories,
-      footprints: serialize_footprints,
-      suppliers: serialize_suppliers,
-      tags: serialize_tags
     }
   end
 
@@ -62,7 +57,7 @@ class PartsController < ApplicationController
       assign_initial_stock(part)
       redirect_to parts_path, notice: "Part created successfully."
     else
-      redirect_back_or_to new_part_path, alert: "Failed to create part.", inertia: { errors: inertia_errors(part, as: :part) }
+      redirect_back_or_to parts_path, alert: "Failed to create part.", inertia: { errors: inertia_errors(part, as: :part) }
     end
   end
 
