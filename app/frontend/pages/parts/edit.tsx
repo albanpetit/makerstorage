@@ -3,6 +3,7 @@ import { FormEventHandler, useState } from 'react'
 import { ArrowLeft, Plus, Trash2, Star, ExternalLink } from 'lucide-react'
 
 import { AppLayout } from '@/layouts/app-layout'
+import { SidebarTrigger } from '@/components/ui/sidebar'
 import { FlashMessages } from '@/components/flash-messages'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -190,6 +191,7 @@ export default function EditPart({ part, categories, footprints, suppliers, tags
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center gap-4">
+          <SidebarTrigger className="-ml-1 md:hidden" />
           <Button variant="ghost" size="icon" asChild>
             <Link href="/parts">
               <ArrowLeft className="size-4" />

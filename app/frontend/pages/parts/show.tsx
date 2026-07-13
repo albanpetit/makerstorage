@@ -6,6 +6,7 @@ import {
 } from 'lucide-react'
 
 import { AppLayout } from '@/layouts/app-layout'
+import { SidebarTrigger } from '@/components/ui/sidebar'
 import { usePermissions } from '@/hooks/use-permissions'
 import { ReadOnlyBadge } from '@/components/read-only-badge'
 import { FlashMessages } from '@/components/flash-messages'
@@ -200,7 +201,8 @@ export default function PartShow({ part, storages, movements, storage_locations 
   return (
     <AppLayout
       header={
-        <header className="flex shrink-0 flex-wrap items-center gap-3 border-b bg-background px-5 py-3">
+        <header className="flex shrink-0 flex-wrap items-center gap-3 border-b bg-background px-4 py-3 sm:px-5">
+          <SidebarTrigger className="-ml-1 md:hidden" />
           <Button variant="outline" size="icon-sm" asChild>
             <Link href="/parts" aria-label="Back to inventory">
               <ArrowLeft className="size-4" />
