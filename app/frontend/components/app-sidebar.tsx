@@ -5,6 +5,7 @@ import {
   LayoutDashboard,
   List,
   Box,
+  Cpu,
   ScanLine,
   ArrowLeftRight,
   Truck,
@@ -49,6 +50,7 @@ import { Button } from '@/components/ui/button'
 const navigationItems = [
   { title: 'Dashboard', url: '/', icon: LayoutDashboard },
   { title: 'Inventory', url: '/parts', icon: List },
+  { title: 'Footprints', url: '/footprints', icon: Cpu },
   { title: 'Storage Zones', url: '/storage_locations', icon: Box },
   { title: 'Scanner', url: '/scan', icon: ScanLine },
   { title: 'Movements', url: '/stock_movements', icon: ArrowLeftRight },
