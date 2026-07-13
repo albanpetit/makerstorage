@@ -186,7 +186,7 @@ export function AppSidebar() {
                 </SidebarMenuButton>
               </DropdownMenuTrigger>
               <DropdownMenuContent
-                className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg"
+                className="min-w-[--radix-dropdown-menu-trigger-width] max-w-80 rounded-lg"
                 align="start"
                 sideOffset={4}
               >
