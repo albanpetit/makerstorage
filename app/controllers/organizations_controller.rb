@@ -39,6 +39,10 @@ class OrganizationsController < ApplicationController
       return redirect_back(fallback_location: root_path, alert: "You must be an owner to delete an organization.")
     end
 
+    if organization.personal?
+      return redirect_back(fallback_location: root_path, alert: "You can't delete a personal organization.")
+    end
+
     if current_user.organizations.count <= 1
       return redirect_back(fallback_location: root_path, alert: "You can't delete your only organization.")
     end

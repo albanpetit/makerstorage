@@ -1,6 +1,15 @@
 require "test_helper"
 
 class UserTest < ActiveSupport::TestCase
+  test "signup creates a personal organization owned by the user" do
+    user = create_user(firstname: "Grace", lastname: "Hopper")
+
+    org = user.organizations.first
+    assert_equal "Grace's Organization", org.name
+    assert org.personal?
+    assert user.owner_of?(org)
+  end
+
   test "writer_of? is true for owner, admin, and member roles" do
     %w[owner admin member].each do |role|
       user = create_user(email: "#{role}_#{SecureRandom.hex(4)}@example.com")

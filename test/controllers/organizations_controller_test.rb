@@ -59,6 +59,37 @@ class OrganizationsControllerTest < ActionDispatch::IntegrationTest
     assert Organization.exists?(stranger_org.id)
   end
 
+  test "an owner cannot delete their own personal organization" do
+    user = create_user
+    personal = user.organizations.first
+    assert personal.personal?
+    # Give them a second org so the "only organization" guard isn't what blocks it.
+    OrganizationMembership.create!(organization: create_organization(name: "Workspace"), user: user, role: "owner")
+
+    sign_in user
+    assert_no_difference -> { Organization.count } do
+      delete organization_path(personal)
+    end
+
+    follow_redirect!
+    assert_match(/personal organization/i, flash[:alert])
+    assert Organization.exists?(personal.id)
+  end
+
+  test "an owner cannot delete another user's personal organization" do
+    other = create_user(email: "other@example.com")
+    other_personal = other.organizations.first
+    intruder = create_user(email: "intruder@example.com")
+    OrganizationMembership.create!(organization: other_personal, user: intruder, role: "owner")
+
+    sign_in intruder
+    assert_no_difference -> { Organization.count } do
+      delete organization_path(other_personal)
+    end
+
+    assert Organization.exists?(other_personal.id)
+  end
+
   test "create requires authentication" do
     post organizations_path, params: { organization: { name: "Nope" } }
     assert_redirected_to new_user_session_path
