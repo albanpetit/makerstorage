@@ -1,6 +1,6 @@
 import { Head, router, useForm } from '@inertiajs/react'
 import { ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from 'react'
-import { Building2, Hash, Package, Info, TrendingUp, Shuffle, Boxes, Pencil, Check, TriangleAlert, ShieldAlert, Upload, Trash2 } from 'lucide-react'
+import { Building2, Hash, Package, Info, TrendingUp, Shuffle, Boxes, Pencil, Check, TriangleAlert, ShieldAlert, Upload, Trash2, Plug, CircleCheck } from 'lucide-react'
 
 import { AppLayout } from '@/layouts/app-layout'
 import { PageHeader } from '@/components/page-header'
@@ -61,6 +61,7 @@ interface OrganizationSettings {
   ipn_next_sequence: number
   default_low_stock_threshold: number
   allow_negative_stock: boolean
+  mouser_api_key_present: boolean
   ipn_preview: IpnPreview
 }
 
@@ -92,6 +93,7 @@ const SECTIONS = [
   { key: 'general', label: 'General', icon: Building2 },
   { key: 'ipn', label: 'Numbering (IPN)', icon: Hash },
   { key: 'inventory', label: 'Inventory', icon: Package },
+  { key: 'integrations', label: 'Integrations', icon: Plug },
   { key: 'danger', label: 'Danger zone', icon: ShieldAlert },
 ] as const
 
@@ -197,6 +199,13 @@ interface InventoryFormData {
   }
 }
 
+interface IntegrationsFormData {
+  organization: {
+    mouser_api_key: string
+    remove_mouser_api_key: boolean
+  }
+}
+
 export default function SettingsIndex({ organization, currencies, ipn_separators, timezones }: SettingsPageProps) {
   const { isOwner } = usePermissions()
   const [section, setSection] = useState<SectionKey>('general')
@@ -237,6 +246,13 @@ export default function SettingsIndex({ organization, currencies, ipn_separators
     organization: {
       default_low_stock_threshold: organization.default_low_stock_threshold,
       allow_negative_stock: organization.allow_negative_stock,
+    },
+  })
+
+  const integrationsForm = useForm<IntegrationsFormData>({
+    organization: {
+      mouser_api_key: '',
+      remove_mouser_api_key: false,
     },
   })
 
@@ -285,6 +301,27 @@ export default function SettingsIndex({ organization, currencies, ipn_separators
   const submitInventory = (e: FormEvent) => {
     e.preventDefault()
     inventoryForm.patch('/settings', { preserveScroll: true })
+  }
+
+  const submitIntegrations = (e: FormEvent) => {
+    e.preventDefault()
+    integrationsForm.patch('/settings', {
+      preserveScroll: true,
+      onSuccess: () => integrationsForm.setData('organization', { mouser_api_key: '', remove_mouser_api_key: false }),
+    })
+  }
+
+  const removeMouserKey = () => {
+    integrationsForm.transform((data) => ({
+      organization: { ...data.organization, mouser_api_key: '', remove_mouser_api_key: true },
+    }))
+    integrationsForm.patch('/settings', {
+      preserveScroll: true,
+      onSuccess: () => {
+        integrationsForm.setData('organization', { mouser_api_key: '', remove_mouser_api_key: false })
+        integrationsForm.transform((data) => data)
+      },
+    })
   }
 
   const ipnMode = ipnForm.data.organization.ipn_generation_mode
@@ -789,6 +826,72 @@ export default function SettingsIndex({ organization, currencies, ipn_separators
                   <Info className="size-3.5 shrink-0" />
                   Per-component thresholds set on individual parts always take priority over this default.
                 </div>
+              </form>
+            )}
+
+            {section === 'integrations' && (
+              <form onSubmit={submitIntegrations} className="space-y-4">
+                <div>
+                  <h2 className="text-lg font-semibold">Integrations</h2>
+                  <p className="max-w-xl text-sm text-muted-foreground">
+                    Connect external supplier catalogs to look up component data by part number.
+                  </p>
+                </div>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Mouser Electronics</CardTitle>
+                    <CardDescription>
+                      Fetch a component's details, datasheet and image from Mouser when adding a part.
+                      Create a free API key from the{' '}
+                      <a
+                        href="https://www.mouser.com/api-hub/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-medium text-primary underline underline-offset-2"
+                      >
+                        Mouser API Hub
+                      </a>
+                      .
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {organization.mouser_api_key_present && (
+                      <div className="flex items-center gap-2 rounded-md border border-green-600/30 bg-green-600/10 px-3 py-2 text-sm text-green-700 dark:text-green-400">
+                        <CircleCheck className="size-4 shrink-0" />
+                        An API key is configured. Enter a new key below to replace it.
+                      </div>
+                    )}
+                    <Field>
+                      <FieldLabel><Label>API key</Label></FieldLabel>
+                      <FieldContent>
+                        <Input
+                          type="password"
+                          autoComplete="off"
+                          placeholder={organization.mouser_api_key_present ? '••••••••••••••••' : 'Paste your Mouser API key'}
+                          value={integrationsForm.data.organization.mouser_api_key}
+                          onChange={(e) => integrationsForm.setData('organization', {
+                            ...integrationsForm.data.organization,
+                            mouser_api_key: e.target.value,
+                          })}
+                        />
+                      </FieldContent>
+                      {integrationsForm.errors['organization.mouser_api_key'] && (
+                        <FieldError>{integrationsForm.errors['organization.mouser_api_key']}</FieldError>
+                      )}
+                    </Field>
+                  </CardContent>
+                  <CardFooter className="justify-end gap-2 border-t">
+                    {organization.mouser_api_key_present && (
+                      <Button type="button" variant="outline" onClick={removeMouserKey} disabled={integrationsForm.processing}>
+                        Remove key
+                      </Button>
+                    )}
+                    <Button type="submit" disabled={integrationsForm.processing || !integrationsForm.data.organization.mouser_api_key.trim()}>
+                      Save
+                    </Button>
+                  </CardFooter>
+                </Card>
               </form>
             )}
 

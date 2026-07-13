@@ -6,7 +6,7 @@ class PartsController < ApplicationController
   include Auth
 
   before_action :verify_organization_access
-  before_action :verify_organization_writer, only: %i[create update destroy import]
+  before_action :verify_organization_writer, only: %i[create update destroy import lookup]
   before_action :set_part, only: %i[show edit update destroy]
 
   def index
@@ -22,6 +22,7 @@ class PartsController < ApplicationController
       suppliers: serialize_suppliers,
       tags: serialize_tags,
       storage_locations: serialize_storage_locations,
+      supplier_lookup_enabled: current_organization.supplier_lookup_configured?,
       open_add: params[:new].present?
     }
   end
@@ -46,7 +47,8 @@ class PartsController < ApplicationController
       categories: serialize_categories,
       footprints: serialize_footprints,
       suppliers: serialize_suppliers,
-      tags: serialize_tags
+      tags: serialize_tags,
+      supplier_lookup_enabled: current_organization.supplier_lookup_configured?
     }
   end
 
@@ -55,14 +57,31 @@ class PartsController < ApplicationController
 
     if part.save
       assign_initial_stock(part)
+      attach_remote_assets(part)
       redirect_to parts_path, notice: "Part created successfully."
     else
       redirect_back_or_to parts_path, alert: "Failed to create part.", inertia: { errors: inertia_errors(part, as: :part) }
     end
   end
 
+  # Queries the organization's configured supplier catalog (Mouser, ...) for a
+  # manufacturer part number and returns normalized matches as JSON for the
+  # add-part dialog to prefill from. Async fetch, not an Inertia visit.
+  def lookup
+    mpn = params[:mpn].to_s.strip
+    return render(json: { error: "Enter a part number to search." }, status: :unprocessable_entity) if mpn.blank?
+
+    results = SupplierCatalog.lookup(current_organization, mpn: mpn)
+    render json: { results: results.map(&:as_json) }
+  rescue SupplierCatalog::NotConfiguredError
+    render json: { error: "No supplier catalog is configured. Add a Mouser API key in Settings." }, status: :unprocessable_entity
+  rescue SupplierCatalog::LookupError => e
+    render json: { error: e.message }, status: :bad_gateway
+  end
+
   def update
     if @part.update(part_params)
+      attach_remote_assets(@part)
       redirect_to edit_part_path(@part), notice: "Part updated successfully."
     else
       redirect_to edit_part_path(@part), alert: "Failed to update part.", inertia: { errors: inertia_errors(@part, as: :part) }
@@ -197,6 +216,21 @@ class PartsController < ApplicationController
       quantity_delta: quantity,
       reason: "Initial stock"
     )
+  end
+
+  # Downloads and attaches a supplier-provided datasheet/image when the add-part
+  # form was prefilled from a catalog lookup. Best-effort: a failed download must
+  # not fail part creation, and RemoteFile guards against SSRF.
+  def attach_remote_assets(part)
+    if params[:datasheet_url].present?
+      file = SupplierCatalog::RemoteFile.download(params[:datasheet_url], default_filename: "datasheet")
+      part.datasheet.attach(io: file.io, filename: file.filename, content_type: file.content_type) if file
+    end
+
+    if params[:image_url].present?
+      file = SupplierCatalog::RemoteFile.download(params[:image_url], default_filename: "image")
+      part.images.attach(io: file.io, filename: file.filename, content_type: file.content_type) if file
+    end
   end
 
   def set_part

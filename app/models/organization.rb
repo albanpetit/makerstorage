@@ -24,6 +24,9 @@ class Organization < ApplicationRecord
   # Active Storage
   has_one_attached :logo
 
+  # Encrypted secrets - supplier catalog integration (see SupplierCatalog)
+  encrypts :mouser_api_key
+
   # Constants
   IPN_SEPARATORS = %w[- . _ /].freeze
   IPN_GENERATION_MODES = %w[incremental random category_sequence manual].freeze
@@ -135,6 +138,12 @@ class Organization < ApplicationRecord
 
   def has_logo?
     logo.attached?
+  end
+
+  # Methods - Supplier catalog integration
+  # Whether an external supplier catalog (Mouser, ...) can be queried for this org.
+  def supplier_lookup_configured?
+    mouser_api_key.present?
   end
 
   # Methods - Stats

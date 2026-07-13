@@ -10,6 +10,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Badge } from '@/components/ui/badge'
 import { CategorySelect } from '@/components/category-select'
 import { TagPicker } from '@/components/tag-picker'
+import { SupplierLookup, LookupResult } from '@/components/supplier-lookup'
 import {
   Dialog,
   DialogContent,
@@ -82,6 +83,7 @@ interface AddPartDialogProps {
   suppliers: Supplier[]
   tags: Tag[]
   storageLocations: StorageLocationOption[]
+  supplierLookupEnabled?: boolean
 }
 
 const EMPTY_PART = {
@@ -158,11 +160,19 @@ export function AddPartDialog({
   suppliers,
   tags,
   storageLocations,
+  supplierLookupEnabled = false,
 }: AddPartDialogProps) {
   const [detailsOpen, setDetailsOpen] = useState(false)
   const [suppliersOpen, setSuppliersOpen] = useState(false)
   const [pendingSuppliers, setPendingSuppliers] = useState<PendingSupplier[]>([])
   const [newSupplier, setNewSupplier] = useState({ ...EMPTY_SUPPLIER })
+
+  // Datasheet/image URLs from the chosen catalog match, downloaded + attached
+  // server-side on create.
+  const [attach, setAttach] = useState<{ datasheet_url: string | null; image_url: string | null }>({
+    datasheet_url: null,
+    image_url: null,
+  })
 
   const form = useForm({
     part: { ...EMPTY_PART },
@@ -171,9 +181,12 @@ export function AddPartDialog({
   })
   const { data, setData, errors } = form
 
-  // Fold the pending suppliers into the payload right before it goes over the wire.
+  // Fold the pending suppliers and catalog asset URLs into the payload right
+  // before it goes over the wire.
   form.transform((payload) => ({
     ...payload,
+    datasheet_url: attach.datasheet_url,
+    image_url: attach.image_url,
     part: {
       ...payload.part,
       part_suppliers_attributes: pendingSuppliers.map((ps) => ({
@@ -197,6 +210,27 @@ export function AddPartDialog({
     setNewSupplier({ ...EMPTY_SUPPLIER })
     setDetailsOpen(false)
     setSuppliersOpen(false)
+    setAttach({ datasheet_url: null, image_url: null })
+  }
+
+  // Prefill the form from a chosen catalog match. Only overwrites fields the
+  // result actually provides, leaving anything the user already typed intact.
+  const applyResult = (result: LookupResult) => {
+    setPart({
+      name: result.name || data.part.name,
+      mpn: result.mpn || data.part.mpn,
+      manufacturer: result.manufacturer || data.part.manufacturer,
+      description: result.description || data.part.description,
+      value: result.value || data.part.value,
+      package_type: result.package_type || data.part.package_type,
+      tolerance: result.tolerance || data.part.tolerance,
+      voltage_rating: result.voltage_rating || data.part.voltage_rating,
+      power_rating: result.power_rating || data.part.power_rating,
+      unit_price: result.unit_price || data.part.unit_price,
+      rohs_compliant: result.rohs_compliant || data.part.rohs_compliant,
+    })
+    setAttach({ datasheet_url: result.datasheet_url, image_url: result.image_url })
+    setDetailsOpen(true)
   }
 
   const handleOpenChange = (next: boolean) => {
@@ -251,6 +285,15 @@ export function AddPartDialog({
 
         <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col">
           <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-5">
+            {/* Supplier catalog lookup */}
+            {supplierLookupEnabled && (
+              <SupplierLookup
+                defaultQuery={data.part.mpn}
+                onApply={applyResult}
+                attached={{ datasheet: !!attach.datasheet_url, image: !!attach.image_url }}
+              />
+            )}
+
             {/* Essentials */}
             <div className="grid grid-cols-2 gap-4">
               <Field className="col-span-2">

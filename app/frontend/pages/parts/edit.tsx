@@ -33,6 +33,7 @@ import {
 } from '@/components/ui/card'
 import { CategorySelect } from '@/components/category-select'
 import { TagPicker } from '@/components/tag-picker'
+import { SupplierLookup, LookupResult } from '@/components/supplier-lookup'
 import {
   Table,
   TableBody,
@@ -108,12 +109,18 @@ interface EditPartProps {
   footprints: Footprint[]
   suppliers: Supplier[]
   tags: Tag[]
+  supplier_lookup_enabled: boolean
 }
 
-export default function EditPart({ part, categories, footprints, suppliers, tags }: EditPartProps) {
+export default function EditPart({ part, categories, footprints, suppliers, tags, supplier_lookup_enabled }: EditPartProps) {
   const [showAddSupplier, setShowAddSupplier] = useState(false)
+  // Datasheet/image URLs from a catalog match, downloaded + attached server-side.
+  const [attach, setAttach] = useState<{ datasheet_url: string | null; image_url: string | null }>({
+    datasheet_url: null,
+    image_url: null,
+  })
 
-  const { data, setData, put, processing, errors } = useForm({
+  const form = useForm({
     part: {
       name: part.name,
       mpn: part.mpn || '',
@@ -137,6 +144,34 @@ export default function EditPart({ part, categories, footprints, suppliers, tags
       tag_ids: part.tag_ids,
     },
   })
+  const { data, setData, processing, errors } = form
+
+  // Fold the catalog asset URLs into the payload right before it goes over the wire.
+  form.transform((payload) => ({
+    ...payload,
+    datasheet_url: attach.datasheet_url,
+    image_url: attach.image_url,
+  }))
+
+  // Prefill the form from a chosen catalog match. Only overwrites fields the
+  // result actually provides, leaving anything already entered intact.
+  const applyResult = (result: LookupResult) => {
+    setData('part', {
+      ...data.part,
+      name: result.name || data.part.name,
+      mpn: result.mpn || data.part.mpn,
+      manufacturer: result.manufacturer || data.part.manufacturer,
+      description: result.description || data.part.description,
+      value: result.value || data.part.value,
+      package_type: result.package_type || data.part.package_type,
+      tolerance: result.tolerance || data.part.tolerance,
+      voltage_rating: result.voltage_rating || data.part.voltage_rating,
+      power_rating: result.power_rating || data.part.power_rating,
+      unit_price: result.unit_price || data.part.unit_price,
+      rohs_compliant: result.rohs_compliant || data.part.rohs_compliant,
+    })
+    setAttach({ datasheet_url: result.datasheet_url, image_url: result.image_url })
+  }
 
   const newSupplierForm = useForm({
     part_supplier: {
@@ -152,7 +187,10 @@ export default function EditPart({ part, categories, footprints, suppliers, tags
 
   const submit: FormEventHandler = (e) => {
     e.preventDefault()
-    put(`/parts/${part.id}`)
+    form.put(`/parts/${part.id}`, {
+      // Clear queued attachments so a later, unrelated save doesn't re-download them.
+      onSuccess: () => setAttach({ datasheet_url: null, image_url: null }),
+    })
   }
 
   const handleSelectChange = (field: string, value: string) => {
@@ -206,6 +244,15 @@ export default function EditPart({ part, categories, footprints, suppliers, tags
         <FlashMessages errors={errors} />
 
         <form onSubmit={submit} className="space-y-6">
+          {/* Supplier catalog lookup */}
+          {supplier_lookup_enabled && (
+            <SupplierLookup
+              defaultQuery={data.part.mpn}
+              onApply={applyResult}
+              attached={{ datasheet: !!attach.datasheet_url, image: !!attach.image_url }}
+            />
+          )}
+
           {/* Basic Information */}
           <Card>
             <CardHeader>

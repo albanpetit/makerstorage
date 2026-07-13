@@ -415,6 +415,149 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
     assert_match(/choose a CSV file/, flash[:alert])
   end
 
+  test "index advertises supplier lookup only when a key is configured" do
+    user = create_user
+    sign_in user
+
+    get parts_path
+    assert_equal false, inertia_props["supplier_lookup_enabled"]
+
+    user.organizations.first.update!(mouser_api_key: "abc123")
+    get parts_path
+    assert_equal true, inertia_props["supplier_lookup_enabled"]
+  end
+
+  test "lookup returns normalized catalog results as JSON" do
+    user = create_user
+    user.organizations.first.update!(mouser_api_key: "abc123")
+    sign_in user
+
+    result = SupplierCatalog::PartResult.new(mpn: "RC0805FR-0710KL", manufacturer: "YAGEO", provider: "mouser")
+    stub_singleton(SupplierCatalog, :lookup, ->(*, **) { [ result ] }) do
+      post lookup_parts_path, params: { mpn: "RC0805FR-0710KL" }
+    end
+
+    assert_response :success
+    body = JSON.parse(@response.body)
+    assert_equal "RC0805FR-0710KL", body["results"].first["mpn"]
+    assert_equal "YAGEO", body["results"].first["manufacturer"]
+  end
+
+  test "lookup rejects a blank part number" do
+    user = create_user
+    user.organizations.first.update!(mouser_api_key: "abc123")
+    sign_in user
+
+    post lookup_parts_path, params: { mpn: "  " }
+    assert_response :unprocessable_entity
+    assert_match(/Enter a part number/, JSON.parse(@response.body)["error"])
+  end
+
+  test "lookup reports when no catalog is configured" do
+    user = create_user
+    sign_in user
+
+    post lookup_parts_path, params: { mpn: "RC0805" }
+    assert_response :unprocessable_entity
+    assert_match(/No supplier catalog is configured/, JSON.parse(@response.body)["error"])
+  end
+
+  test "lookup surfaces upstream failures as a bad gateway" do
+    user = create_user
+    user.organizations.first.update!(mouser_api_key: "abc123")
+    sign_in user
+
+    stub_singleton(SupplierCatalog, :lookup, ->(*, **) { raise SupplierCatalog::LookupError, "Mouser is down" }) do
+      post lookup_parts_path, params: { mpn: "RC0805" }
+    end
+    assert_response :bad_gateway
+    assert_match(/Mouser is down/, JSON.parse(@response.body)["error"])
+  end
+
+  test "create attaches a supplier-provided datasheet and image" do
+    user = create_user
+    org = user.organizations.first
+    category = create_category(organization: org)
+    sign_in user
+
+    download = SupplierCatalog::RemoteFile::Download.new(
+      io: StringIO.new("%PDF-1.4 fake"), filename: "ds.pdf", content_type: "application/pdf"
+    )
+    image = SupplierCatalog::RemoteFile::Download.new(
+      io: StringIO.new("fake-image-bytes"), filename: "img.png", content_type: "image/png"
+    )
+
+    stub_singleton(SupplierCatalog::RemoteFile, :download, ->(url, **) { url.end_with?(".pdf") ? download : image }) do
+      post parts_path, params: {
+        part: { name: "Resistor 10k", category_id: category.id },
+        datasheet_url: "https://www.mouser.com/ds.pdf",
+        image_url: "https://www.mouser.com/img.png"
+      }
+    end
+
+    part = org.parts.find_by(name: "Resistor 10k")
+    assert part.datasheet.attached?
+    assert part.images.attached?
+  end
+
+  test "update attaches a supplier-provided datasheet and image" do
+    user = create_user
+    org = user.organizations.first
+    part = create_part(organization: org)
+    sign_in user
+
+    download = SupplierCatalog::RemoteFile::Download.new(
+      io: StringIO.new("%PDF-1.4 fake"), filename: "ds.pdf", content_type: "application/pdf"
+    )
+    image = SupplierCatalog::RemoteFile::Download.new(
+      io: StringIO.new("fake-image-bytes"), filename: "img.png", content_type: "image/png"
+    )
+
+    stub_singleton(SupplierCatalog::RemoteFile, :download, ->(url, **) { url.end_with?(".pdf") ? download : image }) do
+      patch part_path(part), params: {
+        part: { name: part.name, category_id: part.category_id },
+        datasheet_url: "https://www.mouser.com/ds.pdf",
+        image_url: "https://www.mouser.com/img.png"
+      }
+    end
+
+    part.reload
+    assert part.datasheet.attached?
+    assert part.images.attached?
+  end
+
+  test "edit advertises supplier lookup based on configuration" do
+    user = create_user
+    org = user.organizations.first
+    part = create_part(organization: org)
+    sign_in user
+
+    get edit_part_path(part)
+    assert_equal false, inertia_props["supplier_lookup_enabled"]
+
+    org.update!(mouser_api_key: "abc123")
+    get edit_part_path(part)
+    assert_equal true, inertia_props["supplier_lookup_enabled"]
+  end
+
+  test "create still succeeds when a remote asset download fails" do
+    user = create_user
+    org = user.organizations.first
+    category = create_category(organization: org)
+    sign_in user
+
+    stub_singleton(SupplierCatalog::RemoteFile, :download, ->(*, **) { nil }) do
+      post parts_path, params: {
+        part: { name: "Resistor 20k", category_id: category.id },
+        datasheet_url: "https://www.mouser.com/ds.pdf"
+      }
+    end
+
+    part = org.parts.find_by(name: "Resistor 20k")
+    assert part.present?
+    refute part.datasheet.attached?
+  end
+
   private
 
   def csv_upload(content)

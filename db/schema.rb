@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_13_120000) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_13_130000) do
   create_table "active_storage_attachments", force: :cascade do |t|
     t.bigint "blob_id", null: false
     t.datetime "created_at", null: false
@@ -103,6 +103,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_13_120000) do
     t.string "ipn_prefix", default: "MS", null: false
     t.string "ipn_separator", default: "-", null: false
     t.boolean "ipn_use_category_code", default: true, null: false
+    t.text "mouser_api_key"
     t.string "name", null: false
     t.boolean "personal", default: false, null: false
     t.string "phone"

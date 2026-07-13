@@ -151,6 +151,41 @@ class SettingsControllerTest < ActionDispatch::IntegrationTest
     assert inertia_props.dig("errors", "organization.currency").present?
   end
 
+  test "update stores a Mouser API key without echoing the secret back" do
+    user = create_user
+    org = user.organizations.first
+    sign_in user
+
+    patch settings_path, params: { organization: { mouser_api_key: "  secret-key  " } }
+    assert_equal "secret-key", org.reload.mouser_api_key
+
+    get settings_path
+    organization = inertia_props["organization"]
+    assert_equal true, organization["mouser_api_key_present"]
+    refute organization.key?("mouser_api_key")
+  end
+
+  test "update leaves an existing Mouser key untouched on a blank submit" do
+    user = create_user
+    org = user.organizations.first
+    org.update!(mouser_api_key: "existing-key")
+    sign_in user
+
+    patch settings_path, params: { organization: { name: "Renamed", mouser_api_key: "" } }
+    assert_equal "existing-key", org.reload.mouser_api_key
+    assert_equal "Renamed", org.name
+  end
+
+  test "update clears the Mouser key when the remove flag is set" do
+    user = create_user
+    org = user.organizations.first
+    org.update!(mouser_api_key: "existing-key")
+    sign_in user
+
+    patch settings_path, params: { organization: { remove_mouser_api_key: "true" } }
+    assert_nil org.reload.mouser_api_key
+  end
+
   private
 
   def inertia_props

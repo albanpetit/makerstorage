@@ -27,6 +27,7 @@ Rails.application.routes.draw do
   resources :parts, except: %i[new] do
     collection do
       post :import
+      post :lookup
     end
 
     resources :part_suppliers, only: %i[create update destroy] do
