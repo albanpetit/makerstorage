@@ -487,12 +487,14 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
       io: StringIO.new("fake-image-bytes"), filename: "img.png", content_type: "image/png"
     )
 
-    stub_singleton(SupplierCatalog::RemoteFile, :download, ->(url, **) { url.end_with?(".pdf") ? download : image }) do
-      post parts_path, params: {
-        part: { name: "Resistor 10k", category_id: category.id },
-        datasheet_url: "https://www.mouser.com/ds.pdf",
-        image_url: "https://www.mouser.com/img.png"
-      }
+    perform_enqueued_jobs do
+      stub_singleton(SupplierCatalog::RemoteFile, :download, ->(url, **) { url.end_with?(".pdf") ? download : image }) do
+        post parts_path, params: {
+          part: { name: "Resistor 10k", category_id: category.id },
+          datasheet_url: "https://www.mouser.com/ds.pdf",
+          image_url: "https://www.mouser.com/img.png"
+        }
+      end
     end
 
     part = org.parts.find_by(name: "Resistor 10k")
@@ -513,12 +515,14 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
       io: StringIO.new("fake-image-bytes"), filename: "img.png", content_type: "image/png"
     )
 
-    stub_singleton(SupplierCatalog::RemoteFile, :download, ->(url, **) { url.end_with?(".pdf") ? download : image }) do
-      patch part_path(part), params: {
-        part: { name: part.name, category_id: part.category_id },
-        datasheet_url: "https://www.mouser.com/ds.pdf",
-        image_url: "https://www.mouser.com/img.png"
-      }
+    perform_enqueued_jobs do
+      stub_singleton(SupplierCatalog::RemoteFile, :download, ->(url, **) { url.end_with?(".pdf") ? download : image }) do
+        patch part_path(part), params: {
+          part: { name: part.name, category_id: part.category_id },
+          datasheet_url: "https://www.mouser.com/ds.pdf",
+          image_url: "https://www.mouser.com/img.png"
+        }
+      end
     end
 
     part.reload

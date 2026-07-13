@@ -60,7 +60,9 @@ class PartsController < ApplicationController
       attach_remote_assets(part)
       redirect_to parts_path, notice: "Part created successfully."
     else
-      redirect_back_or_to parts_path, alert: "Failed to create part.", inertia: { errors: inertia_errors(part, as: :part) }
+      # No flash alert here: the add-part modal renders these errors inline, and
+      # a page-level alert would surface behind the still-open dialog instead.
+      redirect_back_or_to parts_path, inertia: { errors: inertia_errors(part, as: :part) }
     end
   end
 
@@ -218,19 +220,16 @@ class PartsController < ApplicationController
     )
   end
 
-  # Downloads and attaches a supplier-provided datasheet/image when the add-part
-  # form was prefilled from a catalog lookup. Best-effort: a failed download must
-  # not fail part creation, and RemoteFile guards against SSRF.
+  # Enqueues download+attach of a supplier-provided datasheet/image when the
+  # add-part form was prefilled from a catalog lookup. Runs in a background job
+  # so a slow/unreachable supplier host never stalls the request; RemoteFile
+  # guards against SSRF and treats any failure as a no-op.
   def attach_remote_assets(part)
-    if params[:datasheet_url].present?
-      file = SupplierCatalog::RemoteFile.download(params[:datasheet_url], default_filename: "datasheet")
-      part.datasheet.attach(io: file.io, filename: file.filename, content_type: file.content_type) if file
-    end
+    datasheet_url = params[:datasheet_url].presence
+    image_url = params[:image_url].presence
+    return if datasheet_url.blank? && image_url.blank?
 
-    if params[:image_url].present?
-      file = SupplierCatalog::RemoteFile.download(params[:image_url], default_filename: "image")
-      part.images.attach(io: file.io, filename: file.filename, content_type: file.content_type) if file
-    end
+    AttachRemotePartAssetsJob.perform_later(part, datasheet_url: datasheet_url, image_url: image_url)
   end
 
   def set_part
