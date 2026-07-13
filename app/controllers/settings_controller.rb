@@ -16,6 +16,8 @@ class SettingsController < ApplicationController
   end
 
   def update
+    current_organization.logo.purge if ActiveModel::Type::Boolean.new.cast(params.dig(:organization, :remove_logo))
+
     if current_organization.update(organization_params)
       redirect_to settings_path, notice: "Settings updated successfully."
     else
@@ -27,7 +29,7 @@ class SettingsController < ApplicationController
 
   def organization_params
     params.require(:organization).permit(
-      :name, :email, :phone, :website,
+      :name, :email, :phone, :website, :logo,
       :address_line1, :address_line2, :city, :postcode, :country,
       :currency, :timezone,
       :ipn_generation_mode, :ipn_charset,
@@ -40,6 +42,8 @@ class SettingsController < ApplicationController
     org = current_organization
 
     {
+      id: org.id,
+      logo_url: org.logo.attached? ? rails_blob_path(org.logo, only_path: true) : nil,
       name: org.name, email: org.email, phone: org.phone, website: org.website,
       address_line1: org.address_line1, address_line2: org.address_line2,
       city: org.city, postcode: org.postcode, country: org.country,

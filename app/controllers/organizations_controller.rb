@@ -13,4 +13,24 @@ class OrganizationsController < ApplicationController
       redirect_back fallback_location: root_path, alert: "Organization not found"
     end
   end
+
+  def destroy
+    organization = current_user.organizations.find_by(id: params[:id])
+
+    return redirect_back(fallback_location: root_path, alert: "Organization not found") unless organization
+
+    unless current_user.owner_of?(organization)
+      return redirect_back(fallback_location: root_path, alert: "You must be an owner to delete an organization.")
+    end
+
+    if current_user.organizations.count <= 1
+      return redirect_back(fallback_location: root_path, alert: "You can't delete your only organization.")
+    end
+
+    next_org = current_user.organizations.where.not(id: organization.id).first
+    organization.destroy
+    session[:current_organization_id] = next_org&.id
+
+    redirect_to root_path, notice: "Organization \"#{organization.name}\" was deleted."
+  end
 end

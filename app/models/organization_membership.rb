@@ -1,6 +1,6 @@
 class OrganizationMembership < ApplicationRecord
   belongs_to :user
-  belongs_to :organization
+  belongs_to :organization, inverse_of: :organization_memberships
   belongs_to :invited_by, class_name: "User", optional: true
 
   validates :role, presence: true, inclusion: { in: %w[owner admin member viewer] }
@@ -64,6 +64,10 @@ class OrganizationMembership < ApplicationRecord
   private
 
   def organization_must_have_owner
+    # When the organization itself is being deleted, the whole membership set
+    # goes with it — the "keep at least one owner" rule doesn't apply.
+    return if organization&.being_destroyed
+
     if owner? && organization.organization_memberships.owners.active.count == 1
       errors.add(:base, "Organization must have at least one active owner")
       throw :abort

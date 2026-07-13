@@ -1,6 +1,14 @@
 class Organization < ApplicationRecord
+  # Set before the dependent-destroy cascade runs so a membership's last-owner
+  # guard can tell "the whole org is going away" apart from "someone is removing
+  # the sole owner", and allow the former. `prepend` puts it ahead of the
+  # association's own dependent: :destroy callback.
+  attr_accessor :being_destroyed
+
+  before_destroy -> { self.being_destroyed = true }, prepend: true
+
   # Associations - Memberships
-  has_many :organization_memberships, dependent: :destroy
+  has_many :organization_memberships, dependent: :destroy, inverse_of: :organization
   has_many :users, through: :organization_memberships
 
   # Associations - Data

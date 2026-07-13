@@ -1,15 +1,18 @@
-import { Head, useForm } from '@inertiajs/react'
-import { FormEvent, useMemo, useState } from 'react'
-import { Building2, Hash, Package, Info, TrendingUp, Shuffle, Boxes, Pencil, Check, TriangleAlert } from 'lucide-react'
+import { Head, router, useForm } from '@inertiajs/react'
+import { ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from 'react'
+import { Building2, Hash, Package, Info, TrendingUp, Shuffle, Boxes, Pencil, Check, TriangleAlert, ShieldAlert, Upload, Trash2 } from 'lucide-react'
 
 import { AppLayout } from '@/layouts/app-layout'
 import { PageHeader } from '@/components/page-header'
 import { FlashMessages } from '@/components/flash-messages'
+import { usePermissions } from '@/hooks/use-permissions'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Combobox } from '@/components/ui/combobox'
 import { Field, FieldContent, FieldError, FieldLabel } from '@/components/ui/field'
 import {
   Select,
@@ -18,6 +21,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
 
 interface IpnPreview {
   next: string
@@ -25,6 +39,8 @@ interface IpnPreview {
 }
 
 interface OrganizationSettings {
+  id: number
+  logo_url: string | null
   name: string
   email: string | null
   phone: string | null
@@ -76,6 +92,7 @@ const SECTIONS = [
   { key: 'general', label: 'General', icon: Building2 },
   { key: 'ipn', label: 'Numbering (IPN)', icon: Hash },
   { key: 'inventory', label: 'Inventory', icon: Package },
+  { key: 'danger', label: 'Danger zone', icon: ShieldAlert },
 ] as const
 
 type SectionKey = (typeof SECTIONS)[number]['key']
@@ -149,6 +166,8 @@ interface GeneralFormData {
     email: string
     phone: string
     website: string
+    logo: File | null
+    remove_logo: boolean
     address_line1: string
     address_line2: string
     city: string
@@ -179,7 +198,10 @@ interface InventoryFormData {
 }
 
 export default function SettingsIndex({ organization, currencies, ipn_separators, timezones }: SettingsPageProps) {
+  const { isOwner } = usePermissions()
   const [section, setSection] = useState<SectionKey>('general')
+
+  const sections = useMemo(() => SECTIONS.filter((s) => s.key !== 'danger' || isOwner), [isOwner])
 
   const generalForm = useForm<GeneralFormData>({
     organization: {
@@ -187,6 +209,8 @@ export default function SettingsIndex({ organization, currencies, ipn_separators
       email: organization.email || '',
       phone: organization.phone || '',
       website: organization.website || '',
+      logo: null,
+      remove_logo: false,
       address_line1: organization.address_line1 || '',
       address_line2: organization.address_line2 || '',
       city: organization.city || '',
@@ -216,9 +240,41 @@ export default function SettingsIndex({ organization, currencies, ipn_separators
     },
   })
 
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [deleteConfirm, setDeleteConfirm] = useState('')
+
+  const pendingLogo = generalForm.data.organization.logo
+  const removeLogo = generalForm.data.organization.remove_logo
+
+  // Preview the freshly-picked file locally; otherwise show the stored logo
+  // unless the user has staged a removal.
+  const localPreview = useMemo(() => (pendingLogo ? URL.createObjectURL(pendingLogo) : null), [pendingLogo])
+  useEffect(() => () => { if (localPreview) URL.revokeObjectURL(localPreview) }, [localPreview])
+  const logoSrc = localPreview ?? (removeLogo ? null : organization.logo_url)
+
+  const handleLogoChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] ?? null
+    generalForm.setData('organization', { ...generalForm.data.organization, logo: file, remove_logo: false })
+  }
+
+  const handleRemoveLogo = () => {
+    if (fileInputRef.current) fileInputRef.current.value = ''
+    generalForm.setData('organization', { ...generalForm.data.organization, logo: null, remove_logo: true })
+  }
+
   const submitGeneral = (e: FormEvent) => {
     e.preventDefault()
-    generalForm.patch('/settings', { preserveScroll: true })
+    // Only send the `logo` key when a new file is staged — sending a null logo
+    // would otherwise be treated as "clear the attachment" by the server.
+    generalForm.transform((data) => {
+      const org = { ...data.organization }
+      if (!org.logo) delete (org as { logo?: File | null }).logo
+      return { organization: org }
+    })
+    generalForm.patch('/settings', {
+      preserveScroll: true,
+      onSuccess: () => generalForm.setData('organization', { ...generalForm.data.organization, logo: null, remove_logo: false }),
+    })
   }
 
   const submitIpn = (e: FormEvent) => {
@@ -262,13 +318,17 @@ export default function SettingsIndex({ organization, currencies, ipn_separators
         <div className="flex flex-col gap-6 lg:flex-row">
           {/* Section nav */}
           <nav className="flex shrink-0 gap-1 overflow-x-auto lg:w-56 lg:flex-col lg:overflow-visible">
-            {SECTIONS.map((s) => (
+            {sections.map((s) => (
               <button
                 key={s.key}
                 type="button"
                 onClick={() => setSection(s.key)}
                 className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm font-medium whitespace-nowrap transition-colors ${
-                  section === s.key ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-accent'
+                  section === s.key
+                    ? 'bg-muted text-foreground'
+                    : s.key === 'danger'
+                      ? 'text-destructive hover:bg-destructive/10'
+                      : 'text-muted-foreground hover:bg-accent'
                 }`}
               >
                 <s.icon className="size-4 shrink-0" />
@@ -294,6 +354,37 @@ export default function SettingsIndex({ organization, currencies, ipn_separators
                     <CardDescription>Shown on purchase orders and shared with your team.</CardDescription>
                   </CardHeader>
                   <CardContent className="grid gap-4 sm:grid-cols-2">
+                    <div className="flex items-center gap-4 sm:col-span-2">
+                      <Avatar className="size-16 rounded-lg">
+                        {logoSrc && <AvatarImage src={logoSrc} alt="Organization logo" className="object-cover" />}
+                        <AvatarFallback className="rounded-lg text-lg font-semibold">
+                          {organization.name.trim().charAt(0).toUpperCase() || '?'}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="space-y-1.5">
+                        <div className="flex flex-wrap gap-2">
+                          <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
+                            <Upload className="size-4" /> {logoSrc ? 'Replace' : 'Upload'} logo
+                          </Button>
+                          {logoSrc && (
+                            <Button type="button" variant="ghost" size="sm" onClick={handleRemoveLogo}>
+                              <Trash2 className="size-4" /> Remove
+                            </Button>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground">PNG, JPG or SVG. Shown in the sidebar and on documents.</p>
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept="image/png,image/jpeg,image/svg+xml,image/webp"
+                          className="hidden"
+                          onChange={handleLogoChange}
+                        />
+                      </div>
+                    </div>
+                    {generalForm.errors['organization.logo'] && (
+                      <FieldError className="sm:col-span-2">{generalForm.errors['organization.logo']}</FieldError>
+                    )}
                     <Field className="sm:col-span-2">
                       <FieldLabel><Label>Name</Label></FieldLabel>
                       <FieldContent>
@@ -418,17 +509,15 @@ export default function SettingsIndex({ organization, currencies, ipn_separators
                         <div className="text-sm font-medium">Timezone</div>
                         <div className="text-xs text-muted-foreground">Timestamps on stock movements.</div>
                       </div>
-                      <Select
+                      <Combobox
+                        className="w-56"
                         value={generalForm.data.organization.timezone}
                         onValueChange={(value) => generalForm.setData('organization', { ...generalForm.data.organization, timezone: value })}
-                      >
-                        <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          {timezones.map((tz) => (
-                            <SelectItem key={tz} value={tz}>{tz}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                        options={timezones.map((tz) => ({ value: tz, label: tz }))}
+                        placeholder="Select timezone"
+                        searchPlaceholder="Search timezones…"
+                        emptyText="No timezone found."
+                      />
                     </div>
                   </CardContent>
                   <CardFooter className="justify-end border-t">
@@ -701,6 +790,66 @@ export default function SettingsIndex({ organization, currencies, ipn_separators
                   Per-component thresholds set on individual parts always take priority over this default.
                 </div>
               </form>
+            )}
+
+            {section === 'danger' && isOwner && (
+              <div className="space-y-4">
+                <div>
+                  <h2 className="text-lg font-semibold">Danger zone</h2>
+                  <p className="max-w-xl text-sm text-muted-foreground">
+                    Irreversible actions that affect the entire organization.
+                  </p>
+                </div>
+
+                <Card className="border-destructive/40">
+                  <CardHeader>
+                    <CardTitle>Delete organization</CardTitle>
+                    <CardDescription>
+                      Permanently deletes <span className="font-medium text-foreground">{organization.name}</span> and all of its
+                      parts, categories, stock movements, suppliers and members. This cannot be undone.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardFooter className="justify-end border-t border-destructive/40">
+                    <AlertDialog onOpenChange={() => setDeleteConfirm('')}>
+                      <AlertDialogTrigger asChild>
+                        <Button type="button" variant="destructive">
+                          <Trash2 className="size-4" /> Delete organization
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete this organization?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This permanently removes all data belonging to{' '}
+                            <span className="font-medium text-foreground">{organization.name}</span>. To confirm, type the
+                            organization name below.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <Input
+                          value={deleteConfirm}
+                          onChange={(e) => setDeleteConfirm(e.target.value)}
+                          placeholder={organization.name}
+                          autoFocus
+                        />
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            disabled={deleteConfirm.trim() !== organization.name.trim()}
+                            className="bg-destructive text-white hover:bg-destructive/90"
+                            onClick={() => router.delete(`/organizations/${organization.id}`)}
+                          >
+                            Delete organization
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </CardFooter>
+                </Card>
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <TriangleAlert className="size-3.5 shrink-0" />
+                  You'll be switched to another organization after deletion.
+                </div>
+              </div>
             )}
           </div>
         </div>

@@ -45,7 +45,8 @@ class ApplicationController < ActionController::Base
     {
       id: org.id,
       name: org.name,
-      member_count: org.organization_memberships.active.count
+      member_count: org.organization_memberships.active.count,
+      logo_url: org.logo.attached? ? rails_blob_path(org.logo, only_path: true) : nil
     }
   end
 

@@ -100,6 +100,41 @@ class SettingsControllerTest < ActionDispatch::IntegrationTest
     assert_equal true, org.allow_negative_stock
   end
 
+  test "update attaches an uploaded logo" do
+    user = create_user
+    org = user.organizations.first
+
+    sign_in user
+    patch settings_path, params: { organization: { logo: fixture_file_upload("logo.png", "image/png") } }
+
+    assert_redirected_to settings_path
+    assert org.reload.logo.attached?
+  end
+
+  test "update purges the logo when remove_logo is set" do
+    user = create_user
+    org = user.organizations.first
+    org.logo.attach(io: File.open(Rails.root.join("test/fixtures/files/logo.png")), filename: "logo.png", content_type: "image/png")
+    assert org.logo.attached?
+
+    sign_in user
+    patch settings_path, params: { organization: { remove_logo: "1" } }
+
+    assert_redirected_to settings_path
+    assert_not org.reload.logo.attached?
+  end
+
+  test "show exposes the logo url when a logo is attached" do
+    user = create_user
+    org = user.organizations.first
+    org.logo.attach(io: File.open(Rails.root.join("test/fixtures/files/logo.png")), filename: "logo.png", content_type: "image/png")
+
+    sign_in user
+    get settings_path
+
+    assert_not_nil inertia_props["organization"]["logo_url"]
+  end
+
   test "update redirects with an alert and keeps prior values on validation failure" do
     user = create_user
     org = user.organizations.first

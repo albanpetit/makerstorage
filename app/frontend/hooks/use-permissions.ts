@@ -27,6 +27,7 @@ export function usePermissions() {
     role,
     canWrite,
     canAdminister,
+    isOwner: role === 'owner',
     isReadOnly: role != null && !canWrite,
   }
 }

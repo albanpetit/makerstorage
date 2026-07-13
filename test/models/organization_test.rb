@@ -128,6 +128,17 @@ class OrganizationTest < ActiveSupport::TestCase
     assert_includes org.errors[:base], "Organization must have at least one owner"
   end
 
+  test "destroy succeeds and cascades even with a sole active owner" do
+    org = create_organization
+    user = User.create!(firstname: "A", lastname: "B", email: "destroy_owner@example.com", password: "password123")
+    OrganizationMembership.create!(organization: org, user: user, role: "owner")
+
+    assert_difference [ -> { Organization.count }, -> { OrganizationMembership.count } ], -1 do
+      assert org.destroy
+    end
+    assert org.destroyed?
+  end
+
   test "viewers returns only users with the viewer role" do
     org = create_organization
     owner = User.create!(firstname: "O", lastname: "W", email: "owner2@example.com", password: "password123")
