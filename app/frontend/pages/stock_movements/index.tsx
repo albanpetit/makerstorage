@@ -1,5 +1,5 @@
-import { Head, useForm } from '@inertiajs/react'
-import { FormEvent, useMemo, useState } from 'react'
+import { Head, router, useForm } from '@inertiajs/react'
+import { FormEvent, useState } from 'react'
 import { toast } from 'sonner'
 import { Plus, Download, ArrowDown, ArrowUp, ArrowLeftRight, Package, Filter, ChevronLeft, ChevronRight } from 'lucide-react'
 
@@ -35,7 +35,23 @@ import {
   TableRow,
 } from '@/components/ui/table'
 
-const PAGE_SIZE = 12
+type MovementFilter = 'all' | Movement['movement_type']
+
+interface Pagination {
+  page: number
+  page_count: number
+  total: number
+  page_size: number
+}
+
+interface MovementStats {
+  inbound: number
+  outbound: number
+  total: number
+  in_count: number
+  out_count: number
+  adjustment_count: number
+}
 
 interface MovementPart {
   id: number
@@ -69,6 +85,9 @@ interface StorageLocationOption {
 
 interface StockMovementsPageProps {
   movements: Movement[]
+  pagination: Pagination
+  filter: MovementFilter
+  stats: MovementStats
   parts: PartOption[]
   storage_locations: StorageLocationOption[]
 }
@@ -87,40 +106,6 @@ function formatDateTime(iso: string) {
   }
 }
 
-function csvEscape(value: string): string {
-  if (/[",\n]/.test(value)) {
-    return `"${value.replace(/"/g, '""')}"`
-  }
-  return value
-}
-
-function exportCsv(movements: Movement[]) {
-  const headers = [ 'Date', 'Type', 'Reference', 'Reason', 'Location', 'User', 'Quantity', 'Stock After' ]
-  const rows = movements.map((m) => [
-    new Date(m.created_at).toISOString(),
-    TYPE_META[m.movement_type].label,
-    m.part.reference,
-    m.reason || '',
-    m.location_name,
-    m.user_name || '',
-    String(m.quantity_delta),
-    String(m.balance_after),
-  ])
-  const csv = [ headers, ...rows ].map((row) => row.map(csvEscape).join(',')).join('\n')
-
-  const blob = new Blob([ csv ], { type: 'text/csv;charset=utf-8;' })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = `movements-${new Date().toISOString().slice(0, 10)}.csv`
-  link.click()
-  URL.revokeObjectURL(url)
-
-  toast.success(`${movements.length} movement${movements.length !== 1 ? 's' : ''} exported`, {
-    description: link.download,
-  })
-}
-
 interface MovementFormData {
   stock_movement: {
     part_id: string
@@ -132,11 +117,29 @@ interface MovementFormData {
   }
 }
 
-export default function StockMovementsIndex({ movements, parts, storage_locations }: StockMovementsPageProps) {
+export default function StockMovementsIndex({ movements, pagination, filter, stats, parts, storage_locations }: StockMovementsPageProps) {
   const { canWrite } = usePermissions()
-  const [filter, setFilter] = useState<'all' | Movement['movement_type']>('all')
-  const [page, setPage] = useState(0)
   const [newOpen, setNewOpen] = useState(false)
+
+  // Filtering and paging are driven by the server: navigate with the desired
+  // type/page and Inertia swaps in the matching page, stats, and counts.
+  const navigate = (next: { type?: MovementFilter; page?: number }) => {
+    const type = next.type ?? filter
+    const page = next.page ?? pagination.page
+    const query: Record<string, string | number> = {}
+    if (type !== 'all') query.type = type
+    if (page > 1) query.page = page
+    router.get('/stock_movements', query, {
+      preserveScroll: true,
+      preserveState: true,
+      only: [ 'movements', 'pagination', 'filter', 'stats' ],
+    })
+  }
+
+  const exportCsv = () => {
+    const query = filter !== 'all' ? `?type=${filter}` : ''
+    window.location.href = `/stock_movements/export${query}`
+  }
 
   const newForm = useForm<MovementFormData>({
     stock_movement: {
@@ -163,37 +166,20 @@ export default function StockMovementsIndex({ movements, parts, storage_location
     })
   }
 
-  const filtered = useMemo(() => {
-    if (filter === 'all') return movements
-    return movements.filter((m) => m.movement_type === filter)
-  }, [movements, filter])
+  const net = stats.inbound - stats.outbound
+  const statCards = [
+    { label: 'Inbound', value: `+${stats.inbound.toLocaleString()}`, icon: ArrowDown, className: 'text-emerald-600 dark:text-emerald-400' },
+    { label: 'Outbound', value: `−${stats.outbound.toLocaleString()}`, icon: ArrowUp, className: 'text-red-600 dark:text-red-400' },
+    { label: 'Net balance', value: `${net >= 0 ? '+' : ''}${net.toLocaleString()}`, icon: ArrowLeftRight, className: '' },
+    { label: 'Movements', value: stats.total.toLocaleString(), icon: Package, className: '' },
+  ]
 
-  const tabs = useMemo(() => {
-    const counts = { all: movements.length, in: 0, out: 0, adjustment: 0 }
-    movements.forEach((m) => { counts[m.movement_type] += 1 })
-    return [
-      { value: 'all' as const, label: 'All', count: counts.all },
-      { value: 'in' as const, label: 'Inbound', count: counts.in },
-      { value: 'out' as const, label: 'Outbound', count: counts.out },
-      { value: 'adjustment' as const, label: 'Adjustments', count: counts.adjustment },
-    ]
-  }, [movements])
-
-  const stats = useMemo(() => {
-    const sumIn = movements.filter((m) => m.movement_type === 'in').reduce((a, m) => a + m.quantity_delta, 0)
-    const sumOut = movements.filter((m) => m.movement_type === 'out').reduce((a, m) => a + Math.abs(m.quantity_delta), 0)
-    const net = sumIn - sumOut
-    return [
-      { label: 'Inbound', value: `+${sumIn.toLocaleString()}`, icon: ArrowDown, className: 'text-emerald-600 dark:text-emerald-400' },
-      { label: 'Outbound', value: `−${sumOut.toLocaleString()}`, icon: ArrowUp, className: 'text-red-600 dark:text-red-400' },
-      { label: 'Net balance', value: `${net >= 0 ? '+' : ''}${net.toLocaleString()}`, icon: ArrowLeftRight, className: '' },
-      { label: 'Movements', value: String(movements.length), icon: Package, className: '' },
-    ]
-  }, [movements])
-
-  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
-  const clampedPage = Math.min(page, pageCount - 1)
-  const pageSlice = filtered.slice(clampedPage * PAGE_SIZE, clampedPage * PAGE_SIZE + PAGE_SIZE)
+  const tabs = [
+    { value: 'all' as const, label: 'All', count: stats.total },
+    { value: 'in' as const, label: 'Inbound', count: stats.in_count },
+    { value: 'out' as const, label: 'Outbound', count: stats.out_count },
+    { value: 'adjustment' as const, label: 'Adjustments', count: stats.adjustment_count },
+  ]
 
   const soonFilters = () => {
     toast.info('Advanced filters coming soon', { description: 'Period, project, and user filters aren\'t wired up yet.' })
@@ -203,7 +189,7 @@ export default function StockMovementsIndex({ movements, parts, storage_location
     <AppLayout
       header={
         <PageHeader title="Movements" subtitle="Inbound, outbound, and adjustments">
-          <Button variant="outline" size="sm" onClick={() => exportCsv(filtered)}>
+          <Button variant="outline" size="sm" onClick={exportCsv}>
             <Download className="size-4" />
             Export CSV
           </Button>
@@ -223,7 +209,7 @@ export default function StockMovementsIndex({ movements, parts, storage_location
 
         {/* Stats */}
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-          {stats.map((stat) => (
+          {statCards.map((stat) => (
             <Card key={stat.label}>
               <CardContent className="flex items-center justify-between">
                 <div>
@@ -241,7 +227,7 @@ export default function StockMovementsIndex({ movements, parts, storage_location
           {tabs.map((tab) => (
             <button
               key={tab.value}
-              onClick={() => { setFilter(tab.value); setPage(0) }}
+              onClick={() => navigate({ type: tab.value, page: 1 })}
               className={`inline-flex h-8 items-center gap-1.5 rounded-md border px-3 text-sm font-medium transition-colors ${
                 filter === tab.value
                   ? 'border-foreground bg-foreground text-background'
@@ -264,7 +250,7 @@ export default function StockMovementsIndex({ movements, parts, storage_location
 
         {/* Table */}
         <Card className="gap-0 overflow-hidden py-0">
-          {filtered.length === 0 ? (
+          {movements.length === 0 ? (
             <div className="flex flex-col items-center justify-center p-16 text-center">
               <Package className="size-10 text-muted-foreground" />
               <h3 className="mt-4 text-lg font-semibold">No movements yet</h3>
@@ -295,7 +281,7 @@ export default function StockMovementsIndex({ movements, parts, storage_location
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {pageSlice.map((m) => {
+                    {movements.map((m) => {
                       const { date, time } = formatDateTime(m.created_at)
                       return (
                         <TableRow key={m.id}>
@@ -341,15 +327,15 @@ export default function StockMovementsIndex({ movements, parts, storage_location
                 </Table>
               </div>
 
-              {pageCount > 1 && (
+              {pagination.page_count > 1 && (
                 <div className="flex items-center justify-between border-t px-4 py-2.5 text-sm text-muted-foreground">
-                  <span>{filtered.length} movement{filtered.length !== 1 ? 's' : ''} · Page {clampedPage + 1}/{pageCount}</span>
+                  <span>{pagination.total} movement{pagination.total !== 1 ? 's' : ''} · Page {pagination.page}/{pagination.page_count}</span>
                   <div className="flex gap-2">
-                    <Button variant="outline" size="sm" disabled={clampedPage === 0} onClick={() => setPage(Math.max(0, clampedPage - 1))}>
+                    <Button variant="outline" size="sm" disabled={pagination.page <= 1} onClick={() => navigate({ page: pagination.page - 1 })}>
                       <ChevronLeft className="size-4" />
                       Previous
                     </Button>
-                    <Button variant="outline" size="sm" disabled={clampedPage >= pageCount - 1} onClick={() => setPage(Math.min(pageCount - 1, clampedPage + 1))}>
+                    <Button variant="outline" size="sm" disabled={pagination.page >= pagination.page_count} onClick={() => navigate({ page: pagination.page + 1 })}>
                       Next
                       <ChevronRight className="size-4" />
                     </Button>
