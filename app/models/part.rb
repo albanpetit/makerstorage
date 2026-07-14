@@ -29,12 +29,16 @@ class Part < ApplicationRecord
 
   # Callbacks - convert empty strings to nil for unique indexed fields
   before_validation :normalize_blank_values
+  # Assign the internal part number from the org's IPN config once the part is
+  # actually being persisted (see #assign_ipn).
+  before_create :assign_ipn
 
   # Validations
   validates :name, presence: true, length: { minimum: 2, maximum: 255 }
   validates :mpn, uniqueness: { scope: :organization_id, case_sensitive: false }, allow_blank: true
   validates :sku, uniqueness: { scope: :organization_id, case_sensitive: false }, allow_blank: true
   validates :barcode, uniqueness: true, allow_blank: true
+  validates :ipn, uniqueness: { scope: :organization_id, case_sensitive: false }, allow_blank: true
   validates :status, presence: true, inclusion: { in: STATUSES }
   validates :unit, presence: true, inclusion: { in: UNITS }
   validates :unit_price, numericality: { greater_than_or_equal_to: 0 }, allow_nil: true
@@ -203,6 +207,42 @@ class Part < ApplicationRecord
     self.sku = nil if sku.blank?
     self.mpn = nil if mpn.blank?
     self.barcode = nil if barcode.blank?
+    self.ipn = nil if ipn.blank?
+  end
+
+  # Stamp the internal part number from the organization's IPN engine. In
+  # `manual` mode the operator types the reference (or leaves it blank), so we
+  # never auto-generate; an explicitly supplied `ipn` in any mode is also left
+  # as-is. Otherwise we draw the next reference from the org config and advance
+  # its shared counter.
+  #
+  # A drawn reference can already be taken — a random-mode collision, or a
+  # counter the operator manually rewound over existing numbers — so we redraw
+  # from the next seed until we find a free one (bounded, so a misconfiguration
+  # can't spin forever). This is the "collision triggers a fresh draw" behavior
+  # the settings UI promises.
+  #
+  # The whole thing runs under a row lock so concurrent part creations in the
+  # same org can't consume the same sequence number, and it sits in the create
+  # transaction so a failed insert rolls the counter advance back too.
+  def assign_ipn
+    return if ipn.present? || organization.nil?
+    return if organization.ipn_generation_mode == "manual"
+
+    organization.with_lock do
+      sequence = organization.ipn_next_sequence
+      candidate = organization.next_ipn(category_code: category&.code, sequence: sequence)
+
+      attempts = 0
+      while organization.parts.exists?(ipn: candidate) && attempts < 100
+        sequence += 1
+        candidate = organization.next_ipn(category_code: category&.code, sequence: sequence)
+        attempts += 1
+      end
+
+      self.ipn = candidate
+      organization.update_column(:ipn_next_sequence, sequence + 1)
+    end
   end
 
   def category_must_belong_to_same_organization

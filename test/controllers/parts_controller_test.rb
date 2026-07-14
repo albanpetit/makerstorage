@@ -219,6 +219,18 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
     assert_equal category, part.category
   end
 
+  test "create persists a manually entered ipn in manual mode" do
+    user = create_user
+    org = user.organizations.first
+    org.update!(ipn_generation_mode: "manual")
+    category = create_category(organization: org, name: "Resistors")
+
+    sign_in user
+    post parts_path, params: { part: { name: "Resistor 10k", category_id: category.id, ipn: "MS-0042" } }
+
+    assert_equal "MS-0042", Part.find_by(name: "Resistor 10k").ipn
+  end
+
   test "create attaches the tags named by tag_ids" do
     user = create_user
     org = user.organizations.first

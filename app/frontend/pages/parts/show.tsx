@@ -111,6 +111,7 @@ interface PartShowProps {
   suppliers: { id: number; name: string }[]
   tags: { id: number; name: string; color: string | null }[]
   supplier_lookup_enabled: boolean
+  ipn_manual_entry: boolean
 }
 
 const STOCK_STATUS_META = {
@@ -143,7 +144,7 @@ interface MovementFormData {
   }
 }
 
-export default function PartShow({ part, storages, movements, storage_locations, categories, footprints, suppliers, tags, supplier_lookup_enabled }: PartShowProps) {
+export default function PartShow({ part, storages, movements, storage_locations, categories, footprints, suppliers, tags, supplier_lookup_enabled, ipn_manual_entry }: PartShowProps) {
   const { canWrite } = usePermissions()
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [mvtOpen, setMvtOpen] = useState(false)
@@ -603,6 +604,7 @@ export default function PartShow({ part, storages, movements, storage_locations,
         suppliers={suppliers}
         tags={tags}
         supplierLookupEnabled={supplier_lookup_enabled}
+        ipnManualEntry={ipn_manual_entry}
       />
     </AppLayout>
   )

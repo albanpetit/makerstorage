@@ -28,6 +28,18 @@ class SettingsController < ApplicationController
     end
   end
 
+  # Renumber every existing part with the org's current IPN format. Overwrites
+  # the references parts already have, so the UI gates this behind a destructive
+  # confirmation.
+  def reassign_ipns
+    if current_organization.ipn_generation_mode == "manual"
+      return redirect_to settings_path, alert: "Turn on an automatic numbering mode before reassigning IPNs."
+    end
+
+    count = current_organization.reassign_ipns!
+    redirect_to settings_path, notice: "Reassigned IPNs to #{count} #{'part'.pluralize(count)}."
+  end
+
   private
 
   # Make sure each configured catalog integration has its supplier record so a
@@ -110,6 +122,7 @@ class SettingsController < ApplicationController
       default_low_stock_threshold: org.default_low_stock_threshold, allow_negative_stock: org.allow_negative_stock,
       mouser_api_key_present: org.mouser_api_key.present?,
       digikey_configured: org.digikey_configured?,
+      parts_count: org.total_parts_count,
       ipn_preview: org.ipn_preview(category_code: org.ipn_use_category_code ? "RES" : nil)
     }
   end

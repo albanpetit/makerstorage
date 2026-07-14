@@ -107,6 +107,28 @@ class OrganizationTest < ActiveSupport::TestCase
     assert_equal "MS-0012", org.ipn_preview[:next]
   end
 
+  test "reassign_ipns! renumbers every part in creation order and advances the counter" do
+    org = create_organization(ipn_generation_mode: "incremental", ipn_prefix: "MS", ipn_use_category_code: false, ipn_separator: "-", ipn_digits: 5, ipn_next_sequence: 50)
+    category = create_category(organization: org)
+    first = create_part(organization: org, category: category)
+    second = create_part(organization: org, category: category)
+
+    count = org.reassign_ipns!
+
+    assert_equal 2, count
+    assert_equal "MS-00001", first.reload.ipn
+    assert_equal "MS-00002", second.reload.ipn
+    assert_equal 3, org.reload.ipn_next_sequence
+  end
+
+  test "reassign_ipns! is a no-op in manual mode" do
+    org = create_organization(ipn_generation_mode: "manual")
+    part = create_part(organization: org, category: create_category(organization: org), ipn: "CUSTOM")
+
+    assert_equal 0, org.reassign_ipns!
+    assert_equal "CUSTOM", part.reload.ipn
+  end
+
   test "rejects a currency outside the allowed set" do
     org = create_organization
     org.currency = "JPY"

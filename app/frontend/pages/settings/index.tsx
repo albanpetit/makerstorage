@@ -63,6 +63,7 @@ interface OrganizationSettings {
   allow_negative_stock: boolean
   mouser_api_key_present: boolean
   digikey_configured: boolean
+  parts_count: number
   ipn_preview: IpnPreview
 }
 
@@ -308,9 +309,26 @@ export default function SettingsIndex({ organization, currencies, ipn_separators
     })
   }
 
+  const saveIpn = () => ipnForm.patch('/settings', { preserveScroll: true })
+
+  const [reassigning, setReassigning] = useState(false)
+  const reassignIpns = () => {
+    router.post('/settings/reassign_ipns', {}, {
+      preserveScroll: true,
+      onStart: () => setReassigning(true),
+      onFinish: () => setReassigning(false),
+    })
+  }
+
   const submitIpn = (e: FormEvent) => {
     e.preventDefault()
-    ipnForm.patch('/settings', { preserveScroll: true })
+    // Changing the format doesn't renumber existing parts — only new ones use
+    // it — so confirm before saving to make that non-obvious behavior explicit.
+    if (ipnFormatChanged) {
+      setIpnConfirmOpen(true)
+    } else {
+      saveIpn()
+    }
   }
 
   const submitInventory = (e: FormEvent) => {
@@ -342,6 +360,20 @@ export default function SettingsIndex({ organization, currencies, ipn_separators
   }
 
   const ipnMode = ipnForm.data.organization.ipn_generation_mode
+
+  const [ipnConfirmOpen, setIpnConfirmOpen] = useState(false)
+
+  // Whether any format-affecting IPN setting differs from what's saved. Only
+  // these change how future references look; `ipn_next_sequence` alone doesn't
+  // warrant the confirmation.
+  const ipnData = ipnForm.data.organization
+  const ipnFormatChanged =
+    ipnData.ipn_generation_mode !== organization.ipn_generation_mode ||
+    ipnData.ipn_charset !== organization.ipn_charset ||
+    ipnData.ipn_prefix !== organization.ipn_prefix ||
+    ipnData.ipn_separator !== organization.ipn_separator ||
+    ipnData.ipn_digits !== organization.ipn_digits ||
+    ipnData.ipn_use_category_code !== organization.ipn_use_category_code
 
   const livePreview = useMemo(() => {
     const o = ipnForm.data.organization
@@ -784,6 +816,54 @@ export default function SettingsIndex({ organization, currencies, ipn_separators
                   </CardFooter>
                 </Card>
 
+                {/* Renumber existing parts to the saved format. Hidden in manual
+                    mode (nothing to generate) and disabled while the format has
+                    unsaved edits, since the server uses the saved settings. */}
+                {ipnMode !== 'manual' && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Reassign existing references</CardTitle>
+                      <CardDescription>
+                        Renumber every part with the current saved format. A format change only affects new
+                        parts — use this to bring the {organization.parts_count} existing{' '}
+                        {organization.parts_count === 1 ? 'part' : 'parts'} in line with it.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardFooter className="flex-wrap justify-between gap-2 border-t">
+                      <p className="text-xs text-muted-foreground">
+                        {ipnFormatChanged
+                          ? 'Save your format changes first to renumber with them.'
+                          : 'Overwrites the reference on every part — this can’t be undone.'}
+                      </p>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            disabled={ipnFormatChanged || reassigning || organization.parts_count === 0}
+                          >
+                            {reassigning ? 'Reassigning…' : 'Reassign IPNs'}
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Reassign every part’s IPN?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              All {organization.parts_count} existing{' '}
+                              {organization.parts_count === 1 ? 'part' : 'parts'} will be renumbered in creation
+                              order using your saved format, replacing their current references. This can’t be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={reassignIpns}>Reassign IPNs</AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </CardFooter>
+                  </Card>
+                )}
+
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <Info className="size-3.5 shrink-0" />
                   Current format:{' '}
@@ -791,6 +871,25 @@ export default function SettingsIndex({ organization, currencies, ipn_separators
                     {livePreview.pattern}
                   </code>
                 </div>
+
+                {/* Confirm before changing the format: existing parts keep their
+                    numbers, so make clear only new parts are affected. */}
+                <AlertDialog open={ipnConfirmOpen} onOpenChange={setIpnConfirmOpen}>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Change the numbering format?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        New components will be numbered <span className="font-mono">{livePreview.next}</span> and onward.
+                        Existing parts keep the reference numbers they already have — they are not renumbered, so your
+                        inventory will hold a mix of the old and new formats.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={saveIpn}>Save changes</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </form>
             )}
 

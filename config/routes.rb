@@ -60,7 +60,9 @@ Rails.application.routes.draw do
 
   resources :members, only: %i[index create update destroy]
 
-  resource :settings, only: %i[show update]
+  resource :settings, only: %i[show update] do
+    post :reassign_ipns
+  end
 
   resource :profile, only: %i[show update]
 

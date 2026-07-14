@@ -87,6 +87,9 @@ interface AddPartDialogProps {
   tags: Tag[]
   storageLocations: StorageLocationOption[]
   supplierLookupEnabled?: boolean
+  // Manual IPN mode: the operator types the reference instead of it being
+  // generated on save, so the field is shown and editable.
+  ipnManualEntry?: boolean
 }
 
 const EMPTY_PART = {
@@ -94,6 +97,7 @@ const EMPTY_PART = {
   mpn: '',
   sku: '',
   barcode: '',
+  ipn: '',
   manufacturer: '',
   description: '',
   value: '',
@@ -174,6 +178,7 @@ export function AddPartDialog({
   tags,
   storageLocations,
   supplierLookupEnabled = false,
+  ipnManualEntry = false,
 }: AddPartDialogProps) {
   const [detailsOpen, setDetailsOpen] = useState(false)
   const [suppliersOpen, setSuppliersOpen] = useState(false)
@@ -216,7 +221,7 @@ export function AddPartDialog({
   // actually visible when the server rejects the submission.
   useEffect(() => {
     const keys = Object.keys(errors)
-    if (keys.some((k) => ['part.mpn', 'part.sku'].includes(k))) setDetailsOpen(true)
+    if (keys.some((k) => ['part.mpn', 'part.sku', 'part.ipn'].includes(k))) setDetailsOpen(true)
     if (keys.some((k) => k.includes('part_suppliers'))) setSuppliersOpen(true)
   }, [errors])
 
@@ -602,6 +607,22 @@ export function AddPartDialog({
                     />
                   </FieldContent>
                 </Field>
+                {ipnManualEntry && (
+                  <Field>
+                    <FieldLabel>
+                      <Label>Internal part number (IPN)</Label>
+                    </FieldLabel>
+                    <FieldContent>
+                      <Input
+                        placeholder="e.g. MS-00042"
+                        value={data.part.ipn}
+                        onChange={(e) => setPart({ ipn: e.target.value })}
+                      />
+                    </FieldContent>
+                    <p className="text-xs text-muted-foreground">Manual numbering is on — type this part's reference.</p>
+                    {errors['part.ipn'] && <FieldError>{errors['part.ipn']}</FieldError>}
+                  </Field>
+                )}
                 <Field>
                   <FieldLabel>
                     <Label>Manufacturer</Label>
