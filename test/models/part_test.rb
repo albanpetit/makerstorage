@@ -196,4 +196,19 @@ class PartTest < ActiveSupport::TestCase
     other_part = Part.new(organization: other_org, category: create_category(organization: other_org), name: "Elsewhere", ipn: "MS-0001")
     assert other_part.valid?
   end
+
+  test "barcode is unique per organization" do
+    create_part(organization: @org, category: @category, barcode: "123456789012")
+    duplicate = Part.new(organization: @org, category: @category, name: "Dupe", barcode: "123456789012")
+    assert_not duplicate.valid?
+    assert_includes duplicate.errors[:barcode], "has already been taken"
+  end
+
+  test "the same barcode may exist in different organizations" do
+    create_part(organization: @org, category: @category, barcode: "123456789012")
+
+    other_org = create_organization
+    other_part = Part.new(organization: other_org, category: create_category(organization: other_org), name: "Elsewhere", barcode: "123456789012")
+    assert other_part.valid?
+  end
 end
