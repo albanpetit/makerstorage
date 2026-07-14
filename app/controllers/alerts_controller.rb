@@ -20,7 +20,7 @@ class AlertsController < ApplicationController
   end
 
   def create_purchase_orders
-    alerts = compute_alerts.select { |alert| alert[:part].preferred_supplier.present? }
+    alerts = compute_alerts.select { |alert| alert[:preferred_supplier].present? }
     alerts = alerts.select { |alert| alert[:part].id == params[:part_id].to_i } if params[:part_id].present?
 
     if alerts.empty?
@@ -28,7 +28,7 @@ class AlertsController < ApplicationController
       return
     end
 
-    grouped = alerts.group_by { |alert| alert[:part].preferred_supplier }
+    grouped = alerts.group_by { |alert| alert[:preferred_supplier] }
     created = 0
 
     grouped.each do |supplier, supplier_alerts|
@@ -92,14 +92,21 @@ class AlertsController < ApplicationController
   private
 
   def compute_alerts
-    current_organization.parts.low_stock.includes(:category, :storage_locations, part_suppliers: :supplier).map do |part|
-      quantity = part.total_quantity
+    parts = current_organization.parts.low_stock
+      .includes(:category, :part_storages, :storage_locations, part_suppliers: :supplier)
+
+    parts.map do |part|
+      # Compute from the preloaded associations rather than `part.total_quantity`
+      # /`part.preferred_part_supplier`, which each fire a fresh query per part
+      # and turn this into an N+1 across every low-stock alert.
+      quantity = part.part_storages.to_a.sum(&:quantity)
       threshold = part.min_stock_threshold
       target = part.target_stock || threshold * 2
-      preferred = part.preferred_part_supplier
+      preferred = part.part_suppliers.find(&:is_preferred)
 
       {
         part: part,
+        preferred_supplier: preferred&.supplier,
         quantity: quantity,
         threshold: threshold,
         ratio: threshold.positive? ? (quantity.to_f / threshold * 100).round : 0,
@@ -122,7 +129,7 @@ class AlertsController < ApplicationController
       quantity: alert[:quantity],
       min_stock_threshold: alert[:threshold],
       severity: alert[:severity],
-      supplier_name: part.preferred_supplier&.name,
+      supplier_name: alert[:preferred_supplier]&.name,
       unit_price: alert[:unit_price],
       reorder_quantity: alert[:reorder_quantity]
     }
