@@ -24,6 +24,7 @@ class PartsController < ApplicationController
       tags: serialize_tags,
       storage_locations: serialize_storage_locations,
       supplier_lookup_enabled: current_organization.supplier_lookup_configured?,
+      ipn_manual_entry: current_organization.ipn_generation_mode == "manual",
       open_add: params[:new].present?
     }
   end
@@ -44,7 +45,8 @@ class PartsController < ApplicationController
       footprints: serialize_footprints,
       suppliers: serialize_suppliers,
       tags: serialize_tags,
-      supplier_lookup_enabled: current_organization.supplier_lookup_configured?
+      supplier_lookup_enabled: current_organization.supplier_lookup_configured?,
+      ipn_manual_entry: current_organization.ipn_generation_mode == "manual"
     }
   end
 
@@ -60,7 +62,8 @@ class PartsController < ApplicationController
           footprints: serialize_footprints,
           suppliers: serialize_suppliers,
           tags: serialize_tags,
-          supplier_lookup_enabled: current_organization.supplier_lookup_configured?
+          supplier_lookup_enabled: current_organization.supplier_lookup_configured?,
+          ipn_manual_entry: current_organization.ipn_generation_mode == "manual"
         }
       end
     end
@@ -265,7 +268,7 @@ class PartsController < ApplicationController
 
   def part_params
     params.require(:part).permit(
-      :name, :mpn, :sku, :barcode, :manufacturer, :description,
+      :name, :mpn, :sku, :barcode, :ipn, :manufacturer, :description,
       :value, :tolerance, :voltage_rating, :power_rating, :package_type,
       :category_id, :footprint_id,
       :unit_price, :min_stock_threshold, :target_stock,
@@ -302,6 +305,7 @@ class PartsController < ApplicationController
       name: part.name,
       mpn: part.mpn,
       sku: part.sku,
+      ipn: part.ipn,
       manufacturer: part.manufacturer,
       value: part.value,
       package_type: part.package_type,

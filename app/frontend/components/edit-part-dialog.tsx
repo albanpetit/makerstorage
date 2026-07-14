@@ -80,6 +80,7 @@ interface FullPart {
   mpn: string | null
   sku: string | null
   barcode: string | null
+  ipn: string | null
   manufacturer: string | null
   description: string | null
   value: string | null
@@ -124,6 +125,9 @@ interface EditPartDialogProps {
   suppliers: Supplier[]
   tags: Tag[]
   supplierLookupEnabled?: boolean
+  // Manual IPN mode: the operator edits the reference directly. In the other
+  // (auto) modes the IPN is generated server-side, so it's shown read-only.
+  ipnManualEntry?: boolean
 }
 
 const EMPTY_SUPPLIER = {
@@ -186,6 +190,7 @@ function toFormPart(part: FullPart) {
     mpn: part.mpn || '',
     sku: part.sku || '',
     barcode: part.barcode || '',
+    ipn: part.ipn || '',
     manufacturer: part.manufacturer || '',
     description: part.description || '',
     value: part.value || '',
@@ -211,6 +216,7 @@ const EMPTY_PART = toFormPart({
   mpn: null,
   sku: null,
   barcode: null,
+  ipn: null,
   manufacturer: null,
   description: null,
   value: null,
@@ -240,6 +246,7 @@ export function EditPartDialog({
   suppliers,
   tags,
   supplierLookupEnabled = false,
+  ipnManualEntry = false,
 }: EditPartDialogProps) {
   const [loading, setLoading] = useState(false)
   const [loadError, setLoadError] = useState('')
@@ -285,7 +292,7 @@ export function EditPartDialog({
   // actually visible when the server rejects the submission.
   useEffect(() => {
     const keys = Object.keys(errors)
-    if (keys.some((k) => ['part.mpn', 'part.sku'].includes(k))) setDetailsOpen(true)
+    if (keys.some((k) => ['part.mpn', 'part.sku', 'part.ipn'].includes(k))) setDetailsOpen(true)
     if (keys.some((k) => k.includes('part_suppliers'))) setSuppliersOpen(true)
   }, [errors])
 
@@ -701,6 +708,25 @@ export function EditPartDialog({
                         onChange={(e) => setPart({ barcode: e.target.value })}
                       />
                     </FieldContent>
+                  </Field>
+                  <Field>
+                    <FieldLabel>
+                      <Label>Internal part number (IPN)</Label>
+                    </FieldLabel>
+                    <FieldContent>
+                      <Input
+                        placeholder={ipnManualEntry ? 'e.g. MS-00042' : 'Assigned automatically'}
+                        value={data.part.ipn}
+                        onChange={(e) => setPart({ ipn: e.target.value })}
+                        disabled={!ipnManualEntry}
+                      />
+                    </FieldContent>
+                    <p className="text-xs text-muted-foreground">
+                      {ipnManualEntry
+                        ? 'Manual numbering is on — edit this part’s reference.'
+                        : 'Generated from your numbering settings.'}
+                    </p>
+                    {errors['part.ipn'] && <FieldError>{errors['part.ipn']}</FieldError>}
                   </Field>
                   <Field>
                     <FieldLabel>

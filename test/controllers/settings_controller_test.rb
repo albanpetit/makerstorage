@@ -85,6 +85,45 @@ class SettingsControllerTest < ActionDispatch::IntegrationTest
     assert_equal 99, org.ipn_next_sequence
   end
 
+  test "reassign_ipns renumbers existing parts with the current format" do
+    user = create_user
+    org = user.organizations.first
+    org.update!(ipn_generation_mode: "incremental", ipn_prefix: "MS", ipn_use_category_code: false, ipn_separator: "-", ipn_digits: 5, ipn_next_sequence: 40)
+    category = create_category(organization: org)
+    part = create_part(organization: org, category: category)
+
+    sign_in user
+    post reassign_ipns_settings_path
+
+    assert_redirected_to settings_path
+    assert_equal "MS-00001", part.reload.ipn
+  end
+
+  test "reassign_ipns is forbidden for a non-admin member" do
+    owner = create_user
+    org = owner.organizations.first
+    member = create_user(email: "member@example.com")
+    OrganizationMembership.create!(organization: org, user: member, role: "member")
+
+    sign_in member
+    post reassign_ipns_settings_path
+
+    assert_redirected_to root_path
+  end
+
+  test "reassign_ipns refuses in manual mode" do
+    user = create_user
+    org = user.organizations.first
+    org.update!(ipn_generation_mode: "manual")
+    part = create_part(organization: org, category: create_category(organization: org), ipn: "KEEP")
+
+    sign_in user
+    post reassign_ipns_settings_path
+
+    assert_redirected_to settings_path
+    assert_equal "KEEP", part.reload.ipn
+  end
+
   test "update updates inventory defaults" do
     user = create_user
     org = user.organizations.first

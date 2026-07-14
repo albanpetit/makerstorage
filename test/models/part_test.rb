@@ -126,4 +126,74 @@ class PartTest < ActiveSupport::TestCase
     create_part(organization: @org, category: @category, name: "Resistor 10k")
     assert_empty Part.search("nonexistent-query-xyz")
   end
+
+  # IPN generation
+
+  test "assigns an incremental ipn on create and advances the org counter" do
+    org = create_organization(ipn_generation_mode: "incremental", ipn_prefix: "MS", ipn_use_category_code: false, ipn_separator: "-", ipn_digits: 5, ipn_next_sequence: 1)
+    category = create_category(organization: org)
+
+    part = create_part(organization: org, category: category)
+    assert_equal "MS-00001", part.ipn
+    assert_equal 2, org.reload.ipn_next_sequence
+
+    second = create_part(organization: org, category: category)
+    assert_equal "MS-00002", second.ipn
+    assert_equal 3, org.reload.ipn_next_sequence
+  end
+
+  test "ipn includes the category code when enabled" do
+    org = create_organization(ipn_prefix: "MS", ipn_use_category_code: true, ipn_separator: "-", ipn_digits: 4, ipn_next_sequence: 7)
+    category = create_category(organization: org, code: "RES")
+
+    part = create_part(organization: org, category: category)
+    assert_equal "MS-RES-0007", part.ipn
+  end
+
+  test "does not auto-generate an ipn in manual mode" do
+    org = create_organization(ipn_generation_mode: "manual", ipn_next_sequence: 12)
+    category = create_category(organization: org)
+
+    part = create_part(organization: org, category: category)
+    assert_nil part.ipn
+    assert_equal 12, org.reload.ipn_next_sequence, "counter must not advance without a generated ipn"
+  end
+
+  test "keeps an explicitly supplied ipn and leaves the counter untouched" do
+    org = create_organization(ipn_generation_mode: "incremental", ipn_next_sequence: 5)
+    category = create_category(organization: org)
+
+    part = create_part(organization: org, category: category, ipn: "CUSTOM-1")
+    assert_equal "CUSTOM-1", part.ipn
+    assert_equal 5, org.reload.ipn_next_sequence
+  end
+
+  test "ipn is unique per organization" do
+    create_part(organization: @org, category: @category, ipn: "MS-0001")
+    duplicate = Part.new(organization: @org, category: @category, name: "Dupe", ipn: "MS-0001")
+    assert_not duplicate.valid?
+    assert_includes duplicate.errors[:ipn], "has already been taken"
+  end
+
+  test "skips a taken reference by redrawing from the next seed" do
+    org = create_organization(ipn_generation_mode: "random", ipn_charset: "numeric", ipn_prefix: "MS", ipn_use_category_code: false, ipn_separator: "-", ipn_digits: 6, ipn_next_sequence: 5)
+    category = create_category(organization: org)
+
+    # Occupy the reference the counter would draw first, forcing a redraw.
+    taken = org.next_ipn(sequence: 5)
+    create_part(organization: org, category: category, ipn: taken)
+
+    part = create_part(organization: org, category: category)
+    assert_equal org.next_ipn(sequence: 6), part.ipn
+    assert_not_equal taken, part.ipn
+    assert_equal 7, org.reload.ipn_next_sequence
+  end
+
+  test "the same ipn may exist in different organizations" do
+    create_part(organization: @org, category: @category, ipn: "MS-0001")
+
+    other_org = create_organization
+    other_part = Part.new(organization: other_org, category: create_category(organization: other_org), name: "Elsewhere", ipn: "MS-0001")
+    assert other_part.valid?
+  end
 end

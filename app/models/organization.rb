@@ -111,6 +111,42 @@ class Organization < ApplicationRecord
     [ ipn_prefix.presence, (resolved_category if include_category), body ].compact.join(ipn_separator)
   end
 
+  # Renumbers every existing part with a freshly generated IPN using the current
+  # config, replacing whatever they had — the companion to a mid-run format
+  # change, which otherwise leaves old parts on the old format. No-op in manual
+  # mode (nothing to generate). Parts are numbered in creation order from
+  # sequence 1, and `ipn_next_sequence` is left pointing just past the last one
+  # so new parts continue the run. Returns the number of parts renumbered.
+  #
+  # Clears every IPN up front so a value we're about to reuse can't collide with
+  # an old one still sitting on another part, then draws each reference the same
+  # way Part#assign_ipn does (skipping any already taken, e.g. random collisions).
+  def reassign_ipns!
+    return 0 if ipn_generation_mode == "manual"
+
+    with_lock do
+      parts.update_all(ipn: nil)
+      sequence = 1
+      count = 0
+
+      parts.includes(:category).order(:created_at, :id).each do |part|
+        candidate = next_ipn(category_code: part.category&.code, sequence: sequence)
+        attempts = 0
+        while attempts < 100 && parts.exists?(ipn: candidate)
+          sequence += 1
+          candidate = next_ipn(category_code: part.category&.code, sequence: sequence)
+          attempts += 1
+        end
+        part.update_column(:ipn, candidate)
+        sequence += 1
+        count += 1
+      end
+
+      update_column(:ipn_next_sequence, sequence)
+      count
+    end
+  end
+
   def ipn_preview(category_code: nil, example_count: 3)
     start = ipn_generation_mode == "category_sequence" ? 1 : ipn_next_sequence
     effective_category = ipn_generation_mode == "category_sequence" ? (category_code.presence || "RES") : category_code

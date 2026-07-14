@@ -84,6 +84,7 @@ interface Part {
   mpn: string | null
   sku: string | null
   barcode: string | null
+  ipn: string | null
   manufacturer: string | null
   description: string | null
   value: string | null
@@ -110,9 +111,10 @@ interface EditPartProps {
   suppliers: Supplier[]
   tags: Tag[]
   supplier_lookup_enabled: boolean
+  ipn_manual_entry: boolean
 }
 
-export default function EditPart({ part, categories, footprints, suppliers, tags, supplier_lookup_enabled }: EditPartProps) {
+export default function EditPart({ part, categories, footprints, suppliers, tags, supplier_lookup_enabled, ipn_manual_entry }: EditPartProps) {
   const [showAddSupplier, setShowAddSupplier] = useState(false)
   // Datasheet/image URLs from a catalog match, downloaded + attached server-side.
   const [attach, setAttach] = useState<{ datasheet_url: string | null; image_url: string | null }>({
@@ -126,6 +128,7 @@ export default function EditPart({ part, categories, footprints, suppliers, tags
       mpn: part.mpn || '',
       sku: part.sku || '',
       barcode: part.barcode || '',
+      ipn: part.ipn || '',
       manufacturer: part.manufacturer || '',
       description: part.description || '',
       value: part.value || '',
@@ -316,6 +319,22 @@ export default function EditPart({ part, categories, footprints, suppliers, tags
                     />
                   </FieldContent>
                   {errors['part.barcode'] && <FieldError>{errors['part.barcode']}</FieldError>}
+                </Field>
+
+                <Field>
+                  <FieldLabel>
+                    <Label htmlFor="ipn">Internal part number (IPN)</Label>
+                  </FieldLabel>
+                  <FieldContent>
+                    <Input
+                      id="ipn"
+                      placeholder={ipn_manual_entry ? 'e.g. MS-00042' : 'Assigned automatically'}
+                      value={data.part.ipn}
+                      onChange={(e) => setData('part', { ...data.part, ipn: e.target.value })}
+                      disabled={!ipn_manual_entry}
+                    />
+                  </FieldContent>
+                  {errors['part.ipn'] && <FieldError>{errors['part.ipn']}</FieldError>}
                 </Field>
 
                 <Field>
