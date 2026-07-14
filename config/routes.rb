@@ -45,7 +45,9 @@ Rails.application.routes.draw do
 
   resources :storage_locations, only: %i[index create update destroy]
 
-  resources :stock_movements, only: %i[index create]
+  resources :stock_movements, only: %i[index create] do
+    get :export, on: :collection
+  end
 
   get "scan", to: "scans#index", as: :scan
   post "scan/movements", to: "scans#create_movement", as: :scan_movements
