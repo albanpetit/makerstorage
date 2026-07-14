@@ -562,7 +562,7 @@ export function PartDetailSheet({
           <DialogHeader>
             <DialogTitle>Record a movement</DialogTitle>
           </DialogHeader>
-          <form onSubmit={submitMovement} className="flex flex-col gap-4">
+          <form onSubmit={submitMovement} className="flex min-w-0 flex-col gap-4">
             <div className="grid grid-cols-2 gap-2">
               {(['in', 'out'] as const).map((type) => (
                 <button
@@ -597,7 +597,7 @@ export function PartDetailSheet({
                 <FieldError>{mvtForm.errors['stock_movement.storage_location_id']}</FieldError>
               )}
             </Field>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-4 [&>*]:min-w-0">
               <Field>
                 <FieldLabel><Label>Quantity</Label></FieldLabel>
                 <FieldContent>
