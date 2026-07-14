@@ -75,6 +75,18 @@ class StorageLocationTest < ActiveSupport::TestCase
     assert_equal "Workshop > Cabinet A > Box A1", box.full_path
   end
 
+  test "full_path resolves ancestry from a preloaded cache without extra queries" do
+    room = create_storage_location(organization: @org, name: "Workshop", location_type: "room")
+    cabinet = create_storage_location(organization: @org, name: "Cabinet A", location_type: "cabinet", parent: room)
+    box = create_storage_location(organization: @org, name: "Box A1", location_type: "box", parent: cabinet)
+
+    cache = StorageLocation.full_path_cache(@org.storage_locations)
+
+    assert_no_queries do
+      assert_equal "Workshop > Cabinet A > Box A1", box.full_path(cache: cache)
+    end
+  end
+
   test "ancestors and descendants" do
     room = create_storage_location(organization: @org, name: "Workshop", location_type: "room")
     cabinet = create_storage_location(organization: @org, name: "Cabinet A", location_type: "cabinet", parent: room)

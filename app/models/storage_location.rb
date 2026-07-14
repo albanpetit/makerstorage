@@ -24,6 +24,14 @@ class StorageLocation < ApplicationRecord
   scope :of_type, ->(type) { where(location_type: type) }
 
   # Methods
+
+  # Loads a whole scope (e.g. one org's zones) into an id => StorageLocation map
+  # with a single query, for passing to #full_path(cache:) so a serialization
+  # loop resolves every zone's ancestry in memory instead of one query per level.
+  def self.full_path_cache(scope = all)
+    scope.select(:id, :name, :parent_id).index_by(&:id)
+  end
+
   def root?
     parent_id.nil?
   end
@@ -32,11 +40,15 @@ class StorageLocation < ApplicationRecord
     children.any?
   end
 
-  def full_path
+  # Builds "Room > Cabinet > Shelf" by walking up to the root. In a serialization
+  # loop this is an N+1 (one query per level, per location); pass `cache` — an
+  # id => StorageLocation map of the sibling set (see .full_path_cache) — to
+  # resolve parents in memory instead.
+  def full_path(cache: nil)
     path = [ name ]
     current = self
-    while current.parent.present?
-      current = current.parent
+    while (parent = cache ? cache[current.parent_id] : current.parent)
+      current = parent
       path.unshift(current.name)
     end
     path.join(" > ")
