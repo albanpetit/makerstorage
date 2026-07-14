@@ -174,6 +174,27 @@ class AlertsControllerTest < ActionDispatch::IntegrationTest
     assert_equal 40, part.reload.total_quantity
   end
 
+  test "advance_order to received warns and records no stock for a part with no location" do
+    user = create_user
+    org = user.organizations.first
+    category = create_category(organization: org)
+    supplier = create_supplier(organization: org)
+    part = create_part(organization: org, category: category, mpn: "RES-NOLOC")
+    purchase = Purchase.create!(organization: org, supplier: supplier, status: "shipped", reference: "PO-1")
+    PurchaseLine.create!(purchase: purchase, part: part, quantity: 40, unit_price: 0.02)
+
+    sign_in user
+    assert_no_difference "StockMovement.count" do
+      patch advance_alert_order_path(purchase)
+    end
+
+    assert_equal "received", purchase.reload.status
+    assert_redirected_to alerts_path
+    follow_redirect!
+    assert_match(/RES-NOLOC/, flash[:alert])
+    assert_match(/no storage location/, flash[:alert])
+  end
+
   test "advance_order refuses to advance an already-received order" do
     user = create_user
     org = user.organizations.first
