@@ -70,6 +70,7 @@ interface Part {
   name: string
   mpn: string | null
   sku: string | null
+  ipn: string | null
   manufacturer: string | null
   value: string | null
   package_type: string | null
@@ -185,11 +186,12 @@ function csvEscape(value: string): string {
 }
 
 function exportCsv(parts: Part[]) {
-  const headers = [ "Name", "MPN", "SKU", "Category", "Value", "Package", "Location", "Supplier", "Unit Price", "Quantity", "Min Stock Threshold", "Status" ]
+  const headers = [ "Name", "MPN", "SKU", "IPN", "Category", "Value", "Package", "Location", "Supplier", "Unit Price", "Quantity", "Min Stock Threshold", "Status" ]
   const rows = parts.map((part) => [
     part.name,
     part.mpn || '',
     part.sku || '',
+    part.ipn || '',
     part.category?.name || '',
     part.value || '',
     part.package_type || '',
@@ -365,7 +367,7 @@ export default function PartsIndex({ parts, initial_query, categories, footprint
     if (q) {
       result = result.filter((part) => {
         const haystack = [
-          part.name, part.mpn, part.sku, part.manufacturer, part.value,
+          part.name, part.mpn, part.sku, part.ipn, part.manufacturer, part.value,
           part.category?.name, part.footprint?.name, ...part.location_names,
         ].filter(Boolean).join(' ').toLowerCase()
         return haystack.includes(q)
@@ -783,6 +785,7 @@ export default function PartsIndex({ parts, initial_query, categories, footprint
                     />
                   </TableHead>
                   <TableHead className="py-2">Reference</TableHead>
+                  <TableHead className="py-2">IPN</TableHead>
                   <TableHead className="py-2">Category</TableHead>
                   <TableHead className="py-2">Value</TableHead>
                   <TableHead className="py-2">Package</TableHead>
@@ -823,6 +826,9 @@ export default function PartsIndex({ parts, initial_query, categories, footprint
                             </div>
                           </div>
                         </div>
+                      </TableCell>
+                      <TableCell className="py-2.5 font-mono text-sm text-muted-foreground">
+                        {part.ipn || '-'}
                       </TableCell>
                       <TableCell className="py-2.5">
                         {part.category ? (
