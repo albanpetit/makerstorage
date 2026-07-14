@@ -80,10 +80,10 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
     PartSupplier.create!(part: part, supplier: supplier, unit_price: 9.99)
 
     sign_in user
-    get part_path(part)
+    get part_path(part), headers: { "Accept" => "application/json" }
     assert_response :success
 
-    part_json = inertia_props["part"]
+    part_json = JSON.parse(response.body)["part"]
     assert_kind_of Numeric, part_json["unit_price"]
     assert_equal 12.5, part_json["unit_price"]
     assert_kind_of Numeric, part_json["part_suppliers"].first["unit_price"]
@@ -104,20 +104,51 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
     )
 
     sign_in user
-    get part_path(part)
+    get part_path(part), headers: { "Accept" => "application/json" }
     assert_response :success
+    props = JSON.parse(response.body)
 
-    storage = inertia_props["storages"].first
+    storage = props["storages"].first
     assert_equal [ "Workshop", "Shelf B2" ], storage["location_path"]
     assert_equal 35, storage["quantity"]
 
-    movement = inertia_props["movements"].first
+    movement = props["movements"].first
     assert_equal "out", movement["movement_type"]
     assert_equal(-5, movement["quantity_delta"])
     assert_equal "Project X", movement["reason"]
     assert_equal "Shelf B2", movement["location_name"]
 
-    assert inertia_props["storage_locations"].any? { |l| l["name"].include?("Shelf B2") }
+    assert props["storage_locations"].any? { |l| l["name"].include?("Shelf B2") }
+  end
+
+  test "show redirects a direct HTML visit to the inventory list" do
+    user = create_user
+    org = user.organizations.first
+    part = create_part(organization: org, category: create_category(organization: org))
+
+    sign_in user
+    get part_path(part)
+    assert_redirected_to parts_path
+  end
+
+  test "show responds with the part detail as JSON for the detail sidebar" do
+    user = create_user
+    org = user.organizations.first
+    category = create_category(organization: org)
+    shelf = create_storage_location(organization: org, name: "Shelf B2", location_type: "shelf")
+    part = create_part(organization: org, category: category)
+    PartStorage.create!(part: part, storage_location: shelf, quantity: 40)
+
+    sign_in user
+    get part_path(part), headers: { "Accept" => "application/json" }
+    assert_response :success
+    assert_equal "application/json", response.media_type
+
+    body = JSON.parse(response.body)
+    assert_equal part.id, body["part"]["id"]
+    assert_equal 40, body["storages"].first["quantity"]
+    assert body.key?("movements")
+    assert body.key?("storage_locations")
   end
 
   test "destroy deletes a part without movements" do
@@ -146,7 +177,7 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
     assert_no_difference "Part.count" do
       delete part_path(part)
     end
-    assert_redirected_to part_path(part)
+    assert_redirected_to parts_path
     follow_redirect!
     assert flash[:alert].present?
   end

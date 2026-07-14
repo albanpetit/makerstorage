@@ -7,6 +7,7 @@ import { AppLayout } from '@/layouts/app-layout'
 import { usePermissions } from '@/hooks/use-permissions'
 import { PageHeader } from '@/components/page-header'
 import { FlashMessages } from '@/components/flash-messages'
+import { PartDetailSheet } from '@/components/part-detail-sheet'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -133,6 +134,7 @@ export default function ScansIndex({ code, result, recent_scans, today_count, al
   const [delta, setDelta] = useState(0)
   const [locationId, setLocationId] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [detailPartId, setDetailPartId] = useState<number | null>(null)
 
   const videoRef = useRef<HTMLVideoElement>(null)
   const controlsRef = useRef<IScannerControls | null>(null)
@@ -429,11 +431,9 @@ export default function ScansIndex({ code, result, recent_scans, today_count, al
                   )}
 
                   <div className="mt-4 flex gap-2">
-                    <Button variant="outline" className="flex-1" asChild>
-                      <Link href={`/parts/${part.id}`}>
-                        <ExternalLink className="size-4" />
-                        Open part
-                      </Link>
+                    <Button variant="outline" className="flex-1" onClick={() => setDetailPartId(part.id)}>
+                      <ExternalLink className="size-4" />
+                      Open part
                     </Button>
                     {canWrite && (
                       <Button
@@ -549,6 +549,13 @@ export default function ScansIndex({ code, result, recent_scans, today_count, al
           </div>
         </div>
       </div>
+
+      {/* Part detail sidebar */}
+      <PartDetailSheet
+        partId={detailPartId}
+        open={detailPartId !== null}
+        onOpenChange={(open) => !open && setDetailPartId(null)}
+      />
     </AppLayout>
   )
 }
