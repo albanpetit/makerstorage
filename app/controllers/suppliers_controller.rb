@@ -9,7 +9,7 @@ class SuppliersController < ApplicationController
 
   def index
     suppliers = current_organization.suppliers
-      .includes(part_suppliers: :part, purchases: :purchase_lines)
+      .includes(part_suppliers: { part: :part_storages }, purchases: :purchase_lines)
       .alphabetical
 
     render inertia: "suppliers/index", props: {

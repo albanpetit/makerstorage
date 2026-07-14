@@ -100,8 +100,17 @@ class Part < ApplicationRecord
   scope :recent, -> { order(created_at: :desc) }
 
   # Methods - Stock
+  # Total stock across every storage location. When part_storages has already
+  # been preloaded (via `includes`), sum the in-memory collection so callers on
+  # list pages don't fire a fresh SUM query per part — the N+1 that bit the
+  # parts index, alerts, suppliers, and dashboard. Falls back to a single
+  # aggregate query when the association isn't loaded.
   def total_quantity
-    part_storages.sum(:quantity)
+    if part_storages.loaded?
+      part_storages.to_a.sum(&:quantity)
+    else
+      part_storages.sum(:quantity)
+    end
   end
 
   def low_stock?
