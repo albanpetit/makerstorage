@@ -32,6 +32,23 @@ class PurchaseTest < ActiveSupport::TestCase
     assert_includes purchase.errors[:supplier], "must belong to the same organization"
   end
 
+  test "reference must be unique within an organization" do
+    Purchase.create!(organization: @org, supplier: @supplier, reference: "PO-1")
+    duplicate = Purchase.new(organization: @org, supplier: @supplier, reference: "PO-1")
+    assert_not duplicate.valid?
+    assert_includes duplicate.errors[:reference], "has already been taken"
+  end
+
+  test "next_reference appends a suffix on same-supplier same-day collision" do
+    date = Date.new(2026, 7, 14)
+    first = Purchase.next_reference(@org, @supplier, date: date)
+    assert_equal "PO-20260714-#{@supplier.id}", first
+    Purchase.create!(organization: @org, supplier: @supplier, reference: first)
+
+    second = Purchase.next_reference(@org, @supplier, date: date)
+    assert_equal "PO-20260714-#{@supplier.id}-2", second
+  end
+
   test "status predicate methods" do
     purchase = Purchase.create!(organization: @org, supplier: @supplier, status: "shipped")
     assert purchase.shipped?
