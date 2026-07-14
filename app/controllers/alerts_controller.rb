@@ -57,24 +57,33 @@ class AlertsController < ApplicationController
 
   def advance_order
     purchase = current_organization.purchases.find(params[:id])
-    current_index = ORDER_STATUS_SEQUENCE.index(purchase.status) || 0
-    next_status = ORDER_STATUS_SEQUENCE[current_index + 1]
+
+    # Row-lock the purchase and re-read its status inside the transaction so two
+    # concurrent "advance" requests can't both read the same status, both write
+    # "received", and both credit stock twice. The second writer blocks on the
+    # lock, then re-evaluates the (now-advanced) status and either advances one
+    # more step or reports "already received".
+    next_status = nil
+    skipped = []
+    purchase.with_lock do
+      current_index = ORDER_STATUS_SEQUENCE.index(purchase.status) || 0
+      next_status = ORDER_STATUS_SEQUENCE[current_index + 1]
+      break unless next_status
+
+      purchase.update!(status: next_status)
+      skipped = receive_stock(purchase) if next_status == "received"
+    end
 
     unless next_status
       redirect_to alerts_path, alert: "This order has already been received."
       return
     end
 
-    purchase.update!(status: next_status)
-
-    if next_status == "received"
-      skipped = receive_stock(purchase)
-      if skipped.any?
-        redirect_to alerts_path,
-          notice: "Order #{purchase.reference} marked as received.",
-          alert: "No stock was recorded for #{skipped.to_sentence} — #{skipped.one? ? 'it has' : 'they have'} no storage location. Add a location and record the movement manually."
-        return
-      end
+    if skipped.any?
+      redirect_to alerts_path,
+        notice: "Order #{purchase.reference} marked as received.",
+        alert: "No stock was recorded for #{skipped.to_sentence} — #{skipped.one? ? 'it has' : 'they have'} no storage location. Add a location and record the movement manually."
+      return
     end
 
     redirect_to alerts_path, notice: "Order #{purchase.reference} marked as #{next_status}."
