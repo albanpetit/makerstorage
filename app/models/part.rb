@@ -37,7 +37,7 @@ class Part < ApplicationRecord
   validates :name, presence: true, length: { minimum: 2, maximum: 255 }
   validates :mpn, uniqueness: { scope: :organization_id, case_sensitive: false }, allow_blank: true
   validates :sku, uniqueness: { scope: :organization_id, case_sensitive: false }, allow_blank: true
-  validates :barcode, uniqueness: true, allow_blank: true
+  validates :barcode, uniqueness: { scope: :organization_id, case_sensitive: false }, allow_blank: true
   validates :ipn, uniqueness: { scope: :organization_id, case_sensitive: false }, allow_blank: true
   validates :status, presence: true, inclusion: { in: STATUSES }
   validates :unit, presence: true, inclusion: { in: UNITS }

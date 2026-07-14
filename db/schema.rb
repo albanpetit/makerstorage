@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_14_120000) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_14_150000) do
   create_table "active_storage_attachments", force: :cascade do |t|
     t.bigint "blob_id", null: false
     t.datetime "created_at", null: false
@@ -182,11 +182,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_14_120000) do
     t.datetime "updated_at", null: false
     t.string "value"
     t.string "voltage_rating"
-    t.index ["barcode"], name: "index_parts_on_barcode", unique: true, where: "barcode IS NOT NULL"
     t.index ["category_id"], name: "index_parts_on_category_id"
     t.index ["footprint_id"], name: "index_parts_on_footprint_id"
     t.index ["manufacturer"], name: "index_parts_on_manufacturer"
     t.index ["name"], name: "index_parts_on_name"
+    t.index ["organization_id", "barcode"], name: "index_parts_on_organization_id_and_barcode", unique: true, where: "barcode IS NOT NULL"
     t.index ["organization_id", "ipn"], name: "index_parts_on_organization_id_and_ipn", unique: true, where: "ipn IS NOT NULL"
     t.index ["organization_id", "mpn"], name: "index_parts_on_organization_id_and_mpn", unique: true, where: "mpn IS NOT NULL"
     t.index ["organization_id", "sku"], name: "index_parts_on_organization_id_and_sku", unique: true, where: "sku IS NOT NULL"
