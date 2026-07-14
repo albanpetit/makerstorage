@@ -91,7 +91,7 @@ class ScansController < ApplicationController
       reference: part.reference,
       name: part.name,
       category: part.category ? { name: part.category.name, color: part.category.color } : nil,
-      total_quantity: part.total_quantity,
+      total_quantity: storages.sum(&:quantity),
       stock_status: part.stock_status,
       locations: locations
     }
