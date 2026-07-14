@@ -41,6 +41,9 @@ class Part < ApplicationRecord
   validates :min_stock_threshold, numericality: { greater_than_or_equal_to: 0 }
   validates :target_stock, numericality: { greater_than: 0 }, allow_nil: true
   validates :lead_time_days, numericality: { greater_than_or_equal_to: 0 }, allow_nil: true
+  # Hotlinked supplier image (e.g. Mouser, whose CDN blocks server-side download);
+  # rendered directly in an <img>, so only allow http(s) URLs.
+  validates :image_source_url, format: { with: %r{\Ahttps?://[^\s]+\z}i }, allow_blank: true
   validate :category_must_belong_to_same_organization
   validate :footprint_must_belong_to_same_organization
 

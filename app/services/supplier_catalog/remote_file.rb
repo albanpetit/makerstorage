@@ -19,6 +19,21 @@ module SupplierCatalog
     OPEN_TIMEOUT = 5
     READ_TIMEOUT = 15
 
+    # Mouser's assets sit behind Akamai bot protection that 403s (or silently
+    # stalls into a read timeout) any request that doesn't look like a real
+    # browser — a plain "User-Agent" is not enough, it also inspects Accept /
+    # Accept-Language. Send a realistic browser header set so downloads succeed.
+    #
+    # Deliberately no Accept-Encoding: Net::HTTP only auto-decompresses gzip when
+    # it sets that header itself. Setting it here would hand back raw gzip bytes
+    # and corrupt every attachment.
+    BROWSER_HEADERS = {
+      "User-Agent" => "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " \
+                      "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      "Accept" => "text/html,application/pdf,image/avif,image/webp,image/png,image/*,*/*;q=0.8",
+      "Accept-Language" => "en-US,en;q=0.9"
+    }.freeze
+
     Download = Struct.new(:io, :filename, :content_type, keyword_init: true)
 
     module_function
@@ -93,7 +108,7 @@ module SupplierCatalog
       http.open_timeout = OPEN_TIMEOUT
       http.read_timeout = READ_TIMEOUT
 
-      response = http.get(uri.request_uri, "Accept" => "*/*")
+      response = http.get(uri.request_uri, BROWSER_HEADERS)
 
       case response
       when Net::HTTPSuccess

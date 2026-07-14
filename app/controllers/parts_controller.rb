@@ -68,10 +68,11 @@ class PartsController < ApplicationController
 
   def create
     part = current_organization.parts.build(part_params)
+    part.image_source_url = params[:image_url].presence
 
     if part.save
       assign_initial_stock(part)
-      attach_remote_assets(part)
+      attach_remote_datasheet(part)
       redirect_to parts_path, notice: "Part created successfully."
     else
       # No flash alert here: the add-part modal renders these errors inline, and
@@ -96,8 +97,13 @@ class PartsController < ApplicationController
   end
 
   def update
-    if @part.update(part_params)
-      attach_remote_assets(@part)
+    @part.assign_attributes(part_params)
+    # Only from a fresh catalog lookup; a plain edit doesn't send it, so an
+    # existing hotlinked image is preserved.
+    @part.image_source_url = params[:image_url].presence if params[:image_url].present?
+
+    if @part.save
+      attach_remote_datasheet(@part)
       # Return to wherever the edit was launched (list, detail, or the standalone
       # edit page) so the modal flow stays put instead of navigating away.
       redirect_back_or_to edit_part_path(@part), notice: "Part updated successfully."
@@ -238,16 +244,19 @@ class PartsController < ApplicationController
     )
   end
 
-  # Enqueues download+attach of a supplier-provided datasheet/image when the
-  # add-part form was prefilled from a catalog lookup. Runs in a background job
-  # so a slow/unreachable supplier host never stalls the request; RemoteFile
-  # guards against SSRF and treats any failure as a no-op.
-  def attach_remote_assets(part)
+  # Downloads+attaches the supplier datasheet when the add-part form was
+  # prefilled from a catalog lookup. Runs in a background job so a slow or
+  # unreachable host never stalls the request; RemoteFile guards against SSRF
+  # and treats any failure as a no-op.
+  #
+  # The catalog image is NOT downloaded here: Mouser's image CDN sits behind
+  # Akamai bot protection that serves an "Access Denied" page to any server-side
+  # client. Instead we persist the source URL (see create/update) and hotlink it
+  # from the browser, which is far more likely to be allowed. A manually uploaded
+  # image takes precedence over the hotlink (see #part_thumbnail_url).
+  def attach_remote_datasheet(part)
     datasheet_url = params[:datasheet_url].presence
-    image_url = params[:image_url].presence
-    return if datasheet_url.blank? && image_url.blank?
-
-    AttachRemotePartAssetsJob.perform_later(part, datasheet_url: datasheet_url, image_url: image_url)
+    AttachRemotePartAssetsJob.perform_later(part, datasheet_url: datasheet_url) if datasheet_url
   end
 
   def set_part
@@ -261,6 +270,7 @@ class PartsController < ApplicationController
       :category_id, :footprint_id,
       :unit_price, :min_stock_threshold, :target_stock,
       :status, :rohs_compliant, :storage_notes,
+      images: [],
       tag_ids: [],
       part_suppliers_attributes: [
         :id, :supplier_id, :supplier_sku, :unit_price, :lead_time_days,
@@ -269,16 +279,21 @@ class PartsController < ApplicationController
     )
   end
 
-  # Lazily-resolved URL for a small thumbnail of the part's first image, if any.
-  # The variant is generated on first request by Active Storage's representations
-  # controller, so building the URL here stays cheap even across the full list.
+  # URL for the part's thumbnail in the list. A manually uploaded image wins
+  # (local, reliable); otherwise fall back to the hotlinked supplier image URL,
+  # which the browser loads directly. Returns nil when there's neither, so the
+  # row shows the placeholder icon.
+  #
+  # For an uploaded image we serve the original blob (sized down by the browser)
+  # rather than a resized variant: variants need an image processor
+  # (libvips/ImageMagick) that isn't guaranteed to be installed, and a missing
+  # processor turns every thumbnail into a broken image.
   def part_thumbnail_url(part)
-    return nil unless part.images.attached?
-
-    image = part.images.first
-    return nil unless image.variable?
-
-    rails_representation_path(image.representation(resize_to_limit: [ 96, 96 ]))
+    if part.images.attached? && part.images.first.content_type.to_s.start_with?("image/")
+      rails_blob_path(part.images.first)
+    else
+      part.image_source_url.presence
+    end
   end
 
   def serialize_part(part)

@@ -33,4 +33,35 @@ class SupplierCatalog::RemoteFileTest < ActiveSupport::TestCase
   test "safe_uri accepts a public https URL" do
     refute_nil RemoteFile.safe_uri("https://8.8.8.8/datasheet.pdf")
   end
+
+  test "download sends browser headers so supplier CDNs don't block the request" do
+    captured_headers = nil
+    response = Net::HTTPOK.new("1.1", "200", "OK")
+    response["Content-Type"] = "image/png"
+    response.define_singleton_method(:body) { "PNG-image-bytes" }
+
+    fake_http = Object.new
+    fake_http.define_singleton_method(:use_ssl=) { |_| }
+    fake_http.define_singleton_method(:open_timeout=) { |_| }
+    fake_http.define_singleton_method(:read_timeout=) { |_| }
+    fake_http.define_singleton_method(:get) do |_request_uri, headers|
+      captured_headers = headers
+      response
+    end
+
+    # A literal public IP avoids any DNS/network access during the test.
+    stub_singleton(Net::HTTP, :new, ->(*) { fake_http }) do
+      result = RemoteFile.download("https://8.8.8.8/image.png")
+      assert result, "expected a successful download"
+      assert_equal "image/png", result.content_type
+    end
+
+    # A browser-like User-Agent plus Accept/Accept-Language is what gets past
+    # Akamai bot protection; and we must not set Accept-Encoding ourselves or
+    # Net::HTTP hands back undecoded gzip bytes.
+    assert_match(/Mozilla/, captured_headers["User-Agent"])
+    assert captured_headers["Accept"].present?
+    assert captured_headers["Accept-Language"].present?
+    assert_nil captured_headers["Accept-Encoding"]
+  end
 end

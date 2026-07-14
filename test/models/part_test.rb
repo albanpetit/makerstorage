@@ -29,6 +29,20 @@ class PartTest < ActiveSupport::TestCase
     end
   end
 
+  test "image_source_url accepts blank and http(s) URLs but rejects other schemes" do
+    part = Part.new(organization: @org, category: @category, name: "Widget")
+
+    part.image_source_url = ""
+    assert part.valid?, "blank image_source_url should be allowed"
+
+    part.image_source_url = "https://www.mouser.com/img.png"
+    assert part.valid?, "https URL should be allowed"
+
+    part.image_source_url = "javascript:alert(1)"
+    assert_not part.valid?
+    assert_includes part.errors[:image_source_url], "is invalid"
+  end
+
   test "category must belong to the same organization" do
     other_org = create_organization
     other_category = create_category(organization: other_org)

@@ -42,6 +42,29 @@ import {
 
 const PAGE_SIZE = 20
 
+// Small square thumbnail for a part row. The URL may be a hotlinked supplier
+// image (e.g. Mouser) that the browser can't load — fall back to the icon on
+// error instead of showing a broken image.
+function PartThumbnail({ url }: { url: string | null }) {
+  const [failed, setFailed] = useState(false)
+
+  return (
+    <div className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-muted">
+      {url && !failed ? (
+        <img
+          src={url}
+          alt=""
+          loading="lazy"
+          onError={() => setFailed(true)}
+          className="size-full object-cover"
+        />
+      ) : (
+        <Package className="size-4 text-muted-foreground" />
+      )}
+    </div>
+  )
+}
+
 interface Part {
   id: number
   name: string
@@ -785,18 +808,7 @@ export default function PartsIndex({ parts, initial_query, categories, footprint
                       </TableCell>
                       <TableCell className="py-2.5">
                         <div className="flex items-center gap-3">
-                          <div className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-muted">
-                            {part.thumbnail_url ? (
-                              <img
-                                src={part.thumbnail_url}
-                                alt=""
-                                loading="lazy"
-                                className="size-full object-cover"
-                              />
-                            ) : (
-                              <Package className="size-4 text-muted-foreground" />
-                            )}
-                          </div>
+                          <PartThumbnail url={part.thumbnail_url} />
                           <div className="min-w-0">
                             <Link
                               href={`/parts/${part.id}`}

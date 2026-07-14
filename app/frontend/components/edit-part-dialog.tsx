@@ -1,6 +1,6 @@
 import { useForm } from '@inertiajs/react'
-import { FormEvent, ReactNode, useEffect, useState } from 'react'
-import { ChevronRight, CircleAlert, Loader2, Plus, Trash2, Star } from 'lucide-react'
+import { FormEvent, ReactNode, useEffect, useMemo, useState } from 'react'
+import { ChevronRight, CircleAlert, ImagePlus, Loader2, Plus, Trash2, Star, X } from 'lucide-react'
 
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -97,6 +97,7 @@ interface FullPart {
   footprint_id: number | null
   tag_ids: number[]
   part_suppliers: PartSupplier[]
+  thumbnail_url: string | null
 }
 
 // A supplier row while editing. Existing links carry their `id` (so the server
@@ -227,6 +228,7 @@ const EMPTY_PART = toFormPart({
   footprint_id: null,
   tag_ids: [],
   part_suppliers: [],
+  thumbnail_url: null,
 })
 
 export function EditPartDialog({
@@ -255,6 +257,20 @@ export function EditPartDialog({
     datasheet_url: null,
     image_url: null,
   })
+
+  // Manual image upload. A picked file overrides any supplier image; otherwise
+  // the preview shows a freshly looked-up supplier image, then the part's
+  // current image.
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [currentImageUrl, setCurrentImageUrl] = useState<string | null>(null)
+  const imagePreview = useMemo(
+    () => (imageFile ? URL.createObjectURL(imageFile) : attach.image_url || currentImageUrl),
+    [imageFile, attach.image_url, currentImageUrl],
+  )
+  useEffect(() => {
+    if (!imageFile) return
+    return () => URL.revokeObjectURL(imagePreview as string)
+  }, [imageFile, imagePreview])
 
   const form = useForm({ part: { ...EMPTY_PART } })
   const { data, setData, errors } = form
@@ -288,6 +304,7 @@ export function EditPartDialog({
         if (cancelled) return
         const part = body.part
         setData('part', toFormPart(part))
+        setCurrentImageUrl(part.thumbnail_url)
         setPendingSuppliers(
           part.part_suppliers.map((ps) => ({
             tempId: crypto.randomUUID(),
@@ -323,6 +340,7 @@ export function EditPartDialog({
     image_url: attach.image_url,
     part: {
       ...payload.part,
+      ...(imageFile ? { images: [imageFile] } : {}),
       part_suppliers_attributes: [
         ...pendingSuppliers.map((ps) => ({
           id: ps.id,
@@ -349,6 +367,8 @@ export function EditPartDialog({
     setDetailsOpen(false)
     setSuppliersOpen(false)
     setAttach({ datasheet_url: null, image_url: null })
+    setImageFile(null)
+    setCurrentImageUrl(null)
     setLoadError('')
   }
 
@@ -539,6 +559,49 @@ export function EditPartDialog({
                     />
                   </FieldContent>
                   {errors['part.category_id'] && <FieldError>{errors['part.category_id']}</FieldError>}
+                </Field>
+                <Field className="col-span-2 @2xl:col-span-4">
+                  <FieldLabel>
+                    <Label>Image</Label>
+                  </FieldLabel>
+                  <FieldContent>
+                    <div className="flex items-center gap-3">
+                      <div className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-muted">
+                        {imagePreview ? (
+                          <img src={imagePreview} alt="" className="size-full object-cover" />
+                        ) : (
+                          <ImagePlus className="size-5 text-muted-foreground" />
+                        )}
+                      </div>
+                      <div className="flex min-w-0 flex-col gap-1.5">
+                        <Input
+                          key={imageFile ? 'file' : 'empty'}
+                          type="file"
+                          accept="image/*"
+                          className="cursor-pointer"
+                          onChange={(e) => setImageFile(e.target.files?.[0] ?? null)}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          {imageFile
+                            ? 'Your uploaded image will replace the current one.'
+                            : attach.image_url
+                              ? 'Using the supplier image — upload a file to override it.'
+                              : 'Upload a file to replace the current image.'}
+                        </p>
+                      </div>
+                      {imageFile && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setImageFile(null)}
+                          aria-label="Remove image"
+                        >
+                          <X className="size-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </FieldContent>
                 </Field>
                 <Field>
                   <FieldLabel>
