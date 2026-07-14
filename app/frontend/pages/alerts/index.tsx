@@ -1,4 +1,4 @@
-import { Head, Link, router } from '@inertiajs/react'
+import { Head, router } from '@inertiajs/react'
 import { useMemo, useState } from 'react'
 import { AlertTriangle, CheckCircle2, FileText, Printer } from 'lucide-react'
 
@@ -6,6 +6,7 @@ import { AppLayout } from '@/layouts/app-layout'
 import { usePermissions } from '@/hooks/use-permissions'
 import { PageHeader } from '@/components/page-header'
 import { FlashMessages } from '@/components/flash-messages'
+import { PartDetailSheet } from '@/components/part-detail-sheet'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
@@ -70,6 +71,7 @@ export default function AlertsIndex({ alerts, orders }: AlertsPageProps) {
   const { canWrite } = usePermissions()
   const [filter, setFilter] = useState<'all' | Alert['severity']>('all')
   const [poOpen, setPoOpen] = useState(false)
+  const [detailPartId, setDetailPartId] = useState<number | null>(null)
 
   const filtered = useMemo(() => {
     if (filter === 'all') return alerts
@@ -251,8 +253,8 @@ export default function AlertsIndex({ alerts, orders }: AlertsPageProps) {
                   <div className="text-xs text-muted-foreground">Suggested reorder</div>
                   <div className="font-mono text-base font-bold text-emerald-600 dark:text-emerald-400">+{alert.reorder_quantity}</div>
                 </div>
-                <Button variant="outline" size="sm" asChild>
-                  <Link href={`/parts/${alert.id}`}>View</Link>
+                <Button variant="outline" size="sm" onClick={() => setDetailPartId(alert.id)}>
+                  View
                 </Button>
                 {canWrite && (
                   <Button
@@ -364,6 +366,13 @@ export default function AlertsIndex({ alerts, orders }: AlertsPageProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Part detail sidebar */}
+      <PartDetailSheet
+        partId={detailPartId}
+        open={detailPartId !== null}
+        onOpenChange={(open) => !open && setDetailPartId(null)}
+      />
     </AppLayout>
   )
 }

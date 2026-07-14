@@ -1,4 +1,4 @@
-import { Head, Link } from '@inertiajs/react'
+import { Head } from '@inertiajs/react'
 import { useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import {
@@ -16,6 +16,7 @@ import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
 import { AddPartDialog } from '@/components/add-part-dialog'
 import { EditPartDialog } from '@/components/edit-part-dialog'
+import { PartDetailSheet } from '@/components/part-detail-sheet'
 import {
   Dialog,
   DialogContent,
@@ -341,6 +342,7 @@ export default function PartsIndex({ parts, initial_query, categories, footprint
   const openAddDialog = () => setAddOpen(true)
 
   const [editPartId, setEditPartId] = useState<number | null>(null)
+  const [detailPartId, setDetailPartId] = useState<number | null>(null)
 
   const categoryChips = useMemo(() => {
     const counts = new Map<number, { name: string; count: number }>()
@@ -814,13 +816,14 @@ export default function PartsIndex({ parts, initial_query, categories, footprint
                         <div className="flex items-center gap-3">
                           <PartThumbnail url={part.thumbnail_url} />
                           <div className="min-w-0">
-                            <Link
-                              href={`/parts/${part.id}`}
+                            <button
+                              type="button"
+                              onClick={() => setDetailPartId(part.id)}
                               title={part.mpn || part.sku || part.name}
-                              className="block max-w-[240px] truncate font-mono text-sm font-semibold hover:underline"
+                              className="block max-w-[240px] truncate text-left font-mono text-sm font-semibold hover:underline"
                             >
                               {part.mpn || part.sku || part.name}
-                            </Link>
+                            </button>
                             <div className="max-w-[240px] truncate text-xs text-muted-foreground" title={part.name}>
                               {part.name}
                             </div>
@@ -932,6 +935,13 @@ export default function PartsIndex({ parts, initial_query, categories, footprint
         tags={tags}
         supplierLookupEnabled={supplier_lookup_enabled}
         ipnManualEntry={ipn_manual_entry}
+      />
+
+      {/* Part detail sidebar */}
+      <PartDetailSheet
+        partId={detailPartId}
+        open={detailPartId !== null}
+        onOpenChange={(open) => !open && setDetailPartId(null)}
       />
 
       {/* CSV Import modal */}

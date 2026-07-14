@@ -30,24 +30,33 @@ class PartsController < ApplicationController
   end
 
   def show
-    movements = @part.stock_movements
-      .includes(:storage_location, :user)
-      .order(created_at: :desc)
-      .limit(10)
+    # The part detail lives in the sidebar (opened from the inventory list and
+    # other pages), which fetches this action as JSON. The payload carries both
+    # the part detail and the option lists its embedded edit modal needs.
+    respond_to do |format|
+      format.json do
+        movements = @part.stock_movements
+          .includes(:storage_location, :user)
+          .order(created_at: :desc)
+          .limit(10)
 
-    render inertia: "parts/show", props: {
-      part: serialize_part_full(@part),
-      storages: @part.part_storages.includes(:storage_location).map { |ps| serialize_part_storage(ps) },
-      movements: movements.map { |movement| serialize_part_movement(movement) },
-      storage_locations: serialize_storage_locations,
-      # Options for the edit-part modal launched from this page.
-      categories: serialize_categories,
-      footprints: serialize_footprints,
-      suppliers: serialize_suppliers,
-      tags: serialize_tags,
-      supplier_lookup_enabled: current_organization.supplier_lookup_configured?,
-      ipn_manual_entry: current_organization.ipn_generation_mode == "manual"
-    }
+        render json: {
+          part: serialize_part_full(@part),
+          storages: @part.part_storages.includes(:storage_location).map { |ps| serialize_part_storage(ps) },
+          movements: movements.map { |movement| serialize_part_movement(movement) },
+          storage_locations: serialize_storage_locations,
+          categories: serialize_categories,
+          footprints: serialize_footprints,
+          suppliers: serialize_suppliers,
+          tags: serialize_tags,
+          supplier_lookup_enabled: current_organization.supplier_lookup_configured?,
+          ipn_manual_entry: current_organization.ipn_generation_mode == "manual"
+        }
+      end
+      # There's no standalone detail page anymore; send a direct visit or stale
+      # bookmark to the inventory list, where the sidebar opens instead.
+      format.html { redirect_to parts_path }
+    end
   end
 
   def edit
@@ -121,7 +130,7 @@ class PartsController < ApplicationController
     if @part.destroy
       redirect_to parts_path, notice: "Part deleted successfully."
     else
-      redirect_back_or_to part_path(@part), alert: @part.errors.full_messages.to_sentence
+      redirect_back_or_to parts_path, alert: @part.errors.full_messages.to_sentence
     end
   end
 

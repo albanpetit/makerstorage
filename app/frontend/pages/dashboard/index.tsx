@@ -1,10 +1,12 @@
 import { Head, Link } from '@inertiajs/react'
+import { useState } from 'react'
 import { Package, Boxes, Coins, AlertTriangle, Plus } from 'lucide-react'
 
 import { AppLayout } from '@/layouts/app-layout'
 import { usePermissions } from '@/hooks/use-permissions'
 import { PageHeader } from '@/components/page-header'
 import { GlobalSearch } from '@/components/global-search'
+import { PartDetailSheet } from '@/components/part-detail-sheet'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -84,6 +86,7 @@ function formatDate(iso: string) {
 
 export default function Dashboard({ stats, category_breakdown, low_stock_parts, recent_movements }: DashboardProps) {
   const { canWrite } = usePermissions()
+  const [detailPartId, setDetailPartId] = useState<number | null>(null)
   const statCards = [
     { label: 'References', value: stats.references_count.toLocaleString(), icon: Package },
     { label: 'Units in stock', value: stats.total_units.toLocaleString(), icon: Boxes },
@@ -152,9 +155,13 @@ export default function Dashboard({ stats, category_breakdown, low_stock_parts, 
                     {low_stock_parts.map((part) => (
                       <TableRow key={part.id}>
                         <TableCell>
-                          <Link href={`/parts/${part.id}`} className="font-mono text-sm font-semibold hover:underline">
+                          <button
+                            type="button"
+                            onClick={() => setDetailPartId(part.id)}
+                            className="text-left font-mono text-sm font-semibold hover:underline"
+                          >
                             {part.reference}
-                          </Link>
+                          </button>
                           <div className="text-xs text-muted-foreground">{part.name}</div>
                         </TableCell>
                         <TableCell className="font-mono text-sm text-muted-foreground">
@@ -238,9 +245,13 @@ export default function Dashboard({ stats, category_breakdown, low_stock_parts, 
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <Link href={`/parts/${movement.part_id}`} className="font-mono text-sm font-semibold hover:underline">
+                        <button
+                          type="button"
+                          onClick={() => setDetailPartId(movement.part_id)}
+                          className="text-left font-mono text-sm font-semibold hover:underline"
+                        >
                           {movement.reference}
-                        </Link>
+                        </button>
                         <div className="text-xs text-muted-foreground">{movement.location_name}</div>
                       </TableCell>
                       <TableCell className="max-w-[220px] truncate text-sm text-muted-foreground">
@@ -274,6 +285,13 @@ export default function Dashboard({ stats, category_breakdown, low_stock_parts, 
           </Card>
         )}
       </div>
+
+      {/* Part detail sidebar */}
+      <PartDetailSheet
+        partId={detailPartId}
+        open={detailPartId !== null}
+        onOpenChange={(open) => !open && setDetailPartId(null)}
+      />
     </AppLayout>
   )
 }
