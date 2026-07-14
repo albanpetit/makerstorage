@@ -10,6 +10,14 @@ class UserTest < ActiveSupport::TestCase
     assert user.owner_of?(org)
   end
 
+  test "personal_organization resolves by the personal flag even after a rename" do
+    user = create_user(firstname: "Grace", lastname: "Hopper")
+    org = user.organizations.first
+    org.update!(name: "Renamed Space")
+
+    assert_equal org, user.personal_organization
+  end
+
   test "writer_of? is true for owner, admin, and member roles" do
     %w[owner admin member].each do |role|
       user = create_user(email: "#{role}_#{SecureRandom.hex(4)}@example.com")
