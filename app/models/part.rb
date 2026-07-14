@@ -83,10 +83,17 @@ class Part < ApplicationRecord
       .having("COALESCE(SUM(part_storages.quantity), 0) >= parts.min_stock_threshold")
   }
 
-  # Extended search
+  # Extended search. Escape LIKE wildcards (%, _, \) in the user's query so they
+  # match literally rather than acting as wildcards, and declare the escape char.
   scope :search, ->(query) {
-    where("parts.name LIKE ? OR parts.mpn LIKE ? OR parts.description LIKE ? OR parts.sku LIKE ? OR parts.manufacturer LIKE ? OR parts.value LIKE ? OR parts.barcode LIKE ?",
-          "%#{query}%", "%#{query}%", "%#{query}%", "%#{query}%", "%#{query}%", "%#{query}%", "%#{query}%")
+    q = "%#{sanitize_sql_like(query)}%"
+    where(
+      "parts.name LIKE :q ESCAPE '\\' OR parts.mpn LIKE :q ESCAPE '\\' OR " \
+      "parts.description LIKE :q ESCAPE '\\' OR parts.sku LIKE :q ESCAPE '\\' OR " \
+      "parts.manufacturer LIKE :q ESCAPE '\\' OR parts.value LIKE :q ESCAPE '\\' OR " \
+      "parts.barcode LIKE :q ESCAPE '\\'",
+      q: q
+    )
   }
 
   scope :alphabetical, -> { order(:name) }

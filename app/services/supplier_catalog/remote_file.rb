@@ -35,6 +35,9 @@ module SupplierCatalog
     }.freeze
 
     Download = Struct.new(:io, :filename, :content_type, keyword_init: true)
+    # Result of a successful fetch: the response (for headers), the already-read
+    # body (streamed under the size cap), and the final URI after redirects.
+    Fetched = Struct.new(:response, :body, :uri, keyword_init: true)
 
     module_function
 
@@ -43,16 +46,16 @@ module SupplierCatalog
       uri = safe_uri(url)
       return nil unless uri
 
-      response = fetch(uri, max_bytes: max_bytes)
-      return nil unless response
+      result = fetch(uri, max_bytes: max_bytes)
+      return nil unless result
 
-      body = response.body.to_s
-      return nil if body.empty? || body.bytesize > max_bytes
+      body = result.body
+      return nil if body.empty?
 
       Download.new(
         io: StringIO.new(body),
-        filename: filename_for(uri, response, default_filename),
-        content_type: response["Content-Type"].to_s.split(";").first.presence
+        filename: filename_for(result.uri, result.response, default_filename),
+        content_type: result.response["Content-Type"].to_s.split(";").first.presence
       )
     rescue StandardError => e
       Rails.logger.warn("[SupplierCatalog::RemoteFile] failed to download #{url}: #{e.class}: #{e.message}")
@@ -72,12 +75,21 @@ module SupplierCatalog
 
     # True only when every resolved address for +host+ is publicly routable.
     def public_host?(host)
-      addresses = resolve(host)
-      return false if addresses.empty?
+      validated_ip(host).present?
+    end
 
-      addresses.all? { |ip| public_ip?(ip) }
+    # Resolves +host+ and returns a single validated public IP to connect to, or
+    # nil if any resolved address is non-public. The returned IP is what we pin
+    # the socket to (see #fetch) so the connection can't be re-resolved to an
+    # internal address after the check — the DNS-rebinding TOCTOU window.
+    def validated_ip(host)
+      addresses = resolve(host)
+      return nil if addresses.empty?
+      return nil unless addresses.all? { |ip| public_ip?(ip) }
+
+      addresses.first
     rescue Resolv::ResolvError, IPAddr::InvalidAddressError
-      false
+      nil
     end
 
     def resolve(host)
@@ -103,25 +115,53 @@ module SupplierCatalog
     end
 
     def fetch(uri, max_bytes:, redirects_left: MAX_REDIRECTS)
+      # Re-resolve and re-validate on every hop, then pin the socket to the exact
+      # IP we validated. Net::HTTP would otherwise resolve uri.host again when it
+      # opens the connection, so a host that passes the public-IP check could
+      # rebind to an internal address before connect. `ipaddr=` connects to the
+      # pinned IP while still sending the hostname for SNI/cert verification.
+      ip = validated_ip(uri.host)
+      return nil unless ip
+
       http = Net::HTTP.new(uri.host, uri.port)
+      http.ipaddr = ip
       http.use_ssl = uri.scheme == "https"
       http.open_timeout = OPEN_TIMEOUT
       http.read_timeout = READ_TIMEOUT
 
-      response = http.get(uri.request_uri, BROWSER_HEADERS)
+      http.start do
+        http.request_get(uri.request_uri, BROWSER_HEADERS) do |response|
+          case response
+          when Net::HTTPSuccess
+            body = read_capped_body(response, max_bytes)
+            return nil if body.nil?
 
-      case response
-      when Net::HTTPSuccess
-        response
-      when Net::HTTPRedirection
-        return nil if redirects_left <= 0
+            return Fetched.new(response: response, body: body, uri: uri)
+          when Net::HTTPRedirection
+            return nil if redirects_left <= 0
 
-        location = response["Location"]
-        target = safe_uri(URI.join(uri.to_s, location.to_s).to_s)
-        return nil unless target
+            location = response["Location"]
+            target = safe_uri(URI.join(uri.to_s, location.to_s).to_s)
+            return nil unless target
 
-        fetch(target, max_bytes: max_bytes, redirects_left: redirects_left - 1)
+            return fetch(target, max_bytes: max_bytes, redirects_left: redirects_left - 1)
+          else
+            return nil
+          end
+        end
       end
+    end
+
+    # Streams the response body chunk by chunk, aborting (returns nil) as soon as
+    # it exceeds +max_bytes+ so an oversized/endless response can't be buffered
+    # whole into memory.
+    def read_capped_body(response, max_bytes)
+      body = +""
+      response.read_body do |chunk|
+        body << chunk
+        return nil if body.bytesize > max_bytes
+      end
+      body
     end
 
     def filename_for(uri, response, default_filename)

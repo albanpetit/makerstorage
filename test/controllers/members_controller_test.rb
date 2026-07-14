@@ -181,6 +181,94 @@ class MembersControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to root_path
   end
 
+  test "admin cannot invite a new owner" do
+    owner = create_user
+    org = owner.organizations.first
+    admin = create_user(email: "admin@example.com")
+    OrganizationMembership.create!(organization: org, user: admin, role: "admin")
+    create_user(email: "invitee@example.com")
+
+    sign_in admin
+    assert_no_difference "OrganizationMembership.count" do
+      post members_path, params: { member: { email: "invitee@example.com", role: "owner" } }
+    end
+
+    assert_redirected_to members_path
+    follow_redirect!
+    assert_match(/Only an owner/, flash[:alert])
+  end
+
+  test "admin cannot promote a member to owner" do
+    owner = create_user
+    org = owner.organizations.first
+    admin = create_user(email: "admin@example.com")
+    OrganizationMembership.create!(organization: org, user: admin, role: "admin")
+    teammate = create_user(email: "teammate@example.com")
+    membership = OrganizationMembership.create!(organization: org, user: teammate, role: "member")
+
+    sign_in admin
+    patch member_path(membership), params: { member: { role: "owner" } }
+
+    assert_redirected_to members_path
+    assert_equal "member", membership.reload.role
+  end
+
+  test "admin cannot escalate itself to owner" do
+    owner = create_user
+    org = owner.organizations.first
+    admin = create_user(email: "admin@example.com")
+    membership = OrganizationMembership.create!(organization: org, user: admin, role: "admin")
+
+    sign_in admin
+    patch member_path(membership), params: { member: { role: "owner" } }
+
+    assert_redirected_to members_path
+    assert_equal "admin", membership.reload.role
+  end
+
+  test "admin cannot demote an existing owner" do
+    owner = create_user
+    org = owner.organizations.first
+    admin = create_user(email: "admin@example.com")
+    OrganizationMembership.create!(organization: org, user: admin, role: "admin")
+    second_owner = create_user(email: "owner2@example.com")
+    membership = OrganizationMembership.create!(organization: org, user: second_owner, role: "owner")
+
+    sign_in admin
+    patch member_path(membership), params: { member: { role: "admin" } }
+
+    assert_redirected_to members_path
+    assert_equal "owner", membership.reload.role
+  end
+
+  test "owner can invite a new owner" do
+    owner = create_user
+    org = owner.organizations.first
+    create_user(email: "invitee@example.com")
+
+    sign_in owner
+    assert_difference -> { OrganizationMembership.count } => 1 do
+      post members_path, params: { member: { email: "invitee@example.com", role: "owner" } }
+    end
+
+    assert_redirected_to members_path
+    invitee_membership = org.organization_memberships.find_by(user: User.find_by(email: "invitee@example.com"))
+    assert_equal "owner", invitee_membership.role
+  end
+
+  test "owner can promote a member to owner" do
+    owner = create_user
+    org = owner.organizations.first
+    teammate = create_user(email: "teammate@example.com")
+    membership = OrganizationMembership.create!(organization: org, user: teammate, role: "member")
+
+    sign_in owner
+    patch member_path(membership), params: { member: { role: "owner" } }
+
+    assert_redirected_to members_path
+    assert_equal "owner", membership.reload.role
+  end
+
   private
 
   def inertia_props
