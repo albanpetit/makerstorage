@@ -197,11 +197,11 @@ class Organization < ApplicationRecord
   end
 
   def low_stock_parts_count
-    parts.low_stock.length
+    count_grouped(parts.low_stock)
   end
 
   def out_of_stock_parts_count
-    parts.out_of_stock.length
+    count_grouped(parts.out_of_stock)
   end
 
   def total_stock_value
@@ -221,6 +221,15 @@ class Organization < ApplicationRecord
   end
 
   private
+
+  # Counts the rows of a grouped/HAVING scope (e.g. `low_stock`, which groups by
+  # part and filters on summed quantity) without loading the matched Part records
+  # into memory. Wrapping the grouped query as a subquery lets the database
+  # answer with a single `COUNT(*)` instead of us materializing the set to size
+  # it — this runs on every authenticated Inertia render via `alerts_count`.
+  def count_grouped(relation)
+    Part.from(relation.select("parts.id"), :parts).count
+  end
 
   # Every org starts with a supplier for each external catalog provider so the
   # lookup-driven price auto-fill has a target to link (see SupplierCatalog and

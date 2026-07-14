@@ -320,11 +320,14 @@ class PartsController < ApplicationController
       package_type: part.package_type,
       status: part.status,
       thumbnail_url: part_thumbnail_url(part),
-      total_quantity: part.total_quantity,
+      # Compute from the preloaded associations (see index eager-loading) rather
+      # than `part.total_quantity`/`part.preferred_supplier`, which each fire a
+      # fresh query per part and turn the list into an N+1.
+      total_quantity: part.part_storages.to_a.sum(&:quantity),
       min_stock_threshold: part.min_stock_threshold,
       unit_price: part.unit_price&.to_f,
       location_names: part.storage_locations.map(&:name),
-      supplier_name: part.preferred_supplier&.name,
+      supplier_name: part.part_suppliers.find(&:is_preferred)&.supplier&.name,
       category: part.category ? { id: part.category.id, name: part.category.name, color: part.category.color } : nil,
       footprint: part.footprint ? { id: part.footprint.id, name: part.footprint.name } : nil
     }
@@ -411,8 +414,10 @@ class PartsController < ApplicationController
   end
 
   def serialize_storage_locations
-    current_organization.storage_locations.alphabetical.map do |location|
-      { id: location.id, name: location.full_path }
+    locations = current_organization.storage_locations.alphabetical
+    cache = StorageLocation.full_path_cache(current_organization.storage_locations)
+    locations.map do |location|
+      { id: location.id, name: location.full_path(cache: cache) }
     end
   end
 end

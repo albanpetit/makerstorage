@@ -71,15 +71,18 @@ class ScansController < ApplicationController
   end
 
   def serialize_part(part)
+    # Resolve every zone's full path from one preloaded org-wide map rather than
+    # walking the parent chain with a query per level (see #full_path).
+    path_cache = StorageLocation.full_path_cache(current_organization.storage_locations)
     storages = part.part_storages.includes(:storage_location).sort_by { |ps| -ps.quantity }
     locations = storages.map do |ps|
-      { id: ps.storage_location_id, name: ps.storage_location.full_path, quantity: ps.quantity }
+      { id: ps.storage_location_id, name: ps.storage_location.full_path(cache: path_cache), quantity: ps.quantity }
     end
     # A part that has never been stored can still receive stock: offer every
     # zone of the organization as a target for an inbound count.
     if locations.empty?
       locations = current_organization.storage_locations.alphabetical.map do |location|
-        { id: location.id, name: location.full_path, quantity: 0 }
+        { id: location.id, name: location.full_path(cache: path_cache), quantity: 0 }
       end
     end
 

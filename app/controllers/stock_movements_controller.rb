@@ -91,8 +91,10 @@ class StockMovementsController < ApplicationController
   end
 
   def serialize_storage_locations
-    current_organization.storage_locations.alphabetical.map do |location|
-      { id: location.id, name: location.full_path }
+    locations = current_organization.storage_locations.alphabetical
+    cache = StorageLocation.full_path_cache(current_organization.storage_locations)
+    locations.map do |location|
+      { id: location.id, name: location.full_path(cache: cache) }
     end
   end
 end
