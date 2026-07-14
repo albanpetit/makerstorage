@@ -23,7 +23,7 @@ class DashboardController < ApplicationController
   private
 
   def serialize_low_stock_parts
-    current_organization.parts.low_stock.includes(:storage_locations)
+    current_organization.parts.low_stock.includes(:part_storages, :storage_locations)
       .sort_by { |part| part.total_quantity.to_f / part.min_stock_threshold }
       .first(6)
       .map do |part|
