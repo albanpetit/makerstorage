@@ -38,7 +38,7 @@ class AlertsController < ApplicationController
         supplier: supplier,
         status: "pending",
         ordered_at: Date.current,
-        reference: "PO-#{Date.current.strftime('%Y%m%d')}-#{supplier.id}",
+        reference: Purchase.next_reference(current_organization, supplier),
         total_amount: total
       )
 
