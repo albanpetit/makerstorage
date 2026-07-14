@@ -88,6 +88,40 @@ class StockMovementTest < ActiveSupport::TestCase
     assert_includes movement.errors[:quantity_delta], "would result in negative stock at this location"
   end
 
+  # The apply step must enforce the non-negative guard atomically, not just the
+  # advisory validation. Simulate the concurrency race by bypassing validation
+  # (as if it had passed against stale stock a concurrent movement then consumed):
+  # the apply step must still refuse to drive the stored quantity negative.
+  test "apply step atomically refuses to overdraw even when validation is bypassed" do
+    PartStorage.create!(part: @part, storage_location: @location, quantity: 5)
+    movement = StockMovement.new(
+      organization: @org, part: @part, storage_location: @location,
+      movement_type: "out", quantity_delta: -10
+    )
+
+    assert_not movement.save(validate: false), "apply guard should abort the overdraw"
+    assert_includes movement.errors[:quantity_delta], "would result in negative stock at this location"
+    assert_not movement.persisted?, "the overdrawing movement must not be recorded"
+    assert_equal 5, PartStorage.find_by(part: @part, storage_location: @location).quantity,
+      "stored quantity must be untouched"
+  end
+
+  test "apply step still allows an overdraw when the organization permits negative stock" do
+    org = create_organization(allow_negative_stock: true)
+    category = create_category(organization: org)
+    part = create_part(organization: org, category: category)
+    location = create_storage_location(organization: org)
+    PartStorage.create!(part: part, storage_location: location, quantity: 5)
+
+    movement = StockMovement.new(
+      organization: org, part: part, storage_location: location,
+      movement_type: "out", quantity_delta: -10
+    )
+
+    assert movement.save
+    assert_equal(-5, PartStorage.find_by(part: part, storage_location: location).quantity)
+  end
+
   test "allows a negative result when the organization permits it" do
     org = create_organization(allow_negative_stock: true)
     category = create_category(organization: org)

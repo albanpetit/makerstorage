@@ -23,7 +23,7 @@ class StockMovement < ApplicationRecord
   scope :adjustments, -> { where(movement_type: "adjustment") }
 
   # Callbacks
-  after_create :apply_to_part_storage
+  before_create :apply_to_part_storage
 
   # Methods
   def in?
@@ -56,6 +56,9 @@ class StockMovement < ApplicationRecord
     end
   end
 
+  # Fast, friendly pre-check so `valid?` and the common overdraw case report the
+  # error up front. This read is advisory only — apply_to_part_storage does the
+  # authoritative, race-safe enforcement below.
   def resulting_quantity_cannot_be_negative
     return if quantity_delta.nil? || part.nil? || storage_location.nil? || organization&.allow_negative_stock
 
@@ -65,10 +68,23 @@ class StockMovement < ApplicationRecord
     end
   end
 
+  # Applies the delta to the PartStorage as a single atomic UPDATE, folding the
+  # negative-stock guard into the statement's WHERE clause. Because the check and
+  # the write are one statement, two concurrent "out" movements can't both read an
+  # acceptable quantity and then both decrement past zero — whichever executes
+  # second re-evaluates `quantity` and its guard matches no row. On overdraw the
+  # update affects no rows, so we abort the create (rolling back the transaction).
   def apply_to_part_storage
     part_storage = PartStorage.find_or_create_by!(part: part, storage_location: storage_location) do |ps|
       ps.quantity = 0
     end
-    part_storage.increment!(:quantity, quantity_delta)
+
+    scope = PartStorage.where(id: part_storage.id)
+    scope = scope.where("quantity + ? >= 0", quantity_delta) unless organization&.allow_negative_stock
+
+    if scope.update_all([ "quantity = quantity + ?", quantity_delta ]).zero?
+      errors.add(:quantity_delta, "would result in negative stock at this location")
+      throw(:abort)
+    end
   end
 end
