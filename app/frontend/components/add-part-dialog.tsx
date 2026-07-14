@@ -1,6 +1,6 @@
 import { useForm } from '@inertiajs/react'
-import { FormEvent, ReactNode, useEffect, useState } from 'react'
-import { ChevronRight, CircleAlert, Plus, Trash2, Star } from 'lucide-react'
+import { FormEvent, ReactNode, useEffect, useMemo, useState } from 'react'
+import { ChevronRight, CircleAlert, ImagePlus, Plus, Trash2, Star, X } from 'lucide-react'
 
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -187,6 +187,18 @@ export function AddPartDialog({
     image_url: null,
   })
 
+  // A user-picked image file overrides any supplier (hotlinked) image. Preview
+  // the local file if present, otherwise the supplier image URL.
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const imagePreview = useMemo(
+    () => (imageFile ? URL.createObjectURL(imageFile) : attach.image_url),
+    [imageFile, attach.image_url],
+  )
+  useEffect(() => {
+    if (!imageFile) return
+    return () => URL.revokeObjectURL(imagePreview as string)
+  }, [imageFile, imagePreview])
+
   const form = useForm({
     part: { ...EMPTY_PART },
     initial_location_id: '',
@@ -216,6 +228,7 @@ export function AddPartDialog({
     image_url: attach.image_url,
     part: {
       ...payload.part,
+      ...(imageFile ? { images: [imageFile] } : {}),
       part_suppliers_attributes: pendingSuppliers.map((ps) => ({
         supplier_id: ps.supplier_id,
         supplier_sku: ps.supplier_sku || null,
@@ -238,6 +251,7 @@ export function AddPartDialog({
     setDetailsOpen(false)
     setSuppliersOpen(false)
     setAttach({ datasheet_url: null, image_url: null })
+    setImageFile(null)
   }
 
   // Prefill the form from a chosen catalog match. Only overwrites fields the
@@ -411,6 +425,49 @@ export function AddPartDialog({
                   />
                 </FieldContent>
                 {errors['part.category_id'] && <FieldError>{errors['part.category_id']}</FieldError>}
+              </Field>
+              <Field className="col-span-2 @2xl:col-span-4">
+                <FieldLabel>
+                  <Label>Image</Label>
+                </FieldLabel>
+                <FieldContent>
+                  <div className="flex items-center gap-3">
+                    <div className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-muted">
+                      {imagePreview ? (
+                        <img src={imagePreview} alt="" className="size-full object-cover" />
+                      ) : (
+                        <ImagePlus className="size-5 text-muted-foreground" />
+                      )}
+                    </div>
+                    <div className="flex min-w-0 flex-col gap-1.5">
+                      <Input
+                        key={imageFile ? 'file' : 'empty'}
+                        type="file"
+                        accept="image/*"
+                        className="cursor-pointer"
+                        onChange={(e) => setImageFile(e.target.files?.[0] ?? null)}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        {imageFile
+                          ? 'Your uploaded image will be used.'
+                          : attach.image_url
+                            ? 'Using the supplier image — upload a file to override it.'
+                            : 'Optional. PNG or JPG.'}
+                      </p>
+                    </div>
+                    {imageFile && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setImageFile(null)}
+                        aria-label="Remove image"
+                      >
+                        <X className="size-4" />
+                      </Button>
+                    )}
+                  </div>
+                </FieldContent>
               </Field>
               <Field>
                 <FieldLabel>

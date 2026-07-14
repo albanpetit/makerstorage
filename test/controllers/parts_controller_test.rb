@@ -35,8 +35,18 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
     category = create_category(organization: org)
     with_image = create_part(organization: org, category: category, name: "With image")
     without_image = create_part(organization: org, category: category, name: "No image")
+    non_image = create_part(organization: org, category: category, name: "Non-image attachment")
+    hotlinked = create_part(
+      organization: org, category: category, name: "Hotlinked",
+      image_source_url: "https://www.mouser.com/img.png"
+    )
     with_image.images.attach(
       io: StringIO.new("fake-image-bytes"), filename: "part.png", content_type: "image/png"
+    )
+    # A non-image attachment (e.g. an HTML error page a supplier returned in
+    # place of an image) must not surface as a thumbnail.
+    non_image.images.attach(
+      io: StringIO.new("<html>not an image</html>"), filename: "oops.html", content_type: "text/html"
     )
 
     sign_in user
@@ -45,8 +55,20 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
 
     with_json = inertia_props["parts"].find { |p| p["id"] == with_image.id }
     without_json = inertia_props["parts"].find { |p| p["id"] == without_image.id }
+    non_image_json = inertia_props["parts"].find { |p| p["id"] == non_image.id }
+    hotlinked_json = inertia_props["parts"].find { |p| p["id"] == hotlinked.id }
     assert with_json["thumbnail_url"].present?, "expected a thumbnail URL for a part with an image"
     assert_nil without_json["thumbnail_url"]
+    assert_nil non_image_json["thumbnail_url"]
+    # No uploaded image: fall back to the hotlinked supplier URL.
+    assert_equal "https://www.mouser.com/img.png", hotlinked_json["thumbnail_url"]
+
+    # The URL must serve the image without an image processor (no variant): the
+    # blob redirect resolves to the original bytes.
+    get with_json["thumbnail_url"]
+    follow_redirect!
+    assert_response :success
+    assert_equal "fake-image-bytes", response.body
   end
 
   test "serializes decimal fields as JSON numbers, not strings" do
@@ -573,7 +595,7 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
     assert_match(/Mouser is down/, JSON.parse(@response.body)["error"])
   end
 
-  test "create attaches a supplier-provided datasheet and image" do
+  test "create downloads the datasheet but hotlinks the supplier image URL" do
     user = create_user
     org = user.organizations.first
     category = create_category(organization: org)
@@ -582,12 +604,11 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
     download = SupplierCatalog::RemoteFile::Download.new(
       io: StringIO.new("%PDF-1.4 fake"), filename: "ds.pdf", content_type: "application/pdf"
     )
-    image = SupplierCatalog::RemoteFile::Download.new(
-      io: StringIO.new("fake-image-bytes"), filename: "img.png", content_type: "image/png"
-    )
 
+    # Only the datasheet is fetched server-side. Mouser's image CDN blocks
+    # server-side downloads, so the image URL is stored and hotlinked instead.
     perform_enqueued_jobs do
-      stub_singleton(SupplierCatalog::RemoteFile, :download, ->(url, **) { url.end_with?(".pdf") ? download : image }) do
+      stub_singleton(SupplierCatalog::RemoteFile, :download, ->(*, **) { download }) do
         post parts_path, params: {
           part: { name: "Resistor 10k", category_id: category.id },
           datasheet_url: "https://www.mouser.com/ds.pdf",
@@ -598,10 +619,58 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
 
     part = org.parts.find_by(name: "Resistor 10k")
     assert part.datasheet.attached?
-    assert part.images.attached?
+    refute part.images.attached?, "supplier image is hotlinked, not downloaded"
+    assert_equal "https://www.mouser.com/img.png", part.image_source_url
   end
 
-  test "update attaches a supplier-provided datasheet and image" do
+  test "create exposes the hotlinked image as the thumbnail immediately" do
+    user = create_user
+    org = user.organizations.first
+    category = create_category(organization: org)
+    sign_in user
+
+    # No download stub and no jobs: nothing is fetched for the image.
+    post parts_path, params: {
+      part: { name: "Resistor 10k", category_id: category.id },
+      image_url: "https://www.mouser.com/img.png"
+    }
+
+    part = org.parts.find_by(name: "Resistor 10k")
+    refute part.images.attached?
+    assert_equal "https://www.mouser.com/img.png", part.image_source_url
+
+    get parts_path
+    part_json = inertia_props["parts"].find { |p| p["id"] == part.id }
+    assert_equal "https://www.mouser.com/img.png", part_json["thumbnail_url"]
+  end
+
+  test "create attaches an uploaded image and it takes precedence over the supplier URL" do
+    user = create_user
+    org = user.organizations.first
+    category = create_category(organization: org)
+    sign_in user
+
+    uploaded = Rack::Test::UploadedFile.new(
+      StringIO.new("real-png-bytes"), "image/png", original_filename: "photo.png"
+    )
+
+    post parts_path, params: {
+      part: { name: "Resistor 10k", category_id: category.id, images: [ uploaded ] },
+      image_url: "https://www.mouser.com/img.png"
+    }
+
+    part = org.parts.find_by(name: "Resistor 10k")
+    assert part.images.attached?, "uploaded image should attach"
+
+    get parts_path
+    part_json = inertia_props["parts"].find { |p| p["id"] == part.id }
+    # The uploaded blob wins over the hotlink: a local Active Storage URL, not
+    # the Mouser URL.
+    assert_match %r{/rails/active_storage/}, part_json["thumbnail_url"]
+    refute_equal "https://www.mouser.com/img.png", part_json["thumbnail_url"]
+  end
+
+  test "update downloads the datasheet but hotlinks the supplier image URL" do
     user = create_user
     org = user.organizations.first
     part = create_part(organization: org)
@@ -610,12 +679,9 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
     download = SupplierCatalog::RemoteFile::Download.new(
       io: StringIO.new("%PDF-1.4 fake"), filename: "ds.pdf", content_type: "application/pdf"
     )
-    image = SupplierCatalog::RemoteFile::Download.new(
-      io: StringIO.new("fake-image-bytes"), filename: "img.png", content_type: "image/png"
-    )
 
     perform_enqueued_jobs do
-      stub_singleton(SupplierCatalog::RemoteFile, :download, ->(url, **) { url.end_with?(".pdf") ? download : image }) do
+      stub_singleton(SupplierCatalog::RemoteFile, :download, ->(*, **) { download }) do
         patch part_path(part), params: {
           part: { name: part.name, category_id: part.category_id },
           datasheet_url: "https://www.mouser.com/ds.pdf",
@@ -626,7 +692,8 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
 
     part.reload
     assert part.datasheet.attached?
-    assert part.images.attached?
+    refute part.images.attached?
+    assert_equal "https://www.mouser.com/img.png", part.image_source_url
   end
 
   test "edit advertises supplier lookup based on configuration" do

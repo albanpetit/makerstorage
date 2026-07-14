@@ -6,25 +6,16 @@ class AttachRemotePartAssetsJobTest < ActiveJob::TestCase
     @part = create_part(organization: @org)
   end
 
-  test "downloads and attaches datasheet and image" do
+  test "downloads and attaches the datasheet" do
     pdf = SupplierCatalog::RemoteFile::Download.new(
       io: StringIO.new("%PDF-1.4 fake"), filename: "ds.pdf", content_type: "application/pdf"
     )
-    img = SupplierCatalog::RemoteFile::Download.new(
-      io: StringIO.new("fake-image-bytes"), filename: "img.png", content_type: "image/png"
-    )
 
-    stub_singleton(SupplierCatalog::RemoteFile, :download, ->(url, **) { url.end_with?(".pdf") ? pdf : img }) do
-      AttachRemotePartAssetsJob.perform_now(
-        @part,
-        datasheet_url: "https://www.mouser.com/ds.pdf",
-        image_url: "https://www.mouser.com/img.png"
-      )
+    stub_singleton(SupplierCatalog::RemoteFile, :download, ->(*, **) { pdf }) do
+      AttachRemotePartAssetsJob.perform_now(@part, datasheet_url: "https://www.mouser.com/ds.pdf")
     end
 
-    @part.reload
-    assert @part.datasheet.attached?
-    assert @part.images.attached?
+    assert @part.reload.datasheet.attached?
   end
 
   test "skips silently when a download fails" do
