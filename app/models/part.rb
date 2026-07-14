@@ -159,6 +159,13 @@ class Part < ApplicationRecord
   end
 
   # Methods - References
+  # Human-facing short reference used across scans, movements, alerts, etc.:
+  # prefer the manufacturer part number, then the internal SKU, falling back to
+  # the name so there is always something to display.
+  def reference
+    mpn.presence || sku.presence || name
+  end
+
   def full_reference
     refs = []
     refs << "SKU: #{sku}" if sku.present?

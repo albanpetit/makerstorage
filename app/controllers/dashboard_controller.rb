@@ -29,7 +29,7 @@ class DashboardController < ApplicationController
       .map do |part|
         {
           id: part.id,
-          reference: part.mpn.presence || part.sku.presence || part.name,
+          reference: part.reference,
           name: part.name,
           location_name: part.storage_locations.first&.name,
           quantity: part.total_quantity,
@@ -47,7 +47,7 @@ class DashboardController < ApplicationController
         {
           id: movement.id,
           part_id: movement.part_id,
-          reference: movement.part.mpn.presence || movement.part.sku.presence || movement.part.name,
+          reference: movement.part.reference,
           part_name: movement.part.name,
           location_name: movement.storage_location.name,
           movement_type: movement.movement_type,

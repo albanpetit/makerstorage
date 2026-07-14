@@ -66,6 +66,17 @@ class PartTest < ActiveSupport::TestCase
     assert_equal 0, part.total_quantity
   end
 
+  test "reference prefers mpn, then sku, then falls back to name" do
+    part = create_part(organization: @org, category: @category, name: "Resistor 10k", mpn: "RC0805", sku: "RES-10K")
+    assert_equal "RC0805", part.reference
+
+    part.mpn = nil
+    assert_equal "RES-10K", part.reference
+
+    part.sku = nil
+    assert_equal "Resistor 10k", part.reference
+  end
+
   test "low_stock? and out_of_stock?" do
     part = create_part(organization: @org, category: @category, min_stock_threshold: 50)
     location = create_storage_location(organization: @org)

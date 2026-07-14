@@ -106,7 +106,7 @@ class AlertsController < ApplicationController
 
     {
       id: part.id,
-      reference: part.mpn.presence || part.sku.presence || part.name,
+      reference: part.reference,
       name: part.name,
       category: part.category ? { name: part.category.name, color: part.category.color } : nil,
       location_name: part.storage_locations.first&.name,
@@ -140,7 +140,7 @@ class AlertsController < ApplicationController
     purchase.purchase_lines.each do |line|
       location = line.part.storage_locations.first
       unless location
-        skipped << (line.part.mpn.presence || line.part.sku.presence || line.part.name)
+        skipped << (line.part.reference)
         next
       end
 

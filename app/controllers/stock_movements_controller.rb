@@ -2,6 +2,7 @@
 
 class StockMovementsController < ApplicationController
   include Auth
+  include OptionListSerializers
 
   before_action :verify_organization_access
   before_action :verify_organization_writer, only: %i[create]
@@ -77,7 +78,7 @@ class StockMovementsController < ApplicationController
       location_name: movement.storage_location.name,
       part: {
         id: part.id,
-        reference: part.mpn.presence || part.sku.presence || part.name,
+        reference: part.reference,
         name: part.name,
         category: part.category ? { name: part.category.name, color: part.category.color } : nil
       }
@@ -86,15 +87,7 @@ class StockMovementsController < ApplicationController
 
   def serialize_parts
     current_organization.parts.alphabetical.map do |part|
-      { id: part.id, reference: part.mpn.presence || part.sku.presence || part.name, name: part.name }
-    end
-  end
-
-  def serialize_storage_locations
-    locations = current_organization.storage_locations.alphabetical
-    cache = StorageLocation.full_path_cache(current_organization.storage_locations)
-    locations.map do |location|
-      { id: location.id, name: location.full_path(cache: cache) }
+      { id: part.id, reference: part.reference, name: part.name }
     end
   end
 end
