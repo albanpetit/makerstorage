@@ -66,7 +66,16 @@ class AlertsController < ApplicationController
     end
 
     purchase.update!(status: next_status)
-    receive_stock(purchase) if next_status == "received"
+
+    if next_status == "received"
+      skipped = receive_stock(purchase)
+      if skipped.any?
+        redirect_to alerts_path,
+          notice: "Order #{purchase.reference} marked as received.",
+          alert: "No stock was recorded for #{skipped.to_sentence} — #{skipped.one? ? 'it has' : 'they have'} no storage location. Add a location and record the movement manually."
+        return
+      end
+    end
 
     redirect_to alerts_path, notice: "Order #{purchase.reference} marked as #{next_status}."
   end
@@ -122,15 +131,25 @@ class AlertsController < ApplicationController
     }
   end
 
+  # Credits received stock into each line's first storage location. Lines whose
+  # part has no location can't be recorded, so their references are collected and
+  # returned to the caller to surface as a warning rather than silently dropped.
   def receive_stock(purchase)
+    skipped = []
+
     purchase.purchase_lines.each do |line|
       location = line.part.storage_locations.first
-      next unless location
+      unless location
+        skipped << (line.part.mpn.presence || line.part.sku.presence || line.part.name)
+        next
+      end
 
       StockMovement.create!(
         organization: current_organization, part: line.part, storage_location: location, user: current_user,
         movement_type: "in", quantity_delta: line.quantity, reason: "Received #{purchase.reference}"
       )
     end
+
+    skipped
   end
 end
