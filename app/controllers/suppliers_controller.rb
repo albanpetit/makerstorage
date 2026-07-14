@@ -104,7 +104,7 @@ class SuppliersController < ApplicationController
     part = part_supplier.part
     {
       id: part.id,
-      reference: part.mpn.presence || part.sku.presence || part.name,
+      reference: part.reference,
       name: part.name,
       quantity: part.total_quantity,
       low_stock: part.low_stock?,

@@ -76,7 +76,7 @@ class StorageLocationsController < ApplicationController
         quantity: part_storage.quantity,
         part: {
           id: part.id,
-          reference: part.mpn.presence || part.sku.presence || part.name,
+          reference: part.reference,
           name: part.name,
           package_type: part.package_type
         }
@@ -92,7 +92,7 @@ class StorageLocationsController < ApplicationController
       .map do |movement|
         {
           location_id: movement.storage_location_id,
-          part_reference: movement.part.mpn.presence || movement.part.sku.presence || movement.part.name,
+          part_reference: movement.part.reference,
           movement_type: movement.movement_type,
           quantity_delta: movement.quantity_delta,
           reason: movement.reason,

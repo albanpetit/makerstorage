@@ -4,6 +4,7 @@ require "csv"
 
 class PartsController < ApplicationController
   include Auth
+  include OptionListSerializers
 
   before_action :verify_organization_access
   before_action :verify_organization_writer, only: %i[create update destroy import lookup]
@@ -387,37 +388,5 @@ class PartsController < ApplicationController
       is_preferred: ps.is_preferred,
       notes: ps.notes
     }
-  end
-
-  def serialize_categories
-    current_organization.categories.alphabetical.map do |category|
-      { id: category.id, name: category.full_path }
-    end
-  end
-
-  def serialize_footprints
-    current_organization.footprints.alphabetical.map do |footprint|
-      { id: footprint.id, name: footprint.name, mounting_type: footprint.mounting_type }
-    end
-  end
-
-  def serialize_suppliers
-    current_organization.suppliers.order(:name).map do |supplier|
-      { id: supplier.id, name: supplier.name, website: supplier.website, catalog_provider: supplier.catalog_provider }
-    end
-  end
-
-  def serialize_tags
-    current_organization.tags.alphabetical.map do |tag|
-      { id: tag.id, name: tag.name, color: tag.color }
-    end
-  end
-
-  def serialize_storage_locations
-    locations = current_organization.storage_locations.alphabetical
-    cache = StorageLocation.full_path_cache(current_organization.storage_locations)
-    locations.map do |location|
-      { id: location.id, name: location.full_path(cache: cache) }
-    end
   end
 end

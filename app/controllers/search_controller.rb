@@ -33,7 +33,7 @@ class SearchController < ApplicationController
       .map do |part|
         {
           id: part.id,
-          reference: part.mpn.presence || part.sku.presence || part.name,
+          reference: part.reference,
           name: part.name,
           category: part.category&.name
         }

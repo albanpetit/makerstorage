@@ -88,7 +88,7 @@ class ScansController < ApplicationController
 
     {
       id: part.id,
-      reference: part.mpn.presence || part.sku.presence || part.name,
+      reference: part.reference,
       name: part.name,
       category: part.category ? { name: part.category.name, color: part.category.color } : nil,
       total_quantity: part.total_quantity,
@@ -124,7 +124,7 @@ class ScansController < ApplicationController
           id: movement.id,
           created_at: movement.created_at.iso8601,
           quantity_delta: movement.quantity_delta,
-          reference: part.mpn.presence || part.sku.presence || part.name,
+          reference: part.reference,
           location_name: movement.storage_location.name,
           category_color: part.category&.color
         }
