@@ -6,6 +6,7 @@ class MembersController < ApplicationController
   before_action :verify_organization_access
   before_action :verify_organization_admin, only: %i[create update destroy]
   before_action :set_membership, only: %i[update destroy]
+  before_action :verify_owner_role_authority, only: %i[create update]
 
   def index
     memberships = current_organization.organization_memberships.includes(:user).order(:created_at)
@@ -62,6 +63,24 @@ class MembersController < ApplicationController
 
   def set_membership
     @membership = current_organization.organization_memberships.find(params[:id])
+  end
+
+  # Only an owner may grant the owner role or change an existing owner's role.
+  # Admins are otherwise allowed to manage members, but must not be able to
+  # escalate themselves (or anyone) to owner, or demote an owner.
+  def verify_owner_role_authority
+    requested_role = params.dig(:member, :role)
+    crosses_owner =
+      if @membership
+        (requested_role == "owner") != @membership.owner?
+      else
+        requested_role == "owner"
+      end
+
+    return unless crosses_owner
+    return if current_user.owner_of?(current_organization)
+
+    redirect_to members_path, alert: "Only an owner can assign or change the owner role."
   end
 
   def member_params

@@ -38,15 +38,17 @@ class SupplierCatalog::RemoteFileTest < ActiveSupport::TestCase
     captured_headers = nil
     response = Net::HTTPOK.new("1.1", "200", "OK")
     response["Content-Type"] = "image/png"
-    response.define_singleton_method(:body) { "PNG-image-bytes" }
+    response.define_singleton_method(:read_body) { |&block| block.call("PNG-image-bytes") }
 
     fake_http = Object.new
+    fake_http.define_singleton_method(:ipaddr=) { |_| }
     fake_http.define_singleton_method(:use_ssl=) { |_| }
     fake_http.define_singleton_method(:open_timeout=) { |_| }
     fake_http.define_singleton_method(:read_timeout=) { |_| }
-    fake_http.define_singleton_method(:get) do |_request_uri, headers|
+    fake_http.define_singleton_method(:start) { |&block| block.call }
+    fake_http.define_singleton_method(:request_get) do |_request_uri, headers, &block|
       captured_headers = headers
-      response
+      block.call(response)
     end
 
     # A literal public IP avoids any DNS/network access during the test.
@@ -63,5 +65,28 @@ class SupplierCatalog::RemoteFileTest < ActiveSupport::TestCase
     assert captured_headers["Accept"].present?
     assert captured_headers["Accept-Language"].present?
     assert_nil captured_headers["Accept-Encoding"]
+  end
+
+  test "download aborts once the streamed body exceeds max_bytes" do
+    response = Net::HTTPOK.new("1.1", "200", "OK")
+    response["Content-Type"] = "application/pdf"
+    # Stream chunks that together blow past the cap; the reader must stop early
+    # instead of buffering the whole thing into memory.
+    response.define_singleton_method(:read_body) do |&block|
+      3.times { block.call("x" * 40) }
+    end
+
+    fake_http = Object.new
+    fake_http.define_singleton_method(:ipaddr=) { |_| }
+    fake_http.define_singleton_method(:use_ssl=) { |_| }
+    fake_http.define_singleton_method(:open_timeout=) { |_| }
+    fake_http.define_singleton_method(:read_timeout=) { |_| }
+    fake_http.define_singleton_method(:start) { |&block| block.call }
+    fake_http.define_singleton_method(:request_get) { |_uri, _headers, &block| block.call(response) }
+
+    stub_singleton(Net::HTTP, :new, ->(*) { fake_http }) do
+      result = RemoteFile.download("https://8.8.8.8/big.pdf", max_bytes: 50)
+      assert_nil result, "expected an oversized response to be rejected"
+    end
   end
 end

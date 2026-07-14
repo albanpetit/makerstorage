@@ -41,8 +41,10 @@ class SearchController < ApplicationController
   end
 
   def search_zones(query)
+    q = "%#{StorageLocation.sanitize_sql_like(query)}%"
+
     current_organization.storage_locations
-      .where("name LIKE :q OR code LIKE :q", q: "%#{query}%")
+      .where("name LIKE :q ESCAPE '\\' OR code LIKE :q ESCAPE '\\'", q: q)
       .alphabetical
       .limit(RESULT_LIMIT)
       .map do |zone|
