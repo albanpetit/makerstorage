@@ -9,9 +9,11 @@ class User < ApplicationRecord
 
   after_create :create_personal_organization
 
-  # Get the user's personal organization
+  # Get the user's personal organization (the one auto-created on signup, flagged
+  # via the `personal` column). Match on the flag rather than the name string so a
+  # renamed org — or a changed firstname — still resolves correctly.
   def personal_organization
-    organizations.find_by(name: "#{firstname}'s Organization") ||
+    organizations.find_by(personal: true) ||
     organizations.first
   end
 
