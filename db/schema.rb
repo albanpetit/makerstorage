@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_14_150000) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_15_120000) do
   create_table "active_storage_attachments", force: :cascade do |t|
     t.bigint "blob_id", null: false
     t.datetime "created_at", null: false
@@ -215,8 +215,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_14_150000) do
     t.integer "supplier_id", null: false
     t.decimal "total_amount", precision: 10, scale: 2
     t.datetime "updated_at", null: false
+    t.index ["organization_id", "reference"], name: "index_purchases_on_organization_id_and_reference", unique: true, where: "reference IS NOT NULL AND reference != ''"
     t.index ["organization_id"], name: "index_purchases_on_organization_id"
-    t.index ["reference"], name: "index_purchases_on_reference"
     t.index ["status"], name: "index_purchases_on_status"
     t.index ["supplier_id"], name: "index_purchases_on_supplier_id"
   end

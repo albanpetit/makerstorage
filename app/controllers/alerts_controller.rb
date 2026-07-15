@@ -56,7 +56,12 @@ class AlertsController < ApplicationController
   end
 
   def advance_order
-    purchase = current_organization.purchases.find(params[:id])
+    # Preload each line's part and its storage locations so `receive_stock` reads
+    # `line.part.storage_locations.first` off memory instead of firing a query
+    # per line (N+1) once the order is marked received.
+    purchase = current_organization.purchases
+      .includes(purchase_lines: { part: :storage_locations })
+      .find(params[:id])
 
     # Row-lock the purchase and re-read its status inside the transaction so two
     # concurrent "advance" requests can't both read the same status, both write
