@@ -7,6 +7,7 @@ class MembersController < ApplicationController
   before_action :verify_organization_admin, only: %i[create update destroy]
   before_action :set_membership, only: %i[update destroy]
   before_action :verify_owner_role_authority, only: %i[create update]
+  before_action :verify_owner_removal_authority, only: :destroy
 
   def index
     memberships = current_organization.organization_memberships.includes(:user).order(:created_at)
@@ -81,6 +82,17 @@ class MembersController < ApplicationController
     return if current_user.owner_of?(current_organization)
 
     redirect_to members_path, alert: "Only an owner can assign or change the owner role."
+  end
+
+  # Removing an owner is at least as sensitive as demoting one, so it needs the
+  # same authority: an admin may manage other members but must not be able to
+  # kick out an owner. The last-owner guard on the membership still applies on
+  # top of this (an owner can't remove the final owner either).
+  def verify_owner_removal_authority
+    return unless @membership.owner?
+    return if current_user.owner_of?(current_organization)
+
+    redirect_to members_path, alert: "Only an owner can remove another owner."
   end
 
   def member_params
