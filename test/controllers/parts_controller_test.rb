@@ -552,6 +552,50 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
     assert_equal 40, PartStorage.find_by(part: part, storage_location: location).quantity
   end
 
+  test "import reconciles stock through the ledger as an adjustment, not a direct write" do
+    user = create_user
+    org = user.organizations.first
+    category = create_category(organization: org, name: "Resistors")
+    location = create_storage_location(organization: org, name: "Existing Shelf")
+    part = create_part(organization: org, category: category, mpn: "RES-10K")
+    PartStorage.create!(part: part, storage_location: location, quantity: 5)
+
+    csv = <<~CSV
+      Name,Category,MPN,Location,Quantity
+      Resistor 10k,Resistors,RES-10K,Existing Shelf,40
+    CSV
+
+    sign_in user
+    assert_difference -> { StockMovement.where(part: part).count } => 1 do
+      post import_parts_path, params: { file: csv_upload(csv) }
+    end
+
+    movement = StockMovement.where(part: part).order(:created_at, :id).last
+    assert_equal "adjustment", movement.movement_type
+    assert_equal 35, movement.quantity_delta
+    assert_equal "Import", movement.reason
+    assert_equal 40, PartStorage.find_by(part: part, storage_location: location).quantity
+  end
+
+  test "import records no movement when the sheet quantity already matches stock" do
+    user = create_user
+    org = user.organizations.first
+    category = create_category(organization: org, name: "Resistors")
+    location = create_storage_location(organization: org, name: "Existing Shelf")
+    part = create_part(organization: org, category: category, mpn: "RES-10K")
+    PartStorage.create!(part: part, storage_location: location, quantity: 40)
+
+    csv = <<~CSV
+      Name,Category,MPN,Location,Quantity
+      Resistor 10k,Resistors,RES-10K,Existing Shelf,40
+    CSV
+
+    sign_in user
+    assert_no_difference -> { StockMovement.count } do
+      post import_parts_path, params: { file: csv_upload(csv) }
+    end
+  end
+
   test "import without a location column leaves stock untouched" do
     user = create_user
     org = user.organizations.first

@@ -224,8 +224,27 @@ class PartsController < ApplicationController
     location = current_organization.storage_locations.find_or_create_by!(name: location_name) do |loc|
       loc.location_type = "shelf"
     end
-    quantity = import_value(row, :quantity).to_i
-    PartStorage.find_or_initialize_by(part: part, storage_location: location).update!(quantity: quantity)
+
+    # The import "Quantity" is the absolute stock the sheet declares for this
+    # location. Reconcile it through the ledger rather than writing
+    # PartStorage.quantity directly: stock_movements is the single source of
+    # truth (PartStorage is maintained by StockMovement's callback), so a direct
+    # write would desync the movements "Stock After" running balance. Only the
+    # delta from the current level is recorded, as an adjustment.
+    target = import_value(row, :quantity).to_i
+    current = PartStorage.find_by(part: part, storage_location: location)&.quantity || 0
+    delta = target - current
+    return if delta.zero?
+
+    StockMovement.create!(
+      organization: current_organization,
+      part: part,
+      storage_location: location,
+      user: current_user,
+      movement_type: "adjustment",
+      quantity_delta: delta,
+      reason: "Import"
+    )
   end
 
   def find_existing_part(row)
