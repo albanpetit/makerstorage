@@ -241,6 +241,37 @@ class MembersControllerTest < ActionDispatch::IntegrationTest
     assert_equal "owner", membership.reload.role
   end
 
+  test "admin cannot remove an existing owner" do
+    owner = create_user
+    org = owner.organizations.first
+    admin = create_user(email: "admin@example.com")
+    OrganizationMembership.create!(organization: org, user: admin, role: "admin")
+    second_owner = create_user(email: "owner2@example.com")
+    membership = OrganizationMembership.create!(organization: org, user: second_owner, role: "owner")
+
+    sign_in admin
+    assert_no_difference "OrganizationMembership.count" do
+      delete member_path(membership)
+    end
+
+    assert_redirected_to members_path
+    assert_match(/Only an owner/, flash[:alert])
+  end
+
+  test "owner can remove another owner" do
+    owner = create_user
+    org = owner.organizations.first
+    second_owner = create_user(email: "owner2@example.com")
+    membership = OrganizationMembership.create!(organization: org, user: second_owner, role: "owner")
+
+    sign_in owner
+    assert_difference -> { OrganizationMembership.count } => -1 do
+      delete member_path(membership)
+    end
+
+    assert_redirected_to members_path
+  end
+
   test "owner can invite a new owner" do
     owner = create_user
     org = owner.organizations.first
