@@ -61,6 +61,27 @@ module ActiveSupport
     def create_user(email: "user_#{SecureRandom.hex(4)}@example.com", **attrs)
       User.create!(firstname: "Test", lastname: "User", email: email, password: "password123", **attrs)
     end
+
+    # Counts the real SQL queries a block fires, ignoring cached hits, schema
+    # introspection, and transaction control. Used to pin N+1 fixes shut: run
+    # the same request against a small and a larger dataset and assert the count
+    # doesn't grow with collection size.
+    def count_queries
+      count = 0
+      counter = lambda do |_name, _start, _finish, _id, payload|
+        next if payload[:cached]
+        next if payload[:name] == "SCHEMA"
+        next if payload[:sql] =~ /\A\s*(BEGIN|COMMIT|ROLLBACK|SAVEPOINT|RELEASE)/i
+
+        count += 1
+      end
+      # The SQL query cache persists across requests inside one integration test,
+      # so a repeated identical request would be served from cache and undercount.
+      # Clear it first to measure the real queries this block fires.
+      ActiveRecord::Base.connection.clear_query_cache
+      ActiveSupport::Notifications.subscribed(counter, "sql.active_record") { yield }
+      count
+    end
   end
 end
 
