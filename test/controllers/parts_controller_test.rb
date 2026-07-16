@@ -815,6 +815,137 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
     refute part.datasheet.attached?
   end
 
+  test "bulk_destroy deletes only the organization's selected parts" do
+    user = create_user
+    org = user.organizations.first
+    keep = create_part(organization: org, name: "Keep")
+    doomed = [ create_part(organization: org, name: "Doomed A"), create_part(organization: org, name: "Doomed B") ]
+    foreign = create_part(organization: create_organization, name: "Foreign")
+
+    sign_in user
+    assert_difference -> { Part.count } => -2 do
+      delete bulk_destroy_parts_path, params: { part_ids: doomed.map(&:id) + [ foreign.id ] }
+    end
+
+    assert_redirected_to parts_path
+    assert Part.exists?(keep.id)
+    assert Part.exists?(foreign.id), "must not touch another organization's parts"
+    doomed.each { |part| refute Part.exists?(part.id) }
+  end
+
+  test "bulk_destroy redirects with an alert when nothing is selected" do
+    user = create_user
+    sign_in user
+
+    delete bulk_destroy_parts_path, params: { part_ids: [] }
+    assert_redirected_to parts_path
+    follow_redirect!
+    assert_match(/select at least one part/i, flash[:alert])
+  end
+
+  test "bulk_stock records the same inbound movement against each selected part" do
+    user = create_user
+    org = user.organizations.first
+    location = create_storage_location(organization: org, name: "Shelf A")
+    parts = [ create_part(organization: org), create_part(organization: org) ]
+
+    sign_in user
+    assert_difference -> { StockMovement.count } => 2 do
+      post bulk_stock_parts_path, params: {
+        part_ids: parts.map(&:id), storage_location_id: location.id,
+        movement_type: "in", quantity: "15", reason: "Restock"
+      }
+    end
+
+    parts.each do |part|
+      movement = StockMovement.find_by(part: part, storage_location: location)
+      assert_equal "in", movement.movement_type
+      assert_equal 15, movement.quantity_delta
+      assert_equal "Restock", movement.reason
+      assert_equal 15, part.total_quantity
+    end
+  end
+
+  test "bulk_stock skips an outbound movement that would overdraw and reports it" do
+    user = create_user
+    org = user.organizations.first
+    location = create_storage_location(organization: org, name: "Shelf A")
+    stocked = create_part(organization: org)
+    empty = create_part(organization: org)
+    PartStorage.create!(part: stocked, storage_location: location, quantity: 100)
+
+    sign_in user
+    assert_difference -> { StockMovement.count } => 1 do
+      post bulk_stock_parts_path, params: {
+        part_ids: [ stocked.id, empty.id ], storage_location_id: location.id,
+        movement_type: "out", quantity: "10"
+      }
+    end
+
+    assert_equal 90, stocked.total_quantity
+    assert_equal 0, empty.total_quantity
+    follow_redirect!
+    assert_match(/1 skipped/, flash[:notice])
+  end
+
+  test "bulk_stock rejects a non-positive quantity" do
+    user = create_user
+    org = user.organizations.first
+    location = create_storage_location(organization: org)
+    part = create_part(organization: org)
+
+    sign_in user
+    assert_no_difference -> { StockMovement.count } do
+      post bulk_stock_parts_path, params: {
+        part_ids: [ part.id ], storage_location_id: location.id, movement_type: "in", quantity: "0"
+      }
+    end
+    assert_redirected_to parts_path
+    follow_redirect!
+    assert_match(/greater than zero/i, flash[:alert])
+  end
+
+  test "bulk_move relocates all stock into the destination via ledger movements" do
+    user = create_user
+    org = user.organizations.first
+    source_a = create_storage_location(organization: org, name: "Drawer A")
+    source_b = create_storage_location(organization: org, name: "Bin B")
+    destination = create_storage_location(organization: org, name: "Shelf C")
+    part = create_part(organization: org)
+    PartStorage.create!(part: part, storage_location: source_a, quantity: 40)
+    PartStorage.create!(part: part, storage_location: source_b, quantity: 10)
+
+    sign_in user
+    # Two sources → an out+in pair each.
+    assert_difference -> { StockMovement.count } => 4 do
+      post bulk_move_parts_path, params: { part_ids: [ part.id ], storage_location_id: destination.id }
+    end
+
+    assert_redirected_to parts_path
+    assert_equal 0, PartStorage.find_by(part: part, storage_location: source_a).quantity
+    assert_equal 0, PartStorage.find_by(part: part, storage_location: source_b).quantity
+    assert_equal 50, PartStorage.find_by(part: part, storage_location: destination).quantity
+    assert_equal 50, part.total_quantity
+  end
+
+  test "bulk_move leaves stock already in the destination untouched" do
+    user = create_user
+    org = user.organizations.first
+    source = create_storage_location(organization: org, name: "Drawer A")
+    destination = create_storage_location(organization: org, name: "Shelf C")
+    part = create_part(organization: org)
+    PartStorage.create!(part: part, storage_location: source, quantity: 30)
+    PartStorage.create!(part: part, storage_location: destination, quantity: 5)
+
+    sign_in user
+    assert_difference -> { StockMovement.count } => 2 do
+      post bulk_move_parts_path, params: { part_ids: [ part.id ], storage_location_id: destination.id }
+    end
+
+    assert_equal 0, PartStorage.find_by(part: part, storage_location: source).quantity
+    assert_equal 35, PartStorage.find_by(part: part, storage_location: destination).quantity
+  end
+
   private
 
   def csv_upload(content)

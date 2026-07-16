@@ -7,7 +7,7 @@ class PartsController < ApplicationController
   include OptionListSerializers
 
   before_action :verify_organization_access
-  before_action :verify_organization_writer, only: %i[create update destroy import lookup]
+  before_action :verify_organization_writer, only: %i[create update destroy import lookup bulk_stock bulk_move bulk_destroy]
   before_action :set_part, only: %i[show edit update destroy]
 
   def index
@@ -135,6 +135,67 @@ class PartsController < ApplicationController
     end
   end
 
+  # Bulk stock in/out for the selected parts: records the same signed movement
+  # (in or out, +quantity+ units) against +storage_location_id+ for every part.
+  # Each movement is independent — an "out" that would overdraw a part is skipped
+  # rather than failing the whole batch, so a partial success is reported.
+  def bulk_stock
+    parts = current_organization.parts.where(id: bulk_part_ids)
+    return redirect_to(parts_path, alert: "Select at least one part.") if parts.empty?
+
+    location = current_organization.storage_locations.find_by(id: params[:storage_location_id])
+    return redirect_to(parts_path, alert: "Choose a storage location.") unless location
+
+    movement_type = params[:movement_type].to_s.presence_in(%w[in out])
+    return redirect_to(parts_path, alert: "Choose stock in or stock out.") unless movement_type
+
+    quantity = params[:quantity].to_i
+    return redirect_to(parts_path, alert: "Enter a quantity greater than zero.") if quantity <= 0
+
+    delta = movement_type == "out" ? -quantity : quantity
+    reason = params[:reason].to_s.strip.presence || "Bulk stock #{movement_type}"
+
+    applied = parts.count do |part|
+      current_organization.stock_movements.create(
+        part: part,
+        storage_location: location,
+        user: current_user,
+        movement_type: movement_type,
+        quantity_delta: delta,
+        reason: reason
+      ).persisted?
+    end
+
+    skipped = parts.size - applied
+    notice = "Stock #{movement_type} recorded for #{applied} #{'part'.pluralize(applied)}."
+    notice += " #{skipped} skipped (would go negative)." if skipped.positive?
+    redirect_to parts_path, notice: notice
+  end
+
+  # Bulk relocation: for each selected part, all of its stock (across every
+  # location it currently sits in) is transferred into +storage_location_id+ via
+  # matching out/in ledger movements. Parts with no positive stock are left as-is.
+  def bulk_move
+    parts = current_organization.parts.where(id: bulk_part_ids).includes(:part_storages)
+    return redirect_to(parts_path, alert: "Select at least one part.") if parts.empty?
+
+    destination = current_organization.storage_locations.find_by(id: params[:storage_location_id])
+    return redirect_to(parts_path, alert: "Choose a destination location.") unless destination
+
+    moved = parts.count { |part| relocate_part_stock(part, destination) }
+
+    redirect_to parts_path, notice: "Relocated stock for #{moved} #{'part'.pluralize(moved)} to #{destination.name}."
+  end
+
+  def bulk_destroy
+    parts = current_organization.parts.where(id: bulk_part_ids)
+    count = parts.count
+    return redirect_to(parts_path, alert: "Select at least one part.") if count.zero?
+
+    parts.destroy_all
+    redirect_to parts_path, notice: "#{count} #{'part'.pluralize(count)} deleted successfully."
+  end
+
   # Column names accepted per logical field, checked in order (French/English/
   # common BOM export synonyms). CSV::foreach with header_converters: :symbol
   # downcases, underscores whitespace, and strips accented characters, so
@@ -207,6 +268,40 @@ class PartsController < ApplicationController
   end
 
   private
+
+  def bulk_part_ids
+    Array(params[:part_ids]).map(&:to_i).reject(&:zero?).uniq
+  end
+
+  # Moves every positive-stock location of +part+ into +destination+, recording
+  # an out at the source and an in at the destination for each. Wrapped in a
+  # transaction so a source is never emptied without its matching deposit. The
+  # destination's own bucket is skipped (nothing to move). Returns whether any
+  # stock was actually relocated.
+  def relocate_part_stock(part, destination)
+    moved = false
+
+    ActiveRecord::Base.transaction do
+      part.part_storages.each do |storage|
+        next if storage.storage_location_id == destination.id || storage.quantity <= 0
+
+        quantity = storage.quantity
+        source = storage.storage_location
+
+        current_organization.stock_movements.create!(
+          part: part, storage_location: source, user: current_user,
+          movement_type: "out", quantity_delta: -quantity, reason: "Bulk move to #{destination.name}"
+        )
+        current_organization.stock_movements.create!(
+          part: part, storage_location: destination, user: current_user,
+          movement_type: "in", quantity_delta: quantity, reason: "Bulk move from #{source.name}"
+        )
+        moved = true
+      end
+    end
+
+    moved
+  end
 
   # Returns the first present value among the synonym columns for +field+.
   def import_value(row, field)
