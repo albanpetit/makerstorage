@@ -67,10 +67,12 @@ a fresh host, run `bin/kamal setup` once from a machine with the secrets exporte
 
 ## Deploying / debugging from a dev machine
 
-With the same secrets exported (or `config/master.key` present locally and a ghcr
-PAT via the `gh` CLI), the Kamal aliases work directly:
+Export the registry PAT and master key (`.kamal/secrets` reads both straight from
+the environment), then the Kamal aliases work directly:
 
 ```bash
+export KAMAL_REGISTRY_PASSWORD=<ghcr PAT with write:packages>
+export RAILS_MASTER_KEY=$(cat config/master.key)
 DEPLOY_HOST=… DEPLOY_USER=… APP_HOST=… \
   bin/kamal deploy       # or: logs · console · shell · dbc
 ```
