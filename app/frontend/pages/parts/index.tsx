@@ -545,6 +545,7 @@ export default function PartsIndex({ parts, initial_query, categories, footprint
   const bulkActions = [
     { label: 'Move', icon: Move, action: openMove },
     { label: 'Labels', icon: Tag, action: () => printLabels(selectedParts) },
+    { label: 'Export', icon: Download, action: () => exportCsv(selectedParts) },
     { label: 'Delete', icon: Trash2, action: () => setDeleteOpen(true) },
   ]
 
