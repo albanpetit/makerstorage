@@ -109,13 +109,15 @@ Releases follow [Semantic Versioning](https://semver.org/): `vMAJOR.MINOR.PATCH`
 - **MINOR** (`v0.3.1` → `v0.4.0`) — any `feat` (or, on `0.x`, a breaking change) since the last tag.
 - **MAJOR** — reserved for the first stable `v1.0.0` and breaking changes thereafter.
 
-Tags are annotated and cut from `main` once CI is green. A GitHub Release wraps each tag with generated notes:
+Tags are annotated and cut from `main` once CI is green. Pushing the tag is all that's
+needed — the [`Release`](.github/workflows/release.yml) workflow wraps it in a GitHub
+Release with generated notes, and the [`Deploy to Production`](.github/workflows/deploy.yml)
+workflow ships it (see [doc/deployment.md](doc/deployment.md)):
 
 ```bash
 git checkout main && git pull
 git tag -a v0.4.0 -m "v0.4.0"
-git push origin v0.4.0
-gh release create v0.4.0 --generate-notes --title "v0.4.0"
+git push origin v0.4.0   # → creates the GitHub Release and deploys to production
 ```
 
 The `/commit` command will suggest a version bump and print these commands when a commit is a good moment to release — it never tags automatically.
