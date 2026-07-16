@@ -17,7 +17,12 @@ Rails.application.configure do
   deterministic_key = credentials[:deterministic_key] || ENV["AR_ENCRYPTION_DETERMINISTIC_KEY"]
   key_derivation_salt = credentials[:key_derivation_salt] || ENV["AR_ENCRYPTION_KEY_DERIVATION_SALT"]
 
-  if Rails.env.production? && [ primary_key, deterministic_key, key_derivation_salt ].any?(&:blank?)
+  # Enforce real keys in production — but not during image build, where assets are
+  # precompiled by booting the production env with SECRET_KEY_BASE_DUMMY set and no
+  # credentials available. Rails sets that flag precisely for this dummy boot.
+  enforce_keys = Rails.env.production? && ENV["SECRET_KEY_BASE_DUMMY"].blank?
+
+  if enforce_keys && [ primary_key, deterministic_key, key_derivation_salt ].any?(&:blank?)
     raise "Active Record Encryption keys are missing. Set them in credentials " \
           "(active_record_encryption:) or the AR_ENCRYPTION_* environment variables."
   end
