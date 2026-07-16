@@ -12,9 +12,13 @@ Rails.application.routes.draw do
     put "reset-password", to: "users/passwords#update", as: :update_user_password
   end
 
-  # Redirect to localhost from 127.0.0.1 to use same IP address with Vite server
-  constraints(host: "127.0.0.1") do
-    get "(*path)", to: redirect { |params, req| "#{req.protocol}localhost:#{req.port}/#{params[:path]}" }
+  # Redirect to localhost from 127.0.0.1 to use same IP address with Vite server.
+  # Development only: in the test env Capybara serves the app on 127.0.0.1, and
+  # this cross-origin hop makes Chrome block every Inertia XHR with CORS errors.
+  if Rails.env.development?
+    constraints(host: "127.0.0.1") do
+      get "(*path)", to: redirect { |params, req| "#{req.protocol}localhost:#{req.port}/#{params[:path]}" }
+    end
   end
   # Organizations
   resources :organizations, only: [ :create, :destroy ] do
