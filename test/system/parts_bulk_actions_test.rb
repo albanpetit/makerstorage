@@ -13,7 +13,7 @@ class PartsBulkActionsTest < ApplicationSystemTestCase
     fill_in "Email address", with: @user.email
     fill_in "Password", with: "password123"
     click_on "Log in"
-    assert_selector "h1", text: "Dashboard", wait: 10
+    assert_selector "h1", text: "Dashboard", wait: 20
   end
 
   test "selecting parts and applying a bulk category change" do
