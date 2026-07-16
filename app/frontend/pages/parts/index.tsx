@@ -1207,15 +1207,15 @@ export default function PartsIndex({ parts, initial_query, categories, footprint
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-2">
+          <div className="min-w-0 space-y-2">
             <Label htmlFor="bulk-move-location">Destination location</Label>
             <Select value={moveLocationId} onValueChange={setMoveLocationId}>
-              <SelectTrigger id="bulk-move-location">
+              <SelectTrigger id="bulk-move-location" className="w-full">
                 <SelectValue placeholder="Choose a location" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent position="popper">
                 {storage_locations.map((loc) => (
-                  <SelectItem key={loc.id} value={String(loc.id)}>{loc.name}</SelectItem>
+                  <SelectItem key={loc.id} value={String(loc.id)} title={loc.name}>{loc.name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
