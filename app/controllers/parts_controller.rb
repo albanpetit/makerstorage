@@ -7,7 +7,7 @@ class PartsController < ApplicationController
   include OptionListSerializers
 
   before_action :verify_organization_access
-  before_action :verify_organization_writer, only: %i[create update destroy import lookup bulk_stock bulk_move bulk_destroy]
+  before_action :verify_organization_writer, only: %i[create update destroy import lookup bulk_move bulk_destroy]
   before_action :set_part, only: %i[show edit update destroy]
 
   def index
@@ -133,43 +133,6 @@ class PartsController < ApplicationController
     else
       redirect_back_or_to parts_path, alert: @part.errors.full_messages.to_sentence
     end
-  end
-
-  # Bulk stock in/out for the selected parts: records the same signed movement
-  # (in or out, +quantity+ units) against +storage_location_id+ for every part.
-  # Each movement is independent — an "out" that would overdraw a part is skipped
-  # rather than failing the whole batch, so a partial success is reported.
-  def bulk_stock
-    parts = current_organization.parts.where(id: bulk_part_ids)
-    return redirect_to(parts_path, alert: "Select at least one part.") if parts.empty?
-
-    location = current_organization.storage_locations.find_by(id: params[:storage_location_id])
-    return redirect_to(parts_path, alert: "Choose a storage location.") unless location
-
-    movement_type = params[:movement_type].to_s.presence_in(%w[in out])
-    return redirect_to(parts_path, alert: "Choose stock in or stock out.") unless movement_type
-
-    quantity = params[:quantity].to_i
-    return redirect_to(parts_path, alert: "Enter a quantity greater than zero.") if quantity <= 0
-
-    delta = movement_type == "out" ? -quantity : quantity
-    reason = params[:reason].to_s.strip.presence || "Bulk stock #{movement_type}"
-
-    applied = parts.count do |part|
-      current_organization.stock_movements.create(
-        part: part,
-        storage_location: location,
-        user: current_user,
-        movement_type: movement_type,
-        quantity_delta: delta,
-        reason: reason
-      ).persisted?
-    end
-
-    skipped = parts.size - applied
-    notice = "Stock #{movement_type} recorded for #{applied} #{'part'.pluralize(applied)}."
-    notice += " #{skipped} skipped (would go negative)." if skipped.positive?
-    redirect_to parts_path, notice: notice
   end
 
   # Bulk relocation: for each selected part, all of its stock (across every

@@ -28,7 +28,6 @@ Rails.application.routes.draw do
     collection do
       post :import
       post :lookup
-      post :bulk_stock
       post :bulk_move
       delete :bulk_destroy
     end
