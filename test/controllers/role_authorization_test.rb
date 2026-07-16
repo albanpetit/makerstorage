@@ -61,6 +61,30 @@ class RoleAuthorizationTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "viewer cannot bulk-delete parts" do
+    act_as @viewer
+    assert_no_difference -> { Part.count } do
+      delete bulk_destroy_parts_path, params: { part_ids: [ @part.id ] }
+    end
+    assert_match(/read-only/i, flash[:alert])
+  end
+
+  test "viewer cannot bulk stock in/out" do
+    act_as @viewer
+    assert_no_difference -> { StockMovement.count } do
+      post bulk_stock_parts_path, params: {
+        part_ids: [ @part.id ], storage_location_id: @location.id, movement_type: "in", quantity: "5"
+      }
+    end
+  end
+
+  test "viewer cannot bulk-move parts" do
+    act_as @viewer
+    assert_no_difference -> { StockMovement.count } do
+      post bulk_move_parts_path, params: { part_ids: [ @part.id ], storage_location_id: @location.id }
+    end
+  end
+
   test "viewer cannot create a stock movement" do
     act_as @viewer
     assert_no_difference -> { StockMovement.count } do
