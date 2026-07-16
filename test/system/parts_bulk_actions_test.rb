@@ -9,10 +9,23 @@ class PartsBulkActionsTest < ApplicationSystemTestCase
     @part_a = create_part(organization: @org, category: @old_category, name: "Part A")
     @part_b = create_part(organization: @org, category: @old_category, name: "Part B")
 
+    puts "[DIAG] eager_load=#{Rails.application.config.eager_load.inspect} CI=#{ENV["CI"].inspect}"
+    puts "[DIAG] default_strategies=#{Devise.warden_config[:default_strategies].inspect}"
+
+    t0 = Time.now
     visit new_user_session_path
+    puts "[DIAG] login page loaded in #{Time.now - t0}s, current_path=#{current_path}"
+
     fill_in "Email address", with: @user.email
     fill_in "Password", with: "password123"
+
+    t1 = Time.now
     click_on "Log in"
+    sleep 1
+    puts "[DIAG] after click+1s sleep: #{Time.now - t1}s, current_path=#{current_path}"
+    puts "[DIAG] page text snippet: #{page.text[0, 200].inspect}"
+    puts "[DIAG] default_strategies after click=#{Devise.warden_config[:default_strategies].inspect}"
+
     assert_selector "h1", text: "Dashboard", wait: 20
   end
 
