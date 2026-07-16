@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 import {
   Plus, Search, Package, Pencil, Download, Upload,
   ChevronLeft, ChevronRight, Move, Tag, Trash2, X,
+  Layers, CircleDot, Tags, Truck,
 } from 'lucide-react'
 
 import { AppLayout } from '@/layouts/app-layout'
@@ -18,6 +19,7 @@ import { Label } from '@/components/ui/label'
 import { AddPartDialog } from '@/components/add-part-dialog'
 import { EditPartDialog } from '@/components/edit-part-dialog'
 import { PartDetailSheet } from '@/components/part-detail-sheet'
+import { TagPicker } from '@/components/tag-picker'
 import {
   Dialog,
   DialogContent,
@@ -508,12 +510,43 @@ export default function PartsIndex({ parts, initial_query, categories, footprint
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [bulkSubmitting, setBulkSubmitting] = useState(false)
 
+  const [categoryOpen, setCategoryOpen] = useState(false)
+  const [categoryValue, setCategoryValue] = useState('')
+  const [statusOpen, setStatusOpen] = useState(false)
+  const [statusValue, setStatusValue] = useState<Part['status'] | ''>('')
+  const [tagsOpen, setTagsOpen] = useState(false)
+  const [tagsMode, setTagsMode] = useState<'add' | 'remove'>('add')
+  const [tagsValue, setTagsValue] = useState<number[]>([])
+  const [supplierOpen, setSupplierOpen] = useState(false)
+  const [supplierValue, setSupplierValue] = useState('')
+
   const selectedCount = selected.length
   const plural = selectedCount !== 1 ? 's' : ''
 
   const openMove = () => {
     setMoveLocationId('')
     setMoveOpen(true)
+  }
+
+  const openCategory = () => {
+    setCategoryValue('')
+    setCategoryOpen(true)
+  }
+
+  const openStatus = () => {
+    setStatusValue('')
+    setStatusOpen(true)
+  }
+
+  const openTags = () => {
+    setTagsMode('add')
+    setTagsValue([])
+    setTagsOpen(true)
+  }
+
+  const openSupplier = () => {
+    setSupplierValue('')
+    setSupplierOpen(true)
   }
 
   // Shared visit options: clear the selection once the server has applied the
@@ -542,8 +575,40 @@ export default function PartsIndex({ parts, initial_query, categories, footprint
     })
   }
 
+  const submitCategory = () => {
+    if (!categoryValue) return
+    router.post('/parts/bulk_update_category',
+      { part_ids: selected, category_id: categoryValue },
+      onBulkSuccess(() => setCategoryOpen(false)))
+  }
+
+  const submitStatus = () => {
+    if (!statusValue) return
+    router.post('/parts/bulk_update_status',
+      { part_ids: selected, status: statusValue },
+      onBulkSuccess(() => setStatusOpen(false)))
+  }
+
+  const submitTags = () => {
+    if (tagsValue.length === 0) return
+    router.post('/parts/bulk_update_tags',
+      { part_ids: selected, tag_ids: tagsValue, mode: tagsMode },
+      onBulkSuccess(() => setTagsOpen(false)))
+  }
+
+  const submitSupplier = () => {
+    if (!supplierValue) return
+    router.post('/parts/bulk_assign_supplier',
+      { part_ids: selected, supplier_id: supplierValue },
+      onBulkSuccess(() => setSupplierOpen(false)))
+  }
+
   const bulkActions = [
     { label: 'Move', icon: Move, action: openMove },
+    { label: 'Category', icon: Layers, action: openCategory },
+    { label: 'Status', icon: CircleDot, action: openStatus },
+    { label: 'Tags', icon: Tags, action: openTags },
+    { label: 'Supplier', icon: Truck, action: openSupplier },
     { label: 'Labels', icon: Tag, action: () => printLabels(selectedParts) },
     { label: 'Export', icon: Download, action: () => exportCsv(selectedParts) },
     { label: 'Delete', icon: Trash2, action: () => setDeleteOpen(true) },
@@ -1094,6 +1159,149 @@ export default function PartsIndex({ parts, initial_query, categories, footprint
             <Button variant="outline" onClick={() => setMoveOpen(false)}>Cancel</Button>
             <Button disabled={!moveLocationId || bulkSubmitting} onClick={submitMove}>
               Move part{plural}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk category modal */}
+      <Dialog open={categoryOpen} onOpenChange={setCategoryOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Set category for {selectedCount} part{plural}</DialogTitle>
+            <DialogDescription>
+              Replaces the category on every selected part.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-2">
+            <Label htmlFor="bulk-category">Category</Label>
+            <Select value={categoryValue} onValueChange={setCategoryValue}>
+              <SelectTrigger id="bulk-category">
+                <SelectValue placeholder="Choose a category" />
+              </SelectTrigger>
+              <SelectContent>
+                {categories.map((category) => (
+                  <SelectItem key={category.id} value={String(category.id)}>{category.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCategoryOpen(false)}>Cancel</Button>
+            <Button disabled={!categoryValue || bulkSubmitting} onClick={submitCategory}>
+              Set category
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk status modal */}
+      <Dialog open={statusOpen} onOpenChange={setStatusOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Set status for {selectedCount} part{plural}</DialogTitle>
+            <DialogDescription>
+              Replaces the lifecycle status on every selected part.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-2">
+            <Label htmlFor="bulk-status">Status</Label>
+            <Select value={statusValue} onValueChange={(value) => setStatusValue(value as Part['status'])}>
+              <SelectTrigger id="bulk-status">
+                <SelectValue placeholder="Choose a status" />
+              </SelectTrigger>
+              <SelectContent>
+                {(Object.keys(LIFECYCLE_META) as Part['status'][]).map((status) => (
+                  <SelectItem key={status} value={status}>{LIFECYCLE_META[status].label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setStatusOpen(false)}>Cancel</Button>
+            <Button disabled={!statusValue || bulkSubmitting} onClick={submitStatus}>
+              Set status
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk tags modal */}
+      <Dialog open={tagsOpen} onOpenChange={setTagsOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Edit tags for {selectedCount} part{plural}</DialogTitle>
+            <DialogDescription>
+              Add or remove the chosen tags across every selected part.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="inline-flex rounded-md border p-0.5">
+              {(['add', 'remove'] as const).map((mode) => (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => setTagsMode(mode)}
+                  className={`rounded px-3 py-1 text-sm font-medium capitalize transition-colors ${
+                    tagsMode === mode ? 'bg-primary text-primary-foreground' : 'hover:bg-accent'
+                  }`}
+                >
+                  {mode}
+                </button>
+              ))}
+            </div>
+
+            <div className="space-y-2">
+              <Label>Tags</Label>
+              <TagPicker tags={tags} value={tagsValue} onChange={setTagsValue} />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setTagsOpen(false)}>Cancel</Button>
+            <Button disabled={tagsValue.length === 0 || bulkSubmitting} onClick={submitTags}>
+              {tagsMode === 'add' ? 'Add tags' : 'Remove tags'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk supplier modal */}
+      <Dialog open={supplierOpen} onOpenChange={setSupplierOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Assign supplier for {selectedCount} part{plural}</DialogTitle>
+            <DialogDescription>
+              Links the supplier to every selected part and marks it preferred.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-2">
+            <Label htmlFor="bulk-supplier">Supplier</Label>
+            <Select value={supplierValue} onValueChange={setSupplierValue}>
+              <SelectTrigger id="bulk-supplier">
+                <SelectValue placeholder="Choose a supplier" />
+              </SelectTrigger>
+              <SelectContent>
+                {suppliers.map((supplier) => (
+                  <SelectItem key={supplier.id} value={String(supplier.id)}>{supplier.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {suppliers.length === 0 && (
+              <p className="text-sm text-muted-foreground">No suppliers yet — add one first.</p>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSupplierOpen(false)}>Cancel</Button>
+            <Button disabled={!supplierValue || bulkSubmitting} onClick={submitSupplier}>
+              Assign supplier
             </Button>
           </DialogFooter>
         </DialogContent>

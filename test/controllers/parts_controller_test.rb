@@ -908,6 +908,131 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
     assert_equal 35, PartStorage.find_by(part: part, storage_location: destination).quantity
   end
 
+  test "bulk_update_category sets the category on only the selected parts" do
+    user = create_user
+    org = user.organizations.first
+    old_category = create_category(organization: org)
+    new_category = create_category(organization: org, name: "Resistors")
+    part_a = create_part(organization: org, category: old_category)
+    part_b = create_part(organization: org, category: old_category)
+    untouched = create_part(organization: org, category: old_category)
+
+    sign_in user
+    post bulk_update_category_parts_path, params: { part_ids: [ part_a.id, part_b.id ], category_id: new_category.id }
+
+    assert_redirected_to parts_path
+    assert_equal new_category.id, part_a.reload.category_id
+    assert_equal new_category.id, part_b.reload.category_id
+    assert_equal old_category.id, untouched.reload.category_id
+  end
+
+  test "bulk_update_category rejects a category from another organization" do
+    user = create_user
+    org = user.organizations.first
+    part = create_part(organization: org)
+    foreign_category = create_category(organization: create_organization)
+
+    sign_in user
+    post bulk_update_category_parts_path, params: { part_ids: [ part.id ], category_id: foreign_category.id }
+
+    assert_redirected_to parts_path
+    follow_redirect!
+    assert_match(/choose a category/i, flash[:alert])
+    assert_equal part.category_id, part.reload.category_id
+  end
+
+  test "bulk_update_status sets the lifecycle status on the selected parts" do
+    user = create_user
+    org = user.organizations.first
+    part = create_part(organization: org, status: "active")
+
+    sign_in user
+    post bulk_update_status_parts_path, params: { part_ids: [ part.id ], status: "discontinued" }
+
+    assert_redirected_to parts_path
+    assert_equal "discontinued", part.reload.status
+  end
+
+  test "bulk_update_status rejects an invalid status value" do
+    user = create_user
+    org = user.organizations.first
+    part = create_part(organization: org, status: "active")
+
+    sign_in user
+    post bulk_update_status_parts_path, params: { part_ids: [ part.id ], status: "vaporized" }
+
+    assert_redirected_to parts_path
+    follow_redirect!
+    assert_match(/valid status/i, flash[:alert])
+    assert_equal "active", part.reload.status
+  end
+
+  test "bulk_update_tags adds tags without duplicating existing links" do
+    user = create_user
+    org = user.organizations.first
+    tag_a = create_tag(organization: org)
+    tag_b = create_tag(organization: org)
+    part = create_part(organization: org)
+    part.part_tags.create!(tag: tag_a)
+
+    sign_in user
+    assert_difference -> { PartTag.count } => 1 do
+      post bulk_update_tags_parts_path, params: { part_ids: [ part.id ], tag_ids: [ tag_a.id, tag_b.id ], mode: "add" }
+    end
+
+    assert_redirected_to parts_path
+    assert_equal [ tag_a.id, tag_b.id ].sort, part.reload.tag_ids.sort
+  end
+
+  test "bulk_update_tags removes tags in remove mode" do
+    user = create_user
+    org = user.organizations.first
+    tag_a = create_tag(organization: org)
+    tag_b = create_tag(organization: org)
+    part = create_part(organization: org)
+    part.part_tags.create!(tag: tag_a)
+    part.part_tags.create!(tag: tag_b)
+
+    sign_in user
+    assert_difference -> { PartTag.count } => -1 do
+      post bulk_update_tags_parts_path, params: { part_ids: [ part.id ], tag_ids: [ tag_a.id ], mode: "remove" }
+    end
+
+    assert_redirected_to parts_path
+    assert_equal [ tag_b.id ], part.reload.tag_ids
+  end
+
+  test "bulk_assign_supplier links and prefers the supplier for the selected parts" do
+    user = create_user
+    org = user.organizations.first
+    supplier = create_supplier(organization: org)
+    part = create_part(organization: org)
+
+    sign_in user
+    post bulk_assign_supplier_parts_path, params: { part_ids: [ part.id ], supplier_id: supplier.id }
+
+    assert_redirected_to parts_path
+    link = part.reload.part_suppliers.find_by(supplier: supplier)
+    assert link.present?
+    assert link.is_preferred?
+  end
+
+  test "bulk_assign_supplier demotes a previously preferred supplier" do
+    user = create_user
+    org = user.organizations.first
+    old_supplier = create_supplier(organization: org, name: "Old Supplier")
+    new_supplier = create_supplier(organization: org, name: "New Supplier")
+    part = create_part(organization: org)
+    part.part_suppliers.create!(supplier: old_supplier, is_preferred: true)
+
+    sign_in user
+    post bulk_assign_supplier_parts_path, params: { part_ids: [ part.id ], supplier_id: new_supplier.id }
+
+    assert_redirected_to parts_path
+    refute part.part_suppliers.find_by(supplier: old_supplier).is_preferred?
+    assert part.part_suppliers.find_by(supplier: new_supplier).is_preferred?
+  end
+
   private
 
   def csv_upload(content)

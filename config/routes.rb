@@ -30,6 +30,10 @@ Rails.application.routes.draw do
       post :lookup
       post :bulk_move
       delete :bulk_destroy
+      post :bulk_update_category
+      post :bulk_update_status
+      post :bulk_update_tags
+      post :bulk_assign_supplier
     end
 
     resources :part_suppliers, only: %i[create update destroy] do
