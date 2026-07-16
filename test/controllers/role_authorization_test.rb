@@ -10,12 +10,17 @@ class RoleAuthorizationTest < ActionDispatch::IntegrationTest
     @category = create_category(organization: @org)
     @location = create_storage_location(organization: @org)
     @part = create_part(organization: @org, category: @category)
+    @tag = create_tag(organization: @org)
+    @supplier = create_supplier(organization: @org)
 
     @viewer = create_user(email: "viewer@example.com")
     OrganizationMembership.create!(organization: @org, user: @viewer, role: "viewer")
 
     @member = create_user(email: "member@example.com")
     OrganizationMembership.create!(organization: @org, user: @member, role: "member")
+
+    @admin = create_user(email: "admin@example.com")
+    OrganizationMembership.create!(organization: @org, user: @admin, role: "admin")
   end
 
   # Makes `org` the signed-in user's current organization for the session.
@@ -66,13 +71,89 @@ class RoleAuthorizationTest < ActionDispatch::IntegrationTest
     assert_no_difference -> { Part.count } do
       delete bulk_destroy_parts_path, params: { part_ids: [ @part.id ] }
     end
-    assert_match(/read-only/i, flash[:alert])
+    assert_match(/admin access/i, flash[:alert])
+  end
+
+  # Bulk delete is admin-gated (unlike the other bulk actions, which only
+  # require the general writer role) because it's an irreversible, org-wide
+  # mass deletion.
+  test "member cannot bulk-delete parts" do
+    act_as @member
+    assert_no_difference -> { Part.count } do
+      delete bulk_destroy_parts_path, params: { part_ids: [ @part.id ] }
+    end
+    assert_match(/admin access/i, flash[:alert])
+  end
+
+  test "admin can bulk-delete parts" do
+    act_as @admin
+    assert_difference -> { Part.count } => -1 do
+      delete bulk_destroy_parts_path, params: { part_ids: [ @part.id ] }
+    end
   end
 
   test "viewer cannot bulk-move parts" do
     act_as @viewer
     assert_no_difference -> { StockMovement.count } do
       post bulk_move_parts_path, params: { part_ids: [ @part.id ], storage_location_id: @location.id }
+    end
+  end
+
+  test "viewer cannot bulk-update part category" do
+    act_as @viewer
+    other_category = create_category(organization: @org)
+    post bulk_update_category_parts_path, params: { part_ids: [ @part.id ], category_id: other_category.id }
+    assert_match(/read-only/i, flash[:alert])
+    assert_equal @category.id, @part.reload.category_id
+  end
+
+  test "member can bulk-update part category" do
+    act_as @member
+    other_category = create_category(organization: @org)
+    post bulk_update_category_parts_path, params: { part_ids: [ @part.id ], category_id: other_category.id }
+    assert_equal other_category.id, @part.reload.category_id
+  end
+
+  test "viewer cannot bulk-update part status" do
+    act_as @viewer
+    post bulk_update_status_parts_path, params: { part_ids: [ @part.id ], status: "discontinued" }
+    assert_match(/read-only/i, flash[:alert])
+    assert_equal "active", @part.reload.status
+  end
+
+  test "member can bulk-update part status" do
+    act_as @member
+    post bulk_update_status_parts_path, params: { part_ids: [ @part.id ], status: "discontinued" }
+    assert_equal "discontinued", @part.reload.status
+  end
+
+  test "viewer cannot bulk-update part tags" do
+    act_as @viewer
+    assert_no_difference -> { PartTag.count } do
+      post bulk_update_tags_parts_path, params: { part_ids: [ @part.id ], tag_ids: [ @tag.id ], mode: "add" }
+    end
+    assert_match(/read-only/i, flash[:alert])
+  end
+
+  test "member can bulk-update part tags" do
+    act_as @member
+    assert_difference -> { PartTag.count } => 1 do
+      post bulk_update_tags_parts_path, params: { part_ids: [ @part.id ], tag_ids: [ @tag.id ], mode: "add" }
+    end
+  end
+
+  test "viewer cannot bulk-assign a supplier" do
+    act_as @viewer
+    assert_no_difference -> { PartSupplier.count } do
+      post bulk_assign_supplier_parts_path, params: { part_ids: [ @part.id ], supplier_id: @supplier.id }
+    end
+    assert_match(/read-only/i, flash[:alert])
+  end
+
+  test "member can bulk-assign a supplier" do
+    act_as @member
+    assert_difference -> { PartSupplier.count } => 1 do
+      post bulk_assign_supplier_parts_path, params: { part_ids: [ @part.id ], supplier_id: @supplier.id }
     end
   end
 

@@ -865,6 +865,23 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to parts_path
     follow_redirect!
     assert_match(/select at least one part/i, flash[:alert])
+    assert_match(/select at least one part/i, inertia_props["errors"]["base"])
+  end
+
+  test "bulk_move redirects with an alert when no destination is chosen" do
+    user = create_user
+    org = user.organizations.first
+    part = create_part(organization: org)
+
+    sign_in user
+    assert_no_difference -> { StockMovement.count } do
+      post bulk_move_parts_path, params: { part_ids: [ part.id ], storage_location_id: "" }
+    end
+
+    assert_redirected_to parts_path
+    follow_redirect!
+    assert_match(/choose a destination/i, flash[:alert])
+    assert_match(/choose a destination/i, inertia_props["errors"]["base"])
   end
 
   test "bulk_move relocates all stock into the destination via ledger movements" do
@@ -939,6 +956,7 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
     follow_redirect!
     assert_match(/choose a category/i, flash[:alert])
     assert_equal part.category_id, part.reload.category_id
+    assert_match(/choose a category/i, inertia_props["errors"]["base"])
   end
 
   test "bulk_update_status sets the lifecycle status on the selected parts" do
@@ -965,6 +983,7 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
     follow_redirect!
     assert_match(/valid status/i, flash[:alert])
     assert_equal "active", part.reload.status
+    assert_match(/valid status/i, inertia_props["errors"]["base"])
   end
 
   test "bulk_update_tags adds tags without duplicating existing links" do
@@ -1002,6 +1021,42 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
     assert_equal [ tag_b.id ], part.reload.tag_ids
   end
 
+  test "bulk_update_tags adds only the missing links across multiple parts" do
+    user = create_user
+    org = user.organizations.first
+    tag_a = create_tag(organization: org)
+    tag_b = create_tag(organization: org)
+    part_with_a = create_part(organization: org)
+    part_with_a.part_tags.create!(tag: tag_a)
+    bare_part = create_part(organization: org)
+
+    sign_in user
+    # part_with_a is only missing tag_b, bare_part is missing both.
+    assert_difference -> { PartTag.count } => 3 do
+      post bulk_update_tags_parts_path,
+        params: { part_ids: [ part_with_a.id, bare_part.id ], tag_ids: [ tag_a.id, tag_b.id ], mode: "add" }
+    end
+
+    assert_equal [ tag_a.id, tag_b.id ].sort, part_with_a.reload.tag_ids.sort
+    assert_equal [ tag_a.id, tag_b.id ].sort, bare_part.reload.tag_ids.sort
+  end
+
+  test "bulk_update_tags redirects with an alert when no tag is chosen" do
+    user = create_user
+    org = user.organizations.first
+    part = create_part(organization: org)
+
+    sign_in user
+    assert_no_difference -> { PartTag.count } do
+      post bulk_update_tags_parts_path, params: { part_ids: [ part.id ], tag_ids: [], mode: "add" }
+    end
+
+    assert_redirected_to parts_path
+    follow_redirect!
+    assert_match(/choose at least one tag/i, flash[:alert])
+    assert_match(/choose at least one tag/i, inertia_props["errors"]["base"])
+  end
+
   test "bulk_assign_supplier links and prefers the supplier for the selected parts" do
     user = create_user
     org = user.organizations.first
@@ -1031,6 +1086,22 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to parts_path
     refute part.part_suppliers.find_by(supplier: old_supplier).is_preferred?
     assert part.part_suppliers.find_by(supplier: new_supplier).is_preferred?
+  end
+
+  test "bulk_assign_supplier redirects with an alert when no supplier is chosen" do
+    user = create_user
+    org = user.organizations.first
+    part = create_part(organization: org)
+
+    sign_in user
+    assert_no_difference -> { PartSupplier.count } do
+      post bulk_assign_supplier_parts_path, params: { part_ids: [ part.id ], supplier_id: "" }
+    end
+
+    assert_redirected_to parts_path
+    follow_redirect!
+    assert_match(/choose a supplier/i, flash[:alert])
+    assert_match(/choose a supplier/i, inertia_props["errors"]["base"])
   end
 
   private
