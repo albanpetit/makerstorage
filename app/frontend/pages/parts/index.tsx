@@ -494,15 +494,29 @@ export default function PartsIndex({ parts, initial_query, categories, footprint
   const pageSlice = sorted.slice(clampedPage * PAGE_SIZE, clampedPage * PAGE_SIZE + PAGE_SIZE)
 
   const allIds = sorted.map((p) => p.id)
-  const allSelected = allIds.length > 0 && allIds.every((id) => selected.includes(id))
-  const someSelected = allIds.some((id) => selected.includes(id))
+  const allFilteredSelected = allIds.length > 0 && allIds.every((id) => selected.includes(id))
   const hiddenSelectedCount = selected.filter((id) => !allIds.includes(id)).length
+
+  const pageIds = pageSlice.map((p) => p.id)
+  const pageAllSelected = pageIds.length > 0 && pageIds.every((id) => selected.includes(id))
+  const pageSomeSelected = pageIds.some((id) => selected.includes(id))
 
   const toggleRow = (id: number) => {
     setSelected(selected.includes(id) ? selected.filter((x) => x !== id) : [ ...selected, id ])
   }
 
-  const toggleAll = () => setSelected(allSelected ? [] : allIds)
+  // Header checkbox scopes to the current page only — selecting every
+  // matching part across pages is an explicit follow-up action (see banner
+  // below), not an implicit side effect of "select all".
+  const togglePage = () => {
+    setSelected(
+      pageAllSelected
+        ? selected.filter((id) => !pageIds.includes(id))
+        : Array.from(new Set([ ...selected, ...pageIds ]))
+    )
+  }
+
+  const selectAllMatching = () => setSelected(allIds)
 
   const selectedParts = useMemo(() => parts.filter((p) => selected.includes(p.id)), [parts, selected])
 
@@ -902,9 +916,9 @@ export default function PartsIndex({ parts, initial_query, categories, footprint
                 <TableRow className="bg-muted hover:bg-muted">
                   <TableHead className="w-10 py-2">
                     <Checkbox
-                      checked={allSelected ? true : someSelected ? 'indeterminate' : false}
-                      onCheckedChange={toggleAll}
-                      aria-label="Select all"
+                      checked={pageAllSelected ? true : pageSomeSelected ? 'indeterminate' : false}
+                      onCheckedChange={togglePage}
+                      aria-label="Select page"
                     />
                   </TableHead>
                   <TableHead className="py-2">Reference</TableHead>
@@ -919,6 +933,20 @@ export default function PartsIndex({ parts, initial_query, categories, footprint
                   <TableHead className="py-2 text-right">Stock Value</TableHead>
                   <TableHead className="w-[60px] py-2">Actions</TableHead>
                 </TableRow>
+                {pageAllSelected && !allFilteredSelected && sorted.length > pageIds.length && (
+                  <TableRow className="bg-muted hover:bg-muted">
+                    <TableHead colSpan={12} className="py-1.5 text-center text-xs font-normal text-muted-foreground">
+                      All {pageIds.length} parts on this page are selected.{' '}
+                      <button
+                        type="button"
+                        onClick={selectAllMatching}
+                        className="font-medium text-primary underline underline-offset-2 hover:no-underline"
+                      >
+                        Select all {sorted.length} parts matching filters
+                      </button>
+                    </TableHead>
+                  </TableRow>
+                )}
               </TableHeader>
               <TableBody>
                 {pageSlice.map((part) => {
