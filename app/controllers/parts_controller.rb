@@ -152,11 +152,15 @@ class PartsController < ApplicationController
 
   def bulk_destroy
     parts = current_organization.parts.where(id: bulk_part_ids)
-    count = parts.count
-    return redirect_to(parts_path, alert: "Select at least one part.") if count.zero?
+    return redirect_to(parts_path, alert: "Select at least one part.") if parts.empty?
 
-    parts.destroy_all
-    redirect_to parts_path, notice: "#{count} #{'part'.pluralize(count)} deleted successfully."
+    destroyed = parts.select { |part| part.destroy }
+    skipped = parts.size - destroyed.size
+
+    notice = "#{destroyed.size} #{'part'.pluralize(destroyed.size)} deleted successfully."
+    notice += " #{skipped} #{'part'.pluralize(skipped)} could not be deleted because #{skipped == 1 ? 'it has' : 'they have'} stock history or purchase orders." if skipped.positive?
+
+    redirect_to parts_path, notice: notice
   end
 
   # Column names accepted per logical field, checked in order (French/English/
