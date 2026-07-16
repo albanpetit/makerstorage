@@ -496,6 +496,7 @@ export default function PartsIndex({ parts, initial_query, categories, footprint
   const allIds = sorted.map((p) => p.id)
   const allSelected = allIds.length > 0 && allIds.every((id) => selected.includes(id))
   const someSelected = allIds.some((id) => selected.includes(id))
+  const hiddenSelectedCount = selected.filter((id) => !allIds.includes(id)).length
 
   const toggleRow = (id: number) => {
     setSelected(selected.includes(id) ? selected.filter((x) => x !== id) : [ ...selected, id ])
@@ -845,7 +846,14 @@ export default function PartsIndex({ parts, initial_query, categories, footprint
         {/* Bulk action bar */}
         {canWrite && selected.length > 0 && (
           <div className="flex shrink-0 items-center gap-3 bg-foreground px-5 py-2.5 text-background">
-            <span className="text-sm font-medium">{selected.length} selected</span>
+            <span className="text-sm font-medium">
+              {selected.length} selected
+              {hiddenSelectedCount > 0 && (
+                <span className="ml-1 font-normal text-background/75">
+                  (includes {hiddenSelectedCount} hidden by filters)
+                </span>
+              )}
+            </span>
             <div className="h-5 w-px bg-background/25" />
             {bulkActions.map((action) => (
               <button
