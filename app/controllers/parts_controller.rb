@@ -9,13 +9,17 @@ class PartsController < ApplicationController
   before_action :verify_organization_access
   before_action :verify_organization_writer, only: %i[
     create update destroy import lookup
-    bulk_move bulk_destroy bulk_update_category bulk_update_status bulk_update_tags bulk_assign_supplier
+    bulk_move bulk_update_category bulk_update_status bulk_update_tags bulk_assign_supplier
   ]
+  # Bulk delete is scoped to admins/owners, not the general writer role: unlike
+  # every other bulk action it's irreversible and can wipe parts org-wide, so it
+  # gets the stricter gate that single-part destroy doesn't need.
+  before_action :verify_organization_admin, only: %i[bulk_destroy]
   before_action :set_part, only: %i[show edit update destroy]
 
   def index
     parts = current_organization.parts
-      .includes(:category, :footprint, :part_storages, :storage_locations, part_suppliers: :supplier)
+      .includes(:category, :footprint, :tags, :part_storages, :storage_locations, part_suppliers: :supplier)
       .with_attached_images
       .alphabetical
 
@@ -142,11 +146,11 @@ class PartsController < ApplicationController
   # location it currently sits in) is transferred into +storage_location_id+ via
   # matching out/in ledger movements. Parts with no positive stock are left as-is.
   def bulk_move
-    parts = current_organization.parts.where(id: bulk_part_ids).includes(:part_storages)
-    return redirect_to(parts_path, alert: "Select at least one part.") if parts.empty?
+    parts = current_organization.parts.where(id: bulk_part_ids).includes(part_storages: :storage_location)
+    return bulk_error("Select at least one part.") if parts.empty?
 
     destination = current_organization.storage_locations.find_by(id: params[:storage_location_id])
-    return redirect_to(parts_path, alert: "Choose a destination location.") unless destination
+    return bulk_error("Choose a destination location.") unless destination
 
     moved = parts.count { |part| relocate_part_stock(part, destination) }
 
@@ -155,7 +159,7 @@ class PartsController < ApplicationController
 
   def bulk_destroy
     parts = current_organization.parts.where(id: bulk_part_ids)
-    return redirect_to(parts_path, alert: "Select at least one part.") if parts.empty?
+    return bulk_error("Select at least one part.") if parts.empty?
 
     destroyed = parts.select { |part| part.destroy }
     skipped = parts.size - destroyed.size
@@ -168,10 +172,10 @@ class PartsController < ApplicationController
 
   def bulk_update_category
     parts = current_organization.parts.where(id: bulk_part_ids)
-    return redirect_to(parts_path, alert: "Select at least one part.") if parts.empty?
+    return bulk_error("Select at least one part.") if parts.empty?
 
     category = current_organization.categories.find_by(id: params[:category_id])
-    return redirect_to(parts_path, alert: "Choose a category.") unless category
+    return bulk_error("Choose a category.") unless category
 
     updated = parts.update_all(category_id: category.id)
     redirect_to parts_path, notice: "Set category to #{category.name} for #{updated} #{'part'.pluralize(updated)}."
@@ -179,10 +183,10 @@ class PartsController < ApplicationController
 
   def bulk_update_status
     parts = current_organization.parts.where(id: bulk_part_ids)
-    return redirect_to(parts_path, alert: "Select at least one part.") if parts.empty?
+    return bulk_error("Select at least one part.") if parts.empty?
 
     status = params[:status].to_s
-    return redirect_to(parts_path, alert: "Choose a valid status.") unless Part::STATUSES.include?(status)
+    return bulk_error("Choose a valid status.") unless Part::STATUSES.include?(status)
 
     updated = parts.update_all(status: status)
     redirect_to parts_path, notice: "Set status to #{status} for #{updated} #{'part'.pluralize(updated)}."
@@ -192,19 +196,26 @@ class PartsController < ApplicationController
   # (add) or already absent (remove) on a given part are simply left alone.
   def bulk_update_tags
     parts = current_organization.parts.where(id: bulk_part_ids)
-    return redirect_to(parts_path, alert: "Select at least one part.") if parts.empty?
+    return bulk_error("Select at least one part.") if parts.empty?
 
     tag_ids = current_organization.tags.where(id: Array(params[:tag_ids])).pluck(:id)
-    return redirect_to(parts_path, alert: "Choose at least one tag.") if tag_ids.empty?
+    return bulk_error("Choose at least one tag.") if tag_ids.empty?
+
+    part_ids = parts.pluck(:id)
 
     if params[:mode] == "remove"
-      PartTag.where(part_id: parts.select(:id), tag_id: tag_ids).delete_all
-      redirect_to parts_path, notice: "Removed #{tag_ids.size} #{'tag'.pluralize(tag_ids.size)} from #{parts.size} #{'part'.pluralize(parts.size)}."
+      PartTag.where(part_id: part_ids, tag_id: tag_ids).delete_all
+      redirect_to parts_path, notice: "Removed #{tag_ids.size} #{'tag'.pluralize(tag_ids.size)} from #{part_ids.size} #{'part'.pluralize(part_ids.size)}."
     else
-      parts.find_each do |part|
-        (tag_ids - part.tag_ids).each { |tag_id| part.part_tags.create!(tag_id: tag_id) }
+      # Single query for existing links instead of a per-part tag_ids lookup,
+      # then a single bulk insert for whatever's missing.
+      existing = PartTag.where(part_id: part_ids, tag_id: tag_ids).pluck(:part_id, :tag_id).to_set
+      rows = part_ids.flat_map do |part_id|
+        tag_ids.reject { |tag_id| existing.include?([ part_id, tag_id ]) }
+          .map { |tag_id| { part_id: part_id, tag_id: tag_id } }
       end
-      redirect_to parts_path, notice: "Added #{tag_ids.size} #{'tag'.pluralize(tag_ids.size)} to #{parts.size} #{'part'.pluralize(parts.size)}."
+      PartTag.insert_all(rows) if rows.any?
+      redirect_to parts_path, notice: "Added #{tag_ids.size} #{'tag'.pluralize(tag_ids.size)} to #{part_ids.size} #{'part'.pluralize(part_ids.size)}."
     end
   end
 
@@ -212,14 +223,14 @@ class PartsController < ApplicationController
   # (PartSupplier#ensure_single_preferred demotes any prior preferred link and
   # Part#sync_unit_price_from_preferred! keeps unit_price in step).
   def bulk_assign_supplier
-    parts = current_organization.parts.where(id: bulk_part_ids)
-    return redirect_to(parts_path, alert: "Select at least one part.") if parts.empty?
+    parts = current_organization.parts.where(id: bulk_part_ids).includes(:part_suppliers)
+    return bulk_error("Select at least one part.") if parts.empty?
 
     supplier = current_organization.suppliers.find_by(id: params[:supplier_id])
-    return redirect_to(parts_path, alert: "Choose a supplier.") unless supplier
+    return bulk_error("Choose a supplier.") unless supplier
 
-    parts.find_each do |part|
-      link = part.part_suppliers.find_or_initialize_by(supplier: supplier)
+    parts.each do |part|
+      link = part.part_suppliers.to_a.find { |ps| ps.supplier_id == supplier.id } || part.part_suppliers.build(supplier: supplier)
       link.is_preferred = true
       link.save!
     end
@@ -302,6 +313,15 @@ class PartsController < ApplicationController
 
   def bulk_part_ids
     Array(params[:part_ids]).map(&:to_i).reject(&:zero?).uniq
+  end
+
+  # Redirects with a flash alert AND an Inertia `errors` prop, so the client's
+  # `onError` callback fires instead of `onSuccess` — without this, a rejected
+  # bulk action still looks like a success to the visit that triggered it (the
+  # response is a redirect either way), closing the dialog and clearing the
+  # selection before the user can read why it failed.
+  def bulk_error(message)
+    redirect_to parts_path, alert: message, inertia: { errors: { base: message } }
   end
 
   # Moves every positive-stock location of +part+ into +destination+, recording
@@ -461,10 +481,13 @@ class PartsController < ApplicationController
       mpn: part.mpn,
       sku: part.sku,
       ipn: part.ipn,
+      barcode: part.barcode,
       manufacturer: part.manufacturer,
+      description: part.description,
       value: part.value,
       package_type: part.package_type,
       status: part.status,
+      tag_names: part.tags.map(&:name),
       thumbnail_url: part_thumbnail_url(part),
       # Compute from the preloaded associations (see index eager-loading) rather
       # than `part.total_quantity`/`part.preferred_supplier`, which each fire a
@@ -481,8 +504,6 @@ class PartsController < ApplicationController
 
   def serialize_part_full(part)
     serialize_part(part).merge(
-      barcode: part.barcode,
-      description: part.description,
       tolerance: part.tolerance,
       voltage_rating: part.voltage_rating,
       power_rating: part.power_rating,
