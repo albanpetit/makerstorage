@@ -843,68 +843,6 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
     assert_match(/select at least one part/i, flash[:alert])
   end
 
-  test "bulk_stock records the same inbound movement against each selected part" do
-    user = create_user
-    org = user.organizations.first
-    location = create_storage_location(organization: org, name: "Shelf A")
-    parts = [ create_part(organization: org), create_part(organization: org) ]
-
-    sign_in user
-    assert_difference -> { StockMovement.count } => 2 do
-      post bulk_stock_parts_path, params: {
-        part_ids: parts.map(&:id), storage_location_id: location.id,
-        movement_type: "in", quantity: "15", reason: "Restock"
-      }
-    end
-
-    parts.each do |part|
-      movement = StockMovement.find_by(part: part, storage_location: location)
-      assert_equal "in", movement.movement_type
-      assert_equal 15, movement.quantity_delta
-      assert_equal "Restock", movement.reason
-      assert_equal 15, part.total_quantity
-    end
-  end
-
-  test "bulk_stock skips an outbound movement that would overdraw and reports it" do
-    user = create_user
-    org = user.organizations.first
-    location = create_storage_location(organization: org, name: "Shelf A")
-    stocked = create_part(organization: org)
-    empty = create_part(organization: org)
-    PartStorage.create!(part: stocked, storage_location: location, quantity: 100)
-
-    sign_in user
-    assert_difference -> { StockMovement.count } => 1 do
-      post bulk_stock_parts_path, params: {
-        part_ids: [ stocked.id, empty.id ], storage_location_id: location.id,
-        movement_type: "out", quantity: "10"
-      }
-    end
-
-    assert_equal 90, stocked.total_quantity
-    assert_equal 0, empty.total_quantity
-    follow_redirect!
-    assert_match(/1 skipped/, flash[:notice])
-  end
-
-  test "bulk_stock rejects a non-positive quantity" do
-    user = create_user
-    org = user.organizations.first
-    location = create_storage_location(organization: org)
-    part = create_part(organization: org)
-
-    sign_in user
-    assert_no_difference -> { StockMovement.count } do
-      post bulk_stock_parts_path, params: {
-        part_ids: [ part.id ], storage_location_id: location.id, movement_type: "in", quantity: "0"
-      }
-    end
-    assert_redirected_to parts_path
-    follow_redirect!
-    assert_match(/greater than zero/i, flash[:alert])
-  end
-
   test "bulk_move relocates all stock into the destination via ledger movements" do
     user = create_user
     org = user.organizations.first

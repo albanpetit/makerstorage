@@ -3,7 +3,7 @@ import { useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import {
   Plus, Search, Package, Pencil, Download, Upload,
-  ChevronLeft, ChevronRight, Move, ArrowLeftRight, Tag, Trash2, X,
+  ChevronLeft, ChevronRight, Move, Tag, Trash2, X,
 } from 'lucide-react'
 
 import { AppLayout } from '@/layouts/app-layout'
@@ -505,11 +505,6 @@ export default function PartsIndex({ parts, initial_query, categories, footprint
 
   const [moveOpen, setMoveOpen] = useState(false)
   const [moveLocationId, setMoveLocationId] = useState('')
-  const [stockOpen, setStockOpen] = useState(false)
-  const [stockType, setStockType] = useState<'in' | 'out'>('in')
-  const [stockLocationId, setStockLocationId] = useState('')
-  const [stockQuantity, setStockQuantity] = useState('')
-  const [stockReason, setStockReason] = useState('')
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [bulkSubmitting, setBulkSubmitting] = useState(false)
 
@@ -519,14 +514,6 @@ export default function PartsIndex({ parts, initial_query, categories, footprint
   const openMove = () => {
     setMoveLocationId('')
     setMoveOpen(true)
-  }
-
-  const openStock = () => {
-    setStockType('in')
-    setStockLocationId('')
-    setStockQuantity('')
-    setStockReason('')
-    setStockOpen(true)
   }
 
   // Shared visit options: clear the selection once the server has applied the
@@ -548,20 +535,6 @@ export default function PartsIndex({ parts, initial_query, categories, footprint
       onBulkSuccess(() => setMoveOpen(false)))
   }
 
-  const submitStock = () => {
-    const qty = Number.parseInt(stockQuantity, 10)
-    if (!stockLocationId || !(qty > 0)) return
-    router.post('/parts/bulk_stock',
-      {
-        part_ids: selected,
-        storage_location_id: stockLocationId,
-        movement_type: stockType,
-        quantity: qty,
-        reason: stockReason,
-      },
-      onBulkSuccess(() => setStockOpen(false)))
-  }
-
   const submitDelete = () => {
     router.delete('/parts/bulk_destroy', {
       data: { part_ids: selected },
@@ -571,7 +544,6 @@ export default function PartsIndex({ parts, initial_query, categories, footprint
 
   const bulkActions = [
     { label: 'Move', icon: Move, action: openMove },
-    { label: 'Stock in/out', icon: ArrowLeftRight, action: openStock },
     { label: 'Labels', icon: Tag, action: () => printLabels(selectedParts) },
     { label: 'Delete', icon: Trash2, action: () => setDeleteOpen(true) },
   ]
@@ -1121,89 +1093,6 @@ export default function PartsIndex({ parts, initial_query, categories, footprint
             <Button variant="outline" onClick={() => setMoveOpen(false)}>Cancel</Button>
             <Button disabled={!moveLocationId || bulkSubmitting} onClick={submitMove}>
               Move part{plural}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Bulk stock in/out modal */}
-      <Dialog open={stockOpen} onOpenChange={setStockOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Stock in/out · {selectedCount} part{plural}</DialogTitle>
-            <DialogDescription>
-              The same movement is recorded against every selected part at the chosen location.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-2">
-              <Button
-                type="button"
-                variant={stockType === 'in' ? 'default' : 'outline'}
-                onClick={() => setStockType('in')}
-              >
-                Stock in
-              </Button>
-              <Button
-                type="button"
-                variant={stockType === 'out' ? 'default' : 'outline'}
-                onClick={() => setStockType('out')}
-              >
-                Stock out
-              </Button>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="bulk-stock-location">Location</Label>
-              <Select value={stockLocationId} onValueChange={setStockLocationId}>
-                <SelectTrigger id="bulk-stock-location">
-                  <SelectValue placeholder="Choose a location" />
-                </SelectTrigger>
-                <SelectContent>
-                  {storage_locations.map((loc) => (
-                    <SelectItem key={loc.id} value={String(loc.id)}>{loc.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="bulk-stock-quantity">Quantity per part</Label>
-              <Input
-                id="bulk-stock-quantity"
-                type="number"
-                min="1"
-                value={stockQuantity}
-                onChange={(e) => setStockQuantity(e.target.value)}
-                placeholder="0"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="bulk-stock-reason">Reason (optional)</Label>
-              <Input
-                id="bulk-stock-reason"
-                value={stockReason}
-                onChange={(e) => setStockReason(e.target.value)}
-                placeholder={stockType === 'in' ? 'Restock' : 'Consumed'}
-              />
-            </div>
-
-            {stockType === 'out' && (
-              <p className="text-sm text-muted-foreground">
-                Parts without enough stock at this location are skipped.
-              </p>
-            )}
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setStockOpen(false)}>Cancel</Button>
-            <Button
-              disabled={!stockLocationId || !(Number.parseInt(stockQuantity, 10) > 0) || bulkSubmitting}
-              onClick={submitStock}
-            >
-              Record movement
             </Button>
           </DialogFooter>
         </DialogContent>
