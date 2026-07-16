@@ -884,6 +884,23 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
     assert_match(/choose a destination/i, inertia_props["errors"]["base"])
   end
 
+  test "bulk_move rejects a destination from another organization" do
+    user = create_user
+    org = user.organizations.first
+    part = create_part(organization: org)
+    foreign_location = create_storage_location(organization: create_organization)
+
+    sign_in user
+    assert_no_difference -> { StockMovement.count } do
+      post bulk_move_parts_path, params: { part_ids: [ part.id ], storage_location_id: foreign_location.id }
+    end
+
+    assert_redirected_to parts_path
+    follow_redirect!
+    assert_match(/choose a destination/i, flash[:alert])
+    assert_match(/choose a destination/i, inertia_props["errors"]["base"])
+  end
+
   test "bulk_move relocates all stock into the destination via ledger movements" do
     user = create_user
     org = user.organizations.first
@@ -1086,6 +1103,23 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to parts_path
     refute part.part_suppliers.find_by(supplier: old_supplier).is_preferred?
     assert part.part_suppliers.find_by(supplier: new_supplier).is_preferred?
+  end
+
+  test "bulk_assign_supplier rejects a supplier from another organization" do
+    user = create_user
+    org = user.organizations.first
+    part = create_part(organization: org)
+    foreign_supplier = create_supplier(organization: create_organization)
+
+    sign_in user
+    assert_no_difference -> { PartSupplier.count } do
+      post bulk_assign_supplier_parts_path, params: { part_ids: [ part.id ], supplier_id: foreign_supplier.id }
+    end
+
+    assert_redirected_to parts_path
+    follow_redirect!
+    assert_match(/choose a supplier/i, flash[:alert])
+    assert_match(/choose a supplier/i, inertia_props["errors"]["base"])
   end
 
   test "bulk_assign_supplier redirects with an alert when no supplier is chosen" do
