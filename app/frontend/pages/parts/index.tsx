@@ -507,6 +507,7 @@ export default function PartsIndex({ parts, initial_query, categories, footprint
 
   const [moveOpen, setMoveOpen] = useState(false)
   const [moveLocationId, setMoveLocationId] = useState('')
+  const [moveConfirmOpen, setMoveConfirmOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [bulkSubmitting, setBulkSubmitting] = useState(false)
 
@@ -525,6 +526,7 @@ export default function PartsIndex({ parts, initial_query, categories, footprint
 
   const openMove = () => {
     setMoveLocationId('')
+    setMoveConfirmOpen(false)
     setMoveOpen(true)
   }
 
@@ -565,7 +567,7 @@ export default function PartsIndex({ parts, initial_query, categories, footprint
     if (!moveLocationId) return
     router.post('/parts/bulk_move',
       { part_ids: selected, storage_location_id: moveLocationId },
-      onBulkSuccess(() => setMoveOpen(false)))
+      onBulkSuccess(() => { setMoveConfirmOpen(false); setMoveOpen(false) }))
   }
 
   const submitDelete = () => {
@@ -1157,12 +1159,30 @@ export default function PartsIndex({ parts, initial_query, categories, footprint
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setMoveOpen(false)}>Cancel</Button>
-            <Button disabled={!moveLocationId || bulkSubmitting} onClick={submitMove}>
+            <Button disabled={!moveLocationId || bulkSubmitting} onClick={() => setMoveConfirmOpen(true)}>
               Move part{plural}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={moveConfirmOpen} onOpenChange={setMoveConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Move {selectedCount} part{plural}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This writes stock-out and stock-in movements for every location currently holding
+              the selected part{plural}. This can&apos;t be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkSubmitting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction disabled={bulkSubmitting} onClick={(e) => { e.preventDefault(); submitMove() }}>
+              Move part{plural}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Bulk category modal */}
       <Dialog open={categoryOpen} onOpenChange={setCategoryOpen}>
