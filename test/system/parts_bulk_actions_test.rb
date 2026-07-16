@@ -19,14 +19,30 @@ class PartsBulkActionsTest < ApplicationSystemTestCase
     fill_in "Email address", with: @user.email
     fill_in "Password", with: "password123"
 
+    log_pos = File.size(Rails.root.join("log/test.log"))
     t1 = Time.now
     click_on "Log in"
-    sleep 1
-    puts "[DIAG] after click+1s sleep: #{Time.now - t1}s, current_path=#{current_path}"
-    puts "[DIAG] page text snippet: #{page.text[0, 200].inspect}"
-    puts "[DIAG] default_strategies after click=#{Devise.warden_config[:default_strategies].inspect}"
 
-    assert_selector "h1", text: "Dashboard", wait: 20
+    16.times do |i|
+      sleep 1
+      puts "[DIAG] t+#{i + 1}s current_path=#{current_path}"
+      break if current_path != "/login"
+    end
+    puts "[DIAG] total wait #{Time.now - t1}s, final current_path=#{current_path}"
+    puts "[DIAG] page text: #{page.text.inspect}"
+
+    begin
+      page.driver.browser.logs.get(:browser).each do |entry|
+        puts "[DIAG][console] #{entry.level}: #{entry.message}"
+      end
+    rescue => e
+      puts "[DIAG] console logs unavailable: #{e.class}: #{e.message}"
+    end
+
+    log_tail = File.open(Rails.root.join("log/test.log")) { |f| f.seek(log_pos); f.read }
+    puts "[DIAG] server log since click:\n#{log_tail}"
+
+    assert_selector "h1", text: "Dashboard", wait: 5
   end
 
   test "selecting parts and applying a bulk category change" do
