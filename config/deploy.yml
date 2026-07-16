@@ -19,9 +19,10 @@ servers:
 registry:
   server: ghcr.io
   username: albanpetit
-  # ghcr.io authenticates with a GitHub token (GITHUB_TOKEN in CI, a PAT locally).
+  # ghcr.io needs a PAT with write:packages — the automatic GITHUB_TOKEN is denied
+  # for user-namespace packages. Supplied via .kamal/secrets.
   password:
-    - GITHUB_TOKEN
+    - KAMAL_REGISTRY_PASSWORD
 
 # Kamal proxy. SSL is terminated by the Cloudflare Tunnel in front of the server,
 # so the proxy itself serves plain HTTP (ssl: false). Thruster listens on port 80

@@ -37,6 +37,7 @@ Set these under **Settings → Secrets and variables → Actions**:
 | `DEPLOY_USER` | SSH user on the server (e.g. `deploy`). |
 | `APP_HOST` | Public hostname Makerstorage is served on (the Kamal proxy host, e.g. `makerstorage.example.com`). |
 | `RAILS_MASTER_KEY` | Contents of `config/master.key` — decrypts Rails credentials in production. |
+| `KAMAL_REGISTRY_PASSWORD` | A GitHub **classic PAT** with `write:packages` (includes `read:packages`) — ghcr.io registry auth for pushing the image in CI and pulling it on the server. The automatic `GITHUB_TOKEN` can't be used here: ghcr denies it for user-namespace packages. You can reuse the same PAT as the paperflux deploy. |
 
 > If the Cloudflare Tunnel's SSH route is ever put behind a **Cloudflare Access**
 > policy, `cloudflared` will additionally need a service token — add
@@ -44,9 +45,10 @@ Set these under **Settings → Secrets and variables → Actions**:
 > the deploy and backup steps. It isn't required today (the route is unauthenticated,
 > same as the paperflux setup).
 
-`GITHUB_TOKEN` is provided automatically by Actions and is used both to push the
-image to ghcr.io and (via [`.kamal/secrets`](../.kamal/secrets)) as the registry
-password on the server.
+`GITHUB_TOKEN` is provided automatically by Actions and is used only by the
+[`Release`](../.github/workflows/release.yml) workflow to create the GitHub Release.
+Registry auth (push in CI, pull on the server) uses `KAMAL_REGISTRY_PASSWORD` above,
+not the automatic token.
 
 ## Portainer stack grouping
 
