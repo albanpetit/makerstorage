@@ -1,0 +1,42 @@
+name: Release
+
+# Wrap every SemVer tag in a GitHub Release with auto-generated notes, mirroring
+# the manual `gh release create` step in CONTRIBUTING.md. Fires on the same v* tag
+# push that triggers a production deploy (deploy.yml).
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          # Idempotent: re-running the workflow for an existing release is a no-op.
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists — nothing to do."
+            exit 0
+          fi
+
+          # SemVer pre-release tags (e.g. v1.0.0-rc.1) carry a hyphen after the
+          # version — mark those as GitHub pre-releases.
+          prerelease_flag=""
+          if [[ "$TAG" == *-* ]]; then
+            prerelease_flag="--prerelease"
+          fi
+
+          gh release create "$TAG" \
+            --title "$TAG" \
+            --generate-notes \
+            $prerelease_flag

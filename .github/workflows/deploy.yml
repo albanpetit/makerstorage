@@ -1,0 +1,76 @@
+name: Deploy to Production
+
+# Continuous delivery: a production deploy runs when a SemVer tag (vX.Y.Z) is
+# pushed — see CONTRIBUTING.md "Releases & versioning". Tags are cut from main
+# once CI is green, so main stays releasable and shipping stays deliberate.
+# workflow_dispatch allows a manual re-deploy of the current ref.
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          bundler-cache: true
+
+      # The image is built for arm64 (the production server) on this amd64 runner,
+      # so register QEMU/binfmt handlers for cross-arch emulation.
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Install cloudflared
+        run: |
+          curl -fsSL https://pkg.cloudflare.com/cloudflare-main.gpg | sudo tee /usr/share/keyrings/cloudflare-main.gpg >/dev/null
+          echo "deb [signed-by=/usr/share/keyrings/cloudflare-main.gpg] https://pkg.cloudflare.com/cloudflared $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/cloudflared.list
+          sudo apt-get update && sudo apt-get install -y cloudflared
+
+      # SSH to the server runs through a Cloudflare Tunnel (Kamal's ssh.proxy_command
+      # in config/deploy.yml invokes cloudflared). Write the deploy key so Kamal's
+      # net-ssh can authenticate.
+      - name: Set up SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' \
+            "Host ${{ secrets.DEPLOY_HOST }}" \
+            "  User ${{ secrets.DEPLOY_USER }}" \
+            "  IdentityFile ~/.ssh/id_ed25519" \
+            "  StrictHostKeyChecking no" \
+            > ~/.ssh/config
+          chmod 600 ~/.ssh/config
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Deploy with Kamal
+        run: bundle exec kamal deploy
+        env:
+          # Registry auth + app secrets, read by .kamal/secrets.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RAILS_MASTER_KEY: ${{ secrets.RAILS_MASTER_KEY }}
+          # Server + proxy targets, read by config/deploy.yml.
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          APP_HOST: ${{ secrets.APP_HOST }}
