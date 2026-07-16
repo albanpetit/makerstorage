@@ -833,6 +833,30 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
     doomed.each { |part| refute Part.exists?(part.id) }
   end
 
+  test "bulk_destroy skips parts with stock history and reports the count" do
+    user = create_user
+    org = user.organizations.first
+    location = create_storage_location(organization: org)
+    clean = create_part(organization: org, name: "Clean")
+    with_history = create_part(organization: org, name: "With History")
+    StockMovement.create!(
+      organization: org, part: with_history, storage_location: location, user: user,
+      movement_type: "in", quantity_delta: 10
+    )
+
+    sign_in user
+    assert_difference -> { Part.count } => -1 do
+      delete bulk_destroy_parts_path, params: { part_ids: [ clean.id, with_history.id ] }
+    end
+
+    assert_redirected_to parts_path
+    follow_redirect!
+    refute Part.exists?(clean.id)
+    assert Part.exists?(with_history.id)
+    assert_match(/1 part deleted successfully/i, flash[:notice])
+    assert_match(/1 part could not be deleted/i, flash[:notice])
+  end
+
   test "bulk_destroy redirects with an alert when nothing is selected" do
     user = create_user
     sign_in user
