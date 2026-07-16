@@ -7,7 +7,10 @@ class PartsController < ApplicationController
   include OptionListSerializers
 
   before_action :verify_organization_access
-  before_action :verify_organization_writer, only: %i[create update destroy import lookup bulk_move bulk_destroy]
+  before_action :verify_organization_writer, only: %i[
+    create update destroy import lookup
+    bulk_move bulk_destroy bulk_update_category bulk_update_status bulk_update_tags bulk_assign_supplier
+  ]
   before_action :set_part, only: %i[show edit update destroy]
 
   def index
@@ -161,6 +164,67 @@ class PartsController < ApplicationController
     notice += " #{skipped} #{'part'.pluralize(skipped)} could not be deleted because #{skipped == 1 ? 'it has' : 'they have'} stock history or purchase orders." if skipped.positive?
 
     redirect_to parts_path, notice: notice
+  end
+
+  def bulk_update_category
+    parts = current_organization.parts.where(id: bulk_part_ids)
+    return redirect_to(parts_path, alert: "Select at least one part.") if parts.empty?
+
+    category = current_organization.categories.find_by(id: params[:category_id])
+    return redirect_to(parts_path, alert: "Choose a category.") unless category
+
+    updated = parts.update_all(category_id: category.id)
+    redirect_to parts_path, notice: "Set category to #{category.name} for #{updated} #{'part'.pluralize(updated)}."
+  end
+
+  def bulk_update_status
+    parts = current_organization.parts.where(id: bulk_part_ids)
+    return redirect_to(parts_path, alert: "Select at least one part.") if parts.empty?
+
+    status = params[:status].to_s
+    return redirect_to(parts_path, alert: "Choose a valid status.") unless Part::STATUSES.include?(status)
+
+    updated = parts.update_all(status: status)
+    redirect_to parts_path, notice: "Set status to #{status} for #{updated} #{'part'.pluralize(updated)}."
+  end
+
+  # Adds or removes the given tags on every selected part. Tags already present
+  # (add) or already absent (remove) on a given part are simply left alone.
+  def bulk_update_tags
+    parts = current_organization.parts.where(id: bulk_part_ids)
+    return redirect_to(parts_path, alert: "Select at least one part.") if parts.empty?
+
+    tag_ids = current_organization.tags.where(id: Array(params[:tag_ids])).pluck(:id)
+    return redirect_to(parts_path, alert: "Choose at least one tag.") if tag_ids.empty?
+
+    if params[:mode] == "remove"
+      PartTag.where(part_id: parts.select(:id), tag_id: tag_ids).delete_all
+      redirect_to parts_path, notice: "Removed #{tag_ids.size} #{'tag'.pluralize(tag_ids.size)} from #{parts.size} #{'part'.pluralize(parts.size)}."
+    else
+      parts.find_each do |part|
+        (tag_ids - part.tag_ids).each { |tag_id| part.part_tags.create!(tag_id: tag_id) }
+      end
+      redirect_to parts_path, notice: "Added #{tag_ids.size} #{'tag'.pluralize(tag_ids.size)} to #{parts.size} #{'part'.pluralize(parts.size)}."
+    end
+  end
+
+  # Links the given supplier to every selected part, marking it preferred
+  # (PartSupplier#ensure_single_preferred demotes any prior preferred link and
+  # Part#sync_unit_price_from_preferred! keeps unit_price in step).
+  def bulk_assign_supplier
+    parts = current_organization.parts.where(id: bulk_part_ids)
+    return redirect_to(parts_path, alert: "Select at least one part.") if parts.empty?
+
+    supplier = current_organization.suppliers.find_by(id: params[:supplier_id])
+    return redirect_to(parts_path, alert: "Choose a supplier.") unless supplier
+
+    parts.find_each do |part|
+      link = part.part_suppliers.find_or_initialize_by(supplier: supplier)
+      link.is_preferred = true
+      link.save!
+    end
+
+    redirect_to parts_path, notice: "Assigned #{supplier.name} as preferred supplier for #{parts.size} #{'part'.pluralize(parts.size)}."
   end
 
   # Column names accepted per logical field, checked in order (French/English/
