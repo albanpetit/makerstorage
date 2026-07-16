@@ -85,10 +85,13 @@ interface Part {
   mpn: string | null
   sku: string | null
   ipn: string | null
+  barcode: string | null
   manufacturer: string | null
+  description: string | null
   value: string | null
   package_type: string | null
   status: 'active' | 'discontinued' | 'obsolete'
+  tag_names: string[]
   thumbnail_url: string | null
   total_quantity: number
   min_stock_threshold: number
@@ -200,21 +203,30 @@ function csvEscape(value: string): string {
 }
 
 function exportCsv(parts: Part[]) {
-  const headers = [ "Name", "MPN", "SKU", "IPN", "Category", "Value", "Package", "Location", "Supplier", "Unit Price", "Quantity", "Min Stock Threshold", "Status" ]
+  const headers = [
+    "Name", "MPN", "SKU", "IPN", "Barcode", "Category", "Manufacturer", "Value", "Package",
+    "Footprint", "Location", "Supplier", "Unit Price", "Quantity", "Min Stock Threshold",
+    "Status", "Tags", "Description",
+  ]
   const rows = parts.map((part) => [
     part.name,
     part.mpn || '',
     part.sku || '',
     part.ipn || '',
+    part.barcode || '',
     part.category?.name || '',
+    part.manufacturer || '',
     part.value || '',
     part.package_type || '',
+    part.footprint?.name || '',
     part.location_names.join('; '),
     part.supplier_name || '',
     part.unit_price != null ? part.unit_price.toFixed(2) : '',
     String(part.total_quantity),
     String(part.min_stock_threshold),
     part.status,
+    part.tag_names.join('; '),
+    part.description || '',
   ])
   const csv = [ headers, ...rows ].map((row) => row.map(csvEscape).join(',')).join('\n')
 
@@ -334,7 +346,7 @@ function parseCsvPreview(text: string): { rows: ParsedImportRow[] } | { error: s
 }
 
 export default function PartsIndex({ parts, initial_query, categories, footprints, suppliers, tags, storage_locations, supplier_lookup_enabled, ipn_manual_entry, open_add }: PartsIndexProps) {
-  const { canWrite } = usePermissions()
+  const { canWrite, canAdminister } = usePermissions()
   const [query, setQuery] = useState(initial_query || '')
   const [categoryId, setCategoryId] = useState<number | 'all'>('all')
   const [fStatus, setFStatus] = useState<string[]>([])
@@ -528,13 +540,17 @@ export default function PartsIndex({ parts, initial_query, categories, footprint
 
   const [categoryOpen, setCategoryOpen] = useState(false)
   const [categoryValue, setCategoryValue] = useState('')
+  const [categoryConfirmOpen, setCategoryConfirmOpen] = useState(false)
   const [statusOpen, setStatusOpen] = useState(false)
   const [statusValue, setStatusValue] = useState<Part['status'] | ''>('')
+  const [statusConfirmOpen, setStatusConfirmOpen] = useState(false)
   const [tagsOpen, setTagsOpen] = useState(false)
   const [tagsMode, setTagsMode] = useState<'add' | 'remove'>('add')
   const [tagsValue, setTagsValue] = useState<number[]>([])
+  const [tagsConfirmOpen, setTagsConfirmOpen] = useState(false)
   const [supplierOpen, setSupplierOpen] = useState(false)
   const [supplierValue, setSupplierValue] = useState('')
+  const [supplierConfirmOpen, setSupplierConfirmOpen] = useState(false)
 
   const selectedCount = selected.length
   const plural = selectedCount !== 1 ? 's' : ''
@@ -547,28 +563,37 @@ export default function PartsIndex({ parts, initial_query, categories, footprint
 
   const openCategory = () => {
     setCategoryValue('')
+    setCategoryConfirmOpen(false)
     setCategoryOpen(true)
   }
 
   const openStatus = () => {
     setStatusValue('')
+    setStatusConfirmOpen(false)
     setStatusOpen(true)
   }
 
   const openTags = () => {
     setTagsMode('add')
     setTagsValue([])
+    setTagsConfirmOpen(false)
     setTagsOpen(true)
   }
 
   const openSupplier = () => {
     setSupplierValue('')
+    setSupplierConfirmOpen(false)
     setSupplierOpen(true)
   }
 
-  // Shared visit options: clear the selection once the server has applied the
-  // action and Inertia has reloaded the (now updated) part list.
-  const onBulkSuccess = (closeDialog: () => void) => ({
+  // Shared visit options. On success, the server has applied the action and
+  // Inertia has reloaded the (now updated) part list, so the selection is
+  // cleared. On error (a rejected bulk action, e.g. a tampered/invalid id —
+  // surfaced via the `errors` Inertia prop rather than a plain redirect, see
+  // PartsController#bulk_error), only the confirmation step is closed: the
+  // selection and the underlying edit dialog stay put so the user can see the
+  // flash alert and retry instead of silently losing their in-progress edit.
+  const bulkVisitOptions = (closeDialog: () => void, closeConfirm: () => void = closeDialog) => ({
     preserveScroll: true,
     onStart: () => setBulkSubmitting(true),
     onFinish: () => setBulkSubmitting(false),
@@ -576,19 +601,22 @@ export default function PartsIndex({ parts, initial_query, categories, footprint
       closeDialog()
       setSelected([])
     },
+    onError: () => {
+      closeConfirm()
+    },
   })
 
   const submitMove = () => {
     if (!moveLocationId) return
     router.post('/parts/bulk_move',
       { part_ids: selected, storage_location_id: moveLocationId },
-      onBulkSuccess(() => { setMoveConfirmOpen(false); setMoveOpen(false) }))
+      bulkVisitOptions(() => { setMoveConfirmOpen(false); setMoveOpen(false) }, () => setMoveConfirmOpen(false)))
   }
 
   const submitDelete = () => {
     router.delete('/parts/bulk_destroy', {
       data: { part_ids: selected },
-      ...onBulkSuccess(() => setDeleteOpen(false)),
+      ...bulkVisitOptions(() => setDeleteOpen(false)),
     })
   }
 
@@ -596,28 +624,28 @@ export default function PartsIndex({ parts, initial_query, categories, footprint
     if (!categoryValue) return
     router.post('/parts/bulk_update_category',
       { part_ids: selected, category_id: categoryValue },
-      onBulkSuccess(() => setCategoryOpen(false)))
+      bulkVisitOptions(() => { setCategoryConfirmOpen(false); setCategoryOpen(false) }, () => setCategoryConfirmOpen(false)))
   }
 
   const submitStatus = () => {
     if (!statusValue) return
     router.post('/parts/bulk_update_status',
       { part_ids: selected, status: statusValue },
-      onBulkSuccess(() => setStatusOpen(false)))
+      bulkVisitOptions(() => { setStatusConfirmOpen(false); setStatusOpen(false) }, () => setStatusConfirmOpen(false)))
   }
 
   const submitTags = () => {
     if (tagsValue.length === 0) return
     router.post('/parts/bulk_update_tags',
       { part_ids: selected, tag_ids: tagsValue, mode: tagsMode },
-      onBulkSuccess(() => setTagsOpen(false)))
+      bulkVisitOptions(() => { setTagsConfirmOpen(false); setTagsOpen(false) }, () => setTagsConfirmOpen(false)))
   }
 
   const submitSupplier = () => {
     if (!supplierValue) return
     router.post('/parts/bulk_assign_supplier',
       { part_ids: selected, supplier_id: supplierValue },
-      onBulkSuccess(() => setSupplierOpen(false)))
+      bulkVisitOptions(() => { setSupplierConfirmOpen(false); setSupplierOpen(false) }, () => setSupplierConfirmOpen(false)))
   }
 
   const bulkActions = [
@@ -628,7 +656,10 @@ export default function PartsIndex({ parts, initial_query, categories, footprint
     { label: 'Supplier', icon: Truck, action: openSupplier },
     { label: 'Labels', icon: Tag, action: () => printLabels(selectedParts) },
     { label: 'Export', icon: Download, action: () => exportCsv(selectedParts) },
-    { label: 'Delete', icon: Trash2, action: () => setDeleteOpen(true) },
+    // Bulk delete is admin-gated server-side (PartsController#bulk_destroy) —
+    // hidden here too so members/viewers don't hit a dead-end confirmation
+    // dialog for an action the server will always reject.
+    ...(canAdminister ? [ { label: 'Delete', icon: Trash2, action: () => setDeleteOpen(true) } ] : []),
   ]
 
   const handleFilePicked = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1214,7 +1245,7 @@ export default function PartsIndex({ parts, initial_query, categories, footprint
           <AlertDialogFooter>
             <AlertDialogCancel disabled={bulkSubmitting}>Cancel</AlertDialogCancel>
             <AlertDialogAction disabled={bulkSubmitting} onClick={(e) => { e.preventDefault(); submitMove() }}>
-              Move part{plural}
+              {bulkSubmitting ? 'Moving…' : `Move part${plural}`}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1246,12 +1277,30 @@ export default function PartsIndex({ parts, initial_query, categories, footprint
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setCategoryOpen(false)}>Cancel</Button>
-            <Button disabled={!categoryValue || bulkSubmitting} onClick={submitCategory}>
+            <Button disabled={!categoryValue || bulkSubmitting} onClick={() => setCategoryConfirmOpen(true)}>
               Set category
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={categoryConfirmOpen} onOpenChange={setCategoryConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Set category for {selectedCount} part{plural}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This overwrites the current category on every selected part
+              {hiddenSelectedCount > 0 ? ', including parts hidden by your current filters' : ''}.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkSubmitting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction disabled={bulkSubmitting} onClick={(e) => { e.preventDefault(); submitCategory() }}>
+              {bulkSubmitting ? 'Setting…' : 'Set category'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Bulk status modal */}
       <Dialog open={statusOpen} onOpenChange={setStatusOpen}>
@@ -1279,12 +1328,30 @@ export default function PartsIndex({ parts, initial_query, categories, footprint
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setStatusOpen(false)}>Cancel</Button>
-            <Button disabled={!statusValue || bulkSubmitting} onClick={submitStatus}>
+            <Button disabled={!statusValue || bulkSubmitting} onClick={() => setStatusConfirmOpen(true)}>
               Set status
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={statusConfirmOpen} onOpenChange={setStatusConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Set status for {selectedCount} part{plural}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This overwrites the lifecycle status on every selected part
+              {hiddenSelectedCount > 0 ? ', including parts hidden by your current filters' : ''}.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkSubmitting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction disabled={bulkSubmitting} onClick={(e) => { e.preventDefault(); submitStatus() }}>
+              {bulkSubmitting ? 'Setting…' : 'Set status'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Bulk tags modal */}
       <Dialog open={tagsOpen} onOpenChange={setTagsOpen}>
@@ -1320,12 +1387,32 @@ export default function PartsIndex({ parts, initial_query, categories, footprint
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setTagsOpen(false)}>Cancel</Button>
-            <Button disabled={tagsValue.length === 0 || bulkSubmitting} onClick={submitTags}>
+            <Button disabled={tagsValue.length === 0 || bulkSubmitting} onClick={() => setTagsConfirmOpen(true)}>
               {tagsMode === 'add' ? 'Add tags' : 'Remove tags'}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={tagsConfirmOpen} onOpenChange={setTagsConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {tagsMode === 'add' ? 'Add' : 'Remove'} tags for {selectedCount} part{plural}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This {tagsMode === 'add' ? 'adds the chosen tags to' : 'removes the chosen tags from'} every
+              selected part{hiddenSelectedCount > 0 ? ', including parts hidden by your current filters' : ''}.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkSubmitting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction disabled={bulkSubmitting} onClick={(e) => { e.preventDefault(); submitTags() }}>
+              {bulkSubmitting ? 'Saving…' : tagsMode === 'add' ? 'Add tags' : 'Remove tags'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Bulk supplier modal */}
       <Dialog open={supplierOpen} onOpenChange={setSupplierOpen}>
@@ -1356,12 +1443,31 @@ export default function PartsIndex({ parts, initial_query, categories, footprint
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setSupplierOpen(false)}>Cancel</Button>
-            <Button disabled={!supplierValue || bulkSubmitting} onClick={submitSupplier}>
+            <Button disabled={!supplierValue || bulkSubmitting} onClick={() => setSupplierConfirmOpen(true)}>
               Assign supplier
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={supplierConfirmOpen} onOpenChange={setSupplierConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Assign supplier for {selectedCount} part{plural}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This links the chosen supplier to every selected part and marks it preferred, which
+              also updates each part&apos;s unit price to match
+              {hiddenSelectedCount > 0 ? '. This includes parts hidden by your current filters.' : '.'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkSubmitting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction disabled={bulkSubmitting} onClick={(e) => { e.preventDefault(); submitSupplier() }}>
+              {bulkSubmitting ? 'Assigning…' : 'Assign supplier'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Bulk delete confirmation */}
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
@@ -1380,7 +1486,7 @@ export default function PartsIndex({ parts, initial_query, categories, footprint
               onClick={(e) => { e.preventDefault(); submitDelete() }}
               className="bg-destructive text-white hover:bg-destructive/90"
             >
-              Delete part{plural}
+              {bulkSubmitting ? 'Deleting…' : `Delete part${plural}`}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
