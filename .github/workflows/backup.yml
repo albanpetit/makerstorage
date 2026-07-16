@@ -1,0 +1,65 @@
+name: Backup
+
+# Nightly off-host backup of the production volume (all SQLite databases + Active
+# Storage uploads). Connects to the server over the same Cloudflare Tunnel as the
+# deploy, runs bin/backup-storage inside the running app container, streams the
+# archive back, and keeps it as a workflow artifact — a copy that survives loss of
+# the server/volume. Can also be run on demand from the Actions tab.
+on:
+  schedule:
+    - cron: "17 3 * * *" # 03:17 UTC daily
+  workflow_dispatch:
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Install cloudflared
+        run: |
+          curl -fsSL https://pkg.cloudflare.com/cloudflare-main.gpg | sudo tee /usr/share/keyrings/cloudflare-main.gpg >/dev/null
+          echo "deb [signed-by=/usr/share/keyrings/cloudflare-main.gpg] https://pkg.cloudflare.com/cloudflared $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/cloudflared.list
+          sudo apt-get update && sudo apt-get install -y cloudflared
+
+      - name: Set up SSH through the Cloudflare Tunnel
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' \
+            "Host ${{ secrets.DEPLOY_HOST }}" \
+            "  User ${{ secrets.DEPLOY_USER }}" \
+            "  IdentityFile ~/.ssh/id_ed25519" \
+            "  ProxyCommand cloudflared access ssh --hostname %h" \
+            "  StrictHostKeyChecking no" \
+            > ~/.ssh/config
+          chmod 600 ~/.ssh/config
+
+      - name: Pull backup from the running container
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+        run: |
+          set -euo pipefail
+          echo "ARCHIVE=makerstorage-$(date -u +%Y%m%dT%H%M%SZ).tar.gz" >> "$GITHUB_ENV"
+          ARCHIVE="makerstorage-$(date -u +%Y%m%dT%H%M%SZ).tar.gz"
+          ssh "$DEPLOY_HOST" '
+            set -e
+            cid=$(docker ps -q \
+              -f label=com.docker.compose.project=makerstorage \
+              -f label=com.docker.compose.service=web | head -1)
+            if [ -z "$cid" ]; then echo "no running makerstorage container" >&2; exit 1; fi
+            docker exec "$cid" bash /rails/bin/backup-storage
+          ' > "$ARCHIVE"
+
+          # Fail loudly rather than archive a truncated/empty file.
+          test -s "$ARCHIVE"
+          gzip -t "$ARCHIVE"
+          echo "Backup OK: $ARCHIVE ($(du -h "$ARCHIVE" | cut -f1))"
+
+      - name: Upload backup artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.ARCHIVE }}
+          path: ${{ env.ARCHIVE }}
+          retention-days: 30
+          if-no-files-found: error

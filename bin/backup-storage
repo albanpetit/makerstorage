@@ -1,0 +1,78 @@
+#!/usr/bin/env bash
+# Consistent backup of the Makerstorage persistent volume: every SQLite database
+# plus the Active Storage uploads (both live under STORAGE_DIR).
+#
+# SQLite files are copied with the online backup API (`.backup`), which is safe to
+# run while the app is writing and WAL-aware — a plain `cp` of a live WAL database
+# can capture a torn, unrestorable file. Active Storage blobs are ordinary files.
+#
+# Usage:
+#   bin/backup-storage                 # stream a .tar.gz to stdout (used by CI)
+#   bin/backup-storage --out DIR       # write makerstorage-<UTC>.tar.gz into DIR and
+#                                       # rotate, keeping the newest $KEEP (default 7)
+#
+# Env:
+#   STORAGE_DIR  storage root (default: /rails/storage)
+#   KEEP         number of archives to retain in --out mode (default: 7)
+set -euo pipefail
+
+STORAGE_DIR="${STORAGE_DIR:-/rails/storage}"
+KEEP="${KEEP:-7}"
+OUT_DIR=""
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --out) OUT_DIR="${2:?--out requires a directory}"; shift 2 ;;
+    *) echo "unknown argument: $1" >&2; exit 2 ;;
+  esac
+done
+
+log() { echo "[backup-storage] $*" >&2; }
+
+[ -d "$STORAGE_DIR" ] || { log "STORAGE_DIR '$STORAGE_DIR' does not exist"; exit 1; }
+
+stamp="$(date -u +%Y%m%dT%H%M%SZ)"
+
+# Stage under STORAGE_DIR so blob hardlinks stay on the same filesystem (no data copy).
+work="$(mktemp -d "$STORAGE_DIR/.backup.XXXXXX")"
+cleanup() { rm -rf "$work"; }
+trap cleanup EXIT
+
+mkdir -p "$work/db" "$work/files"
+
+# 1. Consistent snapshot of every SQLite database.
+shopt -s nullglob
+dbs=("$STORAGE_DIR"/*.sqlite3)
+if [ ${#dbs[@]} -eq 0 ]; then
+  log "warning: no *.sqlite3 files found in $STORAGE_DIR"
+fi
+for db in "${dbs[@]}"; do
+  name="$(basename "$db")"
+  log "snapshotting $name"
+  sqlite3 "$db" ".backup '$work/db/$name'"
+done
+
+# 2. Active Storage blobs: every non-hidden directory except the backups dir.
+#    Hardlink (cp -al) so we don't duplicate blob data on disk.
+for entry in "$STORAGE_DIR"/*/; do
+  base="$(basename "$entry")"
+  case "$base" in
+    backups) continue ;;
+  esac
+  cp -al "$entry" "$work/files/$base"
+done
+
+# 3. Archive the staged snapshot.
+if [ -n "$OUT_DIR" ]; then
+  mkdir -p "$OUT_DIR"
+  archive="$OUT_DIR/makerstorage-$stamp.tar.gz"
+  tar -czf "$archive" -C "$work" db files
+  log "wrote $archive ($(du -h "$archive" | cut -f1))"
+  # Rotate: keep the newest $KEEP archives.
+  mapfile -t old < <(ls -1t "$OUT_DIR"/makerstorage-*.tar.gz 2>/dev/null | tail -n +$((KEEP + 1)))
+  for f in "${old[@]}"; do log "pruning old backup $(basename "$f")"; rm -f "$f"; done
+else
+  # Stream to stdout for an off-host pull.
+  tar -czf - -C "$work" db files
+  log "streamed backup ($stamp)"
+fi
