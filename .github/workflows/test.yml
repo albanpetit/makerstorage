@@ -111,6 +111,11 @@ jobs:
       - name: Install JS dependencies
         run: npm ci
 
+      - name: Pre-build frontend assets
+        env:
+          RAILS_ENV: test
+        run: bin/vite build
+
       - name: Run System Tests
         env:
           RAILS_ENV: test
