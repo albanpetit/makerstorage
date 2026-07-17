@@ -53,32 +53,24 @@ Rails.application.configure do
   config.active_job.queue_adapter = :solid_queue
   config.solid_queue.connects_to = { database: { writing: :queue } }
 
-  # Surface SMTP/delivery failures rather than swallowing them. The only mail sent
-  # is user-triggered (password reset), so a failure should raise and be logged
-  # instead of silently dropping the message.
-  config.action_mailer.raise_delivery_errors = true
-  config.action_mailer.perform_deliveries = true
-
-  # Set host to be used by links generated in mailer templates. Reuses APP_HOST
-  # (same value the Kamal proxy is configured with) so reset links point at the
-  # real domain over HTTPS (SSL is terminated by the Cloudflare Tunnel in front).
+  # Absolute links in emails (e.g. password reset) use APP_HOST over HTTPS —
+  # production is expected to sit behind a TLS-terminating reverse proxy.
   config.action_mailer.default_url_options = {
-    host: ENV.fetch("APP_HOST", "makerstorage.io"),
+    host: ENV.fetch("APP_HOST", "localhost"),
     protocol: "https"
   }
 
-  # Outgoing mail via Infomaniak SMTP. Only SMTP_PASSWORD is secret (injected from
-  # .kamal/secrets); the rest have production defaults but stay ENV-overridable.
-  config.action_mailer.delivery_method = :smtp
-  config.action_mailer.smtp_settings = {
-    address:              ENV.fetch("SMTP_ADDRESS", "mail.infomaniak.com"),
-    port:                 ENV.fetch("SMTP_PORT", "587").to_i,
-    domain:               ENV.fetch("SMTP_DOMAIN", "makerstorage.io"),
-    user_name:            ENV.fetch("SMTP_USERNAME", "contact@makerstorage.io"),
-    password:             ENV["SMTP_PASSWORD"],
-    authentication:       :plain,
-    enable_starttls_auto: true
-  }
+  # Outgoing mail is configured entirely from environment variables (see README).
+  # When SMTP is configured, surface delivery failures instead of dropping mail;
+  # when it isn't, skip delivery so an unconfigured instance still boots cleanly.
+  if (smtp = Makerstorage.smtp_settings_from_env)
+    config.action_mailer.delivery_method = :smtp
+    config.action_mailer.perform_deliveries = true
+    config.action_mailer.raise_delivery_errors = true
+    config.action_mailer.smtp_settings = smtp
+  else
+    config.action_mailer.perform_deliveries = false
+  end
 
   # Enable locale fallbacks for I18n (makes lookups for any locale fall back to
   # the I18n.default_locale when a translation cannot be found).

@@ -47,12 +47,21 @@ labels:
 env:
   secret:
     - RAILS_MASTER_KEY
-    # Infomaniak mailbox password for contact@makerstorage.io (SMTP auth).
+    # SMTP password / API token for outgoing mail (see README "Email (SMTP)").
     - SMTP_PASSWORD
   clear:
     # Public host for the app — used by the Kamal proxy above and reused by
     # Action Mailer to build absolute links (e.g. password-reset URLs).
     APP_HOST: <%= ENV["APP_HOST"] || "localhost" %>
+
+    # Outgoing mail. Values are pulled from the deployer's environment so no
+    # instance-specific address lands in git; SMTP_PASSWORD is a secret above.
+    MAILER_SENDER: <%= ENV["MAILER_SENDER"] || "Makerstorage <no-reply@example.com>" %>
+    SMTP_ADDRESS: <%= ENV["SMTP_ADDRESS"] || "" %>
+    SMTP_PORT: <%= ENV["SMTP_PORT"] || "587" %>
+    SMTP_USERNAME: <%= ENV["SMTP_USERNAME"] || "" %>
+    SMTP_DOMAIN: <%= ENV["SMTP_DOMAIN"] || "" %>
+    SMTP_TLS: <%= ENV["SMTP_TLS"] || "starttls" %>
 
     # Run the Solid Queue Supervisor inside the web server's Puma process to do jobs.
     # When you start using multiple servers, you should split out job processing to a dedicated machine.

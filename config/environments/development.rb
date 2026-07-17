@@ -43,20 +43,13 @@ Rails.application.configure do
   # By default, capture outgoing mail locally instead of sending it — browse
   # delivered messages at http://localhost:3000/letter_opener (letter_opener_web).
   #
-  # If SMTP_PASSWORD is set (e.g. via a gitignored .env), deliver for real through
-  # Infomaniak instead, so you can test end-to-end deliverability from development.
-  if ENV["SMTP_PASSWORD"].present?
+  # If SMTP is configured via the environment (e.g. a gitignored .env with
+  # SMTP_ADDRESS et al.), deliver for real instead, so you can test end-to-end
+  # deliverability from development.
+  if (smtp = Makerstorage.smtp_settings_from_env)
     config.action_mailer.delivery_method = :smtp
     config.action_mailer.raise_delivery_errors = true
-    config.action_mailer.smtp_settings = {
-      address:              ENV.fetch("SMTP_ADDRESS", "mail.infomaniak.com"),
-      port:                 ENV.fetch("SMTP_PORT", "587").to_i,
-      domain:               ENV.fetch("SMTP_DOMAIN", "makerstorage.io"),
-      user_name:            ENV.fetch("SMTP_USERNAME", "contact@makerstorage.io"),
-      password:             ENV["SMTP_PASSWORD"],
-      authentication:       :plain,
-      enable_starttls_auto: true
-    }
+    config.action_mailer.smtp_settings = smtp
   else
     config.action_mailer.delivery_method = :letter_opener_web
   end
