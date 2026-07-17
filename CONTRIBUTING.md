@@ -112,7 +112,7 @@ Releases follow [Semantic Versioning](https://semver.org/): `vMAJOR.MINOR.PATCH`
 Tags are annotated and cut from `main` once CI is green. Pushing the tag is all that's
 needed — the [`Release`](.github/workflows/release.yml) workflow wraps it in a GitHub
 Release with generated notes, and the [`Deploy to Production`](.github/workflows/deploy.yml)
-workflow ships it (see [doc/deployment.md](doc/deployment.md)):
+workflow ships it:
 
 ```bash
 git checkout main && git pull

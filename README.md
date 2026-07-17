@@ -53,6 +53,31 @@ bin/dev   # starts Rails + Vite (see Procfile.dev)
 
 The app is served at `http://localhost:3000`.
 
+## Running with Docker
+
+The app ships as a self-contained production image (Rails behind Thruster on port
+80, using SQLite and local file storage). To run your own instance:
+
+```bash
+# Build the image
+docker build -t makerstorage .
+
+# Run it
+docker run -d --name makerstorage \
+  -p 80:80 \
+  -e RAILS_MASTER_KEY="$(cat config/master.key)" \
+  -v makerstorage-storage:/rails/storage \
+  makerstorage
+```
+
+- **`RAILS_MASTER_KEY`** decrypts `config/credentials.yml.enc` — use your own key.
+- The **`makerstorage-storage` volume** holds the SQLite databases and uploaded
+  files; it persists across restarts and is what you back up.
+- The container runs database migrations on boot and serves a health check at
+  **`GET /up`**.
+- Map the port however you like (e.g. `-p 3000:80`) and put a TLS-terminating
+  reverse proxy in front of it for production.
+
 ## Quality checks
 
 ```bash
