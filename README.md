@@ -32,51 +32,46 @@ A multi-tenant inventory manager for makerspaces and fablabs, purpose-built for 
 
 ## Getting started
 
-### Using the dev container (recommended)
+Makerstorage ships as a self-contained Docker image (Rails behind Thruster on port
+80, using SQLite and local file storage). You only need a `RAILS_MASTER_KEY` to
+decrypt the app credentials.
 
-Open the project in VS Code and reopen in the container (`.devcontainer/`) — Ruby, Node, and SQLite come preinstalled. Then run:
+### Pull the prebuilt image from GHCR
 
 ```bash
-bin/setup
+docker run -d --name makerstorage \
+  -p 3000:80 \
+  -e RAILS_MASTER_KEY="$RAILS_MASTER_KEY" \
+  -v makerstorage-storage:/rails/storage \
+  ghcr.io/albanpetit/makerstorage:latest
 ```
 
-### Manual setup
-
-Requires Ruby 3.4.8 and Node 24+.
+### …or build the image from source
 
 ```bash
-bundle install
-npm install
-bin/rails db:prepare
-bin/dev   # starts Rails + Vite (see Procfile.dev)
-```
-
-The app is served at `http://localhost:3000`.
-
-## Running with Docker
-
-The app ships as a self-contained production image (Rails behind Thruster on port
-80, using SQLite and local file storage). To run your own instance:
-
-```bash
-# Build the image
+git clone https://github.com/albanpetit/makerstorage.git
+cd makerstorage
 docker build -t makerstorage .
 
-# Run it
 docker run -d --name makerstorage \
-  -p 80:80 \
+  -p 3000:80 \
   -e RAILS_MASTER_KEY="$(cat config/master.key)" \
   -v makerstorage-storage:/rails/storage \
   makerstorage
 ```
 
-- **`RAILS_MASTER_KEY`** decrypts `config/credentials.yml.enc` — use your own key.
+The app is then served at `http://localhost:3000`.
+
+- **`RAILS_MASTER_KEY`** decrypts `config/credentials.yml.enc`; it must match the
+  credentials baked into the image.
 - The **`makerstorage-storage` volume** holds the SQLite databases and uploaded
-  files; it persists across restarts and is what you back up.
+  files — it persists across restarts and is what you back up.
 - The container runs database migrations on boot and serves a health check at
-  **`GET /up`**.
-- Map the port however you like (e.g. `-p 3000:80`) and put a TLS-terminating
-  reverse proxy in front of it for production.
+  **`GET /up`**. Map the port however you like and put a TLS-terminating reverse
+  proxy in front of it for production.
+
+> Setting up a **development** environment instead? See
+> [CONTRIBUTING.md](CONTRIBUTING.md#development-setup).
 
 ## Quality checks
 
