@@ -1,10 +1,11 @@
 name: Backup
 
-# Nightly off-host backup of the production volume (all SQLite databases + Active
-# Storage uploads). Connects to the server over the same Cloudflare Tunnel as the
-# deploy, runs bin/backup-storage inside the running app container, streams the
-# archive back, and keeps it as a workflow artifact — a copy that survives loss of
-# the server/volume. Can also be run on demand from the Actions tab.
+# Nightly backup of the production volume (all SQLite databases + Active Storage
+# uploads). This workflow is only a *trigger*: it SSHes to the server over the
+# Cloudflare Tunnel and runs bin/backup-storage inside the running container, which
+# writes a rotated, compressed archive to the host directory /srv/apps/makerstorage
+# (bind-mounted at /rails/backups). Nothing is uploaded to GitHub — the customer
+# data never leaves the server. Can also be run on demand from the Actions tab.
 on:
   schedule:
     - cron: "17 3 * * *" # 03:17 UTC daily
@@ -35,31 +36,20 @@ jobs:
             > ~/.ssh/config
           chmod 600 ~/.ssh/config
 
-      - name: Pull backup from the running container
+      - name: Run backup on the server
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
         run: |
           set -euo pipefail
-          echo "ARCHIVE=makerstorage-$(date -u +%Y%m%dT%H%M%SZ).tar.gz" >> "$GITHUB_ENV"
-          ARCHIVE="makerstorage-$(date -u +%Y%m%dT%H%M%SZ).tar.gz"
           ssh "$DEPLOY_HOST" '
             set -e
             cid=$(docker ps -q \
               -f label=com.docker.compose.project=makerstorage \
               -f label=com.docker.compose.service=web | head -1)
             if [ -z "$cid" ]; then echo "no running makerstorage container" >&2; exit 1; fi
-            docker exec "$cid" bash /rails/bin/backup-storage
-          ' > "$ARCHIVE"
-
-          # Fail loudly rather than archive a truncated/empty file.
-          test -s "$ARCHIVE"
-          gzip -t "$ARCHIVE"
-          echo "Backup OK: $ARCHIVE ($(du -h "$ARCHIVE" | cut -f1))"
-
-      - name: Upload backup artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ env.ARCHIVE }}
-          path: ${{ env.ARCHIVE }}
-          retention-days: 30
-          if-no-files-found: error
+            # Writes makerstorage-<UTC>.tar.gz to /rails/backups (host: /srv/apps/makerstorage),
+            # keeping the newest 7. The archive stays on the server.
+            docker exec "$cid" bash /rails/bin/backup-storage --out /rails/backups
+            echo "--- backups currently on the server (/srv/apps/makerstorage) ---"
+            docker exec "$cid" ls -lh /rails/backups
+          '
