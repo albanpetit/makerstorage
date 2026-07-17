@@ -1,5 +1,6 @@
 {
   "private": true,
+  "license": "AGPL-3.0-only",
   "type": "module",
   "devDependencies": {
     "@types/node": "^26.1.1",
