@@ -2,6 +2,34 @@
 
 Thanks for contributing to Makerstorage! This guide covers the conventions we follow so the codebase and its history stay clean and readable.
 
+## Development setup
+
+### Dev container (recommended)
+
+Open the project in VS Code and reopen in the container (`.devcontainer/`) — Ruby, Node, and SQLite come preinstalled. Then run:
+
+```bash
+bin/setup
+```
+
+### Manual setup
+
+Requires Ruby 3.4.8 and Node 24+.
+
+```bash
+bundle install
+npm install
+bin/rails db:prepare
+```
+
+Start the dev server (Rails + Vite, via `Procfile.dev`):
+
+```bash
+bin/dev
+```
+
+The dev server is served at `http://localhost:3000`.
+
 ## Before you push
 
 Run the full check suite locally — it mirrors CI:
