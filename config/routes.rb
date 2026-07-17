@@ -16,6 +16,8 @@ Rails.application.routes.draw do
   # Development only: in the test env Capybara serves the app on 127.0.0.1, and
   # this cross-origin hop makes Chrome block every Inertia XHR with CORS errors.
   if Rails.env.development?
+    mount LetterOpenerWeb::Engine, at: "/letter_opener"
+
     constraints(host: "127.0.0.1") do
       get "(*path)", to: redirect { |params, req| "#{req.protocol}localhost:#{req.port}/#{params[:path]}" }
     end

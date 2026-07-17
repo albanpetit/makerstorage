@@ -24,13 +24,15 @@ Devise.setup do |config|
   # Configure the e-mail address which will be shown in Devise::Mailer,
   # note that it will be overwritten if you use your own mailer class
   # with default "from" parameter.
-  config.mailer_sender = "please-change-me-at-config-initializers-devise@example.com"
+  config.mailer_sender = ENV["MAILER_SENDER"].presence || "Makerstorage <no-reply@example.com>"
 
   # Configure the class responsible to send e-mails.
   # config.mailer = 'Devise::Mailer'
 
-  # Configure the parent class responsible to send e-mails.
-  # config.parent_mailer = 'ActionMailer::Base'
+  # Configure the parent class responsible to send e-mails. Inherit from
+  # ApplicationMailer so Devise emails pick up the branded `mailer` layout
+  # (Makerstorage header/footer) and the default `from` address.
+  config.parent_mailer = "ApplicationMailer"
 
   # ==> ORM configuration
   # Load and configure the ORM. Supports :active_record (default) and
@@ -129,10 +131,10 @@ Devise.setup do |config|
   # config.pepper = '23262b3d02098a9803ceb2d79e69919505b6196e6f8848f4110369248304f83562268ca91d696105fd7379986154eddc0be0cbb1dc5e8752f94d60660e255663'
 
   # Send a notification to the original email when the user's email is changed.
-  # config.send_email_changed_notification = false
+  config.send_email_changed_notification = true
 
   # Send a notification email when the user's password is changed.
-  # config.send_password_change_notification = false
+  config.send_password_change_notification = true
 
   # ==> Configuration for :confirmable
   # A period that the user is allowed to access the website even without

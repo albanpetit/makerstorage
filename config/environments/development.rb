@@ -40,6 +40,20 @@ Rails.application.configure do
   # Set localhost to be used by links generated in mailer templates.
   config.action_mailer.default_url_options = { host: "localhost", port: 3000 }
 
+  # By default, capture outgoing mail locally instead of sending it — browse
+  # delivered messages at http://localhost:3000/letter_opener (letter_opener_web).
+  #
+  # If SMTP is configured via the environment (e.g. a gitignored .env with
+  # SMTP_ADDRESS et al.), deliver for real instead, so you can test end-to-end
+  # deliverability from development.
+  if (smtp = Makerstorage.smtp_settings_from_env)
+    config.action_mailer.delivery_method = :smtp
+    config.action_mailer.raise_delivery_errors = true
+    config.action_mailer.smtp_settings = smtp
+  else
+    config.action_mailer.delivery_method = :letter_opener_web
+  end
+
   # Print deprecation notices to the Rails logger.
   config.active_support.deprecation = :log
 

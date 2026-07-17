@@ -1,0 +1,9 @@
+<% changed_to = @resource.try(:unconfirmed_email?) ? @resource.unconfirmed_email : @resource.email %>
+<% verb = @resource.try(:unconfirmed_email?) ? "is being changed" : "has been changed" %>
+<h1 style="margin: 0 0 16px 0; font-size: 18px; font-weight: 600; color: #09090b;">Your email address was changed</h1>
+
+<p style="margin: 0 0 16px 0;">Hello <%= @email %>,</p>
+
+<p style="margin: 0 0 16px 0;">We&#39;re letting you know that the email address on your Makerstorage account <%= verb %> to <strong style="color: #09090b;"><%= changed_to %></strong>.</p>
+
+<p style="margin: 0;">If you didn&#39;t make this change, please contact your organization&#39;s owner right away.</p>

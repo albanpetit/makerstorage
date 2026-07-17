@@ -7,6 +7,37 @@ require "rails/all"
 Bundler.require(*Rails.groups)
 
 module Makerstorage
+  # Build Action Mailer SMTP settings from environment variables so outgoing mail
+  # is configured the same, provider-agnostic way in every environment. Returns
+  # nil when SMTP_ADDRESS is unset, signalling that mail delivery isn't configured
+  # (self-hosters set these to point at their own mail provider — see README).
+  def self.smtp_settings_from_env
+    return nil if ENV["SMTP_ADDRESS"].blank?
+
+    # Use .presence throughout: values arriving from CI/Kamal are often set to an
+    # empty string rather than left unset, and "" must fall back to the default.
+    settings = {
+      address: ENV["SMTP_ADDRESS"],
+      port:    (ENV["SMTP_PORT"].presence || "587").to_i
+    }
+    settings[:domain] = ENV["SMTP_DOMAIN"] if ENV["SMTP_DOMAIN"].present?
+
+    if ENV["SMTP_USERNAME"].present?
+      settings[:user_name]      = ENV["SMTP_USERNAME"]
+      settings[:password]       = ENV["SMTP_PASSWORD"]
+      settings[:authentication] = (ENV["SMTP_AUTHENTICATION"].presence || "plain").to_sym
+    end
+
+    # TLS mode: STARTTLS on 587 (default), implicit TLS on 465, or plain.
+    case (ENV["SMTP_TLS"].presence || "starttls").downcase
+    when "ssl", "tls"           then settings[:tls] = true
+    when "none", "off", "false" then settings[:enable_starttls_auto] = false
+    else                             settings[:enable_starttls_auto] = true
+    end
+
+    settings
+  end
+
   class Application < Rails::Application
     # Initialize configuration defaults for originally generated Rails version.
     config.load_defaults 8.1
