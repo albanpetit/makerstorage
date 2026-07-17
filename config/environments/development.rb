@@ -40,9 +40,26 @@ Rails.application.configure do
   # Set localhost to be used by links generated in mailer templates.
   config.action_mailer.default_url_options = { host: "localhost", port: 3000 }
 
-  # Capture outgoing mail locally instead of sending it. Browse delivered
-  # messages at http://localhost:3000/letter_opener (see letter_opener_web).
-  config.action_mailer.delivery_method = :letter_opener_web
+  # By default, capture outgoing mail locally instead of sending it — browse
+  # delivered messages at http://localhost:3000/letter_opener (letter_opener_web).
+  #
+  # If SMTP_PASSWORD is set (e.g. via a gitignored .env), deliver for real through
+  # Infomaniak instead, so you can test end-to-end deliverability from development.
+  if ENV["SMTP_PASSWORD"].present?
+    config.action_mailer.delivery_method = :smtp
+    config.action_mailer.raise_delivery_errors = true
+    config.action_mailer.smtp_settings = {
+      address:              ENV.fetch("SMTP_ADDRESS", "mail.infomaniak.com"),
+      port:                 ENV.fetch("SMTP_PORT", "587").to_i,
+      domain:               ENV.fetch("SMTP_DOMAIN", "makerstorage.io"),
+      user_name:            ENV.fetch("SMTP_USERNAME", "contact@makerstorage.io"),
+      password:             ENV["SMTP_PASSWORD"],
+      authentication:       :plain,
+      enable_starttls_auto: true
+    }
+  else
+    config.action_mailer.delivery_method = :letter_opener_web
+  end
 
   # Print deprecation notices to the Rails logger.
   config.active_support.deprecation = :log

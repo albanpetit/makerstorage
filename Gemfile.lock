@@ -117,6 +117,9 @@ GEM
       responders
       warden (~> 1.2.3)
     dotenv (3.2.0)
+    dotenv-rails (3.2.0)
+      dotenv (= 3.2.0)
+      railties (>= 6.1)
     drb (2.2.3)
     dry-cli (1.4.1)
     ed25519 (1.4.0)
@@ -410,6 +413,7 @@ DEPENDENCIES
   csv
   debug
   devise (~> 5.0)
+  dotenv-rails
   image_processing (~> 2.0)
   inertia_rails (~> 3.21)
   jbuilder

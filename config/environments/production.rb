@@ -53,21 +53,32 @@ Rails.application.configure do
   config.active_job.queue_adapter = :solid_queue
   config.solid_queue.connects_to = { database: { writing: :queue } }
 
-  # Ignore bad email addresses and do not raise email delivery errors.
-  # Set this to true and configure the email server for immediate delivery to raise delivery errors.
-  # config.action_mailer.raise_delivery_errors = false
+  # Surface SMTP/delivery failures rather than swallowing them. The only mail sent
+  # is user-triggered (password reset), so a failure should raise and be logged
+  # instead of silently dropping the message.
+  config.action_mailer.raise_delivery_errors = true
+  config.action_mailer.perform_deliveries = true
 
-  # Set host to be used by links generated in mailer templates.
-  config.action_mailer.default_url_options = { host: "example.com" }
+  # Set host to be used by links generated in mailer templates. Reuses APP_HOST
+  # (same value the Kamal proxy is configured with) so reset links point at the
+  # real domain over HTTPS (SSL is terminated by the Cloudflare Tunnel in front).
+  config.action_mailer.default_url_options = {
+    host: ENV.fetch("APP_HOST", "makerstorage.io"),
+    protocol: "https"
+  }
 
-  # Specify outgoing SMTP server. Remember to add smtp/* credentials via bin/rails credentials:edit.
-  # config.action_mailer.smtp_settings = {
-  #   user_name: Rails.application.credentials.dig(:smtp, :user_name),
-  #   password: Rails.application.credentials.dig(:smtp, :password),
-  #   address: "smtp.example.com",
-  #   port: 587,
-  #   authentication: :plain
-  # }
+  # Outgoing mail via Infomaniak SMTP. Only SMTP_PASSWORD is secret (injected from
+  # .kamal/secrets); the rest have production defaults but stay ENV-overridable.
+  config.action_mailer.delivery_method = :smtp
+  config.action_mailer.smtp_settings = {
+    address:              ENV.fetch("SMTP_ADDRESS", "mail.infomaniak.com"),
+    port:                 ENV.fetch("SMTP_PORT", "587").to_i,
+    domain:               ENV.fetch("SMTP_DOMAIN", "makerstorage.io"),
+    user_name:            ENV.fetch("SMTP_USERNAME", "contact@makerstorage.io"),
+    password:             ENV["SMTP_PASSWORD"],
+    authentication:       :plain,
+    enable_starttls_auto: true
+  }
 
   # Enable locale fallbacks for I18n (makes lookups for any locale fall back to
   # the I18n.default_locale when a translation cannot be found).
