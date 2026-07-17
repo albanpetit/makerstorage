@@ -2,6 +2,14 @@
 
 # This file seeds the database with sample data for development/testing.
 # Run with: bin/rails db:seed
+#
+# This is SAMPLE data only (incl. default admin/test logins) — it must never run
+# in production. `rails db:prepare` runs seeds when it creates a fresh database,
+# so guard against seeding any environment other than development/test.
+
+unless Rails.env.development? || Rails.env.test?
+  abort "db/seeds.rb contains sample data and must not run in #{Rails.env}."
+end
 
 puts "Seeding database..."
 
