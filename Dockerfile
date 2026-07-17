@@ -70,6 +70,12 @@ RUN SECRET_KEY_BASE_DUMMY=1 ./bin/rails assets:precompile
 # Final stage for app image
 FROM base
 
+# OCI metadata. The source label links the pushed image to the GitHub repository,
+# so the package shows up in the repo's Packages section (ghcr won't link it
+# automatically when the image is pushed with a PAT).
+LABEL org.opencontainers.image.source="https://github.com/albanpetit/makerstorage"
+LABEL org.opencontainers.image.description="Makerstorage — electronics-parts inventory manager for makerspaces and fablabs"
+
 # Run and own only the runtime files as a non-root user for security
 RUN groupadd --system --gid 1000 rails && \
     useradd rails --uid 1000 --gid 1000 --create-home --shell /bin/bash
