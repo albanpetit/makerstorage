@@ -8,7 +8,10 @@ class DeviseMailerTest < ActionMailer::TestCase
   test "reset_password_instructions renders with branded sender and both parts" do
     mail = Devise::Mailer.reset_password_instructions(@user, "sometoken")
 
-    assert_equal [ "contact@makerstorage.io" ], mail.from
+    # The from address is env-driven (MAILER_SENDER); assert it matches the
+    # configured sender rather than a hardcoded, instance-specific value.
+    expected_from = Mail::Address.new(Devise.mailer_sender).address
+    assert_equal [ expected_from ], mail.from
     assert_equal [ @user.email ], mail.to
     assert mail.subject.present?
     # Multipart: layout provides both html and text shells.
