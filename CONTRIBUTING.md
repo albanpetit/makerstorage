@@ -149,3 +149,16 @@ git push origin v0.4.0   # → creates the GitHub Release and deploys to product
 ```
 
 The `/commit` command will suggest a version bump and print these commands when a commit is a good moment to release — it never tags automatically.
+
+## Quality checks
+
+```bash
+bin/rails test          # unit & controller tests
+bin/rails test:system   # system tests (Capybara)
+bin/rubocop              # Ruby style
+bin/brakeman             # security static analysis
+bin/bundler-audit        # known gem CVEs
+npm run check            # TypeScript type check
+```
+
+Run everything at once with `bin/ci`.

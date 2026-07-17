@@ -115,19 +115,6 @@ sending domain as instructed by your mail provider.
 > [CONTRIBUTING.md](CONTRIBUTING.md#development-setup). To test real delivery
 > locally, put the same `SMTP_*` variables in a gitignored `.env`.
 
-## Quality checks
-
-```bash
-bin/rails test          # unit & controller tests
-bin/rails test:system   # system tests (Capybara)
-bin/rubocop              # Ruby style
-bin/brakeman             # security static analysis
-bin/bundler-audit        # known gem CVEs
-npm run check            # TypeScript type check
-```
-
-Run everything at once with `bin/ci`.
-
 ## Contributing
 
 Commit conventions, the local check suite, and other contributor guidelines live in [CONTRIBUTING.md](CONTRIBUTING.md).
