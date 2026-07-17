@@ -1,4 +1,4 @@
 class ApplicationMailer < ActionMailer::Base
-  default from: ENV.fetch("MAILER_SENDER", "Makerstorage <no-reply@example.com>")
+  default from: ENV["MAILER_SENDER"].presence || "Makerstorage <no-reply@example.com>"
   layout "mailer"
 end

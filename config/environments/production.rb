@@ -56,7 +56,7 @@ Rails.application.configure do
   # Absolute links in emails (e.g. password reset) use APP_HOST over HTTPS —
   # production is expected to sit behind a TLS-terminating reverse proxy.
   config.action_mailer.default_url_options = {
-    host: ENV.fetch("APP_HOST", "localhost"),
+    host: ENV["APP_HOST"].presence || "localhost",
     protocol: "https"
   }
 

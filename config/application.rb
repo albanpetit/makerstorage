@@ -14,20 +14,22 @@ module Makerstorage
   def self.smtp_settings_from_env
     return nil if ENV["SMTP_ADDRESS"].blank?
 
+    # Use .presence throughout: values arriving from CI/Kamal are often set to an
+    # empty string rather than left unset, and "" must fall back to the default.
     settings = {
       address: ENV["SMTP_ADDRESS"],
-      port:    ENV.fetch("SMTP_PORT", "587").to_i
+      port:    (ENV["SMTP_PORT"].presence || "587").to_i
     }
     settings[:domain] = ENV["SMTP_DOMAIN"] if ENV["SMTP_DOMAIN"].present?
 
     if ENV["SMTP_USERNAME"].present?
       settings[:user_name]      = ENV["SMTP_USERNAME"]
       settings[:password]       = ENV["SMTP_PASSWORD"]
-      settings[:authentication] = ENV.fetch("SMTP_AUTHENTICATION", "plain").to_sym
+      settings[:authentication] = (ENV["SMTP_AUTHENTICATION"].presence || "plain").to_sym
     end
 
     # TLS mode: STARTTLS on 587 (default), implicit TLS on 465, or plain.
-    case ENV.fetch("SMTP_TLS", "starttls").downcase
+    case (ENV["SMTP_TLS"].presence || "starttls").downcase
     when "ssl", "tls"           then settings[:tls] = true
     when "none", "off", "false" then settings[:enable_starttls_auto] = false
     else                             settings[:enable_starttls_auto] = true
