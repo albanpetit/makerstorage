@@ -76,6 +76,34 @@ class ProfilesControllerTest < ActionDispatch::IntegrationTest
     assert user.valid_password?("password123")
   end
 
+  test "changing the password sends a password-change notification" do
+    user = create_user(email: "pw@example.com")
+
+    sign_in user
+    assert_difference -> { ActionMailer::Base.deliveries.size }, 1 do
+      patch profile_path, params: { user: {
+        current_password: "password123",
+        password: "new-password456",
+        password_confirmation: "new-password456"
+      } }
+    end
+
+    mail = ActionMailer::Base.deliveries.last
+    assert_equal [ user.email ], mail.to
+    assert_match(/password/i, mail.subject)
+  end
+
+  test "changing the email sends an email-changed notification" do
+    user = create_user(email: "old@example.com")
+
+    sign_in user
+    assert_difference -> { ActionMailer::Base.deliveries.size }, 1 do
+      patch profile_path, params: { user: { email: "new@example.com" } }
+    end
+
+    assert_match(/email/i, ActionMailer::Base.deliveries.last.subject)
+  end
+
   private
 
   def inertia_props
