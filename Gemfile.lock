@@ -123,7 +123,7 @@ GEM
     drb (2.2.3)
     dry-cli (1.4.1)
     ed25519 (1.4.0)
-    erb (6.0.4)
+    erb (6.0.5)
     erubi (1.13.1)
     et-orbi (1.4.0)
       tzinfo
@@ -135,7 +135,7 @@ GEM
     i18n (1.15.2)
       concurrent-ruby (~> 1.0)
     image_processing (2.0.2)
-    inertia_rails (3.21.2)
+    inertia_rails (3.22.0)
       railties (>= 6)
     io-console (0.8.2)
     irb (1.18.0)
@@ -146,7 +146,7 @@ GEM
     jbuilder (2.15.1)
       actionview (>= 7.0.0)
       activesupport (>= 7.0.0)
-    json (2.21.0)
+    json (2.21.1)
     kamal (2.12.0)
       activesupport (>= 7.0)
       base64 (~> 0.2)
@@ -415,7 +415,7 @@ DEPENDENCIES
   devise (~> 5.0)
   dotenv-rails
   image_processing (~> 2.0)
-  inertia_rails (~> 3.21)
+  inertia_rails (~> 3.22)
   jbuilder
   kamal
   letter_opener_web (~> 3.0)
