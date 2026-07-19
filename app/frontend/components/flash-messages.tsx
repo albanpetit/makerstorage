@@ -1,10 +1,12 @@
 import { usePage } from '@inertiajs/react'
 import { CircleAlert, CircleCheck } from 'lucide-react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { cn } from '@/lib/utils'
 import type { Flash } from '@/types'
 
 interface FlashMessagesProps {
   errors?: Record<string, string | string[]>
+  className?: string
 }
 
 // Convert field key to human-readable label
@@ -19,7 +21,7 @@ function humanizeFieldName(key: string): string {
     .replace(/\b\w/g, (char) => char.toUpperCase())
 }
 
-export function FlashMessages({ errors }: FlashMessagesProps = {}) {
+export function FlashMessages({ errors, className }: FlashMessagesProps = {}) {
   const { flash } = usePage<{ flash: Flash }>().props
 
   // Collect error messages to display
@@ -61,7 +63,7 @@ export function FlashMessages({ errors }: FlashMessagesProps = {}) {
   }
 
   return (
-    <div className="space-y-2">
+    <div className={cn('space-y-2', className)}>
       {hasErrors && (
         <Alert variant="destructive">
           <CircleAlert />
