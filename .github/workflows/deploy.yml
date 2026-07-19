@@ -33,7 +33,7 @@ jobs:
       # The image is built for arm64 (the production server) on this amd64 runner,
       # so register QEMU/binfmt handlers for cross-arch emulation.
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@v4
 
       - name: Install cloudflared
         run: |
