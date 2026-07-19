@@ -159,7 +159,7 @@ export default function TagsIndex({ tags }: TagsPageProps) {
         <FlashMessages />
 
         {/* Stats */}
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
           {stats.map((stat) => (
             <Card key={stat.label}>
               <CardContent className="flex items-center justify-between">

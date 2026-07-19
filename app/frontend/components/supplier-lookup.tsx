@@ -168,7 +168,7 @@ export function SupplierLookup({ defaultQuery = '', onApply, attached }: Supplie
                   <img
                     src={result.image_url}
                     alt=""
-                    className="size-10 shrink-0 rounded border bg-white object-contain"
+                    className="size-10 shrink-0 rounded border bg-white object-contain dark:bg-muted"
                     loading="lazy"
                   />
                 )}
