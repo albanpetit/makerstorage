@@ -4,6 +4,7 @@ import {
   Search,
   Plus,
   ChevronRight,
+  ChevronLeft,
   DoorOpen,
   Archive,
   Layers,
@@ -19,6 +20,7 @@ import {
 import { AppLayout } from '@/layouts/app-layout'
 import { SidebarTrigger } from '@/components/ui/sidebar'
 import { usePermissions } from '@/hooks/use-permissions'
+import { PageHeader } from '@/components/page-header'
 import { ReadOnlyBadge } from '@/components/read-only-badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -140,6 +142,10 @@ export default function StorageLocationsIndex({ storage_locations, part_storages
   const { canWrite } = usePermissions()
   const [query, setQuery] = useState('')
   const [selectedId, setSelectedId] = useState<number | null>(null)
+  // On phones the tree and detail can't sit side-by-side, so we swap between
+  // them: false shows the tree, true shows the selected zone's detail. Ignored
+  // at lg+ where both panels are always visible.
+  const [mobileDetail, setMobileDetail] = useState(false)
   const [expanded, setExpanded] = useState<Set<number>>(
     () => new Set(storage_locations.filter((z) => storage_locations.some((c) => c.parent_id === z.id)).map((z) => z.id))
   )
@@ -367,14 +373,12 @@ export default function StorageLocationsIndex({ storage_locations, part_storages
 
   if (storage_locations.length === 0) {
     return (
-      <AppLayout>
+      <AppLayout
+        header={<PageHeader title="Storage Zones" subtitle="Organize your locations hierarchically" />}
+      >
         <Head title="Storage Zones" />
         <FlashMessages />
         <div className="space-y-6">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Storage Zones</h1>
-            <p className="text-muted-foreground text-sm">Organize your locations hierarchically</p>
-          </div>
           <Card>
             <CardContent className="flex flex-col items-center gap-3 py-10 text-center">
               <Archive className="size-8 text-muted-foreground" />
@@ -543,7 +547,7 @@ export default function StorageLocationsIndex({ storage_locations, part_storages
 
         <div className="flex min-h-0 flex-1">
           {/* Tree explorer */}
-          <div className="flex w-72 shrink-0 flex-col border-r bg-card">
+          <div className={`${mobileDetail ? 'hidden' : 'flex'} w-full flex-col border-r bg-card lg:flex lg:w-72 lg:shrink-0`}>
             <div className="flex shrink-0 items-center justify-between border-b px-3 py-2.5">
               <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Tree</span>
               <div className="flex gap-1">
@@ -566,7 +570,7 @@ export default function StorageLocationsIndex({ storage_locations, part_storages
                     <div
                       key={row.location.id}
                       draggable={canWrite}
-                      onClick={() => setSelectedId(row.location.id)}
+                      onClick={() => { setSelectedId(row.location.id); setMobileDetail(true) }}
                       onDragStart={canWrite ? (e) => {
                         setDragId(row.location.id)
                         e.dataTransfer.effectAllowed = 'move'
@@ -625,7 +629,15 @@ export default function StorageLocationsIndex({ storage_locations, part_storages
 
           {/* Detail panel */}
           {effectiveSelected && selMeta && (
-            <div className="min-w-0 flex-1 space-y-4 overflow-y-auto bg-muted/40 p-5">
+            <div className={`${mobileDetail ? 'block' : 'hidden'} min-w-0 flex-1 space-y-4 overflow-y-auto bg-muted/40 p-5 lg:block`}>
+              <button
+                type="button"
+                onClick={() => setMobileDetail(false)}
+                className="sticky top-0 z-10 -mx-5 -mt-5 mb-1 flex items-center gap-1.5 border-b bg-background/95 px-5 py-3 text-sm font-medium backdrop-blur lg:hidden"
+              >
+                <ChevronLeft className="size-4" />
+                Back to zones
+              </button>
               <Breadcrumb>
                 <BreadcrumbList>
                   {path.map((z, i) => (

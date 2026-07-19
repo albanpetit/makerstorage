@@ -59,6 +59,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Field, FieldContent, FieldError, FieldLabel } from '@/components/ui/field'
+import logo from '/assets/logo.svg'
 
 const navigationItems = [
   { title: 'Dashboard', url: '/', icon: LayoutDashboard },
@@ -175,12 +176,10 @@ export function AppSidebar() {
     <>
     <Sidebar>
       <SidebarHeader>
-        <div className="flex items-center gap-2.5 px-2 pt-1 pb-2">
-          <div className="flex size-7 items-center justify-center rounded-md bg-primary font-mono text-sm font-bold text-primary-foreground">
-            Ω
-          </div>
+        <Link href="/" className="flex items-center gap-2.5 px-2 pt-1 pb-2 transition-opacity hover:opacity-80">
+          <img src={logo} alt="Makerstorage" className="size-7 rounded-md" />
           <span className="text-sm font-semibold tracking-tight">Makerstorage</span>
-        </div>
+        </Link>
 
         <SidebarMenu>
           <SidebarMenuItem>

@@ -38,6 +38,18 @@ class DeviseMailerTest < ActionMailer::TestCase
     assert_includes text, "Electronics-parts inventory for makerspaces"
   end
 
+  test "branded emails embed the logo as an inline attachment referenced by the html" do
+    mail = Devise::Mailer.reset_password_instructions(@user, "sometoken")
+
+    logo = mail.attachments["logo.png"]
+    assert logo.present?, "expected an inline logo attachment"
+    assert logo.inline?, "logo attachment should be inline"
+
+    # The html body must reference the attachment by its content-id (cid:...).
+    cid = logo.url
+    assert_includes mail.html_part.body.to_s, cid
+  end
+
   test "password_change and email_changed notifications render" do
     change = Devise::Mailer.password_change(@user)
     assert_includes change.html_part.body.to_s, "password"

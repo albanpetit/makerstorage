@@ -34,7 +34,7 @@ export default function Signup() {
         headline="Every resistor has its place, every withdrawal tracked."
         description="Component inventory, physical storage locations, stock movements, and restock alerts — all in one place."
       >
-        <FlashMessages errors={errors} />
+        <FlashMessages errors={errors} className="mb-6" />
 
         <div className="mb-6">
           <h2 className="text-2xl font-semibold tracking-tight">Create an account</h2>

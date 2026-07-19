@@ -78,6 +78,16 @@ refactor/storage-tree-query
 docs/branching-convention
 ```
 
+### Merging pull requests
+
+Always use **Squash and merge**. It keeps `main` a linear history of exactly one commit per PR — each a self-contained, revertible unit — instead of leaking a branch's work-in-progress commits or a merge node onto the trunk.
+
+- **Set the squash commit title yourself** — GitHub pre-fills it with the PR title, which is usually not in `type(scope): description` form. Rewrite it to follow the [commit convention](#commit-convention) so `main` stays consistent and the release tooling can read it.
+- **When a PR bundles several commits**, title the squash after the change with the highest release impact — a PR containing any `feat` is a `feat`, otherwise a `fix`, and so on. Combine scopes with a space (`feat(ui page): …`).
+- **Keep the `(#NN)` suffix** GitHub appends — it links each `main` commit back to its PR.
+
+Don't use *Create a merge commit* or *Rebase and merge*.
+
 ## Commit convention
 
 To keep a clear, readable, and consistent git history, all commit messages follow:
