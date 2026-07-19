@@ -1,5 +1,7 @@
 import { PropsWithChildren } from 'react'
 
+import logo from '/assets/logo.svg'
+
 interface AuthLayoutProps {
   eyebrow: string
   headline: string
@@ -19,9 +21,7 @@ export function AuthLayout({ eyebrow, headline, description, children }: PropsWi
         />
 
         <div className="relative flex items-center gap-2.5">
-          <div className="flex size-9 items-center justify-center rounded-md bg-primary font-mono text-lg font-bold text-primary-foreground">
-            Ω
-          </div>
+          <img src={logo} alt="Makerstorage" className="size-9 rounded-md" />
           <span className="text-lg font-semibold tracking-tight">Makerstorage</span>
         </div>
 
