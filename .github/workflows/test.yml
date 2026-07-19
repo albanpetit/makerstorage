@@ -77,6 +77,14 @@ jobs:
       - name: Install JS dependencies
         run: npm ci
 
+      # Build assets up front so the manifest exists before any controller test
+      # renders a view. Relying on vite_ruby's on-demand autoBuild races under
+      # parallel tests and intermittently fails with a missing-manifest error.
+      - name: Pre-build frontend assets
+        env:
+          RAILS_ENV: test
+        run: bin/vite build
+
       - name: Run tests
         env:
           RAILS_ENV: test
