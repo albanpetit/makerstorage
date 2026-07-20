@@ -513,7 +513,7 @@ export default function StorageLocationsIndex({ storage_locations, part_storages
             </CardContent>
           </Card>
         </div>
-        <NewZoneDialog />
+        {NewZoneDialog()}
       </AppLayout>
     )
   }
@@ -1004,7 +1004,7 @@ export default function StorageLocationsIndex({ storage_locations, part_storages
         </div>
       </div>
 
-      <NewZoneDialog />
+      {NewZoneDialog()}
 
       {/* Edit zone dialog */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
