@@ -182,6 +182,33 @@ class RoleAuthorizationTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "viewer cannot move stock between zones" do
+    other = create_storage_location(organization: @org, name: "Shelf B")
+    PartStorage.create!(part: @part, storage_location: @location, quantity: 10)
+
+    act_as @viewer
+    assert_no_difference -> { StockMovement.count } do
+      post move_stock_storage_locations_path, params: {
+        from_location_id: @location.id, to_location_id: other.id,
+        moves: [ { part_id: @part.id, quantity: 5 } ]
+      }
+    end
+    assert_match(/read-only/i, flash[:alert])
+  end
+
+  test "member can move stock between zones" do
+    other = create_storage_location(organization: @org, name: "Shelf B")
+    PartStorage.create!(part: @part, storage_location: @location, quantity: 10)
+
+    act_as @member
+    assert_difference -> { StockMovement.count } => 2 do
+      post move_stock_storage_locations_path, params: {
+        from_location_id: @location.id, to_location_id: other.id,
+        moves: [ { part_id: @part.id, quantity: 5 } ]
+      }
+    end
+  end
+
   test "shared auth prop marks a viewer read-only" do
     act_as @viewer
     get dashboard_props

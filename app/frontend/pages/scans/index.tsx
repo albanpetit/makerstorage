@@ -84,6 +84,24 @@ const QR_GHOST_CELLS: Array<[number, number]> = [
   [1, 5], [2, 5], [4, 5], [5, 5],
 ]
 
+// Symbologies we read: QR (zones) plus the common 1D/2D barcodes on part labels.
+const SCAN_FORMATS = [
+  'qr_code', 'data_matrix', 'code_128', 'code_39',
+  'ean_13', 'ean_8', 'upc_a', 'upc_e', 'itf', 'codabar',
+] as const
+
+// Minimal shape of the browser-native BarcodeDetector (not yet in TS DOM libs).
+interface DetectedBarcode {
+  rawValue: string
+}
+interface BarcodeDetectorInstance {
+  detect(source: CanvasImageSource): Promise<DetectedBarcode[]>
+}
+interface BarcodeDetectorConstructor {
+  new (options?: { formats?: string[] }): BarcodeDetectorInstance
+  getSupportedFormats?(): Promise<string[]>
+}
+
 function describeCameraError(err: unknown): string {
   const e = err as { name?: string; message?: string }
   if (e?.name === 'NotAllowedError' || e?.name === 'SecurityError') {
@@ -138,19 +156,31 @@ export default function ScansIndex({ code, result, recent_scans, today_count, al
 
   const videoRef = useRef<HTMLVideoElement>(null)
   const controlsRef = useRef<IScannerControls | null>(null)
+  const streamRef = useRef<MediaStream | null>(null)
+  const rafRef = useRef<number | null>(null)
+  // Guards against firing multiple lookups from rapid consecutive detections.
+  const scannedRef = useRef(false)
   const [cameraActive, setCameraActive] = useState(false)
   const [cameraStarting, setCameraStarting] = useState(false)
   const [cameraError, setCameraError] = useState<string | null>(null)
 
   const stopCamera = () => {
+    if (rafRef.current != null) {
+      cancelAnimationFrame(rafRef.current)
+      rafRef.current = null
+    }
     controlsRef.current?.stop()
     controlsRef.current = null
+    streamRef.current?.getTracks().forEach((track) => track.stop())
+    streamRef.current = null
+    if (videoRef.current) videoRef.current.srcObject = null
     setCameraActive(false)
   }
 
   const handleDecoded = (text: string) => {
     const trimmed = text.trim()
-    if (!trimmed) return
+    if (!trimmed || scannedRef.current) return
+    scannedRef.current = true
     stopCamera()
     router.get('/scan', { code: trimmed }, { preserveState: true, preserveScroll: true })
   }
@@ -167,17 +197,61 @@ export default function ScansIndex({ code, result, recent_scans, today_count, al
     }
     setCameraStarting(true)
     setCameraActive(true)
+    scannedRef.current = false
+
+    const BarcodeDetectorCtor = (window as unknown as { BarcodeDetector?: BarcodeDetectorConstructor }).BarcodeDetector
+
     try {
-      // Loaded on demand so the ~large decoder only ships when the camera is used.
-      const { BrowserMultiFormatReader } = await import('@zxing/browser')
-      const reader = new BrowserMultiFormatReader()
-      controlsRef.current = await reader.decodeFromConstraints(
-        { video: { facingMode: 'environment' } },
-        videoRef.current!,
-        (decoded) => {
-          if (decoded) handleDecoded(decoded.getText())
-        },
-      )
+      if (BarcodeDetectorCtor) {
+        // Preferred path: the browser-native detector (Chrome/Android/Edge) is
+        // far faster and more reliable than decoding every frame in JS.
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+        streamRef.current = stream
+        const video = videoRef.current!
+        video.srcObject = stream
+        await video.play()
+
+        const supported = (await BarcodeDetectorCtor.getSupportedFormats?.()) ?? []
+        const formats = SCAN_FORMATS.filter((f) => supported.length === 0 || supported.includes(f))
+        const detector = new BarcodeDetectorCtor(formats.length ? { formats: [ ...formats ] } : undefined)
+
+        const scan = async () => {
+          if (scannedRef.current || !streamRef.current) return
+          try {
+            const codes = await detector.detect(video)
+            if (codes.length > 0 && codes[0].rawValue) {
+              handleDecoded(codes[0].rawValue)
+              return
+            }
+          } catch {
+            // Transient decode errors (e.g. a not-yet-ready frame) — keep going.
+          }
+          rafRef.current = requestAnimationFrame(scan)
+        }
+        rafRef.current = requestAnimationFrame(scan)
+      } else {
+        // Fallback (Safari/Firefox): ZXing, restricted to the formats we use so
+        // it locks on faster than scanning for every possible symbology.
+        const [{ BrowserMultiFormatReader }, { DecodeHintType, BarcodeFormat }] = await Promise.all([
+          import('@zxing/browser'),
+          import('@zxing/library'),
+        ])
+        const hints = new Map([
+          [ DecodeHintType.POSSIBLE_FORMATS, [
+            BarcodeFormat.QR_CODE, BarcodeFormat.DATA_MATRIX, BarcodeFormat.CODE_128,
+            BarcodeFormat.CODE_39, BarcodeFormat.EAN_13, BarcodeFormat.EAN_8,
+            BarcodeFormat.UPC_A, BarcodeFormat.UPC_E, BarcodeFormat.ITF, BarcodeFormat.CODABAR,
+          ] ],
+        ])
+        const reader = new BrowserMultiFormatReader(hints)
+        controlsRef.current = await reader.decodeFromConstraints(
+          { video: { facingMode: 'environment' } },
+          videoRef.current!,
+          (decoded) => {
+            if (decoded) handleDecoded(decoded.getText())
+          },
+        )
+      }
     } catch (err) {
       stopCamera()
       setCameraError(describeCameraError(err))
@@ -187,7 +261,7 @@ export default function ScansIndex({ code, result, recent_scans, today_count, al
   }
 
   // Always release the camera when leaving the page.
-  useEffect(() => () => controlsRef.current?.stop(), [])
+  useEffect(() => () => stopCamera(), [])
 
   useEffect(() => {
     setDelta(0)

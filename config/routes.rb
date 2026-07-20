@@ -55,7 +55,9 @@ Rails.application.routes.draw do
 
   resources :tags, only: %i[index create update destroy]
 
-  resources :storage_locations, only: %i[index create update destroy]
+  resources :storage_locations, only: %i[index create update destroy] do
+    post :move_stock, on: :collection
+  end
 
   resources :stock_movements, only: %i[index create] do
     get :export, on: :collection

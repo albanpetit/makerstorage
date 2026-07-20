@@ -1,5 +1,5 @@
 import { Head, useForm, router } from '@inertiajs/react'
-import { FormEvent, useMemo, useState } from 'react'
+import { FormEvent, useEffect, useMemo, useState } from 'react'
 import {
   Search,
   Plus,
@@ -14,6 +14,8 @@ import {
   Pencil,
   Trash2,
   ArrowUpRight,
+  ArrowRightLeft,
+  GripVertical,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -23,6 +25,7 @@ import { usePermissions } from '@/hooks/use-permissions'
 import { PageHeader } from '@/components/page-header'
 import { ReadOnlyBadge } from '@/components/read-only-badge'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
@@ -138,6 +141,22 @@ interface ZoneFormData {
   }
 }
 
+interface MoveRow {
+  partId: number
+  reference: string
+  name: string
+  quantity: number
+  max: number
+}
+
+interface MoveDialogState {
+  // 'fixed' when the destination came from a drop; 'select' for the bulk button.
+  mode: 'fixed' | 'select'
+  fromId: number
+  toId: number | null
+  rows: MoveRow[]
+}
+
 export default function StorageLocationsIndex({ storage_locations, part_storages, recent_movements }: StorageLocationsPageProps) {
   const { canWrite } = usePermissions()
   const [query, setQuery] = useState('')
@@ -156,6 +175,12 @@ export default function StorageLocationsIndex({ storage_locations, part_storages
   // Drag-and-drop re-parenting state
   const [dragId, setDragId] = useState<number | null>(null)
   const [dropTargetId, setDropTargetId] = useState<number | 'root' | null>(null)
+
+  // Moving components between zones: which parts are checked in the current
+  // zone's table, which parts are mid-drag, and the pending move dialog.
+  const [selectedPartIds, setSelectedPartIds] = useState<Set<number>>(new Set())
+  const [draggingPartIds, setDraggingPartIds] = useState<number[] | null>(null)
+  const [moveDialog, setMoveDialog] = useState<MoveDialogState | null>(null)
 
   const byId = useMemo(() => new Map(storage_locations.map((z) => [z.id, z])), [storage_locations])
 
@@ -371,6 +396,97 @@ export default function StorageLocationsIndex({ storage_locations, part_storages
     setDropTargetId(null)
   }
 
+  // Clear the component selection whenever the viewed zone changes — the
+  // checkboxes only make sense against the currently displayed table.
+  useEffect(() => {
+    setSelectedPartIds(new Set())
+  }, [effectiveSelected?.id])
+
+  // Flat, indented list of every zone (for the bulk "move to" picker).
+  function allZoneOptions() {
+    const options: { id: number; label: string }[] = []
+    const walk = (parentId: number | null, depth: number) => {
+      (childrenByParent.get(parentId) || []).forEach((z) => {
+        options.push({ id: z.id, label: `${'— '.repeat(depth)}${z.name}` })
+        walk(z.id, depth + 1)
+      })
+    }
+    walk(null, 0)
+    return options
+  }
+
+  // Build editable move rows for the given parts, sourced from the zone they
+  // currently live in (their full on-hand quantity is the max and the default).
+  function buildMoveRows(fromZoneId: number, partIds: number[]): MoveRow[] {
+    const entries = partStoragesByLocation.get(fromZoneId) || []
+    return partIds
+      .map((partId) => entries.find((e) => e.part.id === partId))
+      .filter((e): e is PartStorageEntry => e != null && e.quantity > 0)
+      .map((e) => ({ partId: e.part.id, reference: e.part.reference, name: e.part.name, quantity: e.quantity, max: e.quantity }))
+  }
+
+  // Drop onto a target zone → open the dialog with the destination fixed.
+  function openMoveFromDrop(fromZoneId: number, toZoneId: number, partIds: number[]) {
+    const rows = buildMoveRows(fromZoneId, partIds)
+    if (rows.length === 0) return
+    setMoveDialog({ mode: 'fixed', fromId: fromZoneId, toId: toZoneId, rows })
+  }
+
+  // Bulk "Move to…" button → open the dialog with a destination picker.
+  function openBulkMove() {
+    if (!effectiveSelected) return
+    const rows = buildMoveRows(effectiveSelected.id, [ ...selectedPartIds ])
+    if (rows.length === 0) return
+    setMoveDialog({ mode: 'select', fromId: effectiveSelected.id, toId: null, rows })
+  }
+
+  function setMoveRowQuantity(partId: number, quantity: number) {
+    setMoveDialog((prev) => (prev
+      ? { ...prev, rows: prev.rows.map((r) => (r.partId === partId ? { ...r, quantity } : r)) }
+      : prev))
+  }
+
+  const moveDialogValid =
+    moveDialog != null &&
+    moveDialog.toId != null &&
+    moveDialog.toId !== moveDialog.fromId &&
+    moveDialog.rows.length > 0 &&
+    moveDialog.rows.every((r) => Number.isFinite(r.quantity) && r.quantity >= 1 && r.quantity <= r.max)
+
+  function submitMove() {
+    if (!moveDialog || !moveDialogValid) return
+    router.post('/storage_locations/move_stock', {
+      from_location_id: moveDialog.fromId,
+      to_location_id: moveDialog.toId,
+      moves: moveDialog.rows.map((r) => ({ part_id: r.partId, quantity: r.quantity })),
+    }, {
+      preserveScroll: true,
+      onSuccess: () => {
+        setMoveDialog(null)
+        setSelectedPartIds(new Set())
+      },
+    })
+  }
+
+  // Dragging a checked row carries the whole selection; otherwise just that part.
+  function startComponentDrag(partId: number) {
+    setDraggingPartIds(selectedPartIds.has(partId) ? [ ...selectedPartIds ] : [ partId ])
+  }
+
+  function endComponentDrag() {
+    setDraggingPartIds(null)
+    setDropTargetId(null)
+  }
+
+  function toggleSelectPart(partId: number) {
+    setSelectedPartIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(partId)) next.delete(partId)
+      else next.add(partId)
+      return next
+    })
+  }
+
   if (storage_locations.length === 0) {
     return (
       <AppLayout
@@ -397,7 +513,7 @@ export default function StorageLocationsIndex({ storage_locations, part_storages
             </CardContent>
           </Card>
         </div>
-        <NewZoneDialog />
+        {NewZoneDialog()}
       </AppLayout>
     )
   }
@@ -565,7 +681,9 @@ export default function StorageLocationsIndex({ storage_locations, part_storages
                   const isSelected = effectiveSelected?.id === row.location.id
                   const isExpanded = visibleIds ? true : expanded.has(row.location.id)
                   const isDragging = dragId === row.location.id
-                  const isDropTarget = dropTargetId === row.location.id && canDropOn(row.location.id)
+                  // A component drag can drop on any zone except the one it came from.
+                  const canDropComponents = draggingPartIds != null && effectiveSelected != null && row.location.id !== effectiveSelected.id
+                  const isDropTarget = dropTargetId === row.location.id && (canDropOn(row.location.id) || canDropComponents)
                   return (
                     <div
                       key={row.location.id}
@@ -579,7 +697,7 @@ export default function StorageLocationsIndex({ storage_locations, part_storages
                       onDragEnd={endDrag}
                       onDragOver={canWrite ? (e) => {
                         e.stopPropagation()
-                        if (canDropOn(row.location.id)) {
+                        if (canDropOn(row.location.id) || canDropComponents) {
                           e.preventDefault()
                           e.dataTransfer.dropEffect = 'move'
                           setDropTargetId(row.location.id)
@@ -591,7 +709,12 @@ export default function StorageLocationsIndex({ storage_locations, part_storages
                       onDrop={canWrite ? (e) => {
                         e.preventDefault()
                         e.stopPropagation()
-                        if (dragId != null && canDropOn(row.location.id)) moveZone(dragId, row.location.id)
+                        if (draggingPartIds != null && effectiveSelected != null && canDropComponents) {
+                          openMoveFromDrop(effectiveSelected.id, row.location.id, draggingPartIds)
+                          endComponentDrag()
+                        } else if (dragId != null && canDropOn(row.location.id)) {
+                          moveZone(dragId, row.location.id)
+                        }
                         endDrag()
                       } : undefined}
                       className={`flex cursor-pointer items-center gap-1.5 rounded-md py-1.5 pr-2 text-sm hover:bg-accent ${isSelected ? 'bg-muted font-semibold' : ''} ${isDragging ? 'opacity-50' : ''} ${isDropTarget ? 'ring-2 ring-inset ring-primary bg-accent' : ''}`}
@@ -754,14 +877,43 @@ export default function StorageLocationsIndex({ storage_locations, part_storages
 
               {/* Components stored here */}
               <div>
-                <h2 className="mb-2 text-sm font-semibold">
-                  Components stored here <span className="font-normal text-muted-foreground">· {selDirect.length}</span>
-                </h2>
+                <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                  <h2 className="text-sm font-semibold">
+                    Components stored here <span className="font-normal text-muted-foreground">· {selDirect.length}</span>
+                  </h2>
+                  {canWrite && selDirect.length > 0 && (
+                    selectedPartIds.size > 0 ? (
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs text-muted-foreground">{selectedPartIds.size} selected</span>
+                        <Button size="sm" variant="outline" onClick={openBulkMove}>
+                          <ArrowRightLeft className="size-3.5" />
+                          Move to…
+                        </Button>
+                        <Button size="sm" variant="ghost" className="text-muted-foreground" onClick={() => setSelectedPartIds(new Set())}>
+                          Clear
+                        </Button>
+                      </div>
+                    ) : (
+                      <span className="hidden text-xs text-muted-foreground lg:inline">Drag a row onto a zone, or select to move in bulk</span>
+                    )
+                  )}
+                </div>
                 {selDirect.length > 0 ? (
                   <Card className="gap-0 py-0">
                     <Table>
                       <TableHeader>
                         <TableRow>
+                          {canWrite && (
+                            <TableHead className="w-9">
+                              <Checkbox
+                                aria-label="Select all components"
+                                checked={selDirect.every((ps) => selectedPartIds.has(ps.part.id))}
+                                onCheckedChange={(checked) =>
+                                  setSelectedPartIds(checked === true ? new Set(selDirect.map((ps) => ps.part.id)) : new Set())
+                                }
+                              />
+                            </TableHead>
+                          )}
                           <TableHead>Reference</TableHead>
                           <TableHead>Name</TableHead>
                           <TableHead>Package</TableHead>
@@ -769,18 +921,45 @@ export default function StorageLocationsIndex({ storage_locations, part_storages
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {selDirect.map((ps) => (
-                          <TableRow key={ps.part.id}>
-                            <TableCell className="font-mono text-sm font-semibold">{ps.part.reference}</TableCell>
-                            <TableCell className="text-sm text-muted-foreground">{ps.part.name}</TableCell>
-                            <TableCell>
-                              {ps.part.package_type && (
-                                <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">{ps.part.package_type}</span>
+                        {selDirect.map((ps) => {
+                          const checked = selectedPartIds.has(ps.part.id)
+                          const dragging = draggingPartIds?.includes(ps.part.id) ?? false
+                          return (
+                            <TableRow
+                              key={ps.part.id}
+                              data-state={checked ? 'selected' : undefined}
+                              draggable={canWrite}
+                              onDragStart={canWrite ? (e) => {
+                                startComponentDrag(ps.part.id)
+                                e.dataTransfer.effectAllowed = 'move'
+                                e.dataTransfer.setData('text/plain', ps.part.reference)
+                              } : undefined}
+                              onDragEnd={endComponentDrag}
+                              className={`${canWrite ? 'cursor-grab' : ''} ${dragging ? 'opacity-50' : ''}`}
+                            >
+                              {canWrite && (
+                                <TableCell className="w-9">
+                                  <div className="flex items-center gap-1">
+                                    <GripVertical className="size-3.5 shrink-0 text-muted-foreground/50" />
+                                    <Checkbox
+                                      aria-label={`Select ${ps.part.reference}`}
+                                      checked={checked}
+                                      onCheckedChange={() => toggleSelectPart(ps.part.id)}
+                                    />
+                                  </div>
+                                </TableCell>
                               )}
-                            </TableCell>
-                            <TableCell className="text-right font-mono font-semibold">{ps.quantity}</TableCell>
-                          </TableRow>
-                        ))}
+                              <TableCell className="font-mono text-sm font-semibold">{ps.part.reference}</TableCell>
+                              <TableCell className="text-sm text-muted-foreground">{ps.part.name}</TableCell>
+                              <TableCell>
+                                {ps.part.package_type && (
+                                  <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">{ps.part.package_type}</span>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-right font-mono font-semibold">{ps.quantity}</TableCell>
+                            </TableRow>
+                          )
+                        })}
                       </TableBody>
                     </Table>
                   </Card>
@@ -825,7 +1004,7 @@ export default function StorageLocationsIndex({ storage_locations, part_storages
         </div>
       </div>
 
-      <NewZoneDialog />
+      {NewZoneDialog()}
 
       {/* Edit zone dialog */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
@@ -926,6 +1105,80 @@ export default function StorageLocationsIndex({ storage_locations, part_storages
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Move components dialog */}
+      <Dialog open={moveDialog !== null} onOpenChange={(open) => !open && setMoveDialog(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              Move {moveDialog?.rows.length === 1 ? 'component' : `${moveDialog?.rows.length} components`}
+            </DialogTitle>
+          </DialogHeader>
+          {moveDialog && (
+            <div className="flex flex-col gap-4">
+              <Field>
+                <FieldLabel>
+                  <Label>Destination zone</Label>
+                </FieldLabel>
+                <FieldContent>
+                  {moveDialog.mode === 'select' ? (
+                    <Select
+                      value={moveDialog.toId != null ? String(moveDialog.toId) : ''}
+                      onValueChange={(value) => setMoveDialog((prev) => prev && { ...prev, toId: Number(value) })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Choose a zone…" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {allZoneOptions()
+                          .filter((o) => o.id !== moveDialog.fromId)
+                          .map((o) => (
+                            <SelectItem key={o.id} value={String(o.id)}>{o.label}</SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <div className="rounded-md border bg-muted px-3 py-2 text-sm font-medium">
+                      {moveDialog.toId != null ? byId.get(moveDialog.toId)?.name : ''}
+                    </div>
+                  )}
+                </FieldContent>
+              </Field>
+
+              <div className="overflow-hidden rounded-lg border divide-y">
+                {moveDialog.rows.map((r) => (
+                  <div key={r.partId} className="flex items-center gap-3 px-3 py-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate font-mono text-sm font-semibold">{r.reference}</div>
+                      <div className="truncate text-xs text-muted-foreground">{r.name}</div>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <Input
+                        type="number"
+                        min={1}
+                        max={r.max}
+                        value={r.quantity}
+                        onChange={(e) => setMoveRowQuantity(r.partId, Math.max(1, Math.min(r.max, Math.floor(Number(e.target.value) || 0))))}
+                        className="h-8 w-20 text-right font-mono"
+                        aria-label={`Quantity to move for ${r.reference}`}
+                      />
+                      <span className="w-14 text-xs text-muted-foreground">/ {r.max}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setMoveDialog(null)}>Cancel</Button>
+                <Button type="button" onClick={submitMove} disabled={!moveDialogValid}>
+                  <ArrowRightLeft className="size-4" />
+                  Move
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   )
 }

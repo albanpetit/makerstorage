@@ -117,6 +117,133 @@ class StorageLocationsControllerTest < ActionDispatch::IntegrationTest
     assert_match(/sub-zones/, flash[:alert])
   end
 
+  test "move_stock transfers a component's full stock between zones via the ledger" do
+    user = create_user
+    org = user.organizations.first
+    from = create_storage_location(organization: org, name: "Shelf A")
+    to = create_storage_location(organization: org, name: "Shelf B")
+    part = create_part(organization: org, category: create_category(organization: org))
+    PartStorage.create!(part: part, storage_location: from, quantity: 40)
+
+    sign_in user
+    assert_difference -> { StockMovement.count } => 2 do
+      post move_stock_storage_locations_path, params: {
+        from_location_id: from.id, to_location_id: to.id,
+        moves: [ { part_id: part.id, quantity: 40 } ]
+      }
+    end
+
+    assert_equal 0, PartStorage.find_by(part: part, storage_location: from).quantity
+    assert_equal 40, PartStorage.find_by(part: part, storage_location: to).quantity
+    assert_redirected_to storage_locations_path
+    follow_redirect!
+    assert_match(/Moved 1 component to Shelf B/, flash[:notice])
+  end
+
+  test "move_stock supports a partial quantity" do
+    user = create_user
+    org = user.organizations.first
+    from = create_storage_location(organization: org, name: "Shelf A")
+    to = create_storage_location(organization: org, name: "Shelf B")
+    part = create_part(organization: org, category: create_category(organization: org))
+    PartStorage.create!(part: part, storage_location: from, quantity: 40)
+
+    sign_in user
+    post move_stock_storage_locations_path, params: {
+      from_location_id: from.id, to_location_id: to.id,
+      moves: [ { part_id: part.id, quantity: 15 } ]
+    }
+
+    assert_equal 25, PartStorage.find_by(part: part, storage_location: from).quantity
+    assert_equal 15, PartStorage.find_by(part: part, storage_location: to).quantity
+  end
+
+  test "move_stock moves several components at once" do
+    user = create_user
+    org = user.organizations.first
+    category = create_category(organization: org)
+    from = create_storage_location(organization: org, name: "Shelf A")
+    to = create_storage_location(organization: org, name: "Shelf B")
+    a = create_part(organization: org, category: category)
+    b = create_part(organization: org, category: category)
+    PartStorage.create!(part: a, storage_location: from, quantity: 10)
+    PartStorage.create!(part: b, storage_location: from, quantity: 5)
+
+    sign_in user
+    post move_stock_storage_locations_path, params: {
+      from_location_id: from.id, to_location_id: to.id,
+      moves: [ { part_id: a.id, quantity: 10 }, { part_id: b.id, quantity: 5 } ]
+    }
+
+    assert_equal 10, PartStorage.find_by(part: a, storage_location: to).quantity
+    assert_equal 5, PartStorage.find_by(part: b, storage_location: to).quantity
+    follow_redirect!
+    assert_match(/Moved 2 components to Shelf B/, flash[:notice])
+  end
+
+  test "move_stock is atomic: one invalid move rolls back the whole batch" do
+    user = create_user
+    org = user.organizations.first
+    category = create_category(organization: org)
+    from = create_storage_location(organization: org, name: "Shelf A")
+    to = create_storage_location(organization: org, name: "Shelf B")
+    a = create_part(organization: org, category: category)
+    b = create_part(organization: org, category: category)
+    PartStorage.create!(part: a, storage_location: from, quantity: 10)
+    PartStorage.create!(part: b, storage_location: from, quantity: 5)
+
+    sign_in user
+    assert_no_difference -> { StockMovement.count } do
+      post move_stock_storage_locations_path, params: {
+        from_location_id: from.id, to_location_id: to.id,
+        moves: [ { part_id: a.id, quantity: 10 }, { part_id: b.id, quantity: 99 } ]
+      }
+    end
+
+    # The valid first move must not have applied either.
+    assert_equal 10, PartStorage.find_by(part: a, storage_location: from).quantity
+    assert_nil PartStorage.find_by(part: a, storage_location: to)
+    follow_redirect!
+    assert_match(/only 5/, flash[:alert])
+  end
+
+  test "move_stock rejects moving to the same zone" do
+    user = create_user
+    org = user.organizations.first
+    zone = create_storage_location(organization: org, name: "Shelf A")
+    part = create_part(organization: org, category: create_category(organization: org))
+    PartStorage.create!(part: part, storage_location: zone, quantity: 10)
+
+    sign_in user
+    assert_no_difference -> { StockMovement.count } do
+      post move_stock_storage_locations_path, params: {
+        from_location_id: zone.id, to_location_id: zone.id,
+        moves: [ { part_id: part.id, quantity: 5 } ]
+      }
+    end
+    follow_redirect!
+    assert_match(/different destination/, flash[:alert])
+  end
+
+  test "move_stock will not touch another organization's zone" do
+    user = create_user
+    org = user.organizations.first
+    from = create_storage_location(organization: org, name: "Shelf A")
+    part = create_part(organization: org, category: create_category(organization: org))
+    PartStorage.create!(part: part, storage_location: from, quantity: 10)
+    other_zone = create_storage_location(organization: create_organization, name: "Not yours")
+
+    sign_in user
+    assert_no_difference -> { StockMovement.count } do
+      post move_stock_storage_locations_path, params: {
+        from_location_id: from.id, to_location_id: other_zone.id,
+        moves: [ { part_id: part.id, quantity: 5 } ]
+      }
+    end
+    follow_redirect!
+    assert_match(/Unknown storage zone/, flash[:alert])
+  end
+
   private
 
   def inertia_props
