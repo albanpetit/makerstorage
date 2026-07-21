@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require "csv"
-
 class PartsController < ApplicationController
   include Auth
   include OptionListSerializers
@@ -238,26 +236,6 @@ class PartsController < ApplicationController
     redirect_to parts_path, notice: "Assigned #{supplier.name} as preferred supplier for #{parts.size} #{'part'.pluralize(parts.size)}."
   end
 
-  # Column names accepted per logical field, checked in order (French/English/
-  # common BOM export synonyms). CSV::foreach with header_converters: :symbol
-  # downcases, underscores whitespace, and strips accented characters, so
-  # "Unit Price" -> :unit_price and "Désignation"/"Quantité" -> :dsignation/:quantit.
-  IMPORT_COLUMN_SYNONYMS = {
-    name: %i[name designation dsignation],
-    category: %i[category categorie catgorie],
-    mpn: %i[mpn],
-    sku: %i[sku reference ref rfrence],
-    manufacturer: %i[manufacturer],
-    value: %i[value valeur],
-    package: %i[package boitier botier],
-    location: %i[location emplacement],
-    supplier: %i[supplier fournisseur],
-    quantity: %i[quantity quantite quantit qty],
-    min_stock_threshold: %i[min_stock_threshold seuil min],
-    unit_price: %i[unit_price pu pu_eur price],
-    status: %i[status statut]
-  }.freeze
-
   def import
     file = params[:file]
     return redirect_to(parts_path, alert: "Please choose a CSV file to import.") unless file
@@ -265,10 +243,9 @@ class PartsController < ApplicationController
     created = 0
     updated = 0
     skipped = 0
-    separator = File.foreach(file.path).first.to_s.include?(";") ? ";" : ","
 
     begin
-      CSV.foreach(file.path, headers: true, header_converters: :symbol, col_sep: separator) do |row|
+      BomParser.each_row(file.path) do |row|
         name = import_value(row, :name)
         category_name = import_value(row, :category)
 
@@ -356,11 +333,7 @@ class PartsController < ApplicationController
 
   # Returns the first present value among the synonym columns for +field+.
   def import_value(row, field)
-    IMPORT_COLUMN_SYNONYMS.fetch(field).each do |key|
-      value = row[key].to_s.strip
-      return value if value.present?
-    end
-    nil
+    BomParser.value(row, field)
   end
 
   def assign_stock(part, row)

@@ -70,6 +70,17 @@ Rails.application.routes.draw do
 
   resources :suppliers, only: %i[index create update destroy]
 
+  # Project BOM availability checks
+  resources :projects, only: %i[index show create destroy] do
+    member do
+      post :confirm
+      post :create_purchase_orders
+      post :build
+    end
+
+    resources :project_lines, only: %i[update destroy]
+  end
+
   get "alerts", to: "alerts#index"
   post "alerts/purchase_orders", to: "alerts#create_purchase_orders", as: :alert_purchase_orders
   patch "alerts/orders/:id/advance", to: "alerts#advance_order", as: :advance_alert_order

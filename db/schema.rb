@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_15_120000) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_20_120100) do
   create_table "active_storage_attachments", force: :cascade do |t|
     t.bigint "blob_id", null: false
     t.datetime "created_at", null: false
@@ -195,6 +195,32 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_15_120000) do
     t.index ["value"], name: "index_parts_on_value"
   end
 
+  create_table "project_lines", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "designation"
+    t.string "match_type", default: "none", null: false
+    t.integer "part_id"
+    t.integer "project_id", null: false
+    t.integer "quantity", default: 1, null: false
+    t.string "raw_reference"
+    t.datetime "updated_at", null: false
+    t.index ["part_id"], name: "index_project_lines_on_part_id"
+    t.index ["project_id"], name: "index_project_lines_on_project_id"
+  end
+
+  create_table "projects", force: :cascade do |t|
+    t.datetime "checked_at"
+    t.datetime "created_at", null: false
+    t.string "description"
+    t.string "name", null: false
+    t.integer "organization_id", null: false
+    t.string "reference"
+    t.string "status", default: "draft", null: false
+    t.datetime "updated_at", null: false
+    t.index ["organization_id", "reference"], name: "index_projects_on_organization_id_and_reference", unique: true, where: "reference IS NOT NULL AND reference != ''"
+    t.index ["organization_id"], name: "index_projects_on_organization_id"
+  end
+
   create_table "purchase_lines", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.integer "part_id", null: false
@@ -326,6 +352,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_15_120000) do
   add_foreign_key "parts", "categories"
   add_foreign_key "parts", "footprints"
   add_foreign_key "parts", "organizations"
+  add_foreign_key "project_lines", "parts"
+  add_foreign_key "project_lines", "projects"
+  add_foreign_key "projects", "organizations"
   add_foreign_key "purchase_lines", "parts"
   add_foreign_key "purchase_lines", "purchases"
   add_foreign_key "purchases", "organizations"

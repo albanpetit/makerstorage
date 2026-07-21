@@ -16,6 +16,7 @@ class Organization < ApplicationRecord
   has_many :storage_locations, dependent: :destroy
   has_many :stock_movements, dependent: :destroy
   has_many :purchases, dependent: :destroy
+  has_many :projects, dependent: :destroy
   has_many :categories, dependent: :destroy
   has_many :footprints, dependent: :destroy
   has_many :tags, dependent: :destroy

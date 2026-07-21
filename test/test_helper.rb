@@ -62,6 +62,10 @@ module ActiveSupport
       User.create!(firstname: "Test", lastname: "User", email: email, password: "password123", **attrs)
     end
 
+    def create_project(organization:, name: "Project #{SecureRandom.hex(4)}", **attrs)
+      Project.create!(organization: organization, name: name, **attrs)
+    end
+
     # Counts the real SQL queries a block fires, ignoring cached hits, schema
     # introspection, and transaction control. Used to pin N+1 fixes shut: run
     # the same request against a small and a larger dataset and assert the count
