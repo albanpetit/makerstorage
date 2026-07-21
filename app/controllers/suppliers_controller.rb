@@ -9,7 +9,7 @@ class SuppliersController < ApplicationController
 
   def index
     suppliers = current_organization.suppliers
-      .includes(part_suppliers: { part: :part_storages }, purchases: :purchase_lines)
+      .includes(part_suppliers: { part: :part_storages }, orders: :order_lines)
       .alphabetical
 
     render inertia: "suppliers/index", props: {
@@ -78,7 +78,7 @@ class SuppliersController < ApplicationController
   def serialize_supplier(supplier)
     part_suppliers = supplier.part_suppliers
     lead_times = part_suppliers.filter_map(&:lead_time_days)
-    last_purchase = supplier.purchases.max_by(&:ordered_at)
+    last_order = supplier.orders.max_by(&:ordered_at)
     stock_value = part_suppliers.sum { |ps| (ps.part.unit_price || 0) * ps.part.total_quantity }
 
     {
@@ -93,10 +93,10 @@ class SuppliersController < ApplicationController
       reference_count: part_suppliers.size,
       avg_lead_time_days: lead_times.any? ? (lead_times.sum.to_f / lead_times.size).round : nil,
       stock_value: stock_value.to_f,
-      last_order_at: last_purchase&.ordered_at&.iso8601,
-      order_count: supplier.purchases.size,
+      last_order_at: last_order&.ordered_at&.iso8601,
+      order_count: supplier.orders.size,
       components: part_suppliers.map { |ps| serialize_linked_component(ps) },
-      orders: supplier.purchases.sort_by { |p| p.ordered_at || p.created_at }.reverse.map { |purchase| serialize_purchase(purchase) }
+      orders: supplier.orders.sort_by { |o| o.ordered_at || o.created_at }.reverse.map { |order| serialize_order(order) }
     }
   end
 
@@ -112,13 +112,13 @@ class SuppliersController < ApplicationController
     }
   end
 
-  def serialize_purchase(purchase)
+  def serialize_order(order)
     {
-      id: purchase.id,
-      reference: purchase.reference,
-      ordered_at: purchase.ordered_at&.iso8601,
-      status: purchase.status,
-      total_amount: (purchase.total_amount || purchase.computed_total).to_f
+      id: order.id,
+      reference: order.reference,
+      ordered_at: order.ordered_at&.iso8601,
+      status: order.status,
+      total_amount: (order.total_amount || order.computed_total).to_f
     }
   end
 end

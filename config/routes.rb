@@ -70,6 +70,22 @@ Rails.application.routes.draw do
 
   resources :suppliers, only: %i[index create update destroy]
 
+  # Purchase orders (supplier orders)
+  resources :orders, only: %i[index show create update destroy] do
+    member do
+      patch :advance
+      post :import_project
+      post :push_to_cart
+    end
+    collection do
+      post :import_supplier_order
+    end
+
+    resources :order_lines, only: %i[create update destroy] do
+      post :catalog, on: :collection
+    end
+  end
+
   # Project BOM availability checks
   resources :projects, only: %i[index show create destroy] do
     member do

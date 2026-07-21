@@ -19,7 +19,30 @@ module SupplierCatalog
   # The upstream provider request failed (network, auth, bad response...).
   class LookupError < Error; end
 
+  # A supplier order fetched from a provider's order API, normalized across
+  # providers. +lines+ is an Array<OrderLineResult>.
+  OrderResult = Struct.new(:order_number, :status, :placed_at, :total, :currency, :lines, keyword_init: true)
+
+  # One line of a fetched supplier order, or a priced line of a built cart.
+  OrderLineResult = Struct.new(
+    :mpn, :manufacturer, :supplier_sku, :description, :quantity, :unit_price,
+    keyword_init: true
+  )
+
+  # The outcome of building a cart at the supplier: its key, a checkout handoff
+  # URL when the provider returns one, and the priced lines.
+  CartResult = Struct.new(:cart_key, :checkout_url, :currency, :merchandise_total, :lines, keyword_init: true)
+
   module_function
+
+  # A Mouser client wired for the Order/Cart API (push-to-cart, order import),
+  # or nil when the organization hasn't configured the order key. Distinct from
+  # the Search API providers above — the two use different Mouser keys.
+  def mouser_order_client(organization)
+    return nil unless organization.mouser_order_configured?
+
+    Mouser.new(api_key: organization.mouser_api_key, order_api_key: organization.mouser_order_api_key)
+  end
 
   # Returns an Array<PartResult> (possibly empty) for the given part number,
   # merged across every configured provider so the user sees matches from all of

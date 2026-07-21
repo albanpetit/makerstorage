@@ -1,6 +1,6 @@
-class PurchaseLine < ApplicationRecord
+class OrderLine < ApplicationRecord
   # Associations
-  belongs_to :purchase
+  belongs_to :order
   belongs_to :part
 
   # Validations

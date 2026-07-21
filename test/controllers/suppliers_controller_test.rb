@@ -15,7 +15,7 @@ class SuppliersControllerTest < ActionDispatch::IntegrationTest
     part = create_part(organization: org, category: category, mpn: "RES-10K", unit_price: 0.05)
     PartStorage.create!(part: part, storage_location: location, quantity: 200)
     PartSupplier.create!(part: part, supplier: supplier, lead_time_days: 6, unit_price: 0.04)
-    purchase = Purchase.create!(organization: org, supplier: supplier, status: "received", ordered_at: 3.days.ago.to_date, total_amount: 150.0)
+    order = Order.create!(organization: org, supplier: supplier, status: "received", ordered_at: 3.days.ago.to_date, total_amount: 150.0)
 
     sign_in user
     get suppliers_path
@@ -27,7 +27,7 @@ class SuppliersControllerTest < ActionDispatch::IntegrationTest
     assert_equal 10.0, supplier_json["stock_value"]
     assert_equal 1, supplier_json["order_count"]
     assert_equal "RES-10K", supplier_json["components"].first["reference"]
-    assert_equal purchase.id, supplier_json["orders"].first["id"]
+    assert_equal order.id, supplier_json["orders"].first["id"]
   end
 
   test "index does not leak another organization's suppliers" do

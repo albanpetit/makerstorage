@@ -654,12 +654,12 @@ else
 end
 
 # =============================================================================
-# Purchases
+# Orders
 # =============================================================================
-puts "Creating purchases..."
+puts "Creating orders..."
 
-if org.purchases.none?
-  purchases_data = [
+if org.orders.none?
+  orders_data = [
     { supplier: "DigiKey", reference: "DK-55102", status: "received", ordered_at: 18.days.ago.to_date, total_amount: 184.20,
       lines: [ { mpn: "ATMEGA328P-AU", quantity: 50, unit_price: 2.50 } ] },
     { supplier: "DigiKey", reference: "DK-55240", status: "shipped", ordered_at: 4.days.ago.to_date, total_amount: 92.50,
@@ -672,11 +672,11 @@ if org.purchases.none?
       lines: [ { mpn: "RC0603FR-074K7L", quantity: 500, unit_price: 0.008 } ] }
   ]
 
-  purchases_data.each do |data|
+  orders_data.each do |data|
     supplier = suppliers[data[:supplier]]
     next unless supplier
 
-    purchase = Purchase.create!(
+    order = Order.create!(
       organization: org, supplier: supplier, reference: data[:reference],
       status: data[:status], ordered_at: data[:ordered_at], total_amount: data[:total_amount]
     )
@@ -685,13 +685,13 @@ if org.purchases.none?
       part = parts_by_mpn[line[:mpn]]
       next unless part
 
-      PurchaseLine.create!(purchase: purchase, part: part, quantity: line[:quantity], unit_price: line[:unit_price])
+      OrderLine.create!(order: order, part: part, quantity: line[:quantity], unit_price: line[:unit_price])
     end
   end
 
-  puts "  Created #{org.purchases.count} purchases"
+  puts "  Created #{org.orders.count} orders"
 else
-  puts "  Skipping (purchases already exist)"
+  puts "  Skipping (orders already exist)"
 end
 
 # =============================================================================
@@ -714,8 +714,8 @@ puts "  - #{PartSupplier.count} part-supplier links"
 puts "  - #{StorageLocation.count} storage locations"
 puts "  - #{StockMovement.count} stock movements"
 puts "  - #{PartStorage.count} part-storage entries"
-puts "  - #{Purchase.count} purchases"
-puts "  - #{PurchaseLine.count} purchase lines"
+puts "  - #{Order.count} orders"
+puts "  - #{OrderLine.count} order lines"
 puts ""
 puts "Login credentials:"
 puts "  - admin@example.com / password123 (Owner)"

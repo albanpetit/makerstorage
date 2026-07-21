@@ -17,7 +17,7 @@ class Project < ApplicationRecord
 
   # Builds a human-readable, per-organization-unique reference of the form
   # "PRJ-YYYYMMDD-N", appending an incrementing suffix until one is free within
-  # the organization (mirrors Purchase.next_reference).
+  # the organization (mirrors Order.next_reference).
   def self.next_reference(organization, date: Date.current)
     base = "PRJ-#{date.strftime('%Y%m%d')}"
     reference = "#{base}-1"

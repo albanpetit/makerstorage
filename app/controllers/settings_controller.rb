@@ -65,10 +65,12 @@ class SettingsController < ApplicationController
       :ipn_prefix, :ipn_separator, :ipn_digits, :ipn_use_category_code, :ipn_next_sequence,
       :default_low_stock_threshold, :allow_negative_stock,
       :mouser_api_key, :remove_mouser_api_key,
+      :mouser_order_api_key, :remove_mouser_order_api_key,
       :digikey_client_id, :digikey_client_secret, :remove_digikey
     )
 
     normalize_mouser_api_key(permitted)
+    normalize_write_only_key(permitted, :mouser_order_api_key, :remove_mouser_order_api_key)
     normalize_digikey_credentials(permitted)
     permitted
   end
@@ -84,6 +86,18 @@ class SettingsController < ApplicationController
       permitted.delete(:mouser_api_key)
     else
       permitted[:mouser_api_key] = permitted[:mouser_api_key].strip
+    end
+  end
+
+  # Shared write-only single-key handling: a blank submit leaves the stored key
+  # untouched, an explicit remove flag clears it, and a new value replaces it.
+  def normalize_write_only_key(permitted, key, remove_key)
+    if ActiveModel::Type::Boolean.new.cast(permitted.delete(remove_key))
+      permitted[key] = nil
+    elsif permitted[key].blank?
+      permitted.delete(key)
+    else
+      permitted[key] = permitted[key].strip
     end
   end
 
@@ -121,6 +135,7 @@ class SettingsController < ApplicationController
       ipn_use_category_code: org.ipn_use_category_code, ipn_next_sequence: org.ipn_next_sequence,
       default_low_stock_threshold: org.default_low_stock_threshold, allow_negative_stock: org.allow_negative_stock,
       mouser_api_key_present: org.mouser_api_key.present?,
+      mouser_order_api_key_present: org.mouser_order_api_key.present?,
       digikey_configured: org.digikey_configured?,
       parts_count: org.total_parts_count,
       ipn_preview: org.ipn_preview(category_code: org.ipn_use_category_code ? "RES" : nil)

@@ -60,9 +60,9 @@ class AlertsControllerTest < ActionDispatch::IntegrationTest
     user = create_user
     org = user.organizations.first
     supplier = create_supplier(organization: org, name: "Mouser")
-    Purchase.create!(organization: org, supplier: supplier, status: "pending", reference: "PO-1")
-    Purchase.create!(organization: org, supplier: supplier, status: "shipped", reference: "PO-2")
-    Purchase.create!(organization: org, supplier: supplier, status: "received", reference: "PO-3")
+    Order.create!(organization: org, supplier: supplier, status: "pending", reference: "PO-1")
+    Order.create!(organization: org, supplier: supplier, status: "shipped", reference: "PO-2")
+    Order.create!(organization: org, supplier: supplier, status: "received", reference: "PO-3")
 
     sign_in user
     get alerts_path
@@ -89,14 +89,14 @@ class AlertsControllerTest < ActionDispatch::IntegrationTest
     PartStorage.create!(part: without_supplier, storage_location: location, quantity: 5)
 
     sign_in user
-    assert_difference -> { Purchase.count } => 1, -> { PurchaseLine.count } => 1 do
+    assert_difference -> { Order.count } => 1, -> { OrderLine.count } => 1 do
       post alert_purchase_orders_path
     end
 
-    purchase = Purchase.last
-    assert_equal supplier, purchase.supplier
-    assert_equal "pending", purchase.status
-    assert_equal with_supplier, purchase.purchase_lines.first.part
+    order = Order.last
+    assert_equal supplier, order.supplier
+    assert_equal "pending", order.status
+    assert_equal with_supplier, order.order_lines.first.part
   end
 
   test "create_purchase_orders scoped to a single part_id only orders that alert" do
@@ -115,11 +115,11 @@ class AlertsControllerTest < ActionDispatch::IntegrationTest
     PartSupplier.create!(part: second, supplier: supplier, is_preferred: true, unit_price: 0.02)
 
     sign_in user
-    assert_difference -> { PurchaseLine.count } => 1 do
+    assert_difference -> { OrderLine.count } => 1 do
       post alert_purchase_orders_path, params: { part_id: first.id }
     end
 
-    assert_equal first, Purchase.last.purchase_lines.first.part
+    assert_equal first, Order.last.order_lines.first.part
   end
 
   test "create_purchase_orders shows an alert when no eligible supplier exists" do
@@ -131,7 +131,7 @@ class AlertsControllerTest < ActionDispatch::IntegrationTest
     PartStorage.create!(part: part, storage_location: location, quantity: 5)
 
     sign_in user
-    assert_no_difference "Purchase.count" do
+    assert_no_difference "Order.count" do
       post alert_purchase_orders_path
     end
 
@@ -144,14 +144,14 @@ class AlertsControllerTest < ActionDispatch::IntegrationTest
     user = create_user
     org = user.organizations.first
     supplier = create_supplier(organization: org)
-    purchase = Purchase.create!(organization: org, supplier: supplier, status: "pending", reference: "PO-1")
+    order = Order.create!(organization: org, supplier: supplier, status: "pending", reference: "PO-1")
 
     sign_in user
     assert_no_difference "StockMovement.count" do
-      patch advance_alert_order_path(purchase)
+      patch advance_alert_order_path(order)
     end
 
-    assert_equal "shipped", purchase.reload.status
+    assert_equal "shipped", order.reload.status
   end
 
   test "advance_order moving to received credits stock via a stock movement" do
@@ -162,15 +162,15 @@ class AlertsControllerTest < ActionDispatch::IntegrationTest
     supplier = create_supplier(organization: org)
     part = create_part(organization: org, category: category)
     PartStorage.create!(part: part, storage_location: location, quantity: 0)
-    purchase = Purchase.create!(organization: org, supplier: supplier, status: "shipped", reference: "PO-1")
-    PurchaseLine.create!(purchase: purchase, part: part, quantity: 40, unit_price: 0.02)
+    order = Order.create!(organization: org, supplier: supplier, status: "shipped", reference: "PO-1")
+    OrderLine.create!(order: order, part: part, quantity: 40, unit_price: 0.02)
 
     sign_in user
     assert_difference -> { StockMovement.count } => 1 do
-      patch advance_alert_order_path(purchase)
+      patch advance_alert_order_path(order)
     end
 
-    assert_equal "received", purchase.reload.status
+    assert_equal "received", order.reload.status
     assert_equal 40, part.reload.total_quantity
   end
 
@@ -180,15 +180,15 @@ class AlertsControllerTest < ActionDispatch::IntegrationTest
     category = create_category(organization: org)
     supplier = create_supplier(organization: org)
     part = create_part(organization: org, category: category, mpn: "RES-NOLOC")
-    purchase = Purchase.create!(organization: org, supplier: supplier, status: "shipped", reference: "PO-1")
-    PurchaseLine.create!(purchase: purchase, part: part, quantity: 40, unit_price: 0.02)
+    order = Order.create!(organization: org, supplier: supplier, status: "shipped", reference: "PO-1")
+    OrderLine.create!(order: order, part: part, quantity: 40, unit_price: 0.02)
 
     sign_in user
     assert_no_difference "StockMovement.count" do
-      patch advance_alert_order_path(purchase)
+      patch advance_alert_order_path(order)
     end
 
-    assert_equal "received", purchase.reload.status
+    assert_equal "received", order.reload.status
     assert_redirected_to alerts_path
     follow_redirect!
     assert_match(/RES-NOLOC/, flash[:alert])
@@ -199,10 +199,10 @@ class AlertsControllerTest < ActionDispatch::IntegrationTest
     user = create_user
     org = user.organizations.first
     supplier = create_supplier(organization: org)
-    purchase = Purchase.create!(organization: org, supplier: supplier, status: "received", reference: "PO-1")
+    order = Order.create!(organization: org, supplier: supplier, status: "received", reference: "PO-1")
 
     sign_in user
-    patch advance_alert_order_path(purchase)
+    patch advance_alert_order_path(order)
 
     assert_redirected_to alerts_path
     follow_redirect!
@@ -217,16 +217,16 @@ class AlertsControllerTest < ActionDispatch::IntegrationTest
     supplier = create_supplier(organization: org)
     part = create_part(organization: org, category: category)
     PartStorage.create!(part: part, storage_location: location, quantity: 0)
-    purchase = Purchase.create!(organization: org, supplier: supplier, status: "shipped", reference: "PO-1")
-    PurchaseLine.create!(purchase: purchase, part: part, quantity: 40, unit_price: 0.02)
+    order = Order.create!(organization: org, supplier: supplier, status: "shipped", reference: "PO-1")
+    OrderLine.create!(order: order, part: part, quantity: 40, unit_price: 0.02)
 
     sign_in user
-    patch advance_alert_order_path(purchase)
+    patch advance_alert_order_path(order)
     assert_equal 40, part.reload.total_quantity
 
     # A repeat "advance" on the now-received order must not re-run receive_stock.
     assert_no_difference "StockMovement.count" do
-      patch advance_alert_order_path(purchase)
+      patch advance_alert_order_path(order)
     end
     assert_equal 40, part.reload.total_quantity
   end
