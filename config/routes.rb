@@ -68,6 +68,11 @@ Rails.application.routes.draw do
 
   get "search", to: "search#index", as: :search
 
+  # DigiKey account connection (3-legged OAuth) for the user-scoped Order API.
+  get "oauth/digikey/authorize", to: "oauth/digikey#authorize", as: :oauth_digikey_authorize
+  get "oauth/digikey/callback", to: "oauth/digikey#callback", as: :oauth_digikey_callback
+  delete "oauth/digikey", to: "oauth/digikey#disconnect", as: :oauth_digikey
+
   resources :suppliers, only: %i[index create update destroy]
 
   # Purchase orders (supplier orders)

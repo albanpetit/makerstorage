@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_21_122000) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_22_120000) do
   create_table "active_storage_attachments", force: :cascade do |t|
     t.bigint "blob_id", null: false
     t.datetime "created_at", null: false
@@ -123,8 +123,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_21_122000) do
     t.datetime "created_at", null: false
     t.string "currency", default: "EUR", null: false
     t.integer "default_low_stock_threshold", default: 50, null: false
+    t.text "digikey_access_token"
     t.text "digikey_client_id"
     t.text "digikey_client_secret"
+    t.text "digikey_refresh_token"
+    t.datetime "digikey_token_expires_at"
     t.string "email"
     t.string "ipn_charset", default: "numeric", null: false
     t.integer "ipn_digits", default: 5, null: false

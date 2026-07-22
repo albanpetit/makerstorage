@@ -143,7 +143,7 @@ class OrdersControllerTest < ActionDispatch::IntegrationTest
     sign_in @user
 
     cart = SupplierCatalog::CartResult.new(cart_key: "abc", merchandise_total: "1.50", currency: "EUR", lines: [])
-    fake = FakeMouserClient.new(cart: cart)
+    fake = FakeOrderClient.new(cart: cart)
     stub_singleton(SupplierCatalog, :mouser_order_client, ->(_org) { fake }) do
       post push_to_cart_order_path(order)
     end
@@ -171,7 +171,7 @@ class OrdersControllerTest < ActionDispatch::IntegrationTest
         )
       ]
     )
-    fake = FakeMouserClient.new(order: result)
+    fake = FakeOrderClient.new(order: result)
 
     assert_difference -> { Order.count } => 1, -> { Part.count } => 1 do
       stub_singleton(SupplierCatalog, :mouser_order_client, ->(_org) { fake }) do
@@ -194,7 +194,7 @@ class OrdersControllerTest < ActionDispatch::IntegrationTest
     result = SupplierCatalog::OrderResult.new(order_number: "9988", lines: [
       SupplierCatalog::OrderLineResult.new(mpn: "X", quantity: 1)
     ])
-    fake = FakeMouserClient.new(order: result)
+    fake = FakeOrderClient.new(order: result)
 
     assert_no_difference -> { Order.count } do
       stub_singleton(SupplierCatalog, :mouser_order_client, ->(_org) { fake }) do
@@ -204,10 +204,44 @@ class OrdersControllerTest < ActionDispatch::IntegrationTest
     assert_match(/already been imported/i, flash[:alert])
   end
 
+  test "import_supplier_order via digikey imports and reconciles a new part" do
+    @org.update!(
+      digikey_client_id: "cid", digikey_client_secret: "csecret",
+      digikey_access_token: "acc", digikey_refresh_token: "ref", digikey_token_expires_at: 1.hour.from_now
+    )
+    sign_in @user
+
+    result = SupplierCatalog::OrderResult.new(
+      order_number: "DK-77", status: "Shipped", placed_at: "2026-07-01", lines: [
+        SupplierCatalog::OrderLineResult.new(
+          mpn: "DK-NEW", manufacturer: "Microchip", supplier_sku: "DK-NEW-ND",
+          description: "MCU", quantity: 5, unit_price: "1.00"
+        )
+      ]
+    )
+    fake = FakeOrderClient.new(order: result)
+
+    assert_difference -> { Order.count } => 1, -> { Part.count } => 1 do
+      stub_singleton(SupplierCatalog, :digikey_order_client, ->(_org) { fake }) do
+        post import_supplier_order_orders_path, params: { provider: "digikey", order_number: "DK-77" }
+      end
+    end
+
+    order = Order.order(:created_at).last
+    assert_equal "DK-77", order.reference
+    assert_match(/DigiKey/, order.notes.to_s)
+  end
+
+  test "import_supplier_order via digikey prompts to connect when no account" do
+    sign_in @user
+    post import_supplier_order_orders_path, params: { provider: "digikey", order_number: "DK-1" }
+    assert_match(/connect your digikey account/i, flash[:alert])
+  end
+
   private
 
   # Stands in for a configured SupplierCatalog::Mouser order client.
-  class FakeMouserClient
+  class FakeOrderClient
     def initialize(cart: nil, order: nil)
       @cart = cart
       @order = order

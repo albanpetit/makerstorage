@@ -15,7 +15,8 @@ class OrdersController < ApplicationController
     render inertia: "orders/index", props: {
       orders: orders.map { |order| serialize_order_summary(order) },
       suppliers: supplier_options,
-      mouser_order_enabled: current_organization.mouser_order_configured?
+      mouser_order_enabled: current_organization.mouser_order_configured?,
+      digikey_order_enabled: current_organization.digikey_account_connected?
     }
   end
 
@@ -184,37 +185,40 @@ class OrdersController < ApplicationController
     redirect_to order_path(@order), alert: e.message
   end
 
-  # Imports a placed Mouser order (by web order number) into a new local order,
-  # reconciling each line to an existing part or creating one.
+  # Imports a placed supplier order (Mouser web order number, or DigiKey sales
+  # order number) into a new local order, reconciling each line to an existing
+  # part or creating one.
   def import_supplier_order
-    client = SupplierCatalog.mouser_order_client(current_organization)
+    provider = params[:provider].presence || "mouser"
+    client = order_client_for(provider)
     unless client
-      redirect_to orders_path, alert: "Add a Mouser Order API key in Settings → Integrations to import orders."
+      redirect_to orders_path, alert: order_client_missing_message(provider)
       return
     end
 
     number = params[:order_number].to_s.strip
     if number.blank?
-      redirect_to orders_path, alert: "Enter a Mouser web order number to import."
+      redirect_to orders_path, alert: "Enter an order number to import."
       return
     end
 
-    supplier, = Supplier.ensure_catalog_provider(current_organization, "mouser")
+    label = provider_label(provider)
+    supplier, = Supplier.ensure_catalog_provider(current_organization, provider)
     result = client.import_order(number)
 
     if result.lines.empty?
-      redirect_to orders_path, alert: "Mouser order #{number} has no importable lines."
+      redirect_to orders_path, alert: "#{label} order #{number} has no importable lines."
       return
     end
 
     reference = result.order_number.presence || number
     if current_organization.orders.exists?(reference: reference)
-      redirect_to orders_path, alert: "Mouser order #{reference} has already been imported."
+      redirect_to orders_path, alert: "#{label} order #{reference} has already been imported."
       return
     end
 
-    order = build_imported_order(supplier, result, reference)
-    redirect_to order_path(order), notice: "Imported Mouser order #{reference} with #{result.lines.size} line#{'s' if result.lines.size != 1}."
+    order = build_imported_order(supplier, result, reference, label)
+    redirect_to order_path(order), notice: "Imported #{label} order #{reference} with #{result.lines.size} line#{'s' if result.lines.size != 1}."
   rescue SupplierCatalog::LookupError => e
     redirect_to orders_path, alert: e.message
   rescue ActiveRecord::RecordInvalid => e
@@ -223,15 +227,34 @@ class OrdersController < ApplicationController
 
   private
 
-  # Persists an imported Mouser order and its reconciled lines in one transaction.
-  def build_imported_order(supplier, result, reference)
+  def order_client_for(provider)
+    case provider
+    when "mouser" then SupplierCatalog.mouser_order_client(current_organization)
+    when "digikey" then SupplierCatalog.digikey_order_client(current_organization)
+    end
+  end
+
+  def order_client_missing_message(provider)
+    if provider == "digikey"
+      "Connect your DigiKey account in Settings → Integrations to import orders."
+    else
+      "Add a Mouser Order API key in Settings → Integrations to import orders."
+    end
+  end
+
+  def provider_label(provider)
+    provider == "digikey" ? "DigiKey" : "Mouser"
+  end
+
+  # Persists an imported supplier order and its reconciled lines in one transaction.
+  def build_imported_order(supplier, result, reference, label)
     ActiveRecord::Base.transaction do
       order = current_organization.orders.create!(
         supplier: supplier,
         status: "pending",
         ordered_at: (Date.parse(result.placed_at.to_s) rescue nil) || Date.current,
         reference: reference,
-        notes: [ "Imported from Mouser order #{reference}", result.status ].compact.join(" — ")
+        notes: [ "Imported from #{label} order #{reference}", result.status ].compact.join(" — ")
       )
 
       result.lines.each do |line|

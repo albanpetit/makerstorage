@@ -64,6 +64,7 @@ interface OrganizationSettings {
   mouser_api_key_present: boolean
   mouser_order_api_key_present: boolean
   digikey_configured: boolean
+  digikey_account_connected: boolean
   parts_count: number
   ipn_preview: IpnPreview
 }
@@ -217,6 +218,7 @@ interface IntegrationsFormData {
 export default function SettingsIndex({ organization, currencies, ipn_separators, timezones }: SettingsPageProps) {
   const { isOwner } = usePermissions()
   const [section, setSection] = useState<SectionKey>('general')
+  const origin = typeof window !== 'undefined' ? window.location.origin : ''
 
   const sections = useMemo(() => SECTIONS.filter((s) => s.key !== 'danger' || isOwner), [isOwner])
 
@@ -1134,6 +1136,41 @@ export default function SettingsIndex({ organization, currencies, ipn_separators
                       Saving credentials sets up a “DigiKey” supplier (if it doesn’t exist yet) so looked-up prices fill in
                       automatically when you add parts.
                     </p>
+
+                    <div className="border-t pt-4">
+                      <Label>Order import</Label>
+                      <p className="mt-1 mb-3 text-xs text-muted-foreground">
+                        Importing a placed DigiKey order acts on behalf of your account, so it needs a one-time
+                        authorization. Your DigiKey app's callback URL must be set to{' '}
+                        <code className="rounded bg-muted px-1 py-0.5 text-[11px]">{`${origin}/oauth/digikey/callback`}</code>.
+                      </p>
+                      {organization.digikey_account_connected ? (
+                        <div className="flex items-center justify-between gap-2 rounded-md border border-green-600/30 bg-green-600/10 px-3 py-2 text-sm text-green-700 dark:text-green-400">
+                          <span className="flex items-center gap-2">
+                            <CircleCheck className="size-4 shrink-0" />
+                            DigiKey account connected.
+                          </span>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => router.delete('/oauth/digikey', { preserveScroll: true })}
+                          >
+                            Disconnect
+                          </Button>
+                        </div>
+                      ) : (
+                        <Button asChild type="button" variant="outline" size="sm" disabled={!organization.digikey_configured}>
+                          <a href="/oauth/digikey/authorize">
+                            <Plug className="size-4" />
+                            Connect DigiKey account
+                          </a>
+                        </Button>
+                      )}
+                      {!organization.digikey_configured && (
+                        <p className="mt-2 text-xs text-muted-foreground">Save your Client ID and Secret first.</p>
+                      )}
+                    </div>
                   </CardContent>
                   <CardFooter className="justify-end gap-2 border-t">
                     {organization.digikey_configured && (

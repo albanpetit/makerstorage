@@ -137,6 +137,7 @@ class SettingsController < ApplicationController
       mouser_api_key_present: org.mouser_api_key.present?,
       mouser_order_api_key_present: org.mouser_order_api_key.present?,
       digikey_configured: org.digikey_configured?,
+      digikey_account_connected: org.digikey_account_connected?,
       parts_count: org.total_parts_count,
       ipn_preview: org.ipn_preview(category_code: org.ipn_use_category_code ? "RES" : nil)
     }

@@ -68,16 +68,22 @@ interface OrdersPageProps {
   orders: OrderSummary[]
   suppliers: SupplierOption[]
   mouser_order_enabled: boolean
+  digikey_order_enabled: boolean
 }
 
-export default function OrdersIndex({ orders, suppliers, mouser_order_enabled }: OrdersPageProps) {
+export default function OrdersIndex({ orders, suppliers, mouser_order_enabled, digikey_order_enabled }: OrdersPageProps) {
   const { canWrite } = usePermissions()
   const [open, setOpen] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
   const [deleteId, setDeleteId] = useState<number | null>(null)
 
+  const importProviders = [
+    ...(mouser_order_enabled ? [{ value: 'mouser', label: 'Mouser' }] : []),
+    ...(digikey_order_enabled ? [{ value: 'digikey', label: 'DigiKey' }] : []),
+  ]
+
   const form = useForm({ order: { supplier_id: '', expected_delivery: '' } })
-  const importForm = useForm({ order_number: '' })
+  const importForm = useForm({ order_number: '', provider: importProviders[0]?.value ?? 'mouser' })
 
   const openDialog = () => {
     form.reset()
@@ -108,10 +114,10 @@ export default function OrdersIndex({ orders, suppliers, mouser_order_enabled }:
         <PageHeader title="Orders" subtitle="Create supplier purchase orders and track them to delivery">
           {canWrite ? (
             <div className="flex gap-2">
-              {mouser_order_enabled && (
+              {importProviders.length > 0 && (
                 <Button size="sm" variant="outline" onClick={() => setImportOpen(true)}>
                   <Download className="size-4" />
-                  Import Mouser order
+                  Import order
                 </Button>
               )}
               <Button size="sm" onClick={openDialog} disabled={suppliers.length === 0}>
@@ -259,22 +265,41 @@ export default function OrdersIndex({ orders, suppliers, mouser_order_enabled }:
         <DialogContent className="sm:max-w-md">
           <form onSubmit={submitImport}>
             <DialogHeader>
-              <DialogTitle>Import a Mouser order</DialogTitle>
+              <DialogTitle>Import a supplier order</DialogTitle>
               <DialogDescription>
-                Enter a Mouser web order number to pull its lines into a new order. Parts are matched to your inventory
-                and created when missing.
+                Pull a placed order's lines into a new order. Parts are matched to your inventory and created when missing.
               </DialogDescription>
             </DialogHeader>
 
-            <div className="space-y-2 py-4">
-              <Label htmlFor="import-order-number">Web order number</Label>
-              <Input
-                id="import-order-number"
-                value={importForm.data.order_number}
-                onChange={(e) => importForm.setData('order_number', e.target.value)}
-                placeholder="e.g. 12345678"
-                autoFocus
-              />
+            <div className="space-y-4 py-4">
+              {importProviders.length > 1 && (
+                <div className="space-y-2">
+                  <Label>Supplier</Label>
+                  <Select value={importForm.data.provider} onValueChange={(v) => importForm.setData('provider', v)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {importProviders.map((p) => (
+                        <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <Label htmlFor="import-order-number">
+                  {importForm.data.provider === 'digikey' ? 'Sales order number' : 'Web order number'}
+                </Label>
+                <Input
+                  id="import-order-number"
+                  value={importForm.data.order_number}
+                  onChange={(e) => importForm.setData('order_number', e.target.value)}
+                  placeholder="e.g. 12345678"
+                  autoFocus
+                />
+              </div>
             </div>
 
             <DialogFooter>

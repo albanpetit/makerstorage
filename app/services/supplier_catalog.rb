@@ -44,6 +44,42 @@ module SupplierCatalog
     Mouser.new(api_key: organization.mouser_api_key, order_api_key: organization.mouser_order_api_key)
   end
 
+  # A DigiKey client wired for the user-scoped Order Status API, or nil when no
+  # DigiKey account is connected. Refreshes the access token first when expired,
+  # persisting the rotated refresh token back onto the org.
+  def digikey_order_client(organization)
+    return nil unless organization.digikey_account_connected?
+
+    refresh_digikey_token!(organization) if digikey_token_expired?(organization)
+
+    Digikey.new(
+      client_id: organization.digikey_client_id,
+      client_secret: organization.digikey_client_secret,
+      access_token: organization.digikey_access_token
+    )
+  end
+
+  def digikey_token_expired?(organization)
+    expires_at = organization.digikey_token_expires_at
+    expires_at.nil? || expires_at <= Time.current
+  end
+
+  # DigiKey rotates the refresh token on refresh, so persist whatever it returns
+  # (falling back to the current one if the response omits it).
+  def refresh_digikey_token!(organization)
+    tokens = Digikey.refresh_token(
+      client_id: organization.digikey_client_id,
+      client_secret: organization.digikey_client_secret,
+      refresh_token: organization.digikey_refresh_token
+    )
+
+    organization.update!(
+      digikey_access_token: tokens["access_token"],
+      digikey_refresh_token: tokens["refresh_token"].presence || organization.digikey_refresh_token,
+      digikey_token_expires_at: Time.current + tokens["expires_in"].to_i.seconds
+    )
+  end
+
   # Returns an Array<PartResult> (possibly empty) for the given part number,
   # merged across every configured provider so the user sees matches from all of
   # them in one pick-list. A single provider failing doesn't sink the lookup —
