@@ -6,16 +6,14 @@ class AlertsController < ApplicationController
   before_action :verify_organization_access
   before_action :verify_organization_writer, only: %i[create_purchase_orders advance_order]
 
-  ORDER_STATUS_SEQUENCE = %w[pending shipped received].freeze
-
   def index
     render inertia: "alerts/index", props: {
       alerts: compute_alerts.map { |alert| serialize_alert(alert) },
-      orders: current_organization.purchases
+      orders: current_organization.orders
         .where(status: %w[pending shipped])
-        .includes(:supplier, :purchase_lines)
+        .includes(:supplier, :order_lines)
         .order(created_at: :desc)
-        .map { |purchase| serialize_order(purchase) }
+        .map { |order| serialize_order(order) }
     }
   end
 
@@ -34,17 +32,17 @@ class AlertsController < ApplicationController
     grouped.each do |supplier, supplier_alerts|
       total = supplier_alerts.sum { |alert| alert[:reorder_quantity] * alert[:unit_price] }
 
-      purchase = current_organization.purchases.create!(
+      order = current_organization.orders.create!(
         supplier: supplier,
         status: "pending",
         ordered_at: Date.current,
-        reference: Purchase.next_reference(current_organization, supplier),
+        reference: Order.next_reference(current_organization, supplier),
         total_amount: total
       )
 
       supplier_alerts.each do |alert|
-        PurchaseLine.create!(
-          purchase: purchase, part: alert[:part],
+        OrderLine.create!(
+          order: order, part: alert[:part],
           quantity: alert[:reorder_quantity], unit_price: alert[:unit_price]
         )
       end
@@ -56,42 +54,28 @@ class AlertsController < ApplicationController
   end
 
   def advance_order
-    # Preload each line's part and its storage locations so `receive_stock` reads
-    # `line.part.storage_locations.first` off memory instead of firing a query
-    # per line (N+1) once the order is marked received.
-    purchase = current_organization.purchases
-      .includes(purchase_lines: { part: :storage_locations })
+    # Preload each line's part and its storage locations so Order#advance!'s stock
+    # receipt reads `line.part.storage_locations.first` off memory instead of
+    # firing a query per line (N+1) once the order is marked received.
+    order = current_organization.orders
+      .includes(order_lines: { part: :storage_locations })
       .find(params[:id])
 
-    # Row-lock the purchase and re-read its status inside the transaction so two
-    # concurrent "advance" requests can't both read the same status, both write
-    # "received", and both credit stock twice. The second writer blocks on the
-    # lock, then re-evaluates the (now-advanced) status and either advances one
-    # more step or reports "already received".
-    next_status = nil
-    skipped = []
-    purchase.with_lock do
-      current_index = ORDER_STATUS_SEQUENCE.index(purchase.status) || 0
-      next_status = ORDER_STATUS_SEQUENCE[current_index + 1]
-      break unless next_status
+    result = order.advance!(user: current_user)
 
-      purchase.update!(status: next_status)
-      skipped = receive_stock(purchase) if next_status == "received"
-    end
-
-    unless next_status
+    unless result.advanced
       redirect_to alerts_path, alert: "This order has already been received."
       return
     end
 
-    if skipped.any?
+    if result.skipped.any?
       redirect_to alerts_path,
-        notice: "Order #{purchase.reference} marked as received.",
-        alert: "No stock was recorded for #{skipped.to_sentence} — #{skipped.one? ? 'it has' : 'they have'} no storage location. Add a location and record the movement manually."
+        notice: "Order #{order.reference} marked as received.",
+        alert: "No stock was recorded for #{result.skipped.to_sentence} — #{result.skipped.one? ? 'it has' : 'they have'} no storage location. Add a location and record the movement manually."
       return
     end
 
-    redirect_to alerts_path, notice: "Order #{purchase.reference} marked as #{next_status}."
+    redirect_to alerts_path, notice: "Order #{order.reference} marked as #{result.status}."
   end
 
   private
@@ -140,37 +124,15 @@ class AlertsController < ApplicationController
     }
   end
 
-  def serialize_order(purchase)
+  def serialize_order(order)
     {
-      id: purchase.id,
-      reference: purchase.reference,
-      supplier_name: purchase.supplier.name,
-      ordered_at: purchase.ordered_at&.iso8601,
-      status: purchase.status,
-      total_amount: (purchase.total_amount || purchase.computed_total).to_f,
-      line_count: purchase.purchase_lines.size
+      id: order.id,
+      reference: order.reference,
+      supplier_name: order.supplier.name,
+      ordered_at: order.ordered_at&.iso8601,
+      status: order.status,
+      total_amount: (order.total_amount || order.computed_total).to_f,
+      line_count: order.order_lines.size
     }
-  end
-
-  # Credits received stock into each line's first storage location. Lines whose
-  # part has no location can't be recorded, so their references are collected and
-  # returned to the caller to surface as a warning rather than silently dropped.
-  def receive_stock(purchase)
-    skipped = []
-
-    purchase.purchase_lines.each do |line|
-      location = line.part.storage_locations.first
-      unless location
-        skipped << (line.part.reference)
-        next
-      end
-
-      StockMovement.create!(
-        organization: current_organization, part: line.part, storage_location: location, user: current_user,
-        movement_type: "in", quantity_delta: line.quantity, reason: "Received #{purchase.reference}"
-      )
-    end
-
-    skipped
   end
 end

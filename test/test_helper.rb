@@ -66,6 +66,11 @@ module ActiveSupport
       Project.create!(organization: organization, name: name, **attrs)
     end
 
+    def create_order(organization:, supplier: nil, **attrs)
+      supplier ||= create_supplier(organization: organization)
+      Order.create!(organization: organization, supplier: supplier, **attrs)
+    end
+
     # Counts the real SQL queries a block fires, ignoring cached hits, schema
     # introspection, and transaction control. Used to pin N+1 fixes shut: run
     # the same request against a small and a larger dataset and assert the count

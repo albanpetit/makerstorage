@@ -9,6 +9,10 @@ module SupplierCatalog
   # matches for a manufacturer part number, which we normalize into PartResults.
   class Mouser
     ENDPOINT = "https://api.mouser.com/api/v1/search/keyword"
+    # Order/Cart API base (separate key from the Search API). Endpoint shapes
+    # follow Mouser's API Hub docs; parsing is deliberately tolerant of key-name
+    # variation since these responses can't be exercised without live credentials.
+    ORDER_API_BASE = "https://api.mouser.com/api/v1"
     MAX_RECORDS = 10
     PROVIDER = "mouser"
 
@@ -28,8 +32,30 @@ module SupplierCatalog
       power_rating: [ "Power (Watts)", "Power Rating", "Power - Max", "Puissance", "Puissance nominale", "Puissance (Watts)" ]
     }.freeze
 
-    def initialize(api_key:)
+    def initialize(api_key:, order_api_key: nil)
       @api_key = api_key
+      @order_api_key = order_api_key
+    end
+
+    # Fetches a placed Mouser order by its web order number and normalizes it to
+    # a SupplierCatalog::OrderResult. Raises LookupError on failure.
+    def import_order(order_number)
+      payload = order_request(:get, "orderhistory/ByWebOrderNumber", query: { webOrderNumber: order_number.to_s.strip })
+      check_for_errors!(payload)
+      build_order_result(payload, order_number)
+    end
+
+    # Builds a cart at Mouser from +items+ (each { supplier_sku:, quantity: }) and
+    # returns a SupplierCatalog::CartResult with live pricing/availability. Raises
+    # LookupError on failure.
+    def create_cart(items, currency: "EUR")
+      body = {
+        CurrencyCode: currency,
+        CartItems: items.map { |item| { MouserPartNumber: item[:supplier_sku], Quantity: item[:quantity] } }
+      }
+      payload = order_request(:post, "cart", body: body)
+      check_for_errors!(payload)
+      build_cart_result(payload)
     end
 
     # Returns Array<PartResult> for +mpn+ (may be empty). Raises LookupError.
@@ -138,11 +164,16 @@ module SupplierCatalog
       nil
     end
 
-    # Lowest-quantity price break, parsed to a numeric string (strips currency
-    # symbols/thousands separators, normalizes decimal comma).
+    # Lowest-quantity price break, parsed to a numeric string.
     def first_price(price_breaks)
       break_row = Array(price_breaks).min_by { |b| b["Quantity"].to_i }
-      raw = break_row&.dig("Price")
+      numeric_price(break_row&.dig("Price"))
+    end
+
+    # Normalizes a Mouser price string to a numeric string (strips currency
+    # symbols/thousands separators, normalizes decimal comma). Returns nil when
+    # unparseable.
+    def numeric_price(raw)
       return nil if raw.blank?
 
       digits = raw.to_s.gsub(/[^0-9.,]/, "")
@@ -156,6 +187,73 @@ module SupplierCatalog
       Float(digits).to_s
     rescue ArgumentError
       nil
+    end
+
+    # Isolated HTTP boundary for the Order/Cart API — stubbed in tests. Returns
+    # the parsed JSON Hash. The order key is passed as an apiKey query param, the
+    # same way the Search API authenticates.
+    def order_request(method, path, query: {}, body: nil)
+      raise LookupError, "No Mouser Order API key is configured." if @order_api_key.blank?
+
+      uri = URI("#{ORDER_API_BASE}/#{path}")
+      uri.query = URI.encode_www_form({ apiKey: @order_api_key }.merge(query))
+
+      http = Net::HTTP.new(uri.host, uri.port)
+      http.use_ssl = true
+      http.open_timeout = 5
+      http.read_timeout = 15
+
+      request = (method == :post ? Net::HTTP::Post.new(uri) : Net::HTTP::Get.new(uri))
+      request["Content-Type"] = "application/json"
+      request["Accept"] = "application/json"
+      request.body = body.to_json if body
+
+      response = http.request(request)
+
+      raise LookupError, "Mouser Order API returned #{response.code}" unless response.is_a?(Net::HTTPSuccess)
+
+      JSON.parse(response.body)
+    rescue Net::OpenTimeout, Net::ReadTimeout, SocketError, Errno::ECONNREFUSED => e
+      raise LookupError, "Could not reach Mouser Order API: #{e.message}"
+    rescue JSON::ParserError
+      raise LookupError, "Mouser Order API returned an unreadable response"
+    end
+
+    def build_order_result(payload, requested_number)
+      summary = payload["SummaryDetail"] || {}
+      raw_lines = payload["OrderLines"] || payload["MouserOrderLines"] || summary["OrderLines"] || []
+
+      SupplierCatalog::OrderResult.new(
+        order_number: (payload["WebOrderNumber"] || payload["OrderNumber"] || requested_number).to_s,
+        status: payload["OrderStatusDisplay"] || payload["Status"] || summary["OrderStatusDisplay"],
+        placed_at: payload["OrderDate"] || payload["DateCreated"] || summary["OrderDate"],
+        total: numeric_price(payload["MerchandiseTotal"] || summary["MerchandiseTotal"]),
+        currency: payload["CurrencyCode"] || payload["Currency"],
+        lines: Array(raw_lines).map { |line| build_order_line(line) }
+      )
+    end
+
+    def build_cart_result(payload)
+      raw_lines = payload["CartItems"] || payload["MouserCartItems"] || []
+
+      SupplierCatalog::CartResult.new(
+        cart_key: payload["CartKey"] || payload["ID"],
+        checkout_url: payload["CheckoutUrl"].presence,
+        currency: payload["CurrencyCode"] || payload["Currency"],
+        merchandise_total: numeric_price(payload["MerchandiseTotal"]),
+        lines: Array(raw_lines).map { |line| build_order_line(line) }
+      )
+    end
+
+    def build_order_line(line)
+      SupplierCatalog::OrderLineResult.new(
+        mpn: line["MfrPartNumber"] || line["ManufacturerPartNumber"],
+        manufacturer: line["Manufacturer"],
+        supplier_sku: line["MouserPartNumber"] || line["MouserPN"],
+        description: line["Description"],
+        quantity: (line["Quantity"] || line["OrderQuantity"]).to_i,
+        unit_price: numeric_price(line["UnitPrice"] || line["Price"])
+      )
     end
 
     def rohs?(status)

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_20_120100) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_22_120000) do
   create_table "active_storage_attachments", force: :cascade do |t|
     t.bigint "blob_id", null: false
     t.datetime "created_at", null: false
@@ -67,6 +67,34 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_20_120100) do
     t.index ["organization_id"], name: "index_footprints_on_organization_id"
   end
 
+  create_table "order_lines", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.integer "order_id", null: false
+    t.integer "part_id", null: false
+    t.integer "quantity", null: false
+    t.decimal "unit_price", precision: 10, scale: 2
+    t.datetime "updated_at", null: false
+    t.index ["order_id"], name: "index_order_lines_on_order_id"
+    t.index ["part_id"], name: "index_order_lines_on_part_id"
+  end
+
+  create_table "orders", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.date "expected_delivery"
+    t.text "notes"
+    t.date "ordered_at"
+    t.integer "organization_id", null: false
+    t.string "reference"
+    t.string "status", default: "pending", null: false
+    t.integer "supplier_id", null: false
+    t.decimal "total_amount", precision: 10, scale: 2
+    t.datetime "updated_at", null: false
+    t.index ["organization_id", "reference"], name: "index_orders_on_organization_id_and_reference", unique: true, where: "reference IS NOT NULL AND reference != ''"
+    t.index ["organization_id"], name: "index_orders_on_organization_id"
+    t.index ["status"], name: "index_orders_on_status"
+    t.index ["supplier_id"], name: "index_orders_on_supplier_id"
+  end
+
   create_table "organization_memberships", force: :cascade do |t|
     t.boolean "active", default: true, null: false
     t.datetime "created_at", null: false
@@ -95,8 +123,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_20_120100) do
     t.datetime "created_at", null: false
     t.string "currency", default: "EUR", null: false
     t.integer "default_low_stock_threshold", default: 50, null: false
+    t.text "digikey_access_token"
     t.text "digikey_client_id"
     t.text "digikey_client_secret"
+    t.text "digikey_refresh_token"
+    t.datetime "digikey_token_expires_at"
     t.string "email"
     t.string "ipn_charset", default: "numeric", null: false
     t.integer "ipn_digits", default: 5, null: false
@@ -106,6 +137,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_20_120100) do
     t.string "ipn_separator", default: "-", null: false
     t.boolean "ipn_use_category_code", default: true, null: false
     t.text "mouser_api_key"
+    t.text "mouser_order_api_key"
     t.string "name", null: false
     t.boolean "personal", default: false, null: false
     t.string "phone"
@@ -221,32 +253,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_20_120100) do
     t.index ["organization_id"], name: "index_projects_on_organization_id"
   end
 
-  create_table "purchase_lines", force: :cascade do |t|
-    t.datetime "created_at", null: false
-    t.integer "part_id", null: false
-    t.integer "purchase_id", null: false
-    t.integer "quantity", null: false
-    t.decimal "unit_price", precision: 10, scale: 2
-    t.datetime "updated_at", null: false
-    t.index ["part_id"], name: "index_purchase_lines_on_part_id"
-    t.index ["purchase_id"], name: "index_purchase_lines_on_purchase_id"
-  end
-
-  create_table "purchases", force: :cascade do |t|
-    t.datetime "created_at", null: false
-    t.date "ordered_at"
-    t.integer "organization_id", null: false
-    t.string "reference"
-    t.string "status", default: "pending", null: false
-    t.integer "supplier_id", null: false
-    t.decimal "total_amount", precision: 10, scale: 2
-    t.datetime "updated_at", null: false
-    t.index ["organization_id", "reference"], name: "index_purchases_on_organization_id_and_reference", unique: true, where: "reference IS NOT NULL AND reference != ''"
-    t.index ["organization_id"], name: "index_purchases_on_organization_id"
-    t.index ["status"], name: "index_purchases_on_status"
-    t.index ["supplier_id"], name: "index_purchases_on_supplier_id"
-  end
-
   create_table "stock_movements", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.string "movement_type", null: false
@@ -340,6 +346,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_20_120100) do
   add_foreign_key "categories", "categories", column: "parent_id"
   add_foreign_key "categories", "organizations"
   add_foreign_key "footprints", "organizations"
+  add_foreign_key "order_lines", "orders"
+  add_foreign_key "order_lines", "parts"
+  add_foreign_key "orders", "organizations"
+  add_foreign_key "orders", "suppliers"
   add_foreign_key "organization_memberships", "organizations"
   add_foreign_key "organization_memberships", "users"
   add_foreign_key "organization_memberships", "users", column: "invited_by_id"
@@ -355,10 +365,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_20_120100) do
   add_foreign_key "project_lines", "parts"
   add_foreign_key "project_lines", "projects"
   add_foreign_key "projects", "organizations"
-  add_foreign_key "purchase_lines", "parts"
-  add_foreign_key "purchase_lines", "purchases"
-  add_foreign_key "purchases", "organizations"
-  add_foreign_key "purchases", "suppliers"
   add_foreign_key "stock_movements", "organizations"
   add_foreign_key "stock_movements", "parts"
   add_foreign_key "stock_movements", "storage_locations"

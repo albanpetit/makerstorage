@@ -95,17 +95,17 @@ class ProjectsController < ApplicationController
     grouped.each do |supplier, entries|
       total = entries.sum { |e| e[:quantity] * e[:unit_price] }
 
-      purchase = current_organization.purchases.create!(
+      order = current_organization.orders.create!(
         supplier: supplier,
         status: "pending",
         ordered_at: Date.current,
-        reference: Purchase.next_reference(current_organization, supplier),
+        reference: Order.next_reference(current_organization, supplier),
         total_amount: total
       )
 
       entries.each do |entry|
-        PurchaseLine.create!(
-          purchase: purchase, part: entry[:part],
+        OrderLine.create!(
+          order: order, part: entry[:part],
           quantity: entry[:quantity], unit_price: entry[:unit_price]
         )
       end

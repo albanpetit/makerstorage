@@ -16,8 +16,8 @@ class Part < ApplicationRecord
   has_many :suppliers, through: :part_suppliers
   accepts_nested_attributes_for :part_suppliers, allow_destroy: true, reject_if: :all_blank
 
-  has_many :purchase_lines, dependent: :restrict_with_error
-  has_many :purchases, through: :purchase_lines
+  has_many :order_lines, dependent: :restrict_with_error
+  has_many :orders, through: :order_lines
 
   # Active Storage for images and datasheets
   has_many_attached :images
@@ -190,6 +190,13 @@ class Part < ApplicationRecord
 
   def preferred_part_supplier
     part_suppliers.find_by(is_preferred: true)
+  end
+
+  # Best price to put on an order line for +supplier_id+: the link to that
+  # supplier, then the preferred supplier link, then the part's own cost basis.
+  def order_unit_price(supplier_id)
+    link = part_suppliers.find_by(supplier_id: supplier_id) || preferred_part_supplier
+    link&.unit_price || unit_price
   end
 
   # Mirrors unit_price (the part's cost basis for stock valuation) onto the

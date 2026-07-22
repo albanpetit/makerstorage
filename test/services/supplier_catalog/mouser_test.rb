@@ -133,4 +133,61 @@ class SupplierCatalog::MouserTest < ActiveSupport::TestCase
     assert_match(/rejected the API key/, error.message)
     assert_match(/Settings/, error.message)
   end
+
+  # --- Order/Cart API -------------------------------------------------------
+
+  def order_provider(payload)
+    provider = SupplierCatalog::Mouser.new(api_key: "search-key", order_api_key: "order-key")
+    provider.define_singleton_method(:order_request) { |*_args, **_kwargs| payload }
+    provider
+  end
+
+  test "import_order normalizes a fetched Mouser order" do
+    payload = {
+      "WebOrderNumber" => "9988",
+      "OrderStatusDisplay" => "Shipped",
+      "OrderDate" => "2026-07-01",
+      "CurrencyCode" => "EUR",
+      "MerchandiseTotal" => "€12,50",
+      "OrderLines" => [
+        {
+          "MfrPartNumber" => "RC0805FR-0710KL", "Manufacturer" => "YAGEO",
+          "MouserPartNumber" => "603-RC0805FR-0710KL", "Description" => "RES 10K",
+          "Quantity" => 100, "UnitPrice" => "€0,05"
+        }
+      ]
+    }
+
+    result = order_provider(payload).import_order("9988")
+    assert_equal "9988", result.order_number
+    assert_equal "Shipped", result.status
+    assert_equal "12.5", result.total
+    line = result.lines.first
+    assert_equal "RC0805FR-0710KL", line.mpn
+    assert_equal "603-RC0805FR-0710KL", line.supplier_sku
+    assert_equal 100, line.quantity
+    assert_equal "0.05", line.unit_price
+  end
+
+  test "create_cart normalizes a built Mouser cart" do
+    payload = {
+      "CartKey" => "abc-123",
+      "CurrencyCode" => "EUR",
+      "MerchandiseTotal" => "€1,00",
+      "CartItems" => [
+        { "MouserPartNumber" => "603-x", "Quantity" => 5, "UnitPrice" => "€0,20", "Description" => "part" }
+      ]
+    }
+
+    result = order_provider(payload).create_cart([ { supplier_sku: "603-x", quantity: 5 } ])
+    assert_equal "abc-123", result.cart_key
+    assert_equal "1.0", result.merchandise_total
+    assert_equal 1, result.lines.size
+    assert_equal "603-x", result.lines.first.supplier_sku
+  end
+
+  test "order_request raises when no order key is configured" do
+    provider = SupplierCatalog::Mouser.new(api_key: "search-key")
+    assert_raises(SupplierCatalog::LookupError) { provider.import_order("1") }
+  end
 end

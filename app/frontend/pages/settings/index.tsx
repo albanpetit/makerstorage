@@ -62,7 +62,9 @@ interface OrganizationSettings {
   default_low_stock_threshold: number
   allow_negative_stock: boolean
   mouser_api_key_present: boolean
+  mouser_order_api_key_present: boolean
   digikey_configured: boolean
+  digikey_account_connected: boolean
   parts_count: number
   ipn_preview: IpnPreview
 }
@@ -205,6 +207,8 @@ interface IntegrationsFormData {
   organization: {
     mouser_api_key: string
     remove_mouser_api_key: boolean
+    mouser_order_api_key: string
+    remove_mouser_order_api_key: boolean
     digikey_client_id: string
     digikey_client_secret: string
     remove_digikey: boolean
@@ -214,6 +218,7 @@ interface IntegrationsFormData {
 export default function SettingsIndex({ organization, currencies, ipn_separators, timezones }: SettingsPageProps) {
   const { isOwner } = usePermissions()
   const [section, setSection] = useState<SectionKey>('general')
+  const origin = typeof window !== 'undefined' ? window.location.origin : ''
 
   const sections = useMemo(() => SECTIONS.filter((s) => s.key !== 'danger' || isOwner), [isOwner])
 
@@ -258,6 +263,8 @@ export default function SettingsIndex({ organization, currencies, ipn_separators
     organization: {
       mouser_api_key: '',
       remove_mouser_api_key: false,
+      mouser_order_api_key: '',
+      remove_mouser_order_api_key: false,
       digikey_client_id: '',
       digikey_client_secret: '',
       remove_digikey: false,
@@ -267,6 +274,8 @@ export default function SettingsIndex({ organization, currencies, ipn_separators
   const resetIntegrations = () => integrationsForm.setData('organization', {
     mouser_api_key: '',
     remove_mouser_api_key: false,
+    mouser_order_api_key: '',
+    remove_mouser_order_api_key: false,
     digikey_client_id: '',
     digikey_client_secret: '',
     remove_digikey: false,
@@ -346,7 +355,7 @@ export default function SettingsIndex({ organization, currencies, ipn_separators
 
   // Stage a one-off removal flag for a single provider, submit, then clear the
   // form back to its neutral (write-only) state regardless of outcome.
-  const removeProvider = (flag: 'remove_mouser_api_key' | 'remove_digikey') => {
+  const removeProvider = (flag: 'remove_mouser_api_key' | 'remove_mouser_order_api_key' | 'remove_digikey') => {
     integrationsForm.transform((data) => ({
       organization: { ...data.organization, [flag]: true },
     }))
@@ -1000,6 +1009,49 @@ export default function SettingsIndex({ organization, currencies, ipn_separators
                       Saving a key sets up a “Mouser Electronics” supplier (if it doesn’t exist yet) so looked-up prices
                       fill in automatically when you add parts.
                     </p>
+
+                    <div className="border-t pt-4">
+                      {organization.mouser_order_api_key_present && (
+                        <div className="mb-3 flex items-center gap-2 rounded-md border border-green-600/30 bg-green-600/10 px-3 py-2 text-sm text-green-700 dark:text-green-400">
+                          <CircleCheck className="size-4 shrink-0" />
+                          An Order API key is configured. Enter a new key below to replace it.
+                        </div>
+                      )}
+                      <Field>
+                        <FieldLabel><Label>Order API key</Label></FieldLabel>
+                        <FieldContent>
+                          <Input
+                            type="password"
+                            autoComplete="off"
+                            placeholder={organization.mouser_order_api_key_present ? '••••••••••••••••' : 'Paste your Mouser Order API key'}
+                            value={integrationsForm.data.organization.mouser_order_api_key}
+                            onChange={(e) => integrationsForm.setData('organization', {
+                              ...integrationsForm.data.organization,
+                              mouser_order_api_key: e.target.value,
+                            })}
+                          />
+                        </FieldContent>
+                        {integrationsForm.errors['organization.mouser_order_api_key'] && (
+                          <FieldError>{integrationsForm.errors['organization.mouser_order_api_key']}</FieldError>
+                        )}
+                      </Field>
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        A separate key (from the same API Hub) enables pushing an order to a Mouser cart and importing a
+                        placed Mouser order. Optional.
+                      </p>
+                      {organization.mouser_order_api_key_present && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="mt-3"
+                          onClick={() => removeProvider('remove_mouser_order_api_key')}
+                          disabled={integrationsForm.processing}
+                        >
+                          Remove order key
+                        </Button>
+                      )}
+                    </div>
                   </CardContent>
                   <CardFooter className="justify-end gap-2 border-t">
                     {organization.mouser_api_key_present && (
@@ -1007,7 +1059,14 @@ export default function SettingsIndex({ organization, currencies, ipn_separators
                         Remove key
                       </Button>
                     )}
-                    <Button type="submit" disabled={integrationsForm.processing || !integrationsForm.data.organization.mouser_api_key.trim()}>
+                    <Button
+                      type="submit"
+                      disabled={
+                        integrationsForm.processing ||
+                        (!integrationsForm.data.organization.mouser_api_key.trim() &&
+                          !integrationsForm.data.organization.mouser_order_api_key.trim())
+                      }
+                    >
                       Save
                     </Button>
                   </CardFooter>
@@ -1077,6 +1136,41 @@ export default function SettingsIndex({ organization, currencies, ipn_separators
                       Saving credentials sets up a “DigiKey” supplier (if it doesn’t exist yet) so looked-up prices fill in
                       automatically when you add parts.
                     </p>
+
+                    <div className="border-t pt-4">
+                      <Label>Order import</Label>
+                      <p className="mt-1 mb-3 text-xs text-muted-foreground">
+                        Importing a placed DigiKey order acts on behalf of your account, so it needs a one-time
+                        authorization. Your DigiKey app's callback URL must be set to{' '}
+                        <code className="rounded bg-muted px-1 py-0.5 text-[11px]">{`${origin}/oauth/digikey/callback`}</code>.
+                      </p>
+                      {organization.digikey_account_connected ? (
+                        <div className="flex items-center justify-between gap-2 rounded-md border border-green-600/30 bg-green-600/10 px-3 py-2 text-sm text-green-700 dark:text-green-400">
+                          <span className="flex items-center gap-2">
+                            <CircleCheck className="size-4 shrink-0" />
+                            DigiKey account connected.
+                          </span>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => router.delete('/oauth/digikey', { preserveScroll: true })}
+                          >
+                            Disconnect
+                          </Button>
+                        </div>
+                      ) : (
+                        <Button asChild type="button" variant="outline" size="sm" disabled={!organization.digikey_configured}>
+                          <a href="/oauth/digikey/authorize">
+                            <Plug className="size-4" />
+                            Connect DigiKey account
+                          </a>
+                        </Button>
+                      )}
+                      {!organization.digikey_configured && (
+                        <p className="mt-2 text-xs text-muted-foreground">Save your Client ID and Secret first.</p>
+                      )}
+                    </div>
                   </CardContent>
                   <CardFooter className="justify-end gap-2 border-t">
                     {organization.digikey_configured && (

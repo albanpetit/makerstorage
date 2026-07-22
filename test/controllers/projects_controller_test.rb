@@ -120,11 +120,11 @@ class ProjectsControllerTest < ActionDispatch::IntegrationTest
     project = build_project([ @resistor, 12, "mpn" ]) # stock is 5 -> shortfall 7
 
     sign_in @user
-    assert_difference -> { Purchase.count } => 1, -> { PurchaseLine.count } => 1 do
+    assert_difference -> { Order.count } => 1, -> { OrderLine.count } => 1 do
       post create_purchase_orders_project_path(project)
     end
 
-    line = PurchaseLine.order(:created_at).last
+    line = OrderLine.order(:created_at).last
     assert_equal @resistor, line.part
     assert_equal 7, line.quantity
   end
@@ -132,7 +132,7 @@ class ProjectsControllerTest < ActionDispatch::IntegrationTest
   test "create_purchase_orders warns when no short line has a supplier" do
     project = build_project([ @resistor, 12, "mpn" ])
     sign_in @user
-    assert_no_difference -> { Purchase.count } do
+    assert_no_difference -> { Order.count } do
       post create_purchase_orders_project_path(project)
     end
     assert_match(/no short line/i, flash[:alert])

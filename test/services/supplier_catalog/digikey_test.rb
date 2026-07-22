@@ -117,4 +117,66 @@ class SupplierCatalog::DigikeyTest < ActiveSupport::TestCase
     result = build_provider(sample_payload(products: [ product ])).search("x").first
     refute result.rohs_compliant
   end
+
+  # --- Order Status API + OAuth token helpers -------------------------------
+
+  def order_provider(payload)
+    provider = SupplierCatalog::Digikey.new(client_id: "cid", client_secret: "csecret", access_token: "user-token")
+    provider.define_singleton_method(:order_get) { |_url| payload }
+    provider
+  end
+
+  test "import_order normalizes a fetched DigiKey sales order" do
+    payload = {
+      "SalesOrderId" => 55102,
+      "OrderStatus" => "Shipped",
+      "DateEntered" => "2026-07-01",
+      "Currency" => "EUR",
+      "TotalPrice" => "18.20",
+      "LineItems" => [
+        {
+          "ManufacturerPartNumber" => "ATMEGA328P-AU", "Manufacturer" => "Microchip",
+          "DigiKeyPartNumber" => "ATMEGA328P-AU-ND", "ProductDescription" => "IC MCU 8BIT",
+          "Quantity" => 50, "UnitPrice" => "0.25"
+        }
+      ]
+    }
+
+    result = order_provider(payload).import_order("55102")
+    assert_equal "55102", result.order_number
+    assert_equal "Shipped", result.status
+    line = result.lines.first
+    assert_equal "ATMEGA328P-AU", line.mpn
+    assert_equal "ATMEGA328P-AU-ND", line.supplier_sku
+    assert_equal 50, line.quantity
+    assert_equal "0.25", line.unit_price
+  end
+
+  test "import_order raises without a connected account token" do
+    provider = SupplierCatalog::Digikey.new(client_id: "cid", client_secret: "csecret")
+    assert_raises(SupplierCatalog::LookupError) { provider.import_order("1") }
+  end
+
+  test "refresh_token posts the refresh grant and returns the token hash" do
+    captured = nil
+    replacement = lambda do |form|
+      captured = form
+      { "access_token" => "new-a", "refresh_token" => "new-r", "expires_in" => 1800 }
+    end
+
+    stub_singleton(SupplierCatalog::Digikey, :post_token, replacement) do
+      tokens = SupplierCatalog::Digikey.refresh_token(client_id: "c", client_secret: "s", refresh_token: "old")
+      assert_equal "new-a", tokens["access_token"]
+    end
+    assert_equal "refresh_token", captured[:grant_type]
+    assert_equal "old", captured[:refresh_token]
+  end
+
+  test "authorize_url carries the client id, redirect uri and state" do
+    url = SupplierCatalog::Digikey.authorize_url(client_id: "cid", redirect_uri: "https://app.test/cb", state: "xyz")
+    assert_includes url, "response_type=code"
+    assert_includes url, "client_id=cid"
+    assert_includes url, "state=xyz"
+    assert_includes url, CGI.escape("https://app.test/cb")
+  end
 end

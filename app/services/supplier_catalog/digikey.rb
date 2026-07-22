@@ -13,9 +13,66 @@ module SupplierCatalog
   # the keyword search. Results are normalized into PartResults.
   class Digikey
     TOKEN_ENDPOINT = "https://api.digikey.com/v1/oauth2/token"
+    AUTHORIZE_ENDPOINT = "https://api.digikey.com/v1/oauth2/authorize"
     SEARCH_ENDPOINT = "https://api.digikey.com/products/v4/search/keyword"
+    ORDER_STATUS_ENDPOINT = "https://api.digikey.com/orderStatus/v4/salesorder"
     MAX_RECORDS = 10
     PROVIDER = "digikey"
+
+    # --- 3-legged OAuth (Authorization Code) for the user-scoped Order API ------
+
+    # The DigiKey consent URL to send the user to. On approval DigiKey redirects
+    # back to +redirect_uri+ with a +code+ and the +state+ echoed for CSRF checks.
+    def self.authorize_url(client_id:, redirect_uri:, state:)
+      query = URI.encode_www_form(
+        response_type: "code", client_id: client_id, redirect_uri: redirect_uri, state: state
+      )
+      "#{AUTHORIZE_ENDPOINT}?#{query}"
+    end
+
+    # Exchanges an authorization code for an access+refresh token pair.
+    def self.exchange_code(client_id:, client_secret:, code:, redirect_uri:)
+      post_token(
+        grant_type: "authorization_code", code: code, redirect_uri: redirect_uri,
+        client_id: client_id, client_secret: client_secret
+      )
+    end
+
+    # Refreshes an expired access token. DigiKey ROTATES the refresh token on each
+    # refresh, so the caller must persist the returned refresh_token too.
+    def self.refresh_token(client_id:, client_secret:, refresh_token:)
+      post_token(
+        grant_type: "refresh_token", refresh_token: refresh_token,
+        client_id: client_id, client_secret: client_secret
+      )
+    end
+
+    # POSTs the OAuth token endpoint and returns the parsed Hash
+    # ({ "access_token", "refresh_token", "expires_in", ... }). Raises LookupError.
+    def self.post_token(form)
+      uri = URI(TOKEN_ENDPOINT)
+
+      http = Net::HTTP.new(uri.host, uri.port)
+      http.use_ssl = true
+      http.open_timeout = 5
+      http.read_timeout = 10
+
+      request = Net::HTTP::Post.new(uri)
+      request["Accept"] = "application/json"
+      request.set_form_data(form)
+
+      response = http.request(request)
+
+      unless response.is_a?(Net::HTTPSuccess)
+        raise LookupError, "DigiKey rejected the authorization. Check the Client ID/Secret and that the callback URL matches your DigiKey app."
+      end
+
+      JSON.parse(response.body)
+    rescue Net::OpenTimeout, Net::ReadTimeout, SocketError, Errno::ECONNREFUSED => e
+      raise LookupError, "Could not reach DigiKey: #{e.message}"
+    rescue JSON::ParserError
+      raise LookupError, "DigiKey returned an unreadable token response"
+    end
 
     # DigiKey returns rich structured Parameters (ParameterText / ValueText), so
     # unlike Mouser these usually carry the parametric specs directly. First
@@ -28,9 +85,13 @@ module SupplierCatalog
       power_rating: [ "Power (Watts)", "Power - Max" ]
     }.freeze
 
-    def initialize(client_id:, client_secret:)
+    # +access_token+ is the user-scoped token from the Authorization Code flow,
+    # supplied only for order imports; catalog search fetches its own
+    # client-credentials token and ignores it.
+    def initialize(client_id:, client_secret:, access_token: nil)
       @client_id = client_id
       @client_secret = client_secret
+      @access_token = access_token
     end
 
     # Returns Array<PartResult> for +mpn+ (may be empty). Raises LookupError.
@@ -42,7 +103,91 @@ module SupplierCatalog
       products.map { |product| build_result(product) }
     end
 
+    # Fetches a placed DigiKey sales order by number and normalizes it to a
+    # SupplierCatalog::OrderResult. Uses the user access token (Order Status API
+    # is user-scoped). Raises LookupError on failure.
+    def import_order(sales_order_number)
+      payload = order_get("#{ORDER_STATUS_ENDPOINT}/#{sales_order_number.to_s.strip}")
+      build_order_result(payload, sales_order_number)
+    end
+
     private
+
+    # Isolated HTTP boundary for the user-scoped Order Status API — stubbed in
+    # tests. Returns the parsed JSON Hash.
+    def order_get(url)
+      raise LookupError, "DigiKey account is not connected." if @access_token.blank?
+
+      uri = URI(url)
+
+      http = Net::HTTP.new(uri.host, uri.port)
+      http.use_ssl = true
+      http.open_timeout = 5
+      http.read_timeout = 15
+
+      request = Net::HTTP::Get.new(uri)
+      request["Authorization"] = "Bearer #{@access_token}"
+      request["X-DIGIKEY-Client-Id"] = @client_id
+      request["Accept"] = "application/json"
+      request["X-DIGIKEY-Locale-Site"] = "US"
+      request["X-DIGIKEY-Locale-Language"] = "en"
+      request["X-DIGIKEY-Locale-Currency"] = "USD"
+
+      response = http.request(request)
+
+      unless response.is_a?(Net::HTTPSuccess)
+        raise LookupError, order_error_message(response)
+      end
+
+      JSON.parse(response.body)
+    rescue Net::OpenTimeout, Net::ReadTimeout, SocketError, Errno::ECONNREFUSED => e
+      raise LookupError, "Could not reach DigiKey Order API: #{e.message}"
+    rescue JSON::ParserError
+      raise LookupError, "DigiKey Order API returned an unreadable response"
+    end
+
+    def order_error_message(response)
+      if response.is_a?(Net::HTTPUnauthorized)
+        "DigiKey rejected the account token. Reconnect your DigiKey account in Settings → Integrations."
+      else
+        "DigiKey Order API returned #{response.code}"
+      end
+    end
+
+    # Normalizes a DigiKey sales-order response into an OrderResult. Parsing is
+    # tolerant of key-name variation since it can't be exercised without a live
+    # user token.
+    def build_order_result(payload, requested_number)
+      lines = payload["LineItems"] || payload["OrderLines"] || payload["Lines"] || []
+
+      SupplierCatalog::OrderResult.new(
+        order_number: (payload["SalesOrderId"] || payload["SalesorderId"] || payload["CustomerOrderNumber"] || requested_number).to_s,
+        status: payload["OrderStatus"] || payload.dig("Status", "Text") || payload["Status"],
+        placed_at: payload["DateEntered"] || payload["OrderDate"] || payload["DateCreated"],
+        total: order_numeric(payload["TotalPrice"] || payload["OrderTotal"]),
+        currency: payload["Currency"] || payload["CurrencyCode"],
+        lines: Array(lines).map { |line| build_order_line(line) }
+      )
+    end
+
+    def build_order_line(line)
+      SupplierCatalog::OrderLineResult.new(
+        mpn: line["ManufacturerPartNumber"] || line["ManufacturerProductNumber"] || line["MfrPartNumber"],
+        manufacturer: line["Manufacturer"] || line.dig("Manufacturer", "Name"),
+        supplier_sku: line["DigiKeyPartNumber"] || line["ProductNumber"] || line["DigiKeyProductNumber"],
+        description: line["ProductDescription"] || line["Description"],
+        quantity: (line["Quantity"] || line["QuantityOrdered"] || line["TotalQuantity"]).to_i,
+        unit_price: order_numeric(line["UnitPrice"] || line["Price"])
+      )
+    end
+
+    def order_numeric(raw)
+      return nil if raw.blank?
+
+      Float(raw.to_s.gsub(/[^0-9.]/, "")).to_s
+    rescue ArgumentError
+      nil
+    end
 
     # Isolated HTTP boundary for the keyword search — stubbed in tests. Returns
     # the parsed JSON Hash. Fetches (and caches) the OAuth token first.

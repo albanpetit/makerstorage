@@ -12,7 +12,7 @@ class Supplier < ApplicationRecord
 
   # Associations
   belongs_to :organization
-  has_many :purchases, dependent: :restrict_with_error
+  has_many :orders, dependent: :restrict_with_error
   has_many :part_suppliers, dependent: :destroy
   has_many :parts, through: :part_suppliers
 

@@ -19,7 +19,66 @@ module SupplierCatalog
   # The upstream provider request failed (network, auth, bad response...).
   class LookupError < Error; end
 
+  # A supplier order fetched from a provider's order API, normalized across
+  # providers. +lines+ is an Array<OrderLineResult>.
+  OrderResult = Struct.new(:order_number, :status, :placed_at, :total, :currency, :lines, keyword_init: true)
+
+  # One line of a fetched supplier order, or a priced line of a built cart.
+  OrderLineResult = Struct.new(
+    :mpn, :manufacturer, :supplier_sku, :description, :quantity, :unit_price,
+    keyword_init: true
+  )
+
+  # The outcome of building a cart at the supplier: its key, a checkout handoff
+  # URL when the provider returns one, and the priced lines.
+  CartResult = Struct.new(:cart_key, :checkout_url, :currency, :merchandise_total, :lines, keyword_init: true)
+
   module_function
+
+  # A Mouser client wired for the Order/Cart API (push-to-cart, order import),
+  # or nil when the organization hasn't configured the order key. Distinct from
+  # the Search API providers above — the two use different Mouser keys.
+  def mouser_order_client(organization)
+    return nil unless organization.mouser_order_configured?
+
+    Mouser.new(api_key: organization.mouser_api_key, order_api_key: organization.mouser_order_api_key)
+  end
+
+  # A DigiKey client wired for the user-scoped Order Status API, or nil when no
+  # DigiKey account is connected. Refreshes the access token first when expired,
+  # persisting the rotated refresh token back onto the org.
+  def digikey_order_client(organization)
+    return nil unless organization.digikey_account_connected?
+
+    refresh_digikey_token!(organization) if digikey_token_expired?(organization)
+
+    Digikey.new(
+      client_id: organization.digikey_client_id,
+      client_secret: organization.digikey_client_secret,
+      access_token: organization.digikey_access_token
+    )
+  end
+
+  def digikey_token_expired?(organization)
+    expires_at = organization.digikey_token_expires_at
+    expires_at.nil? || expires_at <= Time.current
+  end
+
+  # DigiKey rotates the refresh token on refresh, so persist whatever it returns
+  # (falling back to the current one if the response omits it).
+  def refresh_digikey_token!(organization)
+    tokens = Digikey.refresh_token(
+      client_id: organization.digikey_client_id,
+      client_secret: organization.digikey_client_secret,
+      refresh_token: organization.digikey_refresh_token
+    )
+
+    organization.update!(
+      digikey_access_token: tokens["access_token"],
+      digikey_refresh_token: tokens["refresh_token"].presence || organization.digikey_refresh_token,
+      digikey_token_expires_at: Time.current + tokens["expires_in"].to_i.seconds
+    )
+  end
 
   # Returns an Array<PartResult> (possibly empty) for the given part number,
   # merged across every configured provider so the user sees matches from all of

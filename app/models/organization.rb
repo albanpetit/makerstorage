@@ -15,7 +15,7 @@ class Organization < ApplicationRecord
   has_many :parts, dependent: :destroy
   has_many :storage_locations, dependent: :destroy
   has_many :stock_movements, dependent: :destroy
-  has_many :purchases, dependent: :destroy
+  has_many :orders, dependent: :destroy
   has_many :projects, dependent: :destroy
   has_many :categories, dependent: :destroy
   has_many :footprints, dependent: :destroy
@@ -27,8 +27,11 @@ class Organization < ApplicationRecord
 
   # Encrypted secrets - supplier catalog integration (see SupplierCatalog)
   encrypts :mouser_api_key
+  encrypts :mouser_order_api_key
   encrypts :digikey_client_id
   encrypts :digikey_client_secret
+  encrypts :digikey_access_token
+  encrypts :digikey_refresh_token
 
   # Constants
   IPN_SEPARATORS = %w[- . _ /].freeze
@@ -190,6 +193,18 @@ class Organization < ApplicationRecord
   # DigiKey needs both halves of the OAuth2 client-credentials pair to work.
   def digikey_configured?
     digikey_client_id.present? && digikey_client_secret.present?
+  end
+
+  # Whether the Mouser Order/Cart API (push-to-cart, order import) can be used.
+  def mouser_order_configured?
+    mouser_order_api_key.present?
+  end
+
+  # Whether a DigiKey customer account is linked via the Authorization Code flow
+  # (needed for the user-scoped Order Status API). The refresh token is the
+  # durable half — the access token expires within the hour.
+  def digikey_account_connected?
+    digikey_refresh_token.present?
   end
 
   # Methods - Stats
