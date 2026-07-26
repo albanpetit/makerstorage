@@ -15,7 +15,10 @@ module SupplierCatalog
     TOKEN_ENDPOINT = "https://api.digikey.com/v1/oauth2/token"
     AUTHORIZE_ENDPOINT = "https://api.digikey.com/v1/oauth2/authorize"
     SEARCH_ENDPOINT = "https://api.digikey.com/products/v4/search/keyword"
-    ORDER_STATUS_ENDPOINT = "https://api.digikey.com/orderStatus/v4/salesorder"
+    # Order Status lives on the OrderDetails v3 API: GET /Status/{salesOrderId}.
+    # (DigiKey's "v4 order status" path does not exist yet — this is the endpoint
+    # its own generated clients still use.)
+    ORDER_STATUS_ENDPOINT = "https://api.digikey.com/OrderDetails/v3/Status"
     MAX_RECORDS = 10
     PROVIDER = "digikey"
 
@@ -136,6 +139,7 @@ module SupplierCatalog
       response = http.request(request)
 
       unless response.is_a?(Net::HTTPSuccess)
+        Rails.logger.warn("[SupplierCatalog::Digikey] GET #{url} -> #{response.code}: #{response.body.to_s.slice(0, 500)}")
         raise LookupError, order_error_message(response)
       end
 
@@ -147,11 +151,25 @@ module SupplierCatalog
     end
 
     def order_error_message(response)
-      if response.is_a?(Net::HTTPUnauthorized)
+      case response
+      when Net::HTTPUnauthorized
         "DigiKey rejected the account token. Reconnect your DigiKey account in Settings → Integrations."
+      when Net::HTTPNotFound
+        "DigiKey couldn't find that sales order. Check the number belongs to the connected DigiKey account."
       else
-        "DigiKey Order API returned #{response.code}"
+        detail = digikey_error_detail(response)
+        "DigiKey Order API returned #{response.code}#{" — #{detail}" if detail}"
       end
+    end
+
+    # DigiKey error bodies vary; surface the most useful message it returns so a
+    # failure is actionable rather than just a status code.
+    def digikey_error_detail(response)
+      parsed = JSON.parse(response.body)
+      (parsed["detail"] || parsed["title"] || parsed["ErrorMessage"] ||
+        parsed.dig("errors", 0, "message")).to_s.presence
+    rescue JSON::ParserError
+      response.body.to_s.strip.slice(0, 200).presence
     end
 
     # Normalizes a DigiKey sales-order response into an OrderResult. Parsing is
