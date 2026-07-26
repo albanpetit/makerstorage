@@ -126,30 +126,32 @@ class SupplierCatalog::DigikeyTest < ActiveSupport::TestCase
     provider
   end
 
-  test "import_order normalizes a fetched DigiKey sales order" do
+  test "import_order normalizes a fetched DigiKey Order Status v4 sales order" do
+    # Shape mirrors a real /orderstatus/v4/salesorder response (trimmed).
     payload = {
-      "SalesOrderId" => 55102,
-      "OrderStatus" => "Shipped",
-      "DateEntered" => "2026-07-01",
+      "SalesOrderId" => 99497058,
+      "Status" => { "SalesOrderStatus" => "Shipped", "ShortDescription" => "Shipped" },
+      "DateEntered" => "2026-05-28T16:45:29.095-05:00",
       "Currency" => "EUR",
-      "TotalPrice" => "18.20",
+      "TotalPrice" => 51.88,
       "LineItems" => [
         {
-          "ManufacturerPartNumber" => "ATMEGA328P-AU", "Manufacturer" => "Microchip",
-          "DigiKeyPartNumber" => "ATMEGA328P-AU-ND", "ProductDescription" => "IC MCU 8BIT",
-          "Quantity" => 50, "UnitPrice" => "0.25"
+          "DigiKeyProductNumber" => "HFK112CT-ND",
+          "ManufacturerProductNumber" => "FH12A-12S-0.5SH(55)",
+          "Description" => "CONN FFC FPC TOP 12POS 0.5MM R/A",
+          "QuantityOrdered" => 5, "UnitPrice" => 1.1
         }
       ]
     }
 
-    result = order_provider(payload).import_order("55102")
-    assert_equal "55102", result.order_number
+    result = order_provider(payload).import_order("99497058")
+    assert_equal "99497058", result.order_number
     assert_equal "Shipped", result.status
     line = result.lines.first
-    assert_equal "ATMEGA328P-AU", line.mpn
-    assert_equal "ATMEGA328P-AU-ND", line.supplier_sku
-    assert_equal 50, line.quantity
-    assert_equal "0.25", line.unit_price
+    assert_equal "FH12A-12S-0.5SH(55)", line.mpn
+    assert_equal "HFK112CT-ND", line.supplier_sku
+    assert_equal 5, line.quantity
+    assert_equal "1.1", line.unit_price
   end
 
   test "import_order raises without a connected account token" do

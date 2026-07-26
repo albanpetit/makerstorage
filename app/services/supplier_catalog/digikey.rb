@@ -15,10 +15,10 @@ module SupplierCatalog
     TOKEN_ENDPOINT = "https://api.digikey.com/v1/oauth2/token"
     AUTHORIZE_ENDPOINT = "https://api.digikey.com/v1/oauth2/authorize"
     SEARCH_ENDPOINT = "https://api.digikey.com/products/v4/search/keyword"
-    # Order Status lives on the OrderDetails v3 API: GET /Status/{salesOrderId}.
-    # (DigiKey's "v4 order status" path does not exist yet — this is the endpoint
-    # its own generated clients still use.)
-    ORDER_STATUS_ENDPOINT = "https://api.digikey.com/OrderDetails/v3/Status"
+    # Order Status API v4: GET /orderstatus/v4/salesorder/{salesOrderId}. The path
+    # is lowercase and case-sensitive, and the app must be subscribed to the
+    # "Order Status" product (distinct from the legacy OrderDetails API).
+    ORDER_STATUS_ENDPOINT = "https://api.digikey.com/orderstatus/v4/salesorder"
     MAX_RECORDS = 10
     PROVIDER = "digikey"
 
@@ -172,15 +172,15 @@ module SupplierCatalog
       response.body.to_s.strip.slice(0, 200).presence
     end
 
-    # Normalizes a DigiKey sales-order response into an OrderResult. Parsing is
-    # tolerant of key-name variation since it can't be exercised without a live
-    # user token.
+    # Normalizes a DigiKey Order Status v4 sales-order response into an
+    # OrderResult. Key lookups keep a few fallbacks so a minor shape change
+    # doesn't break the import outright.
     def build_order_result(payload, requested_number)
       lines = payload["LineItems"] || payload["OrderLines"] || payload["Lines"] || []
 
       SupplierCatalog::OrderResult.new(
         order_number: (payload["SalesOrderId"] || payload["SalesorderId"] || payload["CustomerOrderNumber"] || requested_number).to_s,
-        status: payload["OrderStatus"] || payload.dig("Status", "Text") || payload["Status"],
+        status: payload.dig("Status", "SalesOrderStatus") || payload.dig("Status", "ShortDescription") || payload["OrderStatus"],
         placed_at: payload["DateEntered"] || payload["OrderDate"] || payload["DateCreated"],
         total: order_numeric(payload["TotalPrice"] || payload["OrderTotal"]),
         currency: payload["Currency"] || payload["CurrencyCode"],
