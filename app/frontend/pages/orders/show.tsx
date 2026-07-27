@@ -1,6 +1,6 @@
 import { Head, Link, router, useForm } from '@inertiajs/react'
 import { useMemo, useState } from 'react'
-import { ArrowLeft, Plus, Trash2, Truck, PackageCheck, Ban, Pencil, ClipboardList, ShoppingCart } from 'lucide-react'
+import { ArrowLeft, Plus, Trash2, Truck, PackageCheck, Ban, Pencil, ClipboardList, ShoppingCart, Boxes, AlertTriangle, X } from 'lucide-react'
 
 import { AppLayout } from '@/layouts/app-layout'
 import { usePermissions } from '@/hooks/use-permissions'
@@ -47,13 +47,23 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { SupplierLookup, type LookupResult } from '@/components/supplier-lookup'
+import { StorageZoneTreePicker, type ZoneNode } from '@/components/storage-zone-tree-picker'
 import { ORDER_STATUS_META, formatMoney } from './helpers'
+
+interface Allocation {
+  id: number
+  storage_location_id: number
+  storage_location_path: string
+  quantity: number
+}
 
 interface OrderLine {
   id: number
   quantity: number
   unit_price: number | null
   subtotal: number | null
+  allocated_quantity: number
+  allocations: Allocation[]
   part: { id: number; reference: string; name: string }
 }
 
@@ -103,6 +113,7 @@ interface OrderShowProps {
   catalog_enabled: boolean
   projects: ProjectOption[]
   mouser_cart_enabled: boolean
+  storage_locations: ZoneNode[]
 }
 
 const ADVANCE_LABEL: Partial<Record<Order['status'], { label: string; icon: typeof Truck }>> = {
@@ -110,9 +121,13 @@ const ADVANCE_LABEL: Partial<Record<Order['status'], { label: string; icon: type
   shipped: { label: 'Mark as received', icon: PackageCheck },
 }
 
-export default function OrderShow({ order, suppliers, parts, categories, catalog_enabled, projects, mouser_cart_enabled }: OrderShowProps) {
+export default function OrderShow({ order, suppliers, parts, categories, catalog_enabled, projects, mouser_cart_enabled, storage_locations }: OrderShowProps) {
   const { canWrite } = usePermissions()
   const [addOpen, setAddOpen] = useState(false)
+  const [allocLine, setAllocLine] = useState<OrderLine | null>(null)
+  const [allocRows, setAllocRows] = useState<{ storage_location_id: number | null; quantity: string }[]>([])
+  const [bulkZoneOpen, setBulkZoneOpen] = useState(false)
+  const [bulkZone, setBulkZone] = useState<number | null>(null)
   const [importOpen, setImportOpen] = useState(false)
   const [importProject, setImportProject] = useState('')
   const [importMode, setImportMode] = useState<'full' | 'shortfall'>('full')
@@ -224,6 +239,38 @@ export default function OrderShow({ order, suppliers, parts, categories, catalog
     updateLine(line, { unit_price: price })
   }
 
+  const openAllocEditor = (line: OrderLine) => {
+    setAllocLine(line)
+    setAllocRows(
+      line.allocations.length > 0
+        ? line.allocations.map((a) => ({ storage_location_id: a.storage_location_id, quantity: String(a.quantity) }))
+        : [{ storage_location_id: null, quantity: String(line.quantity) }]
+    )
+  }
+
+  const patchAllocations = (line: OrderLine, allocations: { storage_location_id: number; quantity: number }[]) => {
+    router.patch(
+      `/orders/${order.id}/order_lines/${line.id}`,
+      { order_line: { allocations } },
+      { preserveScroll: true, onSuccess: () => setAllocLine(null) }
+    )
+  }
+
+  const submitBulkZone = () => {
+    if (bulkZone == null) return
+    router.post(
+      `/orders/${order.id}/assign_storage`,
+      { storage_location_id: bulkZone },
+      {
+        preserveScroll: true,
+        onSuccess: () => {
+          setBulkZoneOpen(false)
+          setBulkZone(null)
+        },
+      }
+    )
+  }
+
   const submitImport = (e: React.FormEvent) => {
     e.preventDefault()
     if (!importProject) return
@@ -321,7 +368,20 @@ export default function OrderShow({ order, suppliers, parts, categories, catalog
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold">Components</h2>
           {canWrite && order.editable && (
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
+              {order.lines.length > 0 && storage_locations.length > 0 && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setBulkZone(null)
+                    setBulkZoneOpen(true)
+                  }}
+                >
+                  <Boxes className="size-4" />
+                  Set storage zone
+                </Button>
+              )}
               {projects.length > 0 && (
                 <Button size="sm" variant="outline" onClick={() => setImportOpen(true)}>
                   <ClipboardList className="size-4" />
@@ -344,13 +404,14 @@ export default function OrderShow({ order, suppliers, parts, categories, catalog
                 <TableHead className="text-right">Quantity</TableHead>
                 <TableHead className="text-right">Unit price</TableHead>
                 <TableHead className="text-right">Subtotal</TableHead>
+                <TableHead>Storage on receipt</TableHead>
                 {canWrite && order.editable && <TableHead className="w-10" />}
               </TableRow>
             </TableHeader>
             <TableBody>
               {order.lines.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="py-10 text-center text-sm text-muted-foreground">
+                  <TableCell colSpan={canWrite && order.editable ? 6 : 5} className="py-10 text-center text-sm text-muted-foreground">
                     No components yet. Add one from your inventory.
                   </TableCell>
                 </TableRow>
@@ -393,6 +454,34 @@ export default function OrderShow({ order, suppliers, parts, categories, catalog
                     </TableCell>
                     <TableCell className="text-right font-mono">
                       {line.subtotal != null ? formatMoney(line.subtotal) : '—'}
+                    </TableCell>
+                    <TableCell>
+                      {canWrite && order.editable ? (
+                        <button
+                          type="button"
+                          onClick={() => openAllocEditor(line)}
+                          className="group flex max-w-[260px] flex-col items-start gap-1 text-left"
+                        >
+                          {line.allocations.length === 0 ? (
+                            <span className="text-xs text-muted-foreground underline decoration-dotted group-hover:text-foreground">
+                              Set zones…
+                            </span>
+                          ) : (
+                            <>
+                              <span className="text-xs">{allocationSummary(line)}</span>
+                              {line.allocated_quantity !== line.quantity && (
+                                <Badge variant="outline" className="bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400">
+                                  <AlertTriangle className="size-3" /> {line.allocated_quantity}/{line.quantity}
+                                </Badge>
+                              )}
+                            </>
+                          )}
+                        </button>
+                      ) : line.allocations.length === 0 ? (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      ) : (
+                        <span className="text-xs">{allocationSummary(line)}</span>
+                      )}
                     </TableCell>
                     {canWrite && order.editable && (
                       <TableCell>
@@ -572,6 +661,130 @@ export default function OrderShow({ order, suppliers, parts, categories, catalog
         </DialogContent>
       </Dialog>
 
+      {/* Per-line storage allocation editor */}
+      <Dialog open={allocLine !== null} onOpenChange={(o) => !o && setAllocLine(null)}>
+        <DialogContent className="sm:max-w-lg">
+          {allocLine && (() => {
+            const total = allocRows.reduce((sum, r) => sum + (Number(r.quantity) || 0), 0)
+            const remaining = allocLine.quantity - total
+            const complete = allocRows.length > 0 &&
+              allocRows.every((r) => r.storage_location_id != null && Number(r.quantity) > 0) &&
+              remaining === 0
+            return (
+              <>
+                <DialogHeader>
+                  <DialogTitle>Storage for {allocLine.part.reference}</DialogTitle>
+                  <DialogDescription>
+                    Split the {allocLine.quantity} received unit{allocLine.quantity !== 1 ? 's' : ''} across one or more zones.
+                    They must add up to {allocLine.quantity}.
+                  </DialogDescription>
+                </DialogHeader>
+
+                <div className="space-y-2 py-4">
+                  {allocRows.map((row, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <StorageZoneTreePicker
+                        locations={storage_locations}
+                        value={row.storage_location_id}
+                        onChange={(id) => setAllocRows((rows) => rows.map((r, idx) => (idx === i ? { ...r, storage_location_id: id } : r)))}
+                        className="flex-1"
+                      />
+                      <Input
+                        type="number"
+                        min={1}
+                        value={row.quantity}
+                        onChange={(e) => setAllocRows((rows) => rows.map((r, idx) => (idx === i ? { ...r, quantity: e.target.value } : r)))}
+                        className="h-9 w-20 text-right font-mono"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label="Remove zone"
+                        disabled={allocRows.length === 1}
+                        onClick={() => setAllocRows((rows) => rows.filter((_, idx) => idx !== i))}
+                      >
+                        <X className="size-4 text-muted-foreground" />
+                      </Button>
+                    </div>
+                  ))}
+
+                  <div className="flex items-center justify-between pt-1">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setAllocRows((rows) => [...rows, { storage_location_id: null, quantity: '' }])}
+                    >
+                      <Plus className="size-4" />
+                      Add zone
+                    </Button>
+                    <span className={`text-xs ${remaining === 0 ? 'text-muted-foreground' : 'text-amber-600 dark:text-amber-400'}`}>
+                      {remaining === 0 ? 'All units allocated' : remaining > 0 ? `${remaining} left to allocate` : `${-remaining} over`}
+                    </span>
+                  </div>
+                </div>
+
+                <DialogFooter className="sm:justify-between">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => patchAllocations(allocLine, [])}
+                  >
+                    Clear (use default location)
+                  </Button>
+                  <div className="flex gap-2">
+                    <Button type="button" variant="outline" onClick={() => setAllocLine(null)}>
+                      Cancel
+                    </Button>
+                    <Button
+                      type="button"
+                      disabled={!complete}
+                      onClick={() =>
+                        patchAllocations(
+                          allocLine,
+                          allocRows.map((r) => ({ storage_location_id: r.storage_location_id as number, quantity: Number(r.quantity) }))
+                        )
+                      }
+                    >
+                      Save split
+                    </Button>
+                  </div>
+                </DialogFooter>
+              </>
+            )
+          })()}
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk: set one storage zone for all lines */}
+      <Dialog open={bulkZoneOpen} onOpenChange={setBulkZoneOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Set storage zone for all lines</DialogTitle>
+            <DialogDescription>
+              Sends every line's full quantity to the chosen zone. You can then override individual lines to split them.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <StorageZoneTreePicker
+              locations={storage_locations}
+              value={bulkZone}
+              onChange={setBulkZone}
+              className="w-full"
+            />
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setBulkZoneOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="button" disabled={bulkZone == null} onClick={submitBulkZone}>
+              Apply to all lines
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Import from project dialog */}
       <Dialog open={importOpen} onOpenChange={setImportOpen}>
         <DialogContent className="sm:max-w-md">
@@ -711,7 +924,7 @@ export default function OrderShow({ order, suppliers, parts, categories, catalog
           <AlertDialogHeader>
             <AlertDialogTitle>Mark this order as received?</AlertDialogTitle>
             <AlertDialogDescription>
-              This credits each line's quantity into its part's storage location as an incoming movement, and freezes the order.
+              This credits each line into stock as incoming movements — into the zones you configured, or the part's existing location when none is set — and freezes the order.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -752,6 +965,13 @@ export default function OrderShow({ order, suppliers, parts, categories, catalog
       </AlertDialog>
     </AppLayout>
   )
+}
+
+// "Drawer A ×50, Drawer B ×50" — leaf zone name and quantity per allocation.
+function allocationSummary(line: OrderLine): string {
+  return line.allocations
+    .map((a) => `${a.storage_location_path.split(' > ').pop()} ×${a.quantity}`)
+    .join(', ')
 }
 
 function SummaryCard({ label, value }: { label: string; value: React.ReactNode }) {

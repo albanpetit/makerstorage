@@ -118,4 +118,43 @@ class OrderLinesControllerTest < ActionDispatch::IntegrationTest
     end
     assert_match(/read-only/i, flash[:alert])
   end
+
+  test "update stores a balanced storage split" do
+    line = @order.order_lines.create!(part: @part, quantity: 10)
+    a = create_storage_location(organization: @org)
+    b = create_storage_location(organization: @org)
+    sign_in @user
+
+    patch order_order_line_path(@order, line), params: {
+      order_line: { allocations: [ { storage_location_id: a.id, quantity: 7 }, { storage_location_id: b.id, quantity: 3 } ] }
+    }
+
+    assert_equal 2, line.reload.allocations.count
+    assert line.fully_allocated?
+  end
+
+  test "update rejects an unbalanced storage split" do
+    line = @order.order_lines.create!(part: @part, quantity: 10)
+    a = create_storage_location(organization: @org)
+    sign_in @user
+
+    assert_no_difference -> { OrderLineAllocation.count } do
+      patch order_order_line_path(@order, line), params: {
+        order_line: { allocations: [ { storage_location_id: a.id, quantity: 4 } ] }
+      }
+    end
+    assert_match(/add up to the line quantity/i, flash[:alert])
+  end
+
+  test "changing the quantity clears a stale split" do
+    line = @order.order_lines.create!(part: @part, quantity: 10)
+    location = create_storage_location(organization: @org)
+    line.allocations.create!(storage_location: location, quantity: 10)
+    sign_in @user
+
+    patch order_order_line_path(@order, line), params: { order_line: { quantity: 8 } }
+
+    assert_equal 8, line.reload.quantity
+    assert_empty line.allocations
+  end
 end

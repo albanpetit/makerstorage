@@ -126,6 +126,28 @@ class OrderTest < ActiveSupport::TestCase
     assert_equal 25, part.reload.total_quantity
   end
 
+  test "advance! to received splits a line's allocations across zones" do
+    user = create_user
+    category = create_category(organization: @org)
+    drawer_a = create_storage_location(organization: @org, name: "Drawer A")
+    drawer_b = create_storage_location(organization: @org, name: "Drawer B")
+    part = create_part(organization: @org, category: category)
+
+    order = Order.create!(organization: @org, supplier: @supplier, status: "shipped")
+    line = OrderLine.create!(order: order, part: part, quantity: 100, unit_price: 0.01)
+    line.allocations.create!(storage_location: drawer_a, quantity: 60)
+    line.allocations.create!(storage_location: drawer_b, quantity: 40)
+
+    assert_difference -> { StockMovement.count } => 2 do
+      result = order.advance!(user: user)
+      assert_empty result.skipped
+    end
+
+    assert_equal 60, PartStorage.find_by(part: part, storage_location: drawer_a).quantity
+    assert_equal 40, PartStorage.find_by(part: part, storage_location: drawer_b).quantity
+    assert_equal 100, part.reload.total_quantity
+  end
+
   test "advance! reports lines whose part has no storage location as skipped" do
     user = create_user
     category = create_category(organization: @org)

@@ -238,6 +238,36 @@ class OrdersControllerTest < ActionDispatch::IntegrationTest
     assert_match(/connect your digikey account/i, flash[:alert])
   end
 
+  test "assign_storage presets one full-quantity allocation per line" do
+    order = create_order(organization: @org, supplier: @supplier, status: "pending", reference: "PO-2")
+    cap = create_part(organization: @org, category: @category, name: "Cap 100nF")
+    order.order_lines.create!(part: @part, quantity: 5)
+    order.order_lines.create!(part: cap, quantity: 3)
+    zone = create_storage_location(organization: @org, name: "Shelf X")
+    sign_in @user
+
+    post assign_storage_order_path(order), params: { storage_location_id: zone.id }
+
+    order.order_lines.each do |line|
+      assert_equal 1, line.allocations.count
+      assert_equal line.quantity, line.allocations.first.quantity
+      assert_equal zone, line.allocations.first.storage_location
+    end
+  end
+
+  test "advancing a bulk-assigned order credits stock into the chosen zone" do
+    order = create_order(organization: @org, supplier: @supplier, status: "shipped", reference: "PO-3")
+    order.order_lines.create!(part: @part, quantity: 5)
+    zone = create_storage_location(organization: @org, name: "Shelf Y")
+    sign_in @user
+
+    post assign_storage_order_path(order), params: { storage_location_id: zone.id }
+    patch advance_order_path(order)
+
+    assert_equal "received", order.reload.status
+    assert_equal 5, PartStorage.find_by(part: @part, storage_location: zone).quantity
+  end
+
   private
 
   # Stands in for a configured SupplierCatalog::Mouser order client.

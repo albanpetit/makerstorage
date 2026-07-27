@@ -4,8 +4,8 @@ class OrdersController < ApplicationController
   include Auth
 
   before_action :verify_organization_access
-  before_action :verify_organization_writer, only: %i[create update destroy advance import_project push_to_cart import_supplier_order]
-  before_action :set_order, only: %i[show update destroy advance import_project push_to_cart]
+  before_action :verify_organization_writer, only: %i[create update destroy advance import_project push_to_cart import_supplier_order assign_storage]
+  before_action :set_order, only: %i[show update destroy advance import_project push_to_cart assign_storage]
 
   def index
     orders = current_organization.orders
@@ -37,7 +37,10 @@ class OrdersController < ApplicationController
       end,
       # Mouser cart push is only meaningful when the key is set and this order is
       # for the Mouser supplier (its lines carry Mouser part numbers).
-      mouser_cart_enabled: current_organization.mouser_order_configured? && @order.supplier.catalog_provider == "mouser"
+      mouser_cart_enabled: current_organization.mouser_order_configured? && @order.supplier.catalog_provider == "mouser",
+      # Storage zones (flat, with parent_id) for the tree picker used to target
+      # where received components land.
+      storage_locations: current_organization.storage_locations.alphabetical.map { |l| serialize_storage_location(l) }
     }
   end
 
@@ -86,7 +89,7 @@ class OrdersController < ApplicationController
     # Preload each line's part and its storage locations so stock receipt reads
     # `line.part.storage_locations.first` off memory instead of an N+1.
     @order = current_organization.orders
-      .includes(order_lines: { part: :storage_locations })
+      .includes(order_lines: [ { part: :storage_locations }, { allocations: :storage_location } ])
       .find(params[:id])
 
     result = @order.advance!(user: current_user)
@@ -151,6 +154,32 @@ class OrdersController < ApplicationController
     else
       redirect_to order_path(@order), notice: notice
     end
+  end
+
+  # Bulk-presets a single target storage zone for every line: each line gets one
+  # full-quantity allocation at +storage_location_id+, replacing any existing
+  # split. Operators then override special cases per line.
+  def assign_storage
+    unless @order.editable?
+      redirect_to order_path(@order), alert: "This order is #{@order.status} and can no longer be edited."
+      return
+    end
+
+    location = current_organization.storage_locations.find_by(id: params[:storage_location_id])
+    unless location
+      redirect_to order_path(@order), alert: "Choose a storage zone to assign."
+      return
+    end
+
+    ActiveRecord::Base.transaction do
+      @order.order_lines.each do |line|
+        line.allocations.destroy_all
+        line.allocations.create!(storage_location: location, quantity: line.quantity)
+      end
+    end
+
+    count = @order.order_lines.size
+    redirect_to order_path(@order), notice: "Storage zone set for #{count} line#{'s' if count != 1}."
   end
 
   # Pushes this order's lines to a Mouser cart via the Order/Cart API, returning
@@ -308,8 +337,14 @@ class OrdersController < ApplicationController
 
   def set_order
     @order = current_organization.orders
-      .includes(:supplier, order_lines: :part)
+      .includes(:supplier, order_lines: [ :part, { allocations: :storage_location } ])
       .find(params[:id])
+  end
+
+  # id => zone map so each allocation's full path ("Room > Cabinet > Drawer")
+  # resolves in memory instead of an N+1 while serializing lines.
+  def location_path_cache
+    @location_path_cache ||= StorageLocation.full_path_cache(current_organization.storage_locations)
   end
 
   def order_params
@@ -355,11 +390,32 @@ class OrdersController < ApplicationController
       quantity: line.quantity,
       unit_price: line.unit_price&.to_f,
       subtotal: line.subtotal&.to_f,
+      allocated_quantity: line.allocated_quantity,
+      allocations: line.allocations.map { |a| serialize_allocation(a) },
       part: {
         id: line.part.id,
         reference: line.part.reference,
         name: line.part.name
       }
+    }
+  end
+
+  def serialize_allocation(allocation)
+    {
+      id: allocation.id,
+      storage_location_id: allocation.storage_location_id,
+      storage_location_path: allocation.storage_location.full_path(cache: location_path_cache),
+      quantity: allocation.quantity
+    }
+  end
+
+  def serialize_storage_location(location)
+    {
+      id: location.id,
+      name: location.name,
+      location_type: location.location_type,
+      code: location.code,
+      parent_id: location.parent_id
     }
   end
 end

@@ -81,6 +81,7 @@ Rails.application.routes.draw do
       patch :advance
       post :import_project
       post :push_to_cart
+      post :assign_storage
     end
     collection do
       post :import_supplier_order

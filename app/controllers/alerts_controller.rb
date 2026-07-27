@@ -58,7 +58,7 @@ class AlertsController < ApplicationController
     # receipt reads `line.part.storage_locations.first` off memory instead of
     # firing a query per line (N+1) once the order is marked received.
     order = current_organization.orders
-      .includes(order_lines: { part: :storage_locations })
+      .includes(order_lines: [ { part: :storage_locations }, { allocations: :storage_location } ])
       .find(params[:id])
 
     result = order.advance!(user: current_user)

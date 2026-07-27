@@ -3,6 +3,10 @@
 class OrderLinesController < ApplicationController
   include Auth
 
+  # Raised when a storage split is invalid (doesn't sum to the line quantity, or
+  # references a foreign zone); rescued into a flash alert.
+  class AllocationError < StandardError; end
+
   before_action :verify_organization_access
   before_action :verify_organization_writer
   before_action :set_order
@@ -31,13 +35,26 @@ class OrderLinesController < ApplicationController
 
   def update
     line = @order.order_lines.find(params[:id])
+    previous_quantity = line.quantity
 
-    if line.update(line_params)
-      @order.recalculate_total!
-      redirect_to order_path(@order), notice: "Line updated."
-    else
-      redirect_to order_path(@order), alert: line.errors.full_messages.to_sentence.presence || "Could not update that line."
+    ActiveRecord::Base.transaction do
+      line.update!(line_params)
+
+      if (allocs = allocation_params)
+        apply_allocations(line, allocs)
+      elsif line.quantity != previous_quantity
+        # Quantity changed without a new split — the old allocations no longer
+        # add up, so drop them (the line reverts to the fallback location).
+        line.allocations.destroy_all
+      end
     end
+
+    @order.recalculate_total!
+    redirect_to order_path(@order), notice: "Line updated."
+  rescue AllocationError => e
+    redirect_to order_path(@order), alert: e.message
+  rescue ActiveRecord::RecordInvalid => e
+    redirect_to order_path(@order), alert: e.record.errors.full_messages.to_sentence.presence || "Could not update that line."
   end
 
   def destroy
@@ -91,6 +108,38 @@ class OrderLinesController < ApplicationController
 
   def line_params
     params.require(:order_line).permit(:quantity, :unit_price)
+  end
+
+  # Normalized allocation rows from the request, or nil when the key is absent
+  # (so a price-only edit leaves allocations untouched). Blank-zone rows dropped.
+  def allocation_params
+    raw = params.dig(:order_line, :allocations)
+    return nil if raw.nil?
+
+    Array(raw)
+      .map { |a| { storage_location_id: a[:storage_location_id], quantity: a[:quantity].to_i } }
+      .reject { |a| a[:storage_location_id].blank? }
+  end
+
+  # Replaces +line+'s allocations with +allocs+. An empty set clears them (line
+  # reverts to the fallback location); a non-empty set must sum to the line
+  # quantity and reference zones in this org. Raises AllocationError otherwise.
+  def apply_allocations(line, allocs)
+    if allocs.empty?
+      line.allocations.destroy_all
+      return
+    end
+
+    unless allocs.sum { |a| a[:quantity] } == line.quantity
+      raise AllocationError, "The storage split must add up to the line quantity (#{line.quantity})."
+    end
+
+    ids = allocs.map { |a| a[:storage_location_id].to_s }.uniq
+    known = current_organization.storage_locations.where(id: ids).pluck(:id).map(&:to_s)
+    raise AllocationError, "A chosen storage zone doesn't belong to this organization." unless (ids - known).empty?
+
+    line.allocations.destroy_all
+    allocs.each { |a| line.allocations.create!(storage_location_id: a[:storage_location_id], quantity: a[:quantity]) }
   end
 
   def catalog_part_params

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_22_120000) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_27_120000) do
   create_table "active_storage_attachments", force: :cascade do |t|
     t.bigint "blob_id", null: false
     t.datetime "created_at", null: false
@@ -65,6 +65,16 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_22_120000) do
     t.index ["mounting_type"], name: "index_footprints_on_mounting_type"
     t.index ["organization_id", "name"], name: "index_footprints_on_organization_id_and_name", unique: true
     t.index ["organization_id"], name: "index_footprints_on_organization_id"
+  end
+
+  create_table "order_line_allocations", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.integer "order_line_id", null: false
+    t.integer "quantity", null: false
+    t.integer "storage_location_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["order_line_id"], name: "index_order_line_allocations_on_order_line_id"
+    t.index ["storage_location_id"], name: "index_order_line_allocations_on_storage_location_id"
   end
 
   create_table "order_lines", force: :cascade do |t|
@@ -346,6 +356,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_22_120000) do
   add_foreign_key "categories", "categories", column: "parent_id"
   add_foreign_key "categories", "organizations"
   add_foreign_key "footprints", "organizations"
+  add_foreign_key "order_line_allocations", "order_lines"
+  add_foreign_key "order_line_allocations", "storage_locations"
   add_foreign_key "order_lines", "orders"
   add_foreign_key "order_lines", "parts"
   add_foreign_key "orders", "organizations"

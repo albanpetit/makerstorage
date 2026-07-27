@@ -43,4 +43,20 @@ class OrderLineTest < ActiveSupport::TestCase
     line = OrderLine.create!(order: @order, part: @part, quantity: 4, unit_price: nil)
     assert_nil line.subtotal
   end
+
+  test "allocated_quantity sums the allocations and fully_allocated? checks the total" do
+    location_a = create_storage_location(organization: @org)
+    location_b = create_storage_location(organization: @org)
+    line = OrderLine.create!(order: @order, part: @part, quantity: 10)
+
+    assert_equal 0, line.allocated_quantity
+    assert_not line.fully_allocated?
+
+    line.allocations.create!(storage_location: location_a, quantity: 4)
+    assert_not line.fully_allocated?
+
+    line.allocations.create!(storage_location: location_b, quantity: 6)
+    assert_equal 10, line.allocated_quantity
+    assert line.fully_allocated?
+  end
 end

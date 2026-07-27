@@ -101,29 +101,42 @@ class Order < ApplicationRecord
     AdvanceResult.new(advanced: advanced, status: next_status, skipped: skipped)
   end
 
-  # Credits each line's quantity into its part's first storage location as an
-  # "in" movement. Lines whose part has no location can't be recorded, so their
-  # references are collected and returned rather than silently dropped.
+  # Credits each line's received quantity into stock as "in" movements. A line
+  # with configured allocations is split across its target zones (one movement
+  # per zone); otherwise it falls back to the part's first location for the whole
+  # quantity. Lines with neither an allocation nor a location can't be recorded,
+  # so their references are collected and returned rather than silently dropped.
   def receive_into_stock!(user:)
     skipped = []
 
     order_lines.each do |line|
+      allocations = line.allocations.to_a
+
+      if allocations.any?
+        allocations.each { |allocation| credit_stock(line.part, allocation.storage_location, allocation.quantity, user) }
+        next
+      end
+
       location = line.part.storage_locations.first
       unless location
         skipped << line.part.reference
         next
       end
 
-      organization.stock_movements.create!(
-        part: line.part, storage_location: location, user: user,
-        movement_type: "in", quantity_delta: line.quantity, reason: "Received #{reference}"
-      )
+      credit_stock(line.part, location, line.quantity, user)
     end
 
     skipped
   end
 
   private
+
+  def credit_stock(part, location, quantity, user)
+    organization.stock_movements.create!(
+      part: part, storage_location: location, user: user,
+      movement_type: "in", quantity_delta: quantity, reason: "Received #{reference}"
+    )
+  end
 
   def supplier_must_belong_to_same_organization
     if supplier.present? && supplier.organization_id != organization_id
