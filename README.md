@@ -68,7 +68,12 @@ The app is then served at `http://localhost:3000`.
   files — it persists across restarts and is what you back up.
 - The container runs database migrations on boot and serves a health check at
   **`GET /up`**. Map the port however you like and put a TLS-terminating reverse
-  proxy in front of it for production.
+  proxy in front of it for production, then set **`FORCE_SSL=true`** (see the
+  table below).
+- Sign-in, password reset, and sign-up are rate-limited **per client IP**. Run the
+  proxy on a private network (same host or Docker network) so Rails trusts its
+  `X-Forwarded-For` header; otherwise every visitor appears as the proxy's IP and
+  shares a single limit.
 
 ### Email (SMTP)
 
@@ -88,6 +93,7 @@ delivered — mail is simply skipped.
 | `SMTP_DOMAIN`         | —                                      | HELO domain, if your provider requires one.                             |
 | `MAILER_SENDER`       | `Makerstorage <no-reply@example.com>`  | `From` address (may include a display name).                            |
 | `APP_HOST`            | `localhost`                            | Public hostname used to build links in emails (e.g. `parts.example.org`). |
+| `FORCE_SSL`           | —                                      | Set to `true` behind a TLS-terminating proxy: redirects to HTTPS, sends HSTS, and marks the session cookie `Secure`. Leave unset for plain-HTTP LAN installs. |
 
 ```bash
 docker run -d --name makerstorage \
