@@ -40,4 +40,12 @@ class AttachRemotePartAssetsJobTest < ActiveJob::TestCase
     refute called, "should not attempt a download when a datasheet is already attached"
     assert_equal "existing.pdf", @part.reload.datasheet.filename.to_s
   end
+
+  test "is discarded when the part was deleted before it ran" do
+    AttachRemotePartAssetsJob.perform_later(@part, datasheet_url: "https://www.mouser.com/ds.pdf")
+    @part.destroy!
+
+    assert_nothing_raised { perform_enqueued_jobs }
+    assert_performed_jobs 1
+  end
 end
