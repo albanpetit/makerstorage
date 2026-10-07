@@ -124,6 +124,22 @@ class OrdersControllerTest < ActionDispatch::IntegrationTest
     assert_equal 4, order.order_lines.find_by(part: @part).quantity
   end
 
+  test "import_project shortfall sums a part listed on several BOM lines" do
+    stock(@part, 2)
+    project = create_project(organization: @org, reference: Project.next_reference(@org))
+    project.project_lines.create!(part: @part, quantity: 3, match_type: "mpn")
+    project.project_lines.create!(part: @part, quantity: 3, match_type: "manual")
+
+    order = create_order(organization: @org, supplier: @supplier, status: "pending", reference: "PO-1")
+    sign_in @user
+
+    assert_difference -> { OrderLine.count } => 1 do
+      post import_project_order_path(order), params: { project_id: project.id, mode: "shortfall" }
+    end
+    # 3 + 3 required - 2 in stock = 4, ordered once rather than 1 + 1 per line.
+    assert_equal 4, order.order_lines.find_by(part: @part).quantity
+  end
+
   test "import_project topping up a split line credits the full quantity on receipt" do
     drawer = create_storage_location(organization: @org, name: "Drawer")
     project = create_project(organization: @org, reference: Project.next_reference(@org))

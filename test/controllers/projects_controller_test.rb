@@ -150,6 +150,50 @@ class ProjectsControllerTest < ActionDispatch::IntegrationTest
     assert_match(/deducted/i, flash[:notice])
   end
 
+  test "build deducts a part listed on two lines once, for the summed quantity" do
+    project = build_project([ @cap, 30, "sku" ], [ @cap, 20, "manual" ]) # stock 100
+
+    sign_in @user
+    post build_project_path(project)
+
+    assert_equal 50, PartStorage.find_by(part: @cap, storage_location: @location).quantity
+    assert_match(/1 reference\b/, flash[:notice])
+  end
+
+  test "build is blocked when a part's lines together exceed its stock" do
+    project = build_project([ @resistor, 3, "mpn" ], [ @resistor, 3, "manual" ]) # stock 5, needs 6
+
+    sign_in @user
+    assert_no_difference -> { StockMovement.count } do
+      post build_project_path(project)
+    end
+    assert_match(/isn't buildable/i, flash[:alert])
+  end
+
+  test "create_purchase_orders orders a part's summed shortfall on one line" do
+    supplier = create_supplier(organization: @org)
+    PartSupplier.create!(part: @resistor, supplier: supplier, is_preferred: true, unit_price: 0.10)
+    project = build_project([ @resistor, 4, "mpn" ], [ @resistor, 4, "manual" ]) # stock 5, needs 8
+
+    sign_in @user
+    assert_difference -> { OrderLine.count } => 1 do
+      post create_purchase_orders_project_path(project)
+    end
+    assert_equal 3, OrderLine.order(:created_at).last.quantity
+  end
+
+  test "show marks a part's lines unavailable when together they exceed its stock" do
+    project = build_project([ @resistor, 3, "mpn" ], [ @resistor, 3, "manual" ]) # stock 5, needs 6
+
+    sign_in @user
+    get project_path(project)
+
+    lines = inertia_props["project"]["lines"]
+    assert lines.none? { |line| line["available"] }
+    assert lines.all? { |line| line["shortfall"] == 1 }
+    assert_not inertia_props["project"]["buildable"]
+  end
+
   test "build is blocked when the project isn't buildable" do
     project = build_project([ @resistor, 999, "mpn" ]) # short
     sign_in @user

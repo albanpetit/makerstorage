@@ -39,15 +39,35 @@ class Project < ApplicationRecord
   end
 
   # Methods - Availability
-  # Every line has a matched part with enough stock to cover its required
-  # quantity. An empty project isn't buildable — there is nothing to build.
-  def buildable?
-    project_lines.any? && project_lines.all?(&:available?)
+  #
+  # A BOM can list the same part on several lines, so availability is judged per
+  # part against the summed requirement — checking each line alone would count
+  # the same stock once per line.
+
+  # Required quantity per matched part, summed across the lines that use it.
+  def required_by_part
+    project_lines.select(&:part).group_by(&:part).transform_values { |lines| lines.sum(&:quantity) }
   end
 
-  # Lines that are matched to a part but short of the required quantity.
+  # Parts whose stock can't cover their summed requirement, with the missing
+  # quantity. Preload `project_lines: { part: :part_storages }` to avoid an N+1.
+  def shortfall_by_part
+    required_by_part.filter_map do |part, required|
+      missing = required - part.total_quantity
+      [ part, missing ] if missing.positive?
+    end.to_h
+  end
+
+  # Every line is matched and every part's stock covers its summed requirement.
+  # An empty project isn't buildable — there is nothing to build.
+  def buildable?
+    project_lines.any? && unmatched_lines.empty? && shortfall_by_part.empty?
+  end
+
+  # Lines whose part is short of the project's summed requirement.
   def short_lines
-    project_lines.select { |line| line.part.present? && line.shortfall.positive? }
+    short_parts = shortfall_by_part.keys
+    project_lines.select { |line| line.part.in?(short_parts) }
   end
 
   # Lines that couldn't be matched to any inventory part.

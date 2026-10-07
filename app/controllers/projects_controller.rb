@@ -69,18 +69,19 @@ class ProjectsController < ApplicationController
     redirect_to project_path(@project), notice: "Matches confirmed."
   end
 
-  # Turns each short, matched line into a purchase order, grouped by the part's
-  # preferred supplier. Mirrors AlertsController#create_purchase_orders.
+  # Orders each short part's missing quantity (summed across its BOM lines),
+  # grouped by the part's preferred supplier. Mirrors
+  # AlertsController#create_purchase_orders.
   def create_purchase_orders
-    candidates = @project.short_lines.filter_map do |line|
-      supplier_link = line.part.preferred_part_supplier
+    candidates = @project.shortfall_by_part.filter_map do |part, shortfall|
+      supplier_link = part.preferred_part_supplier
       next unless supplier_link
 
       {
-        part: line.part,
+        part: part,
         supplier: supplier_link.supplier,
-        quantity: line.shortfall,
-        unit_price: (supplier_link.unit_price || line.part.unit_price || 0).to_f
+        quantity: shortfall,
+        unit_price: (supplier_link.unit_price || part.unit_price || 0).to_f
       }
     end
 
@@ -127,11 +128,12 @@ class ProjectsController < ApplicationController
       return
     end
 
+    required = @project.required_by_part
     ActiveRecord::Base.transaction do
-      @project.project_lines.each { |line| deduct_line_stock(line) }
+      required.each { |part, quantity| deduct_part_stock(part, quantity) }
     end
 
-    redirect_to project_path(@project), notice: "Stock deducted for #{@project.project_lines.size} references."
+    redirect_to project_path(@project), notice: "Stock deducted for #{required.size} reference#{'s' if required.size != 1}."
   rescue ActiveRecord::RecordInvalid => e
     redirect_to project_path(@project), alert: "Could not deduct stock: #{e.record.errors.full_messages.to_sentence}."
   end
@@ -149,17 +151,18 @@ class ProjectsController < ApplicationController
       .find(params[:id])
   end
 
-  # Draws +line.quantity+ down across the part's positive-stock locations,
-  # emitting an "out" StockMovement for each source touched.
-  def deduct_line_stock(line)
-    remaining = line.quantity
+  # Draws +quantity+ of +part+ down across its positive-stock locations,
+  # emitting an "out" StockMovement for each source touched. Called once per
+  # part, so the preloaded storage quantities are still current.
+  def deduct_part_stock(part, quantity)
+    remaining = quantity
 
-    line.part.part_storages.select { |ps| ps.quantity.positive? }.each do |storage|
+    part.part_storages.select { |ps| ps.quantity.positive? }.each do |storage|
       break if remaining <= 0
 
       take = [ storage.quantity, remaining ].min
       current_organization.stock_movements.create!(
-        part: line.part, storage_location: storage.storage_location, user: current_user,
+        part: part, storage_location: storage.storage_location, user: current_user,
         movement_type: "out", quantity_delta: -take, reason: "Build #{@project.reference}"
       )
       remaining -= take
@@ -182,6 +185,7 @@ class ProjectsController < ApplicationController
   end
 
   def serialize_project(project)
+    shortfalls = project.shortfall_by_part
     {
       id: project.id,
       name: project.name,
@@ -191,11 +195,15 @@ class ProjectsController < ApplicationController
       short_count: project.short_lines.size,
       unmatched_count: project.unmatched_lines.size,
       checked_at: project.checked_at&.iso8601,
-      lines: project.project_lines.map { |line| serialize_line(line) }
+      lines: project.project_lines.map { |line| serialize_line(line, shortfalls) }
     }
   end
 
-  def serialize_line(line)
+  # Shortfall and availability come from the project-wide per-part totals, so a
+  # part listed on two lines isn't shown as available on each when its stock
+  # only covers one.
+  def serialize_line(line, shortfalls)
+    shortfall = line.part ? shortfalls.fetch(line.part, 0) : 0
     {
       id: line.id,
       raw_reference: line.raw_reference,
@@ -203,8 +211,8 @@ class ProjectsController < ApplicationController
       quantity: line.quantity,
       match_type: line.match_type,
       in_stock: line.in_stock,
-      shortfall: line.shortfall,
-      available: line.available?,
+      shortfall: shortfall,
+      available: line.part.present? && shortfall.zero?,
       part: line.part && {
         id: line.part.id,
         reference: line.part.reference,

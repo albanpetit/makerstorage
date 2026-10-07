@@ -60,4 +60,27 @@ class ProjectTest < ActiveSupport::TestCase
 
     assert_equal [ unmatched ], project.unmatched_lines
   end
+
+  test "a part listed on several lines is judged against its summed requirement" do
+    category = create_category(organization: @org)
+    location = create_storage_location(organization: @org)
+    part = create_part(organization: @org, category: category)
+    @org.stock_movements.create!(part: part, storage_location: location, movement_type: "in", quantity_delta: 10)
+    project = create_project(organization: @org)
+    first = project.project_lines.create!(part: part, quantity: 6, match_type: "mpn")
+    second = project.project_lines.create!(part: part, quantity: 6, match_type: "manual")
+    project.reload
+
+    assert_equal({ part => 12 }, project.required_by_part)
+    assert_equal({ part => 2 }, project.shortfall_by_part)
+    assert_not project.buildable?, "each line alone fits in 10, but together they need 12"
+    assert_equal [ first, second ].sort_by(&:id), project.short_lines.sort_by(&:id)
+  end
+
+  test "buildable? is false while any line is unmatched" do
+    project = create_project(organization: @org)
+    project.project_lines.create!(part: nil, quantity: 1, match_type: "none", raw_reference: "X")
+
+    assert_not project.buildable?
+  end
 end

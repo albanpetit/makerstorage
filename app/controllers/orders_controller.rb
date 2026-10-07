@@ -123,18 +123,16 @@ class OrdersController < ApplicationController
       .includes(project_lines: { part: [ :part_storages, { part_suppliers: :supplier } ] })
       .find(params[:project_id])
 
-    shortfall_only = params[:mode].to_s == "shortfall"
+    # Per part, summed across BOM lines (a part can appear on several).
+    quantities = params[:mode].to_s == "shortfall" ? project.shortfall_by_part : project.required_by_part
     added = 0
 
-    project.project_lines.each do |bom_line|
-      next if bom_line.part.nil?
-
-      quantity = shortfall_only ? bom_line.shortfall : bom_line.quantity
+    quantities.each do |part, quantity|
       next unless quantity.positive?
 
-      line = @order.order_lines.find_or_initialize_by(part_id: bom_line.part_id)
+      line = @order.order_lines.find_or_initialize_by(part_id: part.id)
       line.quantity = line.quantity.to_i + quantity
-      line.unit_price ||= bom_line.part.order_unit_price(@order.supplier_id)
+      line.unit_price ||= part.order_unit_price(@order.supplier_id)
       line.save!
       added += 1
     end
