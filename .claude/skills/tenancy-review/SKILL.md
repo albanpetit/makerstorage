@@ -28,7 +28,7 @@ before_action :verify_organization_admin,  only: %i[...]                        
 
 ## 3. Membership `active` flag
 
-`OrganizationMembership` has an `active` boolean, but as of 2026-10-07 `User#member_of_organization?`, `#writer_of?`, `#admin_of?`, `#owner_of?`, and `user.organizations` **do not filter on it** — a deactivated member keeps full access. Any code touching membership checks must use `.active` memberships; if you change these helpers, add tests proving a deactivated member is denied.
+`OrganizationMembership` has an `active` boolean. Only active memberships grant access: `user.organizations` goes through `active_organization_memberships`, and so do `User#member_of_organization?`, `#writer_of?`, `#admin_of?`, `#owner_of?`, `#role_in`. Any new membership check must do the same (never `user.organization_memberships.exists?` for access), and come with a test proving a deactivated member is denied (see `RoleAuthorizationTest`).
 
 ## 4. Foreign keys always have a dependent rule
 
@@ -36,8 +36,7 @@ SQLite enforces FKs, so a parent `.destroy` with a referencing child raises `Act
 - For every `t.references …, foreign_key: true` / `add_foreign_key` in a migration, the parent model needs `has_many :children, dependent: …`:
   - `:restrict_with_error` for history/ledger/order data (stock movements, order lines, project lines) — the controller then shows `errors.full_messages`.
   - `:destroy` for owned detail rows (part_storages, part_tags, allocations of a still-open order).
-- Known gaps as of 2026-10-07: `StorageLocation` has no `has_many :order_line_allocations`, `Part` has no `has_many :project_lines` — both 500 on destroy.
-- Also add the new association to `Organization` (`has_many …, dependent: :destroy`) if the table carries `organization_id`, so deleting an org cascades.
+- Also add the new association to `Organization` (`has_many …, dependent: :destroy`) if the table carries `organization_id`, so deleting an org cascades. **Order matters**: `Organization`'s dependents are destroyed in declaration order, so declare the new table *before* anything it references with `restrict_with_error` (otherwise `org.destroy` silently returns false). `OrganizationTest#"destroy removes a populated organization…"` guards this — extend it with a row of the new table.
 - Test: destroying a parent that still has children either succeeds or returns a flash error — never raises.
 
 ## 5. Tests that prove isolation
