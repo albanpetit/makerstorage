@@ -38,7 +38,7 @@ class Users::PasswordsControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "reset requests are throttled per IP" do
-    5.times { post user_password_path, params: { user: { email: "nobody@example.com" } } }
+    Users::PasswordsController::RATE_LIMIT.times { post user_password_path, params: { user: { email: "nobody@example.com" } } }
 
     assert_no_difference -> { ActionMailer::Base.deliveries.size } do
       post user_password_path, params: { user: { email: create_user.email } }

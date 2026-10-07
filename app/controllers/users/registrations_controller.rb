@@ -1,8 +1,10 @@
 # frozen_string_literal: true
 
 class Users::RegistrationsController < Devise::RegistrationsController
-  # Throttle signups per IP (each one also creates an organization).
-  rate_limit to: 10, within: 1.hour, only: :create, store: AUTH_RATE_LIMIT_STORE,
+  # Throttle signups per IP (each one also creates an organization), leaving room
+  # for an onboarding workshop signing up together from one shared IP.
+  RATE_LIMIT = 50
+  rate_limit to: RATE_LIMIT, within: 1.hour, only: :create, store: AUTH_RATE_LIMIT_STORE,
              with: -> { redirect_to new_user_registration_path, alert: "Too many sign-ups from this network. Please try again later." }
   before_action :configure_sign_up_params, only: [ :create ]
 

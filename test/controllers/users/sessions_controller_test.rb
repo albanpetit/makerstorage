@@ -39,8 +39,17 @@ class Users::SessionsControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "a class signing in together from one IP isn't throttled" do
+    15.times do |i|
+      member = create_user(email: "student#{i}@example.com")
+      post user_session_path, params: { user: { email: member.email, password: "password123" } }
+      assert_redirected_to root_path
+      delete destroy_user_session_path
+    end
+  end
+
   test "sign-in attempts are throttled per IP across accounts" do
-    10.times do |i|
+    Users::SessionsController::RATE_LIMIT.times do |i|
       post user_session_path, params: { user: { email: "spray#{i}@example.com", password: "guess" } }
     end
 

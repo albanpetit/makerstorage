@@ -2,8 +2,10 @@
 
 class Users::SessionsController < Devise::SessionsController
   # Per-IP throttle against password spraying across many accounts; Devise's
-  # :lockable separately locks a single account after repeated failures.
-  rate_limit to: 10, within: 3.minutes, only: :create, store: AUTH_RATE_LIMIT_STORE,
+  # :lockable separately locks a single account after repeated failures. Kept
+  # generous: a makerspace class signs in all at once from one shared public IP.
+  RATE_LIMIT = 60
+  rate_limit to: RATE_LIMIT, within: 5.minutes, only: :create, store: AUTH_RATE_LIMIT_STORE,
              with: -> { redirect_to new_user_session_path, alert: "Too many sign-in attempts. Please wait a few minutes and try again." }
   # before_action :configure_sign_in_params, only: [:create]
 

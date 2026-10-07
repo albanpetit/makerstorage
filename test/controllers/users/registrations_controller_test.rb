@@ -10,7 +10,7 @@ class Users::RegistrationsControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "sign-ups are throttled per IP" do
-    10.times { |i| sign_up("maker#{i}@example.com") }
+    Users::RegistrationsController::RATE_LIMIT.times { |i| sign_up("maker#{i}@example.com") }
 
     assert_no_difference -> { User.count } do
       sign_up("one-too-many@example.com")
