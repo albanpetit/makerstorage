@@ -59,4 +59,16 @@ class OrderLineTest < ActiveSupport::TestCase
     assert_equal 10, line.allocated_quantity
     assert line.fully_allocated?
   end
+
+  test "changing the quantity drops a split sized for the old quantity" do
+    org = create_organization
+    line = create_order(organization: org, reference: "PO-1").order_lines.create!(part: create_part(organization: org), quantity: 10)
+    line.allocations.create!(storage_location: create_storage_location(organization: org), quantity: 10)
+
+    line.update!(unit_price: 1.5)
+    assert_equal 1, line.allocations.count, "a price-only edit keeps the split"
+
+    line.update!(quantity: 15)
+    assert_equal 0, line.allocations.count
+  end
 end

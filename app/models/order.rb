@@ -109,19 +109,21 @@ class Order < ApplicationRecord
 
   # Credits each line's received quantity into stock as "in" movements. A line
   # with configured allocations is split across its target zones (one movement
-  # per zone); otherwise it falls back to the part's first location for the whole
-  # quantity. Lines with neither an allocation nor a location can't be recorded,
-  # so their references are collected and returned rather than silently dropped.
+  # per zone); any quantity the split doesn't cover — all of it when there is no
+  # split — falls back to the part's first location. Lines needing that fallback
+  # but with no location can't be recorded, so their references are collected
+  # and returned rather than silently dropped.
   def receive_into_stock!(user:)
     skipped = []
 
     order_lines.each do |line|
       allocations = line.allocations.to_a
+      allocations.each { |allocation| credit_stock(line.part, allocation.storage_location, allocation.quantity, user) }
 
-      if allocations.any?
-        allocations.each { |allocation| credit_stock(line.part, allocation.storage_location, allocation.quantity, user) }
-        next
-      end
+      # Whatever the split doesn't cover (all of it when there's no split) goes
+      # to the fallback location, so a short split can never lose stock.
+      remainder = line.quantity - allocations.sum(&:quantity)
+      next unless remainder.positive?
 
       location = line.part.storage_locations.first
       unless location
@@ -129,7 +131,7 @@ class Order < ApplicationRecord
         next
       end
 
-      credit_stock(line.part, location, line.quantity, user)
+      credit_stock(line.part, location, remainder, user)
     end
 
     skipped

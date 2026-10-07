@@ -217,4 +217,23 @@ class OrderTest < ActiveSupport::TestCase
     assert order.update(status: "pending")
     assert order.update(status: "cancelled")
   end
+
+  test "advance! credits any quantity a split doesn't cover to the fallback location" do
+    category = create_category(organization: @org)
+    fallback = create_storage_location(organization: @org, name: "Fallback")
+    drawer = create_storage_location(organization: @org, name: "Drawer")
+    part = create_part(organization: @org, category: category)
+    part.part_storages.create!(storage_location: fallback, quantity: 0)
+
+    order = Order.create!(organization: @org, supplier: @supplier, status: "shipped")
+    line = OrderLine.create!(order: order, part: part, quantity: 15)
+    # A short split written directly (bypassing the quantity-change callback).
+    OrderLineAllocation.create!(order_line: line, storage_location: drawer, quantity: 10)
+
+    result = order.advance!(user: nil)
+
+    assert_empty result.skipped
+    assert_equal 10, PartStorage.find_by(part: part, storage_location: drawer).quantity
+    assert_equal 5, PartStorage.find_by(part: part, storage_location: fallback).quantity
+  end
 end

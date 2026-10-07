@@ -35,17 +35,13 @@ class OrderLinesController < ApplicationController
 
   def update
     line = @order.order_lines.find(params[:id])
-    previous_quantity = line.quantity
-
     ActiveRecord::Base.transaction do
+      # A quantity change drops the old split (OrderLine#clear_stale_allocations);
+      # a split sent alongside it is applied after.
       line.update!(line_params)
 
       if (allocs = allocation_params)
         apply_allocations(line, allocs)
-      elsif line.quantity != previous_quantity
-        # Quantity changed without a new split — the old allocations no longer
-        # add up, so drop them (the line reverts to the fallback location).
-        line.allocations.destroy_all
       end
     end
 

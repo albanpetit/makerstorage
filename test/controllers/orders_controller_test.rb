@@ -124,6 +124,25 @@ class OrdersControllerTest < ActionDispatch::IntegrationTest
     assert_equal 4, order.order_lines.find_by(part: @part).quantity
   end
 
+  test "import_project topping up a split line credits the full quantity on receipt" do
+    drawer = create_storage_location(organization: @org, name: "Drawer")
+    project = create_project(organization: @org, reference: Project.next_reference(@org))
+    project.project_lines.create!(part: @part, quantity: 5, match_type: "mpn")
+
+    order = create_order(organization: @org, supplier: @supplier, status: "pending", reference: "PO-1")
+    line = order.order_lines.create!(part: @part, quantity: 10, unit_price: 0.1)
+    line.allocations.create!(storage_location: drawer, quantity: 10)
+    sign_in @user
+
+    post import_project_order_path(order), params: { project_id: project.id, mode: "full" }
+    assert_equal 15, line.reload.quantity
+    assert_empty line.allocations, "the split sized for 10 must not survive the top-up"
+
+    2.times { patch advance_order_path(order) }
+    assert_equal "received", order.reload.status
+    assert_equal 15, @part.reload.total_quantity
+  end
+
   test "destroy removes the order" do
     order = create_order(organization: @org, supplier: @supplier, reference: "PO-1")
     sign_in @user
