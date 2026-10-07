@@ -2,6 +2,13 @@ ENV["RAILS_ENV"] ||= "test"
 require_relative "../config/environment"
 require "rails/test_help"
 
+# Build the frontend once, here, before parallel workers fork. With Vite's test
+# autoBuild every worker would otherwise rebuild a stale bundle at the same
+# time and race on public/vite-test (one can read a half-written manifest:
+# "Vite Ruby can't find entrypoints/application.css"). A no-op when the build
+# is already fresh.
+ViteRuby.instance.commands.build if ViteRuby.config.auto_build
+
 # Routes (and therefore Devise's mappings) are loaded lazily on first request.
 # Force them to load now so Devise::Test::IntegrationHelpers#sign_in works
 # even when called before any request in a test.
