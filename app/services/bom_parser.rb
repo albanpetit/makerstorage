@@ -40,10 +40,22 @@ module BomParser
   # delimiter (";" vs ",") from the first line. Raises CSV::MalformedCSVError on
   # unparseable input, which callers rescue to report a friendly error.
   def each_row(path)
-    separator = File.foreach(path).first.to_s.include?(";") ? ";" : ","
-    CSV.foreach(path, headers: true, header_converters: :symbol, col_sep: separator) do |row|
+    content = read_as_utf8(path)
+    separator = content.each_line.first.to_s.include?(";") ? ";" : ","
+    CSV.parse(content, headers: true, header_converters: :symbol, col_sep: separator) do |row|
       yield row
     end
+  end
+
+  # The file's text as UTF-8. Excel on a French Windows saves "CSV (point-virgule)"
+  # as Windows-1252, not UTF-8, so anything that isn't valid UTF-8 is read as
+  # Windows-1252 instead of being rejected. A UTF-8 byte-order mark is dropped.
+  def read_as_utf8(path)
+    raw = File.binread(path)
+    utf8 = raw.dup.force_encoding(Encoding::UTF_8)
+    return utf8.delete_prefix("\uFEFF") if utf8.valid_encoding?
+
+    raw.force_encoding(Encoding::Windows_1252).encode(Encoding::UTF_8, invalid: :replace, undef: :replace)
   end
 
   # Returns the first present value among the synonym columns for +field+.

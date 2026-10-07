@@ -550,6 +550,21 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
     assert_not org.parts.exists?(mpn: "BAD-1"), "the part of a refused row must be rolled back too"
   end
 
+  test "import reads a French Excel export saved as Windows-1252" do
+    user = create_user
+    org = user.organizations.first
+    csv = "Désignation;Catégorie;MPN;Quantité;Emplacement\r\nRésistance 10k;Résistances;RC-10K;12;Étagère A\r\n"
+
+    sign_in user
+    post import_parts_path, params: { file: csv_upload(csv.encode("Windows-1252").b) }
+
+    assert_match(/1 created/, flash[:notice])
+    part = org.parts.find_by!(mpn: "RC-10K")
+    assert_equal "Résistance 10k", part.name
+    assert_equal "Résistances", part.category.name
+    assert_equal 12, part.total_quantity
+  end
+
   test "import assigns quantity to the named location, creating it if needed" do
     user = create_user
     org = user.organizations.first
@@ -1207,7 +1222,7 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
   private
 
   def csv_upload(content)
-    file = Tempfile.new([ "import", ".csv" ])
+    file = Tempfile.new([ "import", ".csv" ], binmode: true)
     file.write(content)
     file.rewind
     Rack::Test::UploadedFile.new(file.path, "text/csv")

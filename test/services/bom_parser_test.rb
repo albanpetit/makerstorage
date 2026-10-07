@@ -25,6 +25,20 @@ class BomParserTest < ActiveSupport::TestCase
     assert_equal 7, rows.first[:quantity]
   end
 
+  test "reads a Windows-1252 file as saved by Excel on French Windows" do
+    content = "Désignation;Référence;Quantité\r\nRésistance 10kΩ €;REF-1;7\r\n".encode("Windows-1252", undef: :replace)
+    rows = parse(content.b)
+
+    assert_equal "Résistance 10k? €", rows.first[:designation]
+    assert_equal "REF-1", rows.first[:sku]
+    assert_equal 7, rows.first[:quantity]
+  end
+
+  test "ignores a UTF-8 byte-order mark" do
+    rows = parse("\uFEFFDesignation;Quantity\nResistor;3\n")
+    assert_equal "Resistor", rows.first[:designation]
+  end
+
   test "quantity defaults to 1 when missing or invalid" do
     rows = parse("Designation,Quantity\nWidget,\n")
     assert_equal 1, rows.first[:quantity]
@@ -51,7 +65,7 @@ class BomParserTest < ActiveSupport::TestCase
   private
 
   def parse(content)
-    file = Tempfile.new([ "bom", ".csv" ])
+    file = Tempfile.new([ "bom", ".csv" ], binmode: true)
     file.write(content)
     file.rewind
     BomParser.parse(file.path)
