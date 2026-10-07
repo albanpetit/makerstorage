@@ -93,30 +93,36 @@ class ProjectsController < ApplicationController
     created = 0
     grouped = candidates.group_by { |c| c[:supplier] }
 
-    grouped.each do |supplier, entries|
-      total = entries.sum { |e| e[:quantity] * e[:unit_price] }
+    # All or nothing: a failure on one supplier mustn't leave the others' orders
+    # behind, or a retry would duplicate them.
+    ActiveRecord::Base.transaction do
+      grouped.each do |supplier, entries|
+        total = entries.sum { |e| e[:quantity] * e[:unit_price] }
 
-      order = current_organization.orders.create!(
-        supplier: supplier,
-        status: "pending",
-        ordered_at: Date.current,
-        reference: Order.next_reference(current_organization, supplier),
-        total_amount: total
-      )
-
-      entries.each do |entry|
-        OrderLine.create!(
-          order: order, part: entry[:part],
-          quantity: entry[:quantity], unit_price: entry[:unit_price]
+        order = current_organization.orders.create!(
+          supplier: supplier,
+          status: "pending",
+          ordered_at: Date.current,
+          reference: Order.next_reference(current_organization, supplier),
+          total_amount: total
         )
-      end
 
-      created += 1
+        entries.each do |entry|
+          OrderLine.create!(
+            order: order, part: entry[:part],
+            quantity: entry[:quantity], unit_price: entry[:unit_price]
+          )
+        end
+
+        created += 1
+      end
     end
 
     references = grouped.values.flatten.size
     redirect_to project_path(@project),
       notice: "Created #{created} purchase order#{'s' if created != 1} for #{references} reference#{'s' if references != 1}."
+  rescue ActiveRecord::RecordInvalid => e
+    redirect_to project_path(@project), alert: "No purchase order was created: #{e.record.errors.full_messages.to_sentence}."
   end
 
   # Consumes the required quantity of every matched line from stock, recording an

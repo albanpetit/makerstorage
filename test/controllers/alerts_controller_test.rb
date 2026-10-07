@@ -99,6 +99,35 @@ class AlertsControllerTest < ActionDispatch::IntegrationTest
     assert_equal with_supplier, order.order_lines.first.part
   end
 
+  test "create_purchase_orders creates no order at all when one supplier's order fails" do
+    user = create_user
+    org = user.organizations.first
+    category = create_category(organization: org)
+    location = create_storage_location(organization: org)
+    %w[Mouser DigiKey].each do |name|
+      supplier = create_supplier(organization: org, name: "#{name} test")
+      part = create_part(organization: org, category: category, min_stock_threshold: 50)
+      PartStorage.create!(part: part, storage_location: location, quantity: 1)
+      PartSupplier.create!(part: part, supplier: supplier, is_preferred: true, unit_price: 0.01)
+    end
+
+    calls = 0
+    original = OrderLine.method(:create!)
+    failing = lambda do |*args, **kwargs|
+      calls += 1
+      raise ActiveRecord::RecordInvalid, OrderLine.new.tap { |l| l.errors.add(:base, "boom") } if calls == 2
+      original.call(*args, **kwargs)
+    end
+
+    sign_in user
+    stub_singleton(OrderLine, :create!, failing) do
+      assert_no_difference -> { Order.count } do
+        post alert_purchase_orders_path
+      end
+    end
+    assert_match(/no purchase order was created/i, flash[:alert])
+  end
+
   test "create_purchase_orders scoped to a single part_id only orders that alert" do
     user = create_user
     org = user.organizations.first

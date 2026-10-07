@@ -129,6 +129,29 @@ class ProjectsControllerTest < ActionDispatch::IntegrationTest
     assert_equal 7, line.quantity
   end
 
+  test "create_purchase_orders creates no order at all when one supplier's order fails" do
+    [ @resistor, @cap ].each_with_index do |part, i|
+      PartSupplier.create!(part: part, supplier: create_supplier(organization: @org, name: "Supplier #{i}"), is_preferred: true)
+    end
+    project = build_project([ @resistor, 50, "mpn" ], [ @cap, 500, "sku" ]) # both short
+
+    calls = 0
+    original = OrderLine.method(:create!)
+    failing = lambda do |*args, **kwargs|
+      calls += 1
+      raise ActiveRecord::RecordInvalid, OrderLine.new.tap { |l| l.errors.add(:base, "boom") } if calls == 2
+      original.call(*args, **kwargs)
+    end
+
+    sign_in @user
+    stub_singleton(OrderLine, :create!, failing) do
+      assert_no_difference -> { Order.count } do
+        post create_purchase_orders_project_path(project)
+      end
+    end
+    assert_match(/no purchase order was created/i, flash[:alert])
+  end
+
   test "create_purchase_orders warns when no short line has a supplier" do
     project = build_project([ @resistor, 12, "mpn" ])
     sign_in @user

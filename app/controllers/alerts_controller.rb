@@ -29,28 +29,34 @@ class AlertsController < ApplicationController
     grouped = alerts.group_by { |alert| alert[:preferred_supplier] }
     created = 0
 
-    grouped.each do |supplier, supplier_alerts|
-      total = supplier_alerts.sum { |alert| alert[:reorder_quantity] * alert[:unit_price] }
+    # All or nothing: a failure on one supplier mustn't leave the others' orders
+    # behind, or a retry would duplicate them.
+    ActiveRecord::Base.transaction do
+      grouped.each do |supplier, supplier_alerts|
+        total = supplier_alerts.sum { |alert| alert[:reorder_quantity] * alert[:unit_price] }
 
-      order = current_organization.orders.create!(
-        supplier: supplier,
-        status: "pending",
-        ordered_at: Date.current,
-        reference: Order.next_reference(current_organization, supplier),
-        total_amount: total
-      )
-
-      supplier_alerts.each do |alert|
-        OrderLine.create!(
-          order: order, part: alert[:part],
-          quantity: alert[:reorder_quantity], unit_price: alert[:unit_price]
+        order = current_organization.orders.create!(
+          supplier: supplier,
+          status: "pending",
+          ordered_at: Date.current,
+          reference: Order.next_reference(current_organization, supplier),
+          total_amount: total
         )
-      end
 
-      created += 1
+        supplier_alerts.each do |alert|
+          OrderLine.create!(
+            order: order, part: alert[:part],
+            quantity: alert[:reorder_quantity], unit_price: alert[:unit_price]
+          )
+        end
+
+        created += 1
+      end
     end
 
     redirect_to alerts_path, notice: "Created #{created} purchase order#{'s' if created != 1} for #{grouped.values.flatten.size} reference#{'s' if grouped.values.flatten.size != 1}."
+  rescue ActiveRecord::RecordInvalid => e
+    redirect_to alerts_path, alert: "No purchase order was created: #{e.record.errors.full_messages.to_sentence}."
   end
 
   def advance_order
