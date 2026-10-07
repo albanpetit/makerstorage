@@ -18,6 +18,11 @@ class StorageLocation < ApplicationRecord
   # Validations
   validates :name, presence: true, length: { minimum: 1, maximum: 100 }
   validates :location_type, presence: true, inclusion: { in: LOCATION_TYPES }
+  # The scanner resolves a scanned label to a zone by code (case-insensitively),
+  # so two zones sharing one would be ambiguous. Validation only, no unique
+  # index: existing installs may already hold duplicates, which would fail the
+  # migration; they get flagged the next time either zone is edited.
+  validates :code, uniqueness: { scope: :organization_id, case_sensitive: false }, allow_blank: true
   validate :cannot_be_its_own_parent
   validate :parent_is_not_a_descendant
   validate :parent_must_belong_to_same_organization

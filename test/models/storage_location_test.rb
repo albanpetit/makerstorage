@@ -118,4 +118,16 @@ class StorageLocationTest < ActiveSupport::TestCase
     assert_predicate zone.errors[:base], :any?
     assert StorageLocation.exists?(zone.id)
   end
+
+  test "codes are unique per organization, ignoring case, so scans aren't ambiguous" do
+    org = create_organization
+    create_storage_location(organization: org, code: "DRW-01")
+
+    duplicate = StorageLocation.new(organization: org, name: "Other", location_type: "drawer", code: "drw-01")
+    assert_not duplicate.valid?
+    assert_includes duplicate.errors[:code], "has already been taken"
+
+    assert StorageLocation.new(organization: create_organization, name: "Elsewhere", location_type: "drawer", code: "DRW-01").valid?
+    assert StorageLocation.new(organization: org, name: "Uncoded", location_type: "drawer", code: "").valid?
+  end
 end
