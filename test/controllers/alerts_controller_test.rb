@@ -42,6 +42,21 @@ class AlertsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "low", low_json["severity"]
   end
 
+  test "index alerts on a part that has never been stocked" do
+    user = create_user
+    org = user.organizations.first
+    create_part(organization: org, mpn: "NEW-PART", min_stock_threshold: 25, target_stock: 100)
+
+    sign_in user
+    get alerts_path
+
+    alert = inertia_props["alerts"].find { |a| a["reference"] == "NEW-PART" }
+    assert alert, "a part with a threshold and no stock at all must raise an alert"
+    assert_equal 0, alert["quantity"]
+    assert_equal "critical", alert["severity"]
+    assert_equal 100, alert["reorder_quantity"]
+  end
+
   test "index does not leak another organization's alerts" do
     user = create_user
     other_org = create_organization

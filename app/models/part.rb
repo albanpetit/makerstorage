@@ -70,9 +70,11 @@ class Part < ApplicationRecord
   scope :by_manufacturer, ->(manufacturer) { where(manufacturer: manufacturer) }
   scope :by_value, ->(value) { where(value: value) }
 
-  # Low stock: total quantity < minimum threshold
+  # Low stock: total quantity < minimum threshold. Left join so a part that has
+  # never been stocked (no part_storages row) counts as 0 — an inner join would
+  # drop it, hiding it from alerts even though #low_stock? is true for it.
   scope :low_stock, -> {
-    joins(:part_storages)
+    left_joins(:part_storages)
       .group("parts.id")
       .having("COALESCE(SUM(part_storages.quantity), 0) < parts.min_stock_threshold")
   }
@@ -84,9 +86,9 @@ class Part < ApplicationRecord
       .having("COALESCE(SUM(part_storages.quantity), 0) = 0")
   }
 
-  # Sufficient stock
+  # Sufficient stock (left join, as above, so never-stocked parts are judged too)
   scope :sufficient_stock, -> {
-    joins(:part_storages)
+    left_joins(:part_storages)
       .group("parts.id")
       .having("COALESCE(SUM(part_storages.quantity), 0) >= parts.min_stock_threshold")
   }

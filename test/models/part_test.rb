@@ -244,4 +244,17 @@ class PartTest < ActiveSupport::TestCase
     assert_not part.destroy
     assert_equal part.id, line.reload.part_id
   end
+
+  test "stock scopes judge a never-stocked part as holding zero" do
+    org = create_organization
+    location = create_storage_location(organization: org)
+    never_stocked = create_part(organization: org, min_stock_threshold: 10)
+    no_threshold = create_part(organization: org, min_stock_threshold: 0)
+    stocked = create_part(organization: org, min_stock_threshold: 10)
+    org.stock_movements.create!(part: stocked, storage_location: location, movement_type: "in", quantity_delta: 20)
+
+    assert_equal [ never_stocked ], org.parts.low_stock.to_a
+    assert_equal [ no_threshold, stocked ].sort_by(&:id), org.parts.sufficient_stock.to_a.sort_by(&:id)
+    assert_equal 1, org.low_stock_parts_count
+  end
 end
