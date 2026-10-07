@@ -7,6 +7,10 @@ class StorageLocation < ApplicationRecord
   has_many :part_storages, dependent: :destroy
   has_many :parts, through: :part_storages
   has_many :stock_movements, dependent: :restrict_with_error
+  # Purchase-order lines that will receive stock into this zone. Deleting the
+  # zone would break their split (allocations must sum to the line quantity),
+  # so it's blocked until the order is re-targeted.
+  has_many :order_line_allocations, dependent: :restrict_with_error
 
   # Constants
   LOCATION_TYPES = %w[room cabinet shelf bench drawer box].freeze

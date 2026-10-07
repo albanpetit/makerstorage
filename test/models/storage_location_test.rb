@@ -106,4 +106,16 @@ class StorageLocationTest < ActiveSupport::TestCase
 
     assert_equal 35, location.total_quantity
   end
+
+  test "destroy is blocked, not a crash, while an open order targets the zone" do
+    org = create_organization
+    zone = create_storage_location(organization: org)
+    part = create_part(organization: org)
+    line = create_order(organization: org, reference: "PO-1").order_lines.create!(part: part, quantity: 4)
+    line.allocations.create!(storage_location: zone, quantity: 4)
+
+    assert_not zone.destroy
+    assert_predicate zone.errors[:base], :any?
+    assert StorageLocation.exists?(zone.id)
+  end
 end

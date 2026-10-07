@@ -19,6 +19,11 @@ class Part < ApplicationRecord
   has_many :order_lines, dependent: :restrict_with_error
   has_many :orders, through: :order_lines
 
+  # BOM lines matched to this part. Deleting the part un-matches them (back to
+  # "none", like an unresolved import line) rather than blocking the delete or
+  # leaving a dangling foreign key.
+  has_many :project_lines, dependent: nil
+
   # Active Storage for images and datasheets
   has_many_attached :images
   has_one_attached :datasheet
@@ -32,6 +37,9 @@ class Part < ApplicationRecord
   # Assign the internal part number from the org's IPN config once the part is
   # actually being persisted (see #assign_ipn).
   before_create :assign_ipn
+  # Declared after the restrict_with_error associations above, so it only runs
+  # once the part is actually allowed to go.
+  before_destroy :unmatch_project_lines
 
   # Validations
   validates :name, presence: true, length: { minimum: 2, maximum: 255 }
@@ -231,6 +239,10 @@ class Part < ApplicationRecord
   end
 
   private
+
+  def unmatch_project_lines
+    project_lines.update_all(part_id: nil, match_type: "none", updated_at: Time.current)
+  end
 
   # Convert blank strings to nil for unique indexed fields
   def normalize_blank_values

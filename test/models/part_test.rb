@@ -222,4 +222,26 @@ class PartTest < ActiveSupport::TestCase
     other_part = Part.new(organization: other_org, category: create_category(organization: other_org), name: "Elsewhere", barcode: "123456789012")
     assert other_part.valid?
   end
+
+  test "destroy un-matches the part from project BOM lines instead of crashing" do
+    org = create_organization
+    part = create_part(organization: org)
+    line = create_project(organization: org).project_lines.create!(part: part, quantity: 2, match_type: "mpn")
+
+    assert part.destroy
+    line.reload
+    assert_nil line.part_id
+    assert_equal "none", line.match_type
+  end
+
+  test "destroy keeps BOM matches when the part is blocked by stock history" do
+    org = create_organization
+    part = create_part(organization: org)
+    location = create_storage_location(organization: org)
+    org.stock_movements.create!(part: part, storage_location: location, movement_type: "in", quantity_delta: 1)
+    line = create_project(organization: org).project_lines.create!(part: part, quantity: 2, match_type: "mpn")
+
+    assert_not part.destroy
+    assert_equal part.id, line.reload.part_id
+  end
 end

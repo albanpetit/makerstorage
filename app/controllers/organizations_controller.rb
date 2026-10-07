@@ -48,7 +48,10 @@ class OrganizationsController < ApplicationController
     end
 
     next_org = current_user.organizations.where.not(id: organization.id).first
-    organization.destroy
+    unless organization.destroy
+      reason = organization.errors.full_messages.to_sentence.presence || "Some of its data could not be removed."
+      return redirect_back(fallback_location: root_path, alert: "Could not delete \"#{organization.name}\". #{reason}")
+    end
     session[:current_organization_id] = next_org&.id
 
     redirect_to root_path, notice: "Organization \"#{organization.name}\" was deleted."

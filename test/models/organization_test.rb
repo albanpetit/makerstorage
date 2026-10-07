@@ -233,4 +233,22 @@ class OrganizationTest < ActiveSupport::TestCase
     assert_equal Supplier::CATALOG_PROVIDERS.sort,
                  org.suppliers.catalog.pluck(:catalog_provider).sort
   end
+
+  test "destroy removes a populated organization with stock, orders, and projects" do
+    user = create_user
+    org = create_organization
+    OrganizationMembership.create!(organization: org, user: user, role: "owner")
+    location = create_storage_location(organization: org)
+    part = create_part(organization: org)
+    org.stock_movements.create!(part: part, storage_location: location, movement_type: "in", quantity_delta: 5, user: user)
+    line = create_order(organization: org, reference: "PO-1").order_lines.create!(part: part, quantity: 2)
+    line.allocations.create!(storage_location: location, quantity: 2)
+    create_project(organization: org).project_lines.create!(part: part, quantity: 1)
+
+    assert org.destroy
+    assert_not Organization.exists?(org.id)
+    assert_equal 0, Part.where(organization_id: org.id).count
+    assert_equal 0, StockMovement.where(organization_id: org.id).count
+    assert_equal 0, Order.where(organization_id: org.id).count
+  end
 end

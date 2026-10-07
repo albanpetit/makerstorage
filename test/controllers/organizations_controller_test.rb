@@ -23,6 +23,23 @@ class OrganizationsControllerTest < ActionDispatch::IntegrationTest
     assert Organization.exists?(personal.id)
   end
 
+  test "an owner can delete an organization that holds stock and orders" do
+    user = create_user
+    other = create_organization(name: "Second Org")
+    OrganizationMembership.create!(organization: other, user: user, role: "owner")
+    location = create_storage_location(organization: other)
+    part = create_part(organization: other)
+    other.stock_movements.create!(part: part, storage_location: location, movement_type: "in", quantity_delta: 5)
+    create_order(organization: other, reference: "PO-1").order_lines.create!(part: part, quantity: 2)
+
+    sign_in user
+    delete organization_path(other)
+
+    assert_redirected_to root_path
+    assert_not Organization.exists?(other.id)
+    assert_match(/was deleted/, flash[:notice])
+  end
+
   test "a non-owner member cannot delete the organization" do
     owner = create_user
     org = owner.organizations.first

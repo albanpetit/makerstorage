@@ -6,6 +6,11 @@ class User < ApplicationRecord
 
   has_many :organization_memberships, dependent: :destroy
   has_many :organizations, through: :organization_memberships
+  # Rows that merely reference the user as an author keep existing (the ledger
+  # and memberships outlive the account) with the reference cleared.
+  has_many :stock_movements, dependent: :nullify
+  has_many :sent_invitations, class_name: "OrganizationMembership", foreign_key: :invited_by_id,
+           inverse_of: :invited_by, dependent: :nullify
 
   after_create :create_personal_organization
 

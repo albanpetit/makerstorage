@@ -12,11 +12,16 @@ class Organization < ApplicationRecord
   has_many :users, through: :organization_memberships
 
   # Associations - Data
+  #
+  # Declaration order is destroy order. Parts, storage locations, and suppliers
+  # restrict deletion while movements, order lines, allocations, or orders still
+  # point at them, so the records doing the pointing must go first — otherwise
+  # destroying a populated organization silently returns false.
+  has_many :stock_movements, dependent: :destroy
+  has_many :projects, dependent: :destroy
+  has_many :orders, dependent: :destroy
   has_many :parts, dependent: :destroy
   has_many :storage_locations, dependent: :destroy
-  has_many :stock_movements, dependent: :destroy
-  has_many :orders, dependent: :destroy
-  has_many :projects, dependent: :destroy
   has_many :categories, dependent: :destroy
   has_many :footprints, dependent: :destroy
   has_many :tags, dependent: :destroy

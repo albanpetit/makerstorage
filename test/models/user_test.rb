@@ -39,4 +39,21 @@ class UserTest < ActiveSupport::TestCase
     org = create_organization
     assert_not user.writer_of?(org)
   end
+
+  test "destroy keeps the stock ledger and invitations, clearing the user reference" do
+    user = create_user
+    org = user.organizations.first
+    # A second owner, so the sole-owner guard doesn't block removing `user`.
+    co_owner = create_user
+    OrganizationMembership.create!(organization: org, user: co_owner, role: "owner")
+    invitee = create_user
+    invitation = OrganizationMembership.create!(organization: org, user: invitee, role: "member", invited_by: user)
+    movement = org.stock_movements.create!(part: create_part(organization: org),
+                                           storage_location: create_storage_location(organization: org),
+                                           movement_type: "in", quantity_delta: 3, user: user)
+
+    assert user.destroy
+    assert_nil movement.reload.user_id
+    assert_nil invitation.reload.invited_by_id
+  end
 end
