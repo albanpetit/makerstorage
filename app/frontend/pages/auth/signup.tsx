@@ -116,7 +116,7 @@ export default function Signup() {
                   autoComplete="new-password"
                   aria-invalid={!!errors['user.password']}
                 />
-                <FieldDescription>At least 6 characters.</FieldDescription>
+                <FieldDescription>At least 8 characters.</FieldDescription>
               </FieldContent>
               {errors['user.password'] && <FieldError>{errors['user.password']}</FieldError>}
             </Field>

@@ -9,6 +9,12 @@ class Users::RegistrationsControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to root_path
   end
 
+  test "a password shorter than 8 characters is rejected" do
+    assert_no_difference -> { User.count } do
+      post user_registration_path, params: { user: signup_params("short@example.com").merge(password: "1234567", password_confirmation: "1234567") }
+    end
+  end
+
   test "sign-ups are throttled per IP" do
     Users::RegistrationsController::RATE_LIMIT.times { |i| sign_up("maker#{i}@example.com") }
 
