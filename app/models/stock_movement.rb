@@ -13,6 +13,7 @@ class StockMovement < ApplicationRecord
   validates :quantity_delta, numericality: { only_integer: true, other_than: 0 }
   validate :quantity_delta_sign_matches_movement_type
   validate :storage_location_must_belong_to_same_organization
+  validate :part_must_belong_to_same_organization
   validate :resulting_quantity_cannot_be_negative
 
   # Scopes
@@ -53,6 +54,12 @@ class StockMovement < ApplicationRecord
   def storage_location_must_belong_to_same_organization
     if storage_location.present? && storage_location.organization_id != organization_id
       errors.add(:storage_location, "must belong to the same organization")
+    end
+  end
+
+  def part_must_belong_to_same_organization
+    if part.present? && part.organization_id != organization_id
+      errors.add(:part, "must belong to the same organization")
     end
   end
 

@@ -78,6 +78,18 @@ class StockMovementTest < ActiveSupport::TestCase
     assert_includes movement.errors[:storage_location], "must belong to the same organization"
   end
 
+  test "part must belong to the same organization" do
+    foreign_part = create_part(organization: create_organization)
+    movement = StockMovement.new(
+      organization: @org, part: foreign_part, storage_location: @location,
+      movement_type: "in", quantity_delta: 5
+    )
+
+    assert_not movement.save
+    assert_includes movement.errors[:part], "must belong to the same organization"
+    assert_nil PartStorage.find_by(part: foreign_part)
+  end
+
   test "blocks a movement that would push stock negative" do
     PartStorage.create!(part: @part, storage_location: @location, quantity: 5)
     movement = StockMovement.new(
