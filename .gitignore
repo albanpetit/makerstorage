@@ -41,7 +41,8 @@ node_modules
 # Vite uses dotenv and suggests to ignore local-only env files. See
 # https://vitejs.dev/guide/env-and-mode.html#env-files
 *.local
+*.code-workspace
 
-design-makerstorage
-.claude
-CLAUDE.md
+# Claude Code: per-machine settings and runtime state (skills and CLAUDE.md are shared)
+/.claude/settings.local.json
+/.claude/*.lock
