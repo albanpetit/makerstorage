@@ -5,8 +5,10 @@ import { ThemeProvider } from 'next-themes'
 
 import { Toaster } from '@/components/ui/sonner'
 
-// Disable the error modal - errors handled via flash messages
-router.on('invalid', (event) => {
+// Disable the error modal - errors handled via flash messages.
+// Inertia v3 renamed the event that guards the modal from 'invalid' to
+// 'httpException'; the old name is never fired.
+router.on('httpException', (event) => {
   event.preventDefault()
 })
 
@@ -40,6 +42,8 @@ void createInertiaApp({
   },
 
   setup({ el, App, props }) {
+    if (!el) return
+
     createRoot(el).render(
       <StrictMode>
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
@@ -54,12 +58,8 @@ void createInertiaApp({
     form: {
       forceIndicesArrayFormatInFormData: false,
     },
-    future: {
-      useScriptElementForInitialPage: true,
-      useDataInertiaHeadAttribute: true,
-      useDialogForErrorModal: false,
-      preserveEqualProps: true,
-    },
+    // The v2 `future` flags (script-element initial page, data-inertia head
+    // attribute, preserveEqualProps, …) are built-in behaviour in v3.
   },
 }).catch((error) => {
   // This ensures this entrypoint is only loaded on Inertia pages
