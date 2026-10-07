@@ -44,7 +44,6 @@ class ProjectsController < ApplicationController
     end
 
     project = current_organization.projects.new(name: name, status: "draft")
-    project.reference = Project.next_reference(current_organization)
 
     lines.each do |line|
       part, match_type = BomParser.match(current_organization, line)
@@ -57,11 +56,10 @@ class ProjectsController < ApplicationController
       )
     end
 
-    if project.save
-      redirect_to project_path(project), notice: "Imported #{project.project_lines.size} BOM lines. Review the matches below."
-    else
-      redirect_to projects_path, alert: project.errors.full_messages.to_sentence.presence || "Could not import that BOM."
-    end
+    project.save_with_generated_reference! { Project.next_reference(current_organization) }
+    redirect_to project_path(project), notice: "Imported #{project.project_lines.size} BOM lines. Review the matches below."
+  rescue ActiveRecord::RecordInvalid
+    redirect_to projects_path, alert: project.errors.full_messages.to_sentence.presence || "Could not import that BOM."
   end
 
   def confirm
@@ -99,13 +97,10 @@ class ProjectsController < ApplicationController
       grouped.each do |supplier, entries|
         total = entries.sum { |e| e[:quantity] * e[:unit_price] }
 
-        order = current_organization.orders.create!(
-          supplier: supplier,
-          status: "pending",
-          ordered_at: Date.current,
-          reference: Order.next_reference(current_organization, supplier),
-          total_amount: total
+        order = current_organization.orders.new(
+          supplier: supplier, status: "pending", ordered_at: Date.current, total_amount: total
         )
+        order.save_with_generated_reference! { Order.next_reference(current_organization, supplier) }
 
         entries.each do |entry|
           OrderLine.create!(

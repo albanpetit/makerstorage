@@ -236,4 +236,33 @@ class OrderTest < ActiveSupport::TestCase
     assert_equal 10, PartStorage.find_by(part: part, storage_location: drawer).quantity
     assert_equal 5, PartStorage.find_by(part: part, storage_location: fallback).quantity
   end
+
+  test "save_with_generated_reference! redraws a reference another request already took" do
+    Order.create!(organization: @org, supplier: @supplier, reference: "PO-TAKEN")
+    draws = %w[PO-TAKEN PO-FREE]
+
+    order = Order.new(organization: @org, supplier: @supplier)
+    order.save_with_generated_reference! { draws.shift }
+
+    assert order.persisted?
+    assert_equal "PO-FREE", order.reference
+  end
+
+  test "save_with_generated_reference! also recovers when only the unique index catches the clash" do
+    Order.create!(organization: @org, supplier: @supplier, reference: "PO-TAKEN")
+    draws = %w[PO-TAKEN PO-FREE]
+
+    order = Order.new(organization: @org, supplier: @supplier)
+    # As if the other request committed between our validation and our insert.
+    order.define_singleton_method(:valid?) { |*| true }
+    order.save_with_generated_reference! { draws.shift }
+
+    assert_equal "PO-FREE", order.reload.reference
+  end
+
+  test "save_with_generated_reference! still raises for other validation errors" do
+    order = Order.new(organization: @org, supplier: @supplier, total_amount: -1)
+
+    assert_raises(ActiveRecord::RecordInvalid) { order.save_with_generated_reference! { "PO-1" } }
+  end
 end

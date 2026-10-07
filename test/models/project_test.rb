@@ -83,4 +83,16 @@ class ProjectTest < ActiveSupport::TestCase
 
     assert_not project.buildable?
   end
+
+  test "save_with_generated_reference! keeps the BOM lines when it redraws the reference" do
+    create_project(organization: @org, reference: "PRJ-TAKEN")
+    draws = %w[PRJ-TAKEN PRJ-FREE]
+    project = @org.projects.new(name: "Kit")
+    project.project_lines.build(quantity: 2, match_type: "none", raw_reference: "X")
+
+    project.save_with_generated_reference! { draws.shift }
+
+    assert_equal "PRJ-FREE", project.reload.reference
+    assert_equal 1, project.project_lines.count
+  end
 end

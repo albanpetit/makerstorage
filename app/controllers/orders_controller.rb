@@ -56,14 +56,23 @@ class OrdersController < ApplicationController
     # skip the stock receipt, and cancelled makes no sense for a fresh order.
     order.status = "pending"
     order.ordered_at ||= Date.current
-    order.reference = Order.next_reference(current_organization, supplier) if order.reference.blank?
 
-    if order.save
+    saved =
+      if order.reference.blank?
+        order.save_with_generated_reference! { Order.next_reference(current_organization, supplier) }
+      else
+        order.save
+      end
+
+    if saved
       redirect_to order_path(order), notice: "Order #{order.reference} created."
     else
       redirect_to orders_path, alert: order.errors.full_messages.to_sentence.presence || "Could not create order.",
         inertia: { errors: inertia_errors(order, as: :order) }
     end
+  rescue ActiveRecord::RecordInvalid
+    redirect_to orders_path, alert: order.errors.full_messages.to_sentence.presence || "Could not create order.",
+      inertia: { errors: inertia_errors(order, as: :order) }
   end
 
   def update

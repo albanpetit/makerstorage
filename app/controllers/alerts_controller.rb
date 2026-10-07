@@ -35,13 +35,10 @@ class AlertsController < ApplicationController
       grouped.each do |supplier, supplier_alerts|
         total = supplier_alerts.sum { |alert| alert[:reorder_quantity] * alert[:unit_price] }
 
-        order = current_organization.orders.create!(
-          supplier: supplier,
-          status: "pending",
-          ordered_at: Date.current,
-          reference: Order.next_reference(current_organization, supplier),
-          total_amount: total
+        order = current_organization.orders.new(
+          supplier: supplier, status: "pending", ordered_at: Date.current, total_amount: total
         )
+        order.save_with_generated_reference! { Order.next_reference(current_organization, supplier) }
 
         supplier_alerts.each do |alert|
           OrderLine.create!(

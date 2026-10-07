@@ -1,4 +1,6 @@
 class Project < ApplicationRecord
+  include GeneratedReference
+
   # Associations
   belongs_to :organization
   has_many :project_lines, dependent: :destroy
