@@ -206,7 +206,7 @@ class AlertsControllerTest < ActionDispatch::IntegrationTest
 
     assert_redirected_to alerts_path
     follow_redirect!
-    assert_match(/already been received/, flash[:alert])
+    assert_match(/already received or cancelled/, flash[:alert])
   end
 
   test "advance_order does not credit stock a second time for an already-received order" do

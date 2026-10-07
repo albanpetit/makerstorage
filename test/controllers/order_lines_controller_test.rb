@@ -50,10 +50,10 @@ class OrderLinesControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "cannot edit lines of a received order" do
-    @order.update!(status: "received")
+    received = create_order(organization: @org, supplier: @supplier, status: "received", reference: "PO-R")
     sign_in @user
     assert_no_difference -> { OrderLine.count } do
-      post order_order_lines_path(@order), params: { order_line: { part_id: @part.id, quantity: 1 } }
+      post order_order_lines_path(received), params: { order_line: { part_id: @part.id, quantity: 1 } }
     end
     assert_match(/received/i, flash[:alert])
   end

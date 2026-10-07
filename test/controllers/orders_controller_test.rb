@@ -46,6 +46,26 @@ class OrdersControllerTest < ActionDispatch::IntegrationTest
     assert_match(/supplier/i, flash[:alert])
   end
 
+  test "update refuses to re-open a received order" do
+    order = create_order(organization: @org, supplier: @supplier, status: "received", reference: "PO-1")
+    sign_in @user
+
+    patch order_path(order), params: { order: { status: "pending" } }
+
+    assert_redirected_to order_path(order)
+    assert_equal "received", order.reload.status
+    assert_match(/received/i, flash[:alert])
+  end
+
+  test "update can cancel an open order" do
+    order = create_order(organization: @org, supplier: @supplier, status: "pending", reference: "PO-1")
+    sign_in @user
+
+    patch order_path(order), params: { order: { status: "cancelled" } }
+
+    assert_equal "cancelled", order.reload.status
+  end
+
   test "update changes metadata but refuses to receive via a plain status write" do
     order = create_order(organization: @org, supplier: @supplier, status: "pending", reference: "PO-1")
     sign_in @user

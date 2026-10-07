@@ -64,7 +64,7 @@ class AlertsController < ApplicationController
     result = order.advance!(user: current_user)
 
     unless result.advanced
-      redirect_to alerts_path, alert: "This order has already been received."
+      redirect_to alerts_path, alert: "This order is already received or cancelled."
       return
     end
 

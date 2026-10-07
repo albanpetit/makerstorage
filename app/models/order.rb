@@ -20,6 +20,7 @@ class Order < ApplicationRecord
   validates :total_amount, numericality: { greater_than_or_equal_to: 0 }, allow_nil: true
   validates :reference, uniqueness: { scope: :organization_id }, allow_blank: true
   validate :supplier_must_belong_to_same_organization
+  validate :status_transition_must_be_allowed, on: :update, if: :status_changed?
 
   # Scopes
   scope :recent, -> { order(ordered_at: :desc) }
@@ -89,16 +90,21 @@ class Order < ApplicationRecord
     skipped = []
 
     with_lock do
-      current_index = ADVANCE_SEQUENCE.index(status) || 0
-      next_status = ADVANCE_SEQUENCE[current_index + 1]
+      # A cancelled order sits outside the sequence (index nil) and must stay
+      # put — falling back to the start would resurrect it and credit stock.
+      current_index = ADVANCE_SEQUENCE.index(status)
+      next_status = current_index && ADVANCE_SEQUENCE[current_index + 1]
       break unless next_status
 
+      @advancing = true
       update!(status: next_status)
       skipped = receive_into_stock!(user: user) if next_status == "received"
       advanced = true
     end
 
     AdvanceResult.new(advanced: advanced, status: next_status, skipped: skipped)
+  ensure
+    @advancing = false
   end
 
   # Credits each line's received quantity into stock as "in" movements. A line
@@ -136,6 +142,17 @@ class Order < ApplicationRecord
       part: part, storage_location: location, user: user,
       movement_type: "in", quantity_delta: quantity, reason: "Received #{reference}"
     )
+  end
+
+  # Received and cancelled are terminal: re-opening a received order would let
+  # #advance! credit its stock a second time. "received" itself is only reachable
+  # through #advance!, which is what records the stock receipt.
+  def status_transition_must_be_allowed
+    if status_was.in?(%w[received cancelled])
+      errors.add(:status, "can't change once the order is #{status_was}")
+    elsif received? && !@advancing
+      errors.add(:status, "can only become received by marking the order received")
+    end
   end
 
   def supplier_must_belong_to_same_organization

@@ -162,4 +162,59 @@ class OrderTest < ActiveSupport::TestCase
     end
     assert_equal "received", order.reload.status
   end
+
+  test "advance! leaves a cancelled order cancelled and credits no stock" do
+    category = create_category(organization: @org)
+    location = create_storage_location(organization: @org)
+    part = create_part(organization: @org, category: category)
+    order = Order.create!(organization: @org, supplier: @supplier, status: "cancelled")
+    line = OrderLine.create!(order: order, part: part, quantity: 10)
+    line.allocations.create!(storage_location: location, quantity: 10)
+
+    assert_no_difference -> { StockMovement.count } do
+      2.times { assert_not order.advance!(user: nil).advanced }
+    end
+    assert_equal "cancelled", order.reload.status
+    assert_nil PartStorage.find_by(part: part, storage_location: location)
+  end
+
+  test "a received order can't be re-opened, so its stock is never credited twice" do
+    category = create_category(organization: @org)
+    location = create_storage_location(organization: @org)
+    part = create_part(organization: @org, category: category)
+    order = Order.create!(organization: @org, supplier: @supplier, status: "shipped")
+    line = OrderLine.create!(order: order, part: part, quantity: 10)
+    line.allocations.create!(storage_location: location, quantity: 10)
+    order.advance!(user: nil)
+
+    %w[pending shipped cancelled].each do |status|
+      assert_not order.update(status: status), "received -> #{status} should be refused"
+      assert_includes order.errors[:status].join, "received"
+      order.reload
+    end
+
+    assert_not order.advance!(user: nil).advanced
+    assert_equal 10, PartStorage.find_by(part: part, storage_location: location).quantity
+  end
+
+  test "a cancelled order can't be re-opened" do
+    order = Order.create!(organization: @org, supplier: @supplier, status: "cancelled")
+
+    assert_not order.update(status: "pending")
+    assert_equal "cancelled", order.reload.status
+  end
+
+  test "received is only reachable through advance!" do
+    order = Order.create!(organization: @org, supplier: @supplier, status: "shipped")
+
+    assert_not order.update(status: "received")
+    assert_equal "shipped", order.reload.status
+  end
+
+  test "open orders may still be cancelled or stepped back" do
+    order = Order.create!(organization: @org, supplier: @supplier, status: "shipped")
+
+    assert order.update(status: "pending")
+    assert order.update(status: "cancelled")
+  end
 end
