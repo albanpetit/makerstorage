@@ -16,9 +16,12 @@ class SettingsController < ApplicationController
   end
 
   def update
-    current_organization.logo.purge if ActiveModel::Type::Boolean.new.cast(params.dig(:organization, :remove_logo))
+    remove_logo = ActiveModel::Type::Boolean.new.cast(params.dig(:organization, :remove_logo))
 
     if current_organization.update(organization_params)
+      # Only once the rest of the form saved: purging first lost the logo even
+      # when a validation error rejected the update.
+      current_organization.logo.purge if remove_logo && params.dig(:organization, :logo).blank?
       created = ensure_catalog_suppliers
       notice = "Settings updated successfully."
       notice += " Added #{created.to_sentence} to your suppliers." if created.any?

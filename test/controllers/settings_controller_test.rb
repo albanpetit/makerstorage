@@ -163,6 +163,17 @@ class SettingsControllerTest < ActionDispatch::IntegrationTest
     assert_not org.reload.logo.attached?
   end
 
+  test "update keeps the logo when the rest of the form is rejected" do
+    user = create_user
+    org = user.organizations.first
+    org.logo.attach(io: File.open(Rails.root.join("test/fixtures/files/logo.png")), filename: "logo.png", content_type: "image/png")
+
+    sign_in user
+    patch settings_path, params: { organization: { remove_logo: "1", email: "not-an-email" } }
+
+    assert org.reload.logo.attached?
+  end
+
   test "show exposes the logo url when a logo is attached" do
     user = create_user
     org = user.organizations.first
