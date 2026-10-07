@@ -124,7 +124,7 @@ const EMPTY_FORM: SupplierFormData['supplier'] = {
 }
 
 export default function SuppliersIndex({ suppliers }: SuppliersPageProps) {
-  const { canWrite } = usePermissions()
+  const { canWrite, canAdminister } = usePermissions()
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const [newOpen, setNewOpen] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
@@ -611,9 +611,12 @@ export default function SuppliersIndex({ suppliers }: SuppliersPageProps) {
                     <Pencil className="size-4" />
                     Edit
                   </Button>
-                  <Button variant="outline" className="text-destructive" onClick={() => setDeleteOpen(true)}>
-                    <Trash2 className="size-4" />
-                  </Button>
+                  {/* Deleting a catalog supplier disconnects its integration, which is admin-only. */}
+                  {(!selected.catalog_provider || canAdminister) && (
+                    <Button variant="outline" className="text-destructive" onClick={() => setDeleteOpen(true)}>
+                      <Trash2 className="size-4" />
+                    </Button>
+                  )}
                 </SheetFooter>
               )}
             </>

@@ -115,6 +115,54 @@ class SuppliersControllerTest < ActionDispatch::IntegrationTest
     assert_match(/Mouser Electronics/, flash[:notice])
   end
 
+  test "a member can't delete a catalog supplier and wipe the integration" do
+    owner = create_user
+    org = owner.organizations.first
+    org.update!(mouser_api_key: "secret-key")
+    mouser = org.suppliers.find_by(catalog_provider: "mouser")
+    member = create_user
+    OrganizationMembership.create!(organization: org, user: member, role: "member")
+
+    sign_in member
+    post switch_organization_path(org)
+    assert_no_difference -> { Supplier.count } do
+      delete supplier_path(mouser)
+    end
+
+    assert_equal "secret-key", org.reload.mouser_api_key
+    assert_match(/only an admin/i, flash[:alert])
+  end
+
+  test "a member can still delete a plain supplier" do
+    owner = create_user
+    org = owner.organizations.first
+    supplier = create_supplier(organization: org)
+    member = create_user
+    OrganizationMembership.create!(organization: org, user: member, role: "member")
+
+    sign_in member
+    post switch_organization_path(org)
+    assert_difference -> { Supplier.count } => -1 do
+      delete supplier_path(supplier)
+    end
+  end
+
+  test "destroy of the digikey supplier also drops the connected account tokens" do
+    user = create_user
+    org = user.organizations.first
+    org.update!(digikey_client_id: "id", digikey_client_secret: "secret",
+                digikey_access_token: "access", digikey_refresh_token: "refresh",
+                digikey_token_expires_at: 1.hour.from_now)
+
+    sign_in user
+    delete supplier_path(org.suppliers.find_by(catalog_provider: "digikey"))
+
+    org.reload
+    assert_not org.digikey_configured?
+    assert_not org.digikey_account_connected?
+    assert_nil org.digikey_access_token
+  end
+
   test "destroy of a plain supplier leaves credentials intact" do
     user = create_user
     org = user.organizations.first

@@ -6,6 +6,7 @@ class SuppliersController < ApplicationController
   before_action :verify_organization_access
   before_action :verify_organization_writer, only: %i[create update destroy]
   before_action :set_supplier, only: %i[update destroy]
+  before_action :verify_catalog_supplier_authority, only: :destroy
 
   def index
     suppliers = current_organization.suppliers
@@ -56,7 +57,10 @@ class SuppliersController < ApplicationController
     when "mouser"
       current_organization.update!(mouser_api_key: nil)
     when "digikey"
-      current_organization.update!(digikey_client_id: nil, digikey_client_secret: nil)
+      current_organization.update!(
+        digikey_client_id: nil, digikey_client_secret: nil,
+        digikey_access_token: nil, digikey_refresh_token: nil, digikey_token_expires_at: nil
+      )
     end
   end
 
@@ -69,6 +73,16 @@ class SuppliersController < ApplicationController
 
   def set_supplier
     @supplier = current_organization.suppliers.find(params[:id])
+  end
+
+  # Deleting a catalog supplier (Mouser, DigiKey) also disconnects its
+  # integration and clears the organization's credentials, which only admins
+  # may manage (see SettingsController).
+  def verify_catalog_supplier_authority
+    return unless @supplier.catalog_provider
+    return if current_user.admin_of?(current_organization)
+
+    redirect_to suppliers_path, alert: "Only an admin can delete a catalog supplier, since it disconnects the integration."
   end
 
   def supplier_params
