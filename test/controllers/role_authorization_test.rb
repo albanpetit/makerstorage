@@ -244,4 +244,17 @@ class RoleAuthorizationTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_not_includes response.body, @tag.name
   end
+
+  test "a user with no active membership anywhere lands on their profile, not a redirect loop" do
+    personal = @member.organizations.find_by(personal: true)
+    OrganizationMembership.create!(organization: personal, user: @owner, role: "owner")
+    @member.organization_memberships.each(&:deactivate!)
+    sign_in @member
+
+    get root_path
+    assert_redirected_to profile_path
+    follow_redirect!
+    assert_response :success
+    assert_match(/not an active member/i, flash[:alert])
+  end
 end

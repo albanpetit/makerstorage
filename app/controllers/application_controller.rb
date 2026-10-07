@@ -65,7 +65,12 @@ class ApplicationController < ActionController::Base
 
   # Verify user has access to current organization
   def verify_organization_access
-    unless current_organization && current_user.member_of_organization?(current_organization.id)
+    # No active membership anywhere (e.g. deactivated everywhere): the root page
+    # needs an organization too, so sending them there would loop forever. The
+    # profile page doesn't, and its sidebar offers "Create organization".
+    if current_organization.nil?
+      redirect_to profile_path, alert: "You're not an active member of any organization. Create one, or ask an admin to reactivate your access."
+    elsif !current_user.member_of_organization?(current_organization.id)
       redirect_to root_path, alert: "You don't have access to this organization"
     end
   end
