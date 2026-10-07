@@ -18,11 +18,23 @@ class Users::PasswordsControllerTest < ActionDispatch::IntegrationTest
     assert_match(/reset_password_token=\w/, body)
   end
 
-  test "requesting a reset for an unknown email sends no mail" do
+  test "requesting a reset for an unknown email sends no mail but answers the same" do
     assert_no_difference -> { ActionMailer::Base.deliveries.size } do
       post user_password_path, params: { user: { email: "nobody@example.com" } }
     end
+    unknown_notice = flash[:notice]
+
+    post user_password_path, params: { user: { email: create_user.email } }
+
+    assert_redirected_to new_user_session_path
+    assert_equal flash[:notice], unknown_notice, "known and unknown emails must get the same response"
+  end
+
+  test "a blank email is asked for again" do
+    post user_password_path, params: { user: { email: "" } }
+
     assert_redirected_to new_user_password_path
+    assert_match(/enter your email/i, flash[:alert])
   end
 
   test "reset requests are throttled per IP" do

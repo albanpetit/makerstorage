@@ -10,17 +10,19 @@ class Users::PasswordsController < Devise::PasswordsController
   end
 
   # POST /forgot-password
+  # Same response whether or not the email has an account, so the form can't
+  # be used to find out who's registered. (Devise's global `paranoid` mode would
+  # do this too, but also hides the "account locked" sign-in message.)
   def create
+    if resource_params[:email].blank?
+      redirect_to new_user_password_path, alert: "Enter your email address."
+      return
+    end
+
     self.resource = resource_class.send_reset_password_instructions(resource_params)
     yield resource if block_given?
 
-    if successfully_sent?(resource)
-      flash[:notice] = I18n.t("devise.passwords.send_instructions")
-      redirect_to new_user_session_path
-    else
-      flash[:alert] = resource.errors.full_messages.first
-      redirect_to new_user_password_path
-    end
+    redirect_to new_user_session_path, notice: I18n.t("devise.passwords.send_paranoid_instructions")
   end
 
   # GET /reset-password
