@@ -46,6 +46,14 @@ class OrdersControllerTest < ActionDispatch::IntegrationTest
     assert_match(/supplier/i, flash[:alert])
   end
 
+  test "create always starts the order as pending" do
+    sign_in @user
+
+    post orders_path, params: { order: { supplier_id: @supplier.id, status: "received" } }
+
+    assert_equal "pending", Order.order(:id).last.status
+  end
+
   test "update refuses to re-open a received order" do
     order = create_order(organization: @org, supplier: @supplier, status: "received", reference: "PO-1")
     sign_in @user

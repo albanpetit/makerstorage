@@ -52,7 +52,9 @@ class OrdersController < ApplicationController
     end
 
     order = current_organization.orders.new(order_params)
-    order.status = "pending" if order.status.blank?
+    # A new order always starts the lifecycle: creating one as received would
+    # skip the stock receipt, and cancelled makes no sense for a fresh order.
+    order.status = "pending"
     order.ordered_at ||= Date.current
     order.reference = Order.next_reference(current_organization, supplier) if order.reference.blank?
 
