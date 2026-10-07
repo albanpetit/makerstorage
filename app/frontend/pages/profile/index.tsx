@@ -26,8 +26,11 @@ export default function Profile({ user }: PageProps) {
       firstname: user.firstname,
       lastname: user.lastname,
       email: user.email,
+      // Only sent (and required) when the email changes — see ProfilesController.
+      current_password: '',
     },
   })
+  const emailChanged = detailsForm.data.user.email.trim().toLowerCase() !== user.email.toLowerCase()
 
   const passwordForm = useForm({
     user: {
@@ -39,7 +42,10 @@ export default function Profile({ user }: PageProps) {
 
   const submitDetails = (e: FormEvent) => {
     e.preventDefault()
-    detailsForm.patch('/profile', { preserveScroll: true })
+    detailsForm.patch('/profile', {
+      preserveScroll: true,
+      onFinish: () => detailsForm.setData('user', { ...detailsForm.data.user, current_password: '' }),
+    })
   }
 
   const submitPassword = (e: FormEvent) => {
@@ -113,6 +119,26 @@ export default function Profile({ user }: PageProps) {
                 </FieldContent>
                 {detailsForm.errors['user.email'] && <FieldError>{detailsForm.errors['user.email']}</FieldError>}
               </Field>
+
+              {(emailChanged || detailsForm.errors['user.current_password']) && (
+                <Field className="sm:col-span-2">
+                  <FieldLabel>
+                    <Label htmlFor="details_current_password">Current password</Label>
+                  </FieldLabel>
+                  <FieldContent>
+                    <Input
+                      id="details_current_password"
+                      type="password"
+                      value={detailsForm.data.user.current_password}
+                      onChange={(e) => detailsForm.setData('user', { ...detailsForm.data.user, current_password: e.target.value })}
+                      autoComplete="current-password"
+                      aria-invalid={!!detailsForm.errors['user.current_password']}
+                    />
+                  </FieldContent>
+                  <p className="text-sm text-muted-foreground">Confirm your password to change the email you sign in with.</p>
+                  {detailsForm.errors['user.current_password'] && <FieldError>{detailsForm.errors['user.current_password']}</FieldError>}
+                </Field>
+              )}
             </CardContent>
             <CardFooter className="justify-end border-t">
               <Button type="submit" disabled={detailsForm.processing}>

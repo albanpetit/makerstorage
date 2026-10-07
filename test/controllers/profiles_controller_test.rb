@@ -24,7 +24,7 @@ class ProfilesControllerTest < ActionDispatch::IntegrationTest
 
     sign_in user
     patch profile_path, params: { user: {
-      firstname: "New", lastname: "Name", email: "new-email@example.com"
+      firstname: "New", lastname: "Name", email: "new-email@example.com", current_password: "password123"
     } }
 
     assert_redirected_to profile_path
@@ -34,11 +34,42 @@ class ProfilesControllerTest < ActionDispatch::IntegrationTest
     assert_equal "new-email@example.com", user.email
   end
 
+  test "changing the email without the current password is refused" do
+    user = create_user(email: "keep@example.com")
+
+    sign_in user
+    patch profile_path, params: { user: { email: "attacker@example.com" } }
+
+    assert_equal "keep@example.com", user.reload.email
+    follow_redirect!
+    assert inertia_props.dig("errors", "user.current_password").present?
+  end
+
+  test "changing the email with a wrong current password is refused" do
+    user = create_user(email: "keep@example.com")
+
+    sign_in user
+    patch profile_path, params: { user: { email: "attacker@example.com", current_password: "guess" } }
+
+    assert_equal "keep@example.com", user.reload.email
+    assert_match(/current password/i, flash[:alert])
+  end
+
+  test "name changes and a case-only email edit don't need the password" do
+    user = create_user(email: "keep@example.com")
+
+    sign_in user
+    patch profile_path, params: { user: { firstname: "Renamed", lastname: "User", email: "KEEP@example.com" } }
+
+    assert_equal "Renamed", user.reload.firstname
+    assert_equal "keep@example.com", user.email
+  end
+
   test "update rejects an invalid email and reports namespaced errors" do
     user = create_user(email: "keep@example.com")
 
     sign_in user
-    patch profile_path, params: { user: { email: "not-an-email" } }
+    patch profile_path, params: { user: { email: "not-an-email", current_password: "password123" } }
 
     assert_redirected_to profile_path
     assert_equal "keep@example.com", user.reload.email
@@ -98,7 +129,7 @@ class ProfilesControllerTest < ActionDispatch::IntegrationTest
 
     sign_in user
     assert_difference -> { ActionMailer::Base.deliveries.size }, 1 do
-      patch profile_path, params: { user: { email: "new@example.com" } }
+      patch profile_path, params: { user: { email: "new@example.com", current_password: "password123" } }
     end
 
     assert_match(/email/i, ActionMailer::Base.deliveries.last.subject)

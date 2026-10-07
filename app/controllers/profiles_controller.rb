@@ -19,14 +19,28 @@ class ProfilesController < ApplicationController
 
   private
 
-  # A password change is any request that carries password fields; otherwise
-  # we treat it as a plain details (name/email) update.
+  # The password form always sends a `password` field (even blank); the details
+  # form never does, though it may carry `current_password` for an email change.
   def password_change?
-    params.dig(:user, :password).present? || params.dig(:user, :current_password).present?
+    params[:user].respond_to?(:key?) && params[:user].key?(:password)
   end
 
   def update_details
-    if current_user.update(details_params)
+    current_user.assign_attributes(details_params)
+    # Devise normalizes the email on validation; do it now so a case-only edit
+    # doesn't count as a change below.
+    current_user.email = current_user.email.to_s.strip.downcase
+
+    # The sign-in email is what password resets go to, so changing it takes the
+    # current password — otherwise a hijacked session could redirect resets to
+    # an attacker's inbox and take the account over.
+    if current_user.will_save_change_to_email? && !current_user.valid_password?(params.dig(:user, :current_password).to_s)
+      current_user.errors.add(:current_password, params.dig(:user, :current_password).blank? ? :blank : :invalid)
+      return redirect_to profile_path, inertia: { errors: inertia_errors(current_user, as: :user) },
+        alert: "Enter your current password to change your email."
+    end
+
+    if current_user.save
       redirect_to profile_path, notice: "Profile updated successfully."
     else
       redirect_to profile_path, inertia: { errors: inertia_errors(current_user, as: :user) }, alert: "Failed to update profile."
