@@ -143,6 +143,25 @@ class AlertsControllerTest < ActionDispatch::IntegrationTest
     assert_match(/no purchase order was created/i, flash[:alert])
   end
 
+  test "create_purchase_orders doesn't reorder what open orders already cover" do
+    user = create_user
+    org = user.organizations.first
+    location = create_storage_location(organization: org)
+    supplier = create_supplier(organization: org)
+    part = create_part(organization: org, min_stock_threshold: 50, target_stock: 100)
+    PartStorage.create!(part: part, storage_location: location, quantity: 10)
+    PartSupplier.create!(part: part, supplier: supplier, is_preferred: true, unit_price: 0.01)
+
+    sign_in user
+    post alert_purchase_orders_path # orders 90
+    assert_equal 90, OrderLine.last.quantity
+
+    assert_no_difference -> { Order.count } do
+      post alert_purchase_orders_path # a second click: 90 already incoming
+    end
+    assert_match(/already covered by open purchase orders/i, flash[:alert])
+  end
+
   test "create_purchase_orders scoped to a single part_id only orders that alert" do
     user = create_user
     org = user.organizations.first

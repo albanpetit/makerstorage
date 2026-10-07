@@ -13,6 +13,9 @@ class Order < ApplicationRecord
   # outside this line — it's set directly, not stepped into.
   ADVANCE_SEQUENCE = %w[pending shipped received].freeze
 
+  # Orders whose stock hasn't arrived yet.
+  OPEN_STATUSES = %w[pending shipped].freeze
+
   # Outcome of #advance!: whether it moved, the status it landed on, and any line
   # references that couldn't be credited to stock on receipt.
   AdvanceResult = Struct.new(:advanced, :status, :skipped, keyword_init: true)
@@ -44,6 +47,16 @@ class Order < ApplicationRecord
       reference = "#{base}-#{suffix}"
     end
     reference
+  end
+
+  # How much of each part is already on its way (on a pending or shipped order),
+  # as part_id => quantity. Reordering subtracts it so a repeated "order" click,
+  # or a reorder the next day, doesn't order the same shortfall twice.
+  def self.incoming_quantities(organization, part_ids)
+    OrderLine.joins(:order)
+      .where(orders: { organization_id: organization.id, status: OPEN_STATUSES }, part_id: part_ids)
+      .group(:part_id)
+      .sum(:quantity)
   end
 
   # Methods

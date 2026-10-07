@@ -265,4 +265,17 @@ class OrderTest < ActiveSupport::TestCase
 
     assert_raises(ActiveRecord::RecordInvalid) { order.save_with_generated_reference! { "PO-1" } }
   end
+
+  test "incoming_quantities sums open orders only, per part" do
+    part = create_part(organization: @org)
+    other = create_part(organization: @org)
+    pending = Order.create!(organization: @org, supplier: @supplier, status: "pending", reference: "A")
+    shipped = Order.create!(organization: @org, supplier: @supplier, status: "shipped", reference: "B")
+    received = Order.create!(organization: @org, supplier: @supplier, status: "received", reference: "C")
+    [ pending, shipped, received ].each { |order| order.order_lines.create!(part: part, quantity: 5) }
+    pending.order_lines.create!(part: other, quantity: 2)
+
+    assert_equal({ part.id => 10 }, Order.incoming_quantities(@org, [ part.id ]))
+    assert_equal({}, Order.incoming_quantities(create_organization, [ part.id ]))
+  end
 end

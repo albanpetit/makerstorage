@@ -26,6 +26,18 @@ class AlertsController < ApplicationController
       return
     end
 
+    # Order only what isn't already on an open order.
+    incoming = Order.incoming_quantities(current_organization, alerts.map { |alert| alert[:part].id })
+    alerts = alerts.filter_map do |alert|
+      quantity = alert[:reorder_quantity] - incoming.fetch(alert[:part].id, 0)
+      alert.merge(order_quantity: quantity) if quantity.positive?
+    end
+
+    if alerts.empty?
+      redirect_to alerts_path, alert: "These parts are already covered by open purchase orders."
+      return
+    end
+
     grouped = alerts.group_by { |alert| alert[:preferred_supplier] }
     created = 0
 
@@ -33,7 +45,7 @@ class AlertsController < ApplicationController
     # behind, or a retry would duplicate them.
     ActiveRecord::Base.transaction do
       grouped.each do |supplier, supplier_alerts|
-        total = supplier_alerts.sum { |alert| alert[:reorder_quantity] * alert[:unit_price] }
+        total = supplier_alerts.sum { |alert| alert[:order_quantity] * alert[:unit_price] }
 
         order = current_organization.orders.new(
           supplier: supplier, status: "pending", ordered_at: Date.current, total_amount: total
@@ -43,7 +55,7 @@ class AlertsController < ApplicationController
         supplier_alerts.each do |alert|
           OrderLine.create!(
             order: order, part: alert[:part],
-            quantity: alert[:reorder_quantity], unit_price: alert[:unit_price]
+            quantity: alert[:order_quantity], unit_price: alert[:unit_price]
           )
         end
 

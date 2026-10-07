@@ -152,13 +152,30 @@ class ProjectsControllerTest < ActionDispatch::IntegrationTest
     assert_match(/no purchase order was created/i, flash[:alert])
   end
 
+  test "create_purchase_orders orders only what open orders don't already cover, so a second click adds nothing" do
+    supplier = create_supplier(organization: @org)
+    PartSupplier.create!(part: @resistor, supplier: supplier, is_preferred: true, unit_price: 0.10)
+    project = build_project([ @resistor, 12, "mpn" ]) # stock 5 -> shortfall 7
+    open_order = create_order(organization: @org, supplier: supplier, reference: "PO-OPEN")
+    open_order.order_lines.create!(part: @resistor, quantity: 3)
+
+    sign_in @user
+    post create_purchase_orders_project_path(project)
+    assert_equal 4, OrderLine.where.not(order: open_order).last.quantity, "7 short - 3 already on order"
+
+    assert_no_difference -> { Order.count } do
+      post create_purchase_orders_project_path(project)
+    end
+    assert_match(/already on open purchase orders/i, flash[:alert])
+  end
+
   test "create_purchase_orders warns when no short line has a supplier" do
     project = build_project([ @resistor, 12, "mpn" ])
     sign_in @user
     assert_no_difference -> { Order.count } do
       post create_purchase_orders_project_path(project)
     end
-    assert_match(/no short line/i, flash[:alert])
+    assert_match(/no preferred supplier/i, flash[:alert])
   end
 
   test "build deducts required stock via out movements when buildable" do

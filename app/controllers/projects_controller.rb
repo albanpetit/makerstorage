@@ -68,23 +68,27 @@ class ProjectsController < ApplicationController
   end
 
   # Orders each short part's missing quantity (summed across its BOM lines),
-  # grouped by the part's preferred supplier. Mirrors
-  # AlertsController#create_purchase_orders.
+  # minus what's already on an open order, grouped by the part's preferred
+  # supplier. Mirrors AlertsController#create_purchase_orders.
   def create_purchase_orders
-    candidates = @project.shortfall_by_part.filter_map do |part, shortfall|
+    shortfalls = @project.shortfall_by_part
+    incoming = Order.incoming_quantities(current_organization, shortfalls.keys.map(&:id))
+
+    candidates = shortfalls.filter_map do |part, shortfall|
       supplier_link = part.preferred_part_supplier
-      next unless supplier_link
+      quantity = shortfall - incoming.fetch(part.id, 0)
+      next unless supplier_link && quantity.positive?
 
       {
         part: part,
         supplier: supplier_link.supplier,
-        quantity: shortfall,
+        quantity: quantity,
         unit_price: (supplier_link.unit_price || part.unit_price || 0).to_f
       }
     end
 
     if candidates.empty?
-      redirect_to project_path(@project), alert: "No short line has a preferred supplier to order from."
+      redirect_to project_path(@project), alert: "Nothing left to order: short parts have no preferred supplier or are already on open purchase orders."
       return
     end
 
