@@ -531,6 +531,25 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
     assert_equal 0.05, part.unit_price.to_f
   end
 
+  test "import skips a row the ledger refuses without leaving a half-imported part" do
+    user = create_user
+    org = user.organizations.first
+
+    csv = <<~CSV
+      Name,Category,MPN,Location,Quantity
+      Good part,Resistors,GOOD-1,Shelf,10
+      Bad stock,Resistors,BAD-1,Shelf,-5
+    CSV
+
+    sign_in user
+    post import_parts_path, params: { file: csv_upload(csv) }
+
+    assert_redirected_to parts_path
+    assert_match(/1 created, 0 updated, 1 skipped/, flash[:notice])
+    assert org.parts.exists?(mpn: "GOOD-1")
+    assert_not org.parts.exists?(mpn: "BAD-1"), "the part of a refused row must be rolled back too"
+  end
+
   test "import assigns quantity to the named location, creating it if needed" do
     user = create_user
     org = user.organizations.first
@@ -924,6 +943,36 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
     assert_equal 50, part.total_quantity
   end
 
+  test "bulk_move rolls a part back and reports it unmoved when a movement fails" do
+    user = create_user
+    org = user.organizations.first
+    source = create_storage_location(organization: org, name: "Drawer A")
+    destination = create_storage_location(organization: org, name: "Shelf C")
+    part = create_part(organization: org)
+    PartStorage.create!(part: part, storage_location: source, quantity: 40)
+
+    # Let the "out" through, then fail the matching "in" (as stock changed by
+    # another request would).
+    calls = 0
+    original = PartStorage.method(:find_or_create_by!)
+    flaky = lambda do |*args, **kwargs, &blk|
+      calls += 1
+      raise ActiveRecord::RecordInvalid, PartStorage.new if calls == 2
+      original.call(*args, **kwargs, &blk)
+    end
+
+    sign_in user
+    stub_singleton(PartStorage, :find_or_create_by!, flaky) do
+      assert_no_difference -> { StockMovement.count } do
+        post bulk_move_parts_path, params: { part_ids: [ part.id ], storage_location_id: destination.id }
+      end
+    end
+
+    assert_redirected_to parts_path
+    assert_match(/for 0 parts/, flash[:notice])
+    assert_equal 40, PartStorage.find_by(part: part, storage_location: source).quantity
+  end
+
   test "bulk_move leaves stock already in the destination untouched" do
     user = create_user
     org = user.organizations.first
@@ -1087,6 +1136,23 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
     link = part.reload.part_suppliers.find_by(supplier: supplier)
     assert link.present?
     assert link.is_preferred?
+  end
+
+  test "bulk_assign_supplier assigns nothing when one link can't be saved" do
+    user = create_user
+    org = user.organizations.first
+    supplier = create_supplier(organization: org)
+    good = create_part(organization: org)
+    broken = create_part(organization: org)
+    link = PartSupplier.create!(part: broken, supplier: supplier)
+    link.update_column(:url, "not a url") # invalid, so saving it again fails
+
+    sign_in user
+    post bulk_assign_supplier_parts_path, params: { part_ids: [ good.id, broken.id ], supplier_id: supplier.id }
+
+    assert_redirected_to parts_path
+    assert_match(/no supplier was assigned/i, flash[:alert])
+    assert_not good.reload.part_suppliers.exists?(supplier: supplier)
   end
 
   test "bulk_assign_supplier demotes a previously preferred supplier" do

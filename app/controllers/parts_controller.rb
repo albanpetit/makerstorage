@@ -227,13 +227,17 @@ class PartsController < ApplicationController
     supplier = current_organization.suppliers.find_by(id: params[:supplier_id])
     return bulk_error("Choose a supplier.") unless supplier
 
-    parts.each do |part|
-      link = part.part_suppliers.to_a.find { |ps| ps.supplier_id == supplier.id } || part.part_suppliers.build(supplier: supplier)
-      link.is_preferred = true
-      link.save!
+    ActiveRecord::Base.transaction do
+      parts.each do |part|
+        link = part.part_suppliers.to_a.find { |ps| ps.supplier_id == supplier.id } || part.part_suppliers.build(supplier: supplier)
+        link.is_preferred = true
+        link.save!
+      end
     end
 
     redirect_to parts_path, notice: "Assigned #{supplier.name} as preferred supplier for #{parts.size} #{'part'.pluralize(parts.size)}."
+  rescue ActiveRecord::RecordInvalid => e
+    bulk_error("No supplier was assigned: #{e.record.errors.full_messages.to_sentence}.")
   end
 
   def import
@@ -254,27 +258,35 @@ class PartsController < ApplicationController
           next
         end
 
-        category = current_organization.categories.find_or_create_by!(name: category_name)
         part = find_existing_part(row)
         is_new = part.nil?
-        part ||= current_organization.parts.build
 
-        part.assign_attributes(
-          name: name,
-          category: category,
-          mpn: import_value(row, :mpn),
-          sku: import_value(row, :sku),
-          manufacturer: import_value(row, :manufacturer),
-          value: import_value(row, :value),
-          package_type: import_value(row, :package),
-          unit_price: import_value(row, :unit_price)&.tr(",", "."),
-          min_stock_threshold: import_value(row, :min_stock_threshold) || 0,
-          status: import_value(row, :status) || "active"
-        )
-
-        if part.save
-          is_new ? created += 1 : updated += 1
+        # One transaction per row: a row that fails anywhere (invalid category,
+        # part, location, or a stock level the ledger refuses) is skipped as a
+        # whole instead of leaving a half-imported part or aborting the file.
+        imported = ActiveRecord::Base.transaction do
+          part ||= current_organization.parts.build
+          part.assign_attributes(
+            name: name,
+            category: current_organization.categories.find_or_create_by!(name: category_name),
+            mpn: import_value(row, :mpn),
+            sku: import_value(row, :sku),
+            manufacturer: import_value(row, :manufacturer),
+            value: import_value(row, :value),
+            package_type: import_value(row, :package),
+            unit_price: import_value(row, :unit_price)&.tr(",", "."),
+            min_stock_threshold: import_value(row, :min_stock_threshold) || 0,
+            status: import_value(row, :status) || "active"
+          )
+          part.save!
           assign_stock(part, row)
+          true
+        rescue ActiveRecord::RecordInvalid, ActiveRecord::RecordNotSaved
+          raise ActiveRecord::Rollback
+        end
+
+        if imported
+          is_new ? created += 1 : updated += 1
         else
           skipped += 1
         end
@@ -306,6 +318,10 @@ class PartsController < ApplicationController
   # transaction so a source is never emptied without its matching deposit. The
   # destination's own bucket is skipped (nothing to move). Returns whether any
   # stock was actually relocated.
+  #
+  # Stock that changed since the page loaded makes a movement fail validation;
+  # that part's transfer is rolled back and reported as not moved rather than
+  # raising.
   def relocate_part_stock(part, destination)
     moved = false
 
@@ -329,6 +345,8 @@ class PartsController < ApplicationController
     end
 
     moved
+  rescue ActiveRecord::RecordInvalid
+    false
   end
 
   # Returns the first present value among the synonym columns for +field+.
