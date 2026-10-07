@@ -56,4 +56,32 @@ class UserTest < ActiveSupport::TestCase
     assert_nil movement.reload.user_id
     assert_nil invitation.reload.invited_by_id
   end
+
+  test "a deactivated membership grants no access" do
+    owner = create_user
+    org = owner.organizations.first
+    member = create_user
+    membership = OrganizationMembership.create!(organization: org, user: member, role: "admin")
+    assert member.writer_of?(org)
+
+    membership.deactivate!
+
+    assert_not member.member_of_organization?(org.id)
+    assert_not member.writer_of?(org)
+    assert_not member.admin_of?(org)
+    assert_nil member.role_in(org)
+    assert_not_includes member.organizations, org
+  end
+
+  test "organizations_where_owner only lists organizations the user owns" do
+    owner = create_user
+    member = create_user
+    shared = owner.organizations.first
+    OrganizationMembership.create!(organization: shared, user: member, role: "member")
+
+    assert_includes owner.organizations_where_owner, shared
+    assert_not_includes member.organizations_where_owner, shared
+    assert_includes member.organizations_where_owner, member.personal_organization
+    assert_not_includes member.organizations_where_admin, shared
+  end
 end

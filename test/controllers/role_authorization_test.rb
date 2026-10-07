@@ -232,4 +232,16 @@ class RoleAuthorizationTest < ActionDispatch::IntegrationTest
   def auth_prop
     JSON.parse(@response.body[/data-page="app" type="application\/json">(.*?)<\/script>/m, 1])["props"]["auth"]
   end
+
+  test "a deactivated member can neither switch into nor write to the organization" do
+    @org.organization_memberships.find_by(user: @member).deactivate!
+    act_as @member
+
+    assert_no_difference -> { @org.tags.count } do
+      post tags_path, params: { tag: { name: "sneaky" } }
+    end
+    get tags_path
+    assert_response :success
+    assert_not_includes response.body, @tag.name
+  end
 end

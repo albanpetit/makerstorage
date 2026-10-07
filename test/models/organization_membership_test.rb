@@ -85,4 +85,21 @@ class OrganizationMembershipTest < ActiveSupport::TestCase
     membership.activate!
     assert membership.reload.active?
   end
+
+  test "the last active owner can't be deactivated" do
+    owner = create_user
+    membership = owner.organizations.first.organization_memberships.find_by(user: owner)
+
+    assert_not membership.update(active: false)
+    assert_includes membership.errors[:active].join, "active owner"
+  end
+
+  test "an owner can be deactivated while another owner remains active" do
+    owner = create_user
+    org = owner.organizations.first
+    OrganizationMembership.create!(organization: org, user: create_user, role: "owner")
+    membership = org.organization_memberships.find_by(user: owner)
+
+    assert membership.update(active: false)
+  end
 end

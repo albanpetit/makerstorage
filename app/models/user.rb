@@ -5,7 +5,10 @@ class User < ApplicationRecord
          :recoverable, :rememberable, :validatable
 
   has_many :organization_memberships, dependent: :destroy
-  has_many :organizations, through: :organization_memberships
+  # Only active memberships grant access: a deactivated member keeps their
+  # membership row (and role) but no longer sees or acts in the organization.
+  has_many :active_organization_memberships, -> { active }, class_name: "OrganizationMembership"
+  has_many :organizations, through: :active_organization_memberships
   # Rows that merely reference the user as an author keep existing (the ledger
   # and memberships outlive the account) with the reference cleared.
   has_many :stock_movements, dependent: :nullify
@@ -24,14 +27,12 @@ class User < ApplicationRecord
 
   # Get all organizations where the user is an owner
   def organizations_where_owner
-    organizations.joins(:organization_memberships)
-                 .where(organization_memberships: { role: "owner" })
+    organizations.where(organization_memberships: { role: "owner" })
   end
 
   # Get all organizations where the user is an admin or owner
   def organizations_where_admin
-    organizations.joins(:organization_memberships)
-                 .where(organization_memberships: { role: %w[owner admin] })
+    organizations.where(organization_memberships: { role: %w[owner admin] })
   end
 
   # Check if the user is a member of an organization
@@ -41,27 +42,27 @@ class User < ApplicationRecord
 
   # Check if the user is a member of an organization by ID (more efficient)
   def member_of_organization?(organization_id)
-    organization_memberships.exists?(organization_id: organization_id)
+    active_organization_memberships.exists?(organization_id: organization_id)
   end
 
   # Check if the user is an owner of an organization
   def owner_of?(organization)
-    organization_memberships.exists?(organization: organization, role: "owner")
+    active_organization_memberships.exists?(organization: organization, role: "owner")
   end
 
   # Check if the user is an admin of an organization
   def admin_of?(organization)
-    organization_memberships.exists?(organization: organization, role: %w[owner admin])
+    active_organization_memberships.exists?(organization: organization, role: %w[owner admin])
   end
 
   # Check if the user may write in an organization (everyone except viewers)
   def writer_of?(organization)
-    organization_memberships.exists?(organization: organization, role: %w[owner admin member])
+    active_organization_memberships.exists?(organization: organization, role: %w[owner admin member])
   end
 
   # Get the user's role in an organization
   def role_in(organization)
-    organization_memberships.find_by(organization: organization)&.role
+    active_organization_memberships.find_by(organization: organization)&.role
   end
 
   private

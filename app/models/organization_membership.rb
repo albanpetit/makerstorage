@@ -78,6 +78,10 @@ class OrganizationMembership < ApplicationRecord
     if role_changed? && role_was == "owner" && organization.organization_memberships.owners.active.count == 1
       errors.add(:role, "Organization must have at least one active owner")
     end
+
+    if active_changed? && !active && owner? && organization.organization_memberships.owners.active.where.not(id: id).none?
+      errors.add(:active, "Organization must have at least one active owner")
+    end
   end
 
   def should_generate_token?
