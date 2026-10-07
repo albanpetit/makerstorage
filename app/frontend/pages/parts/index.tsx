@@ -195,7 +195,11 @@ function locationLabel(names: string[]): string {
   return `${names[0]} +${names.length - 1} more`
 }
 
-function csvEscape(value: string): string {
+// Text starting with = + - @ (or a tab/CR) is run as a formula by Excel and
+// friends, so user-entered fields get a leading quote. Plain numbers (e.g. a
+// negative price) are left alone.
+function csvEscape(raw: string): string {
+  const value = /^[=+\-@\t\r]/.test(raw) && !/^-?\d+(\.\d+)?$/.test(raw) ? `'${raw}` : raw
   if (/[",\n]/.test(value)) {
     return `"${value.replace(/"/g, '""')}"`
   }

@@ -55,10 +55,10 @@ class StockMovementsController < ApplicationController
         out << [
           movement.created_at.iso8601,
           movement.movement_type,
-          movement.part.reference,
-          movement.reason,
-          movement.storage_location.name,
-          movement.user ? "#{movement.user.firstname} #{movement.user.lastname}".strip : nil,
+          csv_text(movement.part.reference),
+          csv_text(movement.reason),
+          csv_text(movement.storage_location.name),
+          csv_text(movement.user ? "#{movement.user.firstname} #{movement.user.lastname}".strip : nil),
           movement.quantity_delta,
           balances[movement.id]
         ]
@@ -84,6 +84,12 @@ class StockMovementsController < ApplicationController
 
   def movement_params
     params.require(:stock_movement).permit(:part_id, :storage_location_id, :movement_type, :reason)
+  end
+
+  # User-entered text starting with = + - @ (or a tab/CR) is run as a formula
+  # when the export is opened in a spreadsheet; a leading quote neutralizes it.
+  def csv_text(value)
+    value.to_s.match?(/\A[=+\-@\t\r]/) ? "'#{value}" : value
   end
 
   def filter_type

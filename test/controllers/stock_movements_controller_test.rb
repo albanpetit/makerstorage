@@ -134,6 +134,27 @@ class StockMovementsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "70", data[7]
   end
 
+  test "export neutralizes spreadsheet formulas in user-entered text" do
+    user = create_user
+    org = user.organizations.first
+    location = create_storage_location(organization: org, name: "@Shelf")
+    part = create_part(organization: org)
+    StockMovement.create!(organization: org, part: part, storage_location: location, movement_type: "in",
+                          quantity_delta: 5, reason: "=HYPERLINK(\"http://evil.example\")")
+    StockMovement.create!(organization: org, part: part, storage_location: location, movement_type: "out",
+                          quantity_delta: -2, reason: "-picked")
+
+    sign_in user
+    get export_stock_movements_path
+
+    rows = CSV.parse(@response.body).drop(1).sort_by { |row| row[6].to_i }
+    out_row, in_row = rows
+    assert_equal "'=HYPERLINK(\"http://evil.example\")", in_row[3]
+    assert_equal "'@Shelf", in_row[4]
+    assert_equal "'-picked", out_row[3]
+    assert_equal "-2", out_row[6], "numeric quantities stay numbers"
+  end
+
   test "export does not leak another organization's movements" do
     user = create_user
     other_org = create_organization
