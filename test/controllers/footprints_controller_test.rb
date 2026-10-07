@@ -112,6 +112,6 @@ class FootprintsControllerTest < ActionDispatch::IntegrationTest
   private
 
   def inertia_props
-    JSON.parse(@response.body[/data-page="app" type="application\/json">(.*?)<\/script>/m, 1])["props"]
+    JSON.parse(@response.body[/data-page="app" type="application\/json"[^>]*>(.*?)<\/script>/m, 1])["props"]
   end
 end

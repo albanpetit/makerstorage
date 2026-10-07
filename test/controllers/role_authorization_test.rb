@@ -230,7 +230,7 @@ class RoleAuthorizationTest < ActionDispatch::IntegrationTest
   end
 
   def auth_prop
-    JSON.parse(@response.body[/data-page="app" type="application\/json">(.*?)<\/script>/m, 1])["props"]["auth"]
+    JSON.parse(@response.body[/data-page="app" type="application\/json"[^>]*>(.*?)<\/script>/m, 1])["props"]["auth"]
   end
 
   test "a deactivated member can neither switch into nor write to the organization" do
