@@ -1,6 +1,10 @@
 # frozen_string_literal: true
 
 class Users::SessionsController < Devise::SessionsController
+  # Per-IP throttle against password spraying across many accounts; Devise's
+  # :lockable separately locks a single account after repeated failures.
+  rate_limit to: 10, within: 3.minutes, only: :create, store: AUTH_RATE_LIMIT_STORE,
+             with: -> { redirect_to new_user_session_path, alert: "Too many sign-in attempts. Please wait a few minutes and try again." }
   # before_action :configure_sign_in_params, only: [:create]
 
   # GET /login
@@ -18,7 +22,11 @@ class Users::SessionsController < Devise::SessionsController
       yield resource if block_given?
       redirect_to after_sign_in_path_for(resource)
     else
-      flash[:alert] = I18n.t("devise.failure.invalid", authentication_keys: "Email")
+      # Only a lockout gets its own message (a locked account has already seen
+      # many attempts); everything else stays generic so it doesn't reveal
+      # whether the email has an account.
+      failure = warden.message == :locked ? :locked : :invalid
+      flash[:alert] = I18n.t("devise.failure.#{failure}", authentication_keys: "Email")
       redirect_to new_user_session_path
     end
   end

@@ -15,6 +15,10 @@ module ActiveSupport
     # Setup all fixtures in test/fixtures/*.yml for all tests in alphabetical order.
     fixtures :all
 
+    # Every request (integration or system) comes from the same IP, so auth rate
+    # limits would otherwise carry over from one test to the next.
+    setup { Rails.application.config.x.rate_limit_store&.clear }
+
     # Add more helper methods to be used by all tests here...
 
     # Temporarily replaces a singleton (class/module) method for the duration of

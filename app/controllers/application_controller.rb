@@ -2,6 +2,10 @@ class ApplicationController < ActionController::Base
   # Only allow modern browsers supporting webp images, web push, badges, import maps, CSS nesting, and CSS :has.
   allow_browser versions: :modern
 
+  # Cache backing the per-IP auth rate limits (see Users::*Controller). The app
+  # cache in production; test swaps in a real store via config.x.
+  AUTH_RATE_LIMIT_STORE = Rails.application.config.x.rate_limit_store || Rails.cache
+
   inertia_share flash: -> { flash.to_hash }
 
   inertia_share auth: -> {

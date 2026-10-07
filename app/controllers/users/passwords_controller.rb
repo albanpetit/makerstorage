@@ -1,6 +1,9 @@
 # frozen_string_literal: true
 
 class Users::PasswordsController < Devise::PasswordsController
+  # Throttle reset emails per IP so the form can't be used to spam inboxes.
+  rate_limit to: 5, within: 15.minutes, only: :create, store: AUTH_RATE_LIMIT_STORE,
+             with: -> { redirect_to new_user_password_path, alert: "Too many reset requests. Please wait a few minutes and try again." }
   # GET /forgot-password
   def new
     render inertia: "auth/forgot-password", props: {}

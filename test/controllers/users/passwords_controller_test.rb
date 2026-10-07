@@ -24,4 +24,13 @@ class Users::PasswordsControllerTest < ActionDispatch::IntegrationTest
     end
     assert_redirected_to new_user_password_path
   end
+
+  test "reset requests are throttled per IP" do
+    5.times { post user_password_path, params: { user: { email: "nobody@example.com" } } }
+
+    assert_no_difference -> { ActionMailer::Base.deliveries.size } do
+      post user_password_path, params: { user: { email: create_user.email } }
+    end
+    assert_match(/too many reset requests/i, flash[:alert])
+  end
 end
