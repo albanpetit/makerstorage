@@ -5,6 +5,8 @@ class Footprint < ApplicationRecord
 
   # Active Storage
   has_one_attached :image
+  include AttachmentValidation
+  validates_attachment :image, content_types: AttachmentValidation::LOGO_TYPES, max_size: 2.megabytes
 
   # Constants
   MOUNTING_TYPES = %w[SMD Through-hole Both].freeze

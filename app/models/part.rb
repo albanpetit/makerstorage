@@ -27,6 +27,10 @@ class Part < ApplicationRecord
   # Active Storage for images and datasheets
   has_many_attached :images
   has_one_attached :datasheet
+  include AttachmentValidation
+  validates_attachment :images, content_types: AttachmentValidation::IMAGE_TYPES, max_size: 10.megabytes
+  # Matches SupplierCatalog::RemoteFile's download cap.
+  validates_attachment :datasheet, content_types: AttachmentValidation::PDF_TYPES, max_size: 25.megabytes
 
   # Constants
   STATUSES = %w[active discontinued obsolete].freeze

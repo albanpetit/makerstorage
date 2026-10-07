@@ -257,4 +257,29 @@ class PartTest < ActiveSupport::TestCase
     assert_equal [ no_threshold, stocked ].sort_by(&:id), org.parts.sufficient_stock.to_a.sort_by(&:id)
     assert_equal 1, org.low_stock_parts_count
   end
+
+  test "images must be web images under 10 MB" do
+    part = create_part(organization: create_organization)
+
+    part.images.attach(io: StringIO.new("<html></html>"), filename: "x.html", content_type: "text/html", identify: false)
+    assert_not part.valid?
+    assert_match(/must be a PNG, JPEG, GIF or WEBP file/, part.errors[:images].join)
+
+    part.images.detach
+    part.images.attach(io: StringIO.new("a" * (10.megabytes + 1)), filename: "big.png", content_type: "image/png", identify: false)
+    assert_not part.valid?
+    assert_match(/smaller than 10 MB/, part.errors[:images].join)
+
+    part.images.detach
+    part.images.attach(io: File.open(Rails.root.join("test/fixtures/files/logo.png")), filename: "logo.png", content_type: "image/png")
+    assert part.valid?
+  end
+
+  test "a datasheet must be a pdf" do
+    part = create_part(organization: create_organization)
+    part.datasheet.attach(io: StringIO.new("not a pdf"), filename: "ds.txt", content_type: "text/plain", identify: false)
+
+    assert_not part.valid?
+    assert_match(/must be a PDF file/, part.errors[:datasheet].join)
+  end
 end

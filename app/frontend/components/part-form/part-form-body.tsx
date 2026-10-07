@@ -256,6 +256,7 @@ export function PartFormBody({
                   onChange={(e) => onImageFileChange(e.target.files?.[0] ?? null)}
                 />
                 <p className="text-xs text-muted-foreground">{imageHelp}</p>
+                {errors['part.images'] && <FieldError>{errors['part.images']}</FieldError>}
               </div>
               {imageFile && (
                 <Button

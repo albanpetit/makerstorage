@@ -29,6 +29,8 @@ class Organization < ApplicationRecord
 
   # Active Storage
   has_one_attached :logo
+  include AttachmentValidation
+  validates_attachment :logo, content_types: AttachmentValidation::LOGO_TYPES, max_size: 2.megabytes
 
   # Encrypted secrets - supplier catalog integration (see SupplierCatalog)
   encrypts :mouser_api_key

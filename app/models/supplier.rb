@@ -18,6 +18,8 @@ class Supplier < ApplicationRecord
 
   # Active Storage
   has_one_attached :logo
+  include AttachmentValidation
+  validates_attachment :logo, content_types: AttachmentValidation::LOGO_TYPES, max_size: 2.megabytes
 
   # Validations
   validates :name, presence: true, length: { minimum: 2, maximum: 100 }

@@ -251,4 +251,14 @@ class OrganizationTest < ActiveSupport::TestCase
     assert_equal 0, StockMovement.where(organization_id: org.id).count
     assert_equal 0, Order.where(organization_id: org.id).count
   end
+
+  test "the logo must be an image of at most 2 MB" do
+    org = create_user.organizations.first # has an owner, so it's otherwise valid
+    org.logo.attach(io: StringIO.new("a" * (2.megabytes + 1)), filename: "logo.png", content_type: "image/png", identify: false)
+    assert_not org.valid?
+    assert_match(/smaller than 2 MB/, org.errors[:logo].join)
+
+    org.logo.attach(io: StringIO.new("<svg xmlns='http://www.w3.org/2000/svg'/>"), filename: "logo.svg", content_type: "image/svg+xml", identify: false)
+    assert org.valid?, "SVG logos are allowed"
+  end
 end
