@@ -208,7 +208,11 @@ class OrdersController < ApplicationController
       return
     end
 
-    skus = @order.order_lines.map { |line| [ line, mouser_sku_for(line) ] }
+    # The Mouser part number each line carries via its part's link to this
+    # order's supplier, fetched in one query rather than one per line.
+    mouser_skus = PartSupplier.where(part_id: @order.order_lines.map(&:part_id), supplier_id: @order.supplier_id)
+      .pluck(:part_id, :supplier_sku).to_h
+    skus = @order.order_lines.map { |line| [ line, mouser_skus[line.part_id] ] }
     items = skus.filter_map { |line, sku| { supplier_sku: sku, quantity: line.quantity } if sku.present? }
 
     if items.empty?
@@ -351,11 +355,6 @@ class OrdersController < ApplicationController
     rescue ActiveRecord::RecordNotUnique
       find.call || raise
     end
-  end
-
-  # The Mouser part number a line carries via its link to this order's supplier.
-  def mouser_sku_for(line)
-    line.part.part_suppliers.find_by(supplier_id: @order.supplier_id)&.supplier_sku
   end
 
   def set_order

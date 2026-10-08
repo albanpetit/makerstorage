@@ -74,4 +74,50 @@ class NPlusOneTest < ActionDispatch::IntegrationTest
     assert growth <= QUERY_NOISE_TOLERANCE,
       "parts index query count grew by #{growth} (#{baseline} → #{grown}) after nesting #{ROWS_ADDED} categories"
   end
+
+  test "part detail resolves its zones' paths without a query per level" do
+    part = create_part(organization: @org, category: @category)
+    zone = @location
+    stock_in = ->(location) { StockMovement.create!(organization: @org, part: part, storage_location: location, movement_type: "in", quantity_delta: 1) }
+
+    2.times { zone = create_storage_location(organization: @org, parent: zone, location_type: "shelf") }
+    stock_in.call(zone)
+    baseline = count_queries { get part_path(part, format: :json) }
+    assert_response :success
+
+    ROWS_ADDED.times { zone = create_storage_location(organization: @org, parent: zone, location_type: "shelf") }
+    stock_in.call(zone)
+    grown = count_queries { get part_path(part, format: :json) }
+
+    growth = grown - baseline
+    assert growth <= QUERY_NOISE_TOLERANCE,
+      "part detail query count grew by #{growth} (#{baseline} → #{grown}) after nesting #{ROWS_ADDED} zones"
+    assert_equal ROWS_ADDED + 3, response.parsed_body["storages"].last["location_path"].size
+  end
+
+  test "pushing an order to a Mouser cart looks up part numbers in one query" do
+    mouser, = Supplier.ensure_catalog_provider(@org, "mouser")
+    @org.update!(mouser_order_api_key: "order-key")
+    order = create_order(organization: @org, supplier: mouser, status: "pending", reference: "PO-N1")
+    add_line = lambda do
+      part = create_part(organization: @org, category: @category)
+      part.part_suppliers.create!(supplier: mouser, supplier_sku: "603-#{part.id}")
+      order.order_lines.create!(part: part, quantity: 1)
+    end
+    cart = SupplierCatalog::CartResult.new(cart_key: "k", currency: "EUR", lines: [])
+    client = Object.new
+    client.define_singleton_method(:create_cart) { |_items, currency: nil| cart }
+
+    stub_singleton(SupplierCatalog, :mouser_order_client, ->(_org) { client }) do
+      2.times { add_line.call }
+      baseline = count_queries { post push_to_cart_order_path(order) }
+
+      ROWS_ADDED.times { add_line.call }
+      grown = count_queries { post push_to_cart_order_path(order) }
+
+      growth = grown - baseline
+      assert growth <= QUERY_NOISE_TOLERANCE,
+        "push_to_cart query count grew by #{growth} (#{baseline} → #{grown}) after adding #{ROWS_ADDED} lines"
+    end
+  end
 end

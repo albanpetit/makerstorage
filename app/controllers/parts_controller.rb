@@ -67,7 +67,7 @@ class PartsController < ApplicationController
 
         render json: {
           part: serialize_part_full(@part),
-          storages: @part.part_storages.includes(:storage_location).map { |ps| serialize_part_storage(ps) },
+          storages: @part.part_storages.includes(:storage_location).map { |ps| serialize_part_storage(ps, location_paths) },
           movements: movements.map { |movement| serialize_part_movement(movement) },
           storage_locations: serialize_storage_locations,
           categories: serialize_categories,
@@ -594,14 +594,19 @@ class PartsController < ApplicationController
     )
   end
 
-  def serialize_part_storage(ps)
+  def serialize_part_storage(ps, paths)
     location = ps.storage_location
     {
       location_id: location.id,
       location_name: location.name,
-      location_path: (location.ancestors.reverse + [ location ]).map(&:name),
+      location_path: location.path_names(cache: paths),
       quantity: ps.quantity
     }
+  end
+
+  # id => zone map so each storage's path resolves in memory, not a query per level.
+  def location_paths
+    @location_paths ||= StorageLocation.full_path_cache(current_organization.storage_locations)
   end
 
   def serialize_part_movement(movement)
