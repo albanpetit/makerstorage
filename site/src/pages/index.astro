@@ -1,0 +1,243 @@
+---
+import { Image, getImage } from "astro:assets";
+import {
+  ArrowRight,
+  ArrowRightLeft,
+  BellRing,
+  Boxes,
+  ClipboardList,
+  FileSpreadsheet,
+  ScanBarcode,
+  Server,
+  Truck,
+  Users,
+  Warehouse,
+} from "@lucide/astro";
+import Base from "../layouts/Base.astro";
+import Header from "../components/Header.astro";
+import Footer from "../components/Footer.astro";
+import GithubMark from "../components/GithubMark.astro";
+import dashboard from "../assets/dashboard.png";
+import { IMAGE, REPO_URL } from "../site";
+
+const ogImage = await getImage({ src: dashboard, width: 1200, format: "png" });
+
+const features = [
+  {
+    icon: Boxes,
+    title: "A real parts catalog",
+    body: "SKU, MPN, barcode, manufacturer, specs, datasheets and per-supplier pricing. Organize with nested categories, reusable footprints and tags.",
+  },
+  {
+    icon: Warehouse,
+    title: "Stock down to the drawer",
+    body: "Model your space as a tree — room, cabinet, shelf, bench, drawer, box — and track quantities for every part in every location.",
+  },
+  {
+    icon: ArrowRightLeft,
+    title: "An append-only ledger",
+    body: "Every change is a stock movement with a reason. Quantities can't silently drift, and you always know who took what, and why.",
+  },
+  {
+    icon: ScanBarcode,
+    title: "Scan, don't type",
+    body: "Point a phone or webcam at a barcode to look a part up and record what goes in or out, right at the shelf.",
+  },
+  {
+    icon: BellRing,
+    title: "Low-stock alerts",
+    body: "Set a minimum per part. Reorder suggestions account for what's already on order, so nobody double-orders.",
+  },
+  {
+    icon: Truck,
+    title: "Suppliers & purchase orders",
+    body: "Generate orders, follow them from pending to received, and split deliveries across storage zones. Look parts up and import orders from Mouser and DigiKey.",
+  },
+  {
+    icon: ClipboardList,
+    title: "Project BOMs",
+    body: "Import a bill of materials, see at a glance what you can build, order the shortfall, and deduct parts when the build is done.",
+  },
+  {
+    icon: Users,
+    title: "Built for teams",
+    body: "Each organization's data is isolated. Invite members as owner, admin, member or viewer — read-only access for students, full control for staff.",
+  },
+  {
+    icon: FileSpreadsheet,
+    title: "Bring your spreadsheet",
+    body: "Bulk-load an existing inventory from CSV, including files saved by Excel. Categories and locations are created on the way in.",
+  },
+];
+
+const steps = [
+  {
+    title: "Catalog",
+    body: "Import your spreadsheet or pull part details straight from a supplier catalog.",
+  },
+  {
+    title: "Store",
+    body: "Map your shelves, drawers and boxes, then scan stock in and out as people use it.",
+  },
+  {
+    title: "Build & reorder",
+    body: "Check a BOM against what's on hand, and reorder what's running low before a workshop, not during it.",
+  },
+];
+
+const dockerRun = `# Once: generate these, store them somewhere safe and reuse them.
+SECRET_KEY_BASE=$(openssl rand -hex 64)
+AR_ENCRYPTION_PRIMARY_KEY=$(openssl rand -hex 32)
+AR_ENCRYPTION_DETERMINISTIC_KEY=$(openssl rand -hex 32)
+AR_ENCRYPTION_KEY_DERIVATION_SALT=$(openssl rand -hex 32)
+
+docker run -d --name makerstorage \\
+  -p 3000:80 \\
+  -e SECRET_KEY_BASE="$SECRET_KEY_BASE" \\
+  -e AR_ENCRYPTION_PRIMARY_KEY="$AR_ENCRYPTION_PRIMARY_KEY" \\
+  -e AR_ENCRYPTION_DETERMINISTIC_KEY="$AR_ENCRYPTION_DETERMINISTIC_KEY" \\
+  -e AR_ENCRYPTION_KEY_DERIVATION_SALT="$AR_ENCRYPTION_KEY_DERIVATION_SALT" \\
+  -v makerstorage-storage:/rails/storage \\
+  ${IMAGE}`;
+---
+
+<Base
+  title="Makerstorage — open-source inventory for makerspaces"
+  description="Makerstorage is an open-source, self-hosted inventory manager for makerspaces and fablabs, built for electronic components: stock per drawer, barcode scanning, low-stock alerts, purchase orders and project BOMs."
+>
+  <Fragment slot="head">
+    <meta property="og:image" content={new URL(ogImage.src, Astro.site)} />
+  </Fragment>
+
+  <Header />
+
+  <main>
+    <section class="relative overflow-hidden">
+      <div
+        class="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[32rem] bg-[radial-gradient(ellipse_at_top,color-mix(in_oklab,var(--primary)_22%,transparent),transparent_65%)]"
+      >
+      </div>
+      <div class="mx-auto max-w-6xl px-4 pt-16 pb-12 text-center sm:px-6 sm:pt-24">
+        <p
+          class="mx-auto inline-flex items-center gap-2 rounded-full border bg-card px-3 py-1 font-mono text-xs text-muted-foreground"
+        >
+          <span class="size-1.5 rounded-full bg-primary"></span>
+          Open source · Self-hosted · AGPL-3.0
+        </p>
+        <h1 class="mx-auto mt-6 max-w-3xl text-4xl font-semibold tracking-tight text-balance sm:text-6xl">
+          Know where every part is.
+        </h1>
+        <p class="mx-auto mt-5 max-w-2xl text-lg text-pretty text-muted-foreground">
+          Makerstorage is an inventory manager for makerspaces and fablabs, built for electronic components. Keep stock
+          accurate down to the drawer, and reorder before you run out.
+        </p>
+        <div class="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+          <a
+            href="#self-host"
+            class="inline-flex h-11 items-center gap-2 rounded-md bg-primary px-5 font-medium text-primary-foreground shadow-xs transition hover:brightness-95"
+          >
+            Self-host with Docker
+            <ArrowRight class="size-4" />
+          </a>
+          <a
+            href={REPO_URL}
+            class="inline-flex h-11 items-center gap-2 rounded-md border bg-card px-5 font-medium shadow-xs transition-colors hover:bg-muted"
+          >
+            <GithubMark class="size-4" />
+            View on GitHub
+          </a>
+        </div>
+      </div>
+
+      <div class="mx-auto max-w-6xl px-4 pb-20 sm:px-6">
+        <figure class="overflow-hidden rounded-xl border bg-card shadow-2xl shadow-black/10">
+          <div class="flex items-center gap-1.5 border-b bg-subtle px-4 py-3" aria-hidden="true">
+            <span class="size-2.5 rounded-full bg-muted-foreground/30"></span>
+            <span class="size-2.5 rounded-full bg-muted-foreground/30"></span>
+            <span class="size-2.5 rounded-full bg-muted-foreground/30"></span>
+          </div>
+          <Image
+            src={dashboard}
+            alt="The Makerstorage dashboard: stock totals, low-stock alerts, a breakdown by category and recent stock movements."
+            widths={[640, 1024, 1654]}
+            sizes="(min-width: 1152px) 1104px, 100vw"
+            loading="eager"
+            class="h-auto w-full"
+          />
+        </figure>
+      </div>
+    </section>
+
+    <section id="features" class="scroll-mt-16 border-t bg-subtle">
+      <div class="mx-auto max-w-6xl px-4 py-20 sm:px-6">
+        <div class="max-w-2xl">
+          <h2 class="text-3xl font-semibold tracking-tight">Everything a parts room needs</h2>
+          <p class="mt-3 text-muted-foreground">
+            Not a generic stock tool with resistors bolted on — Makerstorage knows about footprints, MPNs, BOMs and the
+            reality of a shared workshop.
+          </p>
+        </div>
+        <ul class="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {
+            features.map(({ icon: Icon, title, body }) => (
+              <li class="rounded-xl border bg-card p-6">
+                <div class="flex size-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                  <Icon class="size-5" />
+                </div>
+                <h3 class="mt-4 font-semibold">{title}</h3>
+                <p class="mt-2 text-sm leading-relaxed text-muted-foreground">{body}</p>
+              </li>
+            ))
+          }
+        </ul>
+      </div>
+    </section>
+
+    <section id="how-it-works" class="scroll-mt-16 border-t">
+      <div class="mx-auto max-w-6xl px-4 py-20 sm:px-6">
+        <h2 class="text-3xl font-semibold tracking-tight">From a messy drawer to a tidy ledger</h2>
+        <ol class="mt-12 grid gap-8 md:grid-cols-3">
+          {
+            steps.map((step, index) => (
+              <li class="border-t-2 border-primary pt-6">
+                <span class="font-mono text-sm text-muted-foreground">0{index + 1}</span>
+                <h3 class="mt-2 text-lg font-semibold">{step.title}</h3>
+                <p class="mt-2 text-muted-foreground">{step.body}</p>
+              </li>
+            ))
+          }
+        </ol>
+      </div>
+    </section>
+
+    <section id="self-host" class="scroll-mt-16 border-t bg-subtle">
+      <div class="mx-auto grid max-w-6xl gap-10 px-4 py-20 sm:px-6 lg:grid-cols-[2fr_3fr] lg:items-center">
+        <div>
+          <div class="flex size-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+            <Server class="size-5" />
+          </div>
+          <h2 class="mt-4 text-3xl font-semibold tracking-tight">Your data, on your hardware</h2>
+          <p class="mt-3 text-muted-foreground">
+            Makerstorage ships as a single Docker image backed by SQLite — no external database to run. Put it on a
+            small server on your workshop's network and you're done.
+          </p>
+          <p class="mt-3 text-muted-foreground">
+            Keep the secrets you generate: they sign sessions and encrypt the supplier API keys stored in the
+            database. The <a href={`${REPO_URL}#getting-started`} class="font-medium text-foreground underline underline-offset-4"
+              >README</a
+            > covers secrets, email and building from source.
+          </p>
+        </div>
+        <div class="min-w-0 overflow-hidden rounded-xl border bg-zinc-950 text-zinc-100 shadow-lg">
+          <div class="border-b border-zinc-800 px-4 py-2.5 font-mono text-xs text-zinc-400">terminal</div>
+          <pre class="overflow-x-auto p-4 font-mono text-[13px] leading-relaxed"><code>{dockerRun}</code></pre>
+          <p class="border-t border-zinc-800 px-4 py-2.5 font-mono text-xs text-zinc-400">
+            Then open http://localhost:3000 and create your account.
+          </p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <Footer />
+</Base>

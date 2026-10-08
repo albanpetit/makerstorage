@@ -118,7 +118,7 @@ type(scope): description
 
 **Frontend:** `page` (Inertia pages) · `ui` (React components) · `state` (state management) · `types` (TypeScript types) · `style` (Tailwind/CSS)
 
-**Tooling:** `vite` · `build` · `infra` (Node/env/Docker) · `repo` (repo structure/scripts)
+**Tooling:** `vite` · `build` · `infra` (Node/env/Docker) · `repo` (repo structure/scripts) · `site` (marketing site in `site/`)
 
 Combine multiple scopes with a space when a change spans several — e.g. `feat(api ui): …`.
 
