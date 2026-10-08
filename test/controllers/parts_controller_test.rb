@@ -651,6 +651,76 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "import keeps an existing part's fields the sheet doesn't state" do
+    user = create_user
+    org = user.organizations.first
+    category = create_category(organization: org, name: "Resistors")
+    part = create_part(
+      organization: org, category: category, name: "Old name", mpn: "RES-10K", sku: "SKU-1",
+      manufacturer: "Yageo", value: "10k", package_type: "0603", unit_price: 0.1,
+      min_stock_threshold: 50, status: "discontinued"
+    )
+
+    # No SKU/manufacturer/price/threshold/status columns, and a blank Value cell.
+    csv = <<~CSV
+      Name,Category,MPN,Value
+      Resistor 10k,Resistors,RES-10K,
+    CSV
+
+    sign_in user
+    post import_parts_path, params: { file: csv_upload(csv) }
+
+    part.reload
+    assert_equal "Resistor 10k", part.name
+    assert_equal "SKU-1", part.sku
+    assert_equal "Yageo", part.manufacturer
+    assert_equal "10k", part.value
+    assert_equal "0603", part.package_type
+    assert_equal 0.1, part.unit_price.to_f
+    assert_equal 50, part.min_stock_threshold
+    assert_equal "discontinued", part.status
+  end
+
+  test "import updates an existing part's fields the sheet does state" do
+    user = create_user
+    org = user.organizations.first
+    category = create_category(organization: org, name: "Resistors")
+    part = create_part(organization: org, category: category, mpn: "RES-10K", unit_price: 0.1, min_stock_threshold: 50)
+
+    csv = <<~CSV
+      Name;Category;MPN;Unit Price;Min;Status
+      Resistor 10k;Resistors;RES-10K;0,25;10;obsolete
+    CSV
+
+    sign_in user
+    post import_parts_path, params: { file: csv_upload(csv) }
+
+    part.reload
+    assert_equal 0.25, part.unit_price.to_f
+    assert_equal 10, part.min_stock_threshold
+    assert_equal "obsolete", part.status
+  end
+
+  test "import with a location but no quantity leaves that location's stock alone" do
+    user = create_user
+    org = user.organizations.first
+    category = create_category(organization: org, name: "Resistors")
+    location = create_storage_location(organization: org, name: "Shelf A")
+    part = create_part(organization: org, category: category, mpn: "RES-10K")
+    StockMovement.create!(organization: org, part: part, storage_location: location, movement_type: "in", quantity_delta: 40)
+
+    csv = <<~CSV
+      Name,Category,MPN,Location
+      Resistor 10k,Resistors,RES-10K,Shelf A
+    CSV
+
+    sign_in user
+    assert_no_difference -> { StockMovement.count } do
+      post import_parts_path, params: { file: csv_upload(csv) }
+    end
+    assert_equal 40, part.reload.total_quantity
+  end
+
   test "import without a location column leaves stock untouched" do
     user = create_user
     org = user.organizations.first

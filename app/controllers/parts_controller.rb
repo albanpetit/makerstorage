@@ -15,6 +15,18 @@ class PartsController < ApplicationController
   before_action :verify_organization_admin, only: %i[bulk_destroy]
   before_action :set_part, only: %i[show edit update destroy]
 
+  # Part attribute => BomParser field for the optional CSV import columns.
+  IMPORTED_ATTRIBUTES = {
+    mpn: :mpn,
+    sku: :sku,
+    manufacturer: :manufacturer,
+    value: :value,
+    package_type: :package,
+    unit_price: :unit_price,
+    min_stock_threshold: :min_stock_threshold,
+    status: :status
+  }.freeze
+
   def index
     parts = current_organization.parts
       .includes(:category, :footprint, :tags, :part_storages, :storage_locations, part_suppliers: :supplier)
@@ -270,19 +282,18 @@ class PartsController < ApplicationController
         # part, location, or a stock level the ledger refuses) is skipped as a
         # whole instead of leaving a half-imported part or aborting the file.
         imported = ActiveRecord::Base.transaction do
-          part ||= current_organization.parts.build
-          part.assign_attributes(
-            name: name,
-            category: current_organization.categories.find_or_create_by!(name: category_name),
-            mpn: import_value(row, :mpn),
-            sku: import_value(row, :sku),
-            manufacturer: import_value(row, :manufacturer),
-            value: import_value(row, :value),
-            package_type: import_value(row, :package),
-            unit_price: import_value(row, :unit_price)&.tr(",", "."),
-            min_stock_threshold: import_value(row, :min_stock_threshold) || 0,
-            status: import_value(row, :status) || "active"
-          )
+          part ||= current_organization.parts.build(min_stock_threshold: 0, status: "active")
+          part.assign_attributes(name: name, category: current_organization.categories.find_or_create_by!(name: category_name))
+          # Only what the sheet actually states: a column the file doesn't have,
+          # or a blank cell, leaves an existing part's value alone instead of
+          # wiping it (a re-import of a partial sheet must not erase data).
+          IMPORTED_ATTRIBUTES.each do |attribute, field|
+            value = import_value(row, field)
+            next if value.nil?
+
+            value = value.tr(",", ".") if attribute == :unit_price
+            part.assign_attributes(attribute => value)
+          end
           part.save!
           assign_stock(part, row)
           true
@@ -372,8 +383,13 @@ class PartsController < ApplicationController
     # PartStorage.quantity directly: stock_movements is the single source of
     # truth (PartStorage is maintained by StockMovement's callback), so a direct
     # write would desync the movements "Stock After" running balance. Only the
-    # delta from the current level is recorded, as an adjustment.
-    target = import_value(row, :quantity).to_i
+    # delta from the current level is recorded, as an adjustment. A row naming a
+    # location without a quantity states nothing about stock: leave it as is
+    # rather than reading the missing value as zero and emptying the location.
+    quantity = import_value(row, :quantity)
+    return if quantity.nil?
+
+    target = quantity.to_i
     current = PartStorage.find_by(part: part, storage_location: location)&.quantity || 0
     delta = target - current
     return if delta.zero?
