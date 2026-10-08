@@ -54,6 +54,7 @@ interface Member {
   email: string
   role: Role
   active: boolean
+  pending: boolean
   is_you: boolean
   joined_at: string
 }
@@ -235,10 +236,17 @@ export default function MembersIndex({ members }: MembersPageProps) {
                       </TableCell>
                       <TableCell className="py-2.5 text-sm text-muted-foreground">{formatDate(member.joined_at)}</TableCell>
                       <TableCell className="py-2.5">
-                        <span className={`inline-flex items-center gap-1.5 text-sm ${member.active ? '' : 'text-muted-foreground'}`}>
-                          <span className={`size-1.5 rounded-full ${member.active ? 'bg-emerald-500' : 'bg-muted-foreground'}`} />
-                          {member.active ? 'Active' : 'Inactive'}
-                        </span>
+                        {member.pending ? (
+                          <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
+                            <span className="size-1.5 rounded-full bg-amber-500" />
+                            Invited
+                          </span>
+                        ) : (
+                          <span className={`inline-flex items-center gap-1.5 text-sm ${member.active ? '' : 'text-muted-foreground'}`}>
+                            <span className={`size-1.5 rounded-full ${member.active ? 'bg-emerald-500' : 'bg-muted-foreground'}`} />
+                            {member.active ? 'Active' : 'Inactive'}
+                          </span>
+                        )}
                       </TableCell>
                       <TableCell className="py-2.5 text-right">
                         <DropdownMenu>
@@ -313,7 +321,7 @@ export default function MembersIndex({ members }: MembersPageProps) {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Invite a member</DialogTitle>
-            <DialogDescription>They'll need an existing Makerstorage account to be added.</DialogDescription>
+            <DialogDescription>They need an existing Makerstorage account, and join once they accept the invitation from their profile.</DialogDescription>
           </DialogHeader>
           <form onSubmit={submitInvite} className="flex flex-col gap-4">
             <Field>

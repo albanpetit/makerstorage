@@ -122,6 +122,14 @@ Rails.application.routes.draw do
 
   resource :profile, only: %i[show update]
 
+  # Organization invitations addressed to the signed-in user.
+  resources :invitations, only: [] do
+    member do
+      post :accept
+      delete :decline
+    end
+  end
+
   root "dashboard#index"
   # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
 

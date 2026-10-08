@@ -18,6 +18,9 @@ class OrganizationMembership < ApplicationRecord
   scope :inactive, -> { where(active: false) }
   scope :pending_invitation, -> { where.not(invitation_sent_at: nil).where(invitation_accepted_at: nil) }
   scope :accepted, -> { where.not(invitation_accepted_at: nil) }
+  # Memberships that give access: active and not an invitation still awaiting
+  # the invitee's answer (memberships created directly carry no invitation).
+  scope :granting_access, -> { active.where(invitation_sent_at: nil).or(active.accepted) }
 
   before_create :generate_invitation_token, if: :should_generate_token?
 
@@ -49,6 +52,10 @@ class OrganizationMembership < ApplicationRecord
     invitation_accepted_at.present?
   end
 
+  def grants_access?
+    active? && !pending_invitation?
+  end
+
   def accept_invitation!
     update!(invitation_accepted_at: Time.current)
   end
@@ -67,23 +74,24 @@ class OrganizationMembership < ApplicationRecord
     # When the organization itself is being deleted, the whole membership set
     # goes with it — the "keep at least one owner" rule doesn't apply.
     return if organization&.being_destroyed
-    return unless owner? && active? && no_other_active_owner?
+    return unless owner? && grants_access? && no_other_active_owner?
 
     errors.add(:base, "Organization must have at least one active owner")
     throw :abort
   end
 
   # Only losing an *active* owner matters: demoting or deactivating an owner who
-  # was already inactive leaves the active owner count unchanged.
+  # was already inactive (or never accepted the invitation) leaves the active
+  # owner count unchanged.
   def organization_must_have_owner_on_role_change
-    was_active_owner = role_in_database == "owner" && active_in_database
-    return unless was_active_owner && !(owner? && active?) && no_other_active_owner?
+    was_active_owner = role_in_database == "owner" && active_in_database && !pending_invitation?
+    return unless was_active_owner && !(owner? && grants_access?) && no_other_active_owner?
 
     errors.add(role_changed? ? :role : :active, "Organization must have at least one active owner")
   end
 
   def no_other_active_owner?
-    organization.organization_memberships.owners.active.where.not(id: id).none?
+    organization.organization_memberships.owners.granting_access.where.not(id: id).none?
   end
 
   def should_generate_token?

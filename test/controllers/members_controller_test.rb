@@ -53,7 +53,34 @@ class MembersControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to members_path
     membership = org.organization_memberships.find_by(user: invitee)
     assert_equal "member", membership.role
-    assert_not_nil membership.invitation_accepted_at
+    assert membership.pending_invitation?, "the invitee must accept before joining"
+    assert_not invitee.member_of_organization?(org.id)
+  end
+
+  test "create refuses to invite someone twice" do
+    user = create_user
+    org = user.organizations.first
+    invitee = create_user(email: "invitee@example.com")
+    OrganizationMembership.create!(organization: org, user: invitee, role: "member", invitation_sent_at: Time.current)
+
+    sign_in user
+    assert_no_difference -> { OrganizationMembership.count } do
+      post members_path, params: { member: { email: "invitee@example.com", role: "member" } }
+    end
+    assert_match(/already been invited/, flash[:alert])
+  end
+
+  test "index flags pending invitations" do
+    user = create_user
+    org = user.organizations.first
+    invitee = create_user(email: "invitee@example.com")
+    OrganizationMembership.create!(organization: org, user: invitee, role: "member", invitation_sent_at: Time.current)
+
+    sign_in user
+    get members_path
+
+    row = inertia_props["members"].find { |m| m["email"] == "invitee@example.com" }
+    assert_equal true, row["pending"]
   end
 
   test "create fails when no account exists for that email" do
