@@ -3,6 +3,7 @@ import { FormEvent, useEffect, useState } from 'react'
 import { Plus, Check } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
+import { ColorSwatches } from '@/components/color-swatches'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -26,20 +27,6 @@ interface TagPickerProps {
   value: number[]
   onChange: (value: number[]) => void
 }
-
-// Preset swatches for a newly created tag. The leading `null` is "no color";
-// every other value is a #RRGGBB hex the Tag model accepts.
-const PRESET_COLORS: Array<{ value: string | null; className: string }> = [
-  { value: null, className: 'bg-muted' },
-  { value: '#EF4444', className: 'bg-red-500' },
-  { value: '#F97316', className: 'bg-orange-500' },
-  { value: '#EAB308', className: 'bg-yellow-500' },
-  { value: '#22C55E', className: 'bg-green-500' },
-  { value: '#3B82F6', className: 'bg-blue-500' },
-  { value: '#8B5CF6', className: 'bg-violet-500' },
-  { value: '#EC4899', className: 'bg-pink-500' },
-  { value: '#64748B', className: 'bg-slate-500' },
-]
 
 export function TagPicker({ tags, value, onChange }: TagPickerProps) {
   const [open, setOpen] = useState(false)
@@ -180,19 +167,7 @@ export function TagPicker({ tags, value, onChange }: TagPickerProps) {
 
               <div className="space-y-2">
                 <Label>Color</Label>
-                <div className="flex flex-wrap gap-2">
-                  {PRESET_COLORS.map((preset) => (
-                    <button
-                      key={preset.value ?? 'none'}
-                      type="button"
-                      onClick={() => setColor(preset.value)}
-                      aria-label={preset.value ?? 'No color'}
-                      className={`size-6 rounded-full border ${preset.className} ${
-                        color === preset.value ? 'ring-2 ring-ring ring-offset-2 ring-offset-background' : ''
-                      }`}
-                    />
-                  ))}
-                </div>
+                <ColorSwatches value={color} onChange={setColor} />
               </div>
             </div>
 

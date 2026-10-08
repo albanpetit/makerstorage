@@ -7,6 +7,7 @@ import { usePermissions } from '@/hooks/use-permissions'
 import { PageHeader } from '@/components/page-header'
 import { FlashMessages } from '@/components/flash-messages'
 import { Button } from '@/components/ui/button'
+import { ColorSwatches } from '@/components/color-swatches'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -37,20 +38,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-
-// Preset swatches. The leading `null` is "no color"; every other value is a
-// #RRGGBB hex the Category model accepts.
-const PRESET_COLORS: Array<{ value: string | null; className: string }> = [
-  { value: null, className: 'bg-muted' },
-  { value: '#EF4444', className: 'bg-red-500' },
-  { value: '#F97316', className: 'bg-orange-500' },
-  { value: '#EAB308', className: 'bg-yellow-500' },
-  { value: '#22C55E', className: 'bg-green-500' },
-  { value: '#3B82F6', className: 'bg-blue-500' },
-  { value: '#8B5CF6', className: 'bg-violet-500' },
-  { value: '#EC4899', className: 'bg-pink-500' },
-  { value: '#64748B', className: 'bg-slate-500' },
-]
 
 const NONE_VALUE = '__none__'
 
@@ -546,21 +533,7 @@ function CategoryForm({
           <Label>Color</Label>
         </FieldLabel>
         <FieldContent>
-          <div className="flex flex-wrap gap-2">
-            {PRESET_COLORS.map((preset) => (
-              <button
-                key={preset.value ?? 'none'}
-                type="button"
-                onClick={() => onChange({ color: preset.value ?? '' })}
-                aria-label={preset.value ?? 'No color'}
-                className={`size-6 rounded-full border ${preset.className} ${
-                  (data.color || '') === (preset.value ?? '')
-                    ? 'ring-2 ring-ring ring-offset-2 ring-offset-background'
-                    : ''
-                }`}
-              />
-            ))}
-          </div>
+          <ColorSwatches value={data.color || null} onChange={(color) => onChange({ color: color ?? '' })} />
         </FieldContent>
       </Field>
 
