@@ -66,6 +66,9 @@ The app is then served at `http://localhost:3000`.
   credentials baked into the image.
 - The **`makerstorage-storage` volume** holds the SQLite databases and uploaded
   files — it persists across restarts and is what you back up.
+- Background jobs (supplier datasheet downloads, the daily clean-up of orphaned
+  uploads) run inside the web server process. Set `SOLID_QUEUE_IN_PUMA=false`
+  only if you run `bin/jobs` in a separate container.
 - The container runs database migrations on boot and serves a health check at
   **`GET /up`**. Map the port however you like and put a TLS-terminating reverse
   proxy in front of it for production, then set **`FORCE_SSL=true`** (see the
