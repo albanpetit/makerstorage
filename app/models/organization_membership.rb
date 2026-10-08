@@ -67,21 +67,23 @@ class OrganizationMembership < ApplicationRecord
     # When the organization itself is being deleted, the whole membership set
     # goes with it — the "keep at least one owner" rule doesn't apply.
     return if organization&.being_destroyed
+    return unless owner? && active? && no_other_active_owner?
 
-    if owner? && organization.organization_memberships.owners.active.count == 1
-      errors.add(:base, "Organization must have at least one active owner")
-      throw :abort
-    end
+    errors.add(:base, "Organization must have at least one active owner")
+    throw :abort
   end
 
+  # Only losing an *active* owner matters: demoting or deactivating an owner who
+  # was already inactive leaves the active owner count unchanged.
   def organization_must_have_owner_on_role_change
-    if role_changed? && role_was == "owner" && organization.organization_memberships.owners.active.count == 1
-      errors.add(:role, "Organization must have at least one active owner")
-    end
+    was_active_owner = role_in_database == "owner" && active_in_database
+    return unless was_active_owner && !(owner? && active?) && no_other_active_owner?
 
-    if active_changed? && !active && owner? && organization.organization_memberships.owners.active.where.not(id: id).none?
-      errors.add(:active, "Organization must have at least one active owner")
-    end
+    errors.add(role_changed? ? :role : :active, "Organization must have at least one active owner")
+  end
+
+  def no_other_active_owner?
+    organization.organization_memberships.owners.active.where.not(id: id).none?
   end
 
   def should_generate_token?

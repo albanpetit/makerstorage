@@ -102,4 +102,29 @@ class OrganizationMembershipTest < ActiveSupport::TestCase
 
     assert membership.update(active: false)
   end
+
+  test "an inactive owner can be removed while one active owner remains" do
+    OrganizationMembership.create!(organization: @org, user: @user, role: "owner")
+    other_user = User.create!(firstname: "O", lastname: "2", email: "owner_2@example.com", password: "password123")
+    inactive = OrganizationMembership.create!(organization: @org, user: other_user, role: "owner", active: false)
+
+    assert inactive.destroy
+  end
+
+  test "an inactive owner can be demoted while one active owner remains" do
+    OrganizationMembership.create!(organization: @org, user: @user, role: "owner")
+    other_user = User.create!(firstname: "O", lastname: "2", email: "owner_2@example.com", password: "password123")
+    inactive = OrganizationMembership.create!(organization: @org, user: other_user, role: "owner", active: false)
+
+    assert inactive.update(role: "member")
+  end
+
+  test "the sole active owner can't be demoted even when inactive owners remain" do
+    active = OrganizationMembership.create!(organization: @org, user: @user, role: "owner")
+    other_user = User.create!(firstname: "O", lastname: "2", email: "owner_2@example.com", password: "password123")
+    OrganizationMembership.create!(organization: @org, user: other_user, role: "owner", active: false)
+
+    assert_not active.update(role: "admin")
+    assert_not active.reload.destroy
+  end
 end
