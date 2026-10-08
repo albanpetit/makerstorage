@@ -333,6 +333,7 @@ export function PartFormBody({
                   onChange={(e) => onInitialQuantityChange?.(e.target.value.replace(/[^0-9]/g, ''))}
                 />
               </FieldContent>
+              {errors['initial_quantity'] && <FieldError>{errors['initial_quantity']}</FieldError>}
             </Field>
           </>
         )}

@@ -431,6 +431,26 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
     assert_equal location, movement.storage_location
   end
 
+  test "create saves nothing when the initial stock can't be recorded" do
+    user = create_user
+    org = user.organizations.first
+    category = create_category(organization: org, name: "Resistors")
+    location = create_storage_location(organization: org, name: "Shelf A")
+
+    sign_in user
+    assert_no_difference [ "Part.count", "StockMovement.count" ] do
+      post parts_path, params: {
+        part: { name: "Resistor 10k", category_id: category.id },
+        initial_location_id: location.id,
+        initial_quantity: "3000000000"
+      }, headers: { "HTTP_REFERER" => parts_url }
+    end
+
+    assert_redirected_to parts_path
+    follow_redirect!
+    assert_match(/too large/i, Array(inertia_props["errors"]["initial_quantity"]).join)
+  end
+
   test "create does not assign stock when no location is given" do
     user = create_user
     org = user.organizations.first

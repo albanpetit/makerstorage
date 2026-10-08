@@ -19,6 +19,8 @@ class PartsController < ApplicationController
   class AmbiguousLocationError < StandardError; end
   # Raised when an import row's quantity isn't a whole number; skips the row.
   class InvalidQuantityError < StandardError; end
+  # Raised when the add-part form's opening stock can't be recorded.
+  class InitialStockError < StandardError; end
 
   # Part attribute => BomParser field for the optional CSV import columns.
   IMPORTED_ATTRIBUTES = {
@@ -105,14 +107,28 @@ class PartsController < ApplicationController
     part = current_organization.parts.build(part_params)
     part.image_source_url = params[:image_url].presence
 
-    if part.save
+    # The part and its opening stock land together: a refused stock movement
+    # must not leave the part created behind an error.
+    stock_errors = []
+    saved = ActiveRecord::Base.transaction do
+      raise ActiveRecord::Rollback unless part.save
+
       assign_initial_stock(part)
+      true
+    rescue InitialStockError, ActiveRecord::RecordInvalid => e
+      stock_errors = e.respond_to?(:record) ? e.record.errors.full_messages : [ e.message ]
+      raise ActiveRecord::Rollback
+    end
+
+    if saved
       attach_remote_datasheet(part)
       redirect_to parts_path, notice: "Part created successfully."
     else
       # No flash alert here: the add-part modal renders these errors inline, and
       # a page-level alert would surface behind the still-open dialog instead.
-      redirect_back_or_to parts_path, inertia: { errors: inertia_errors(part, as: :part) }
+      errors = inertia_errors(part, as: :part)
+      errors["initial_quantity"] = stock_errors if stock_errors.any?
+      redirect_back_or_to parts_path, inertia: { errors: errors }
     end
   end
 
@@ -458,6 +474,7 @@ class PartsController < ApplicationController
   def assign_initial_stock(part)
     quantity = params[:initial_quantity].to_i
     return if params[:initial_location_id].blank? || quantity <= 0
+    raise InitialStockError, "Quantity is too large" if quantity > ApplicationRecord::MAX_INTEGER
 
     location = current_organization.storage_locations.find_by(id: params[:initial_location_id])
     return unless location
