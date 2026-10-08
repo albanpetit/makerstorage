@@ -22,8 +22,16 @@ class MembersController < ApplicationController
     role = params.dig(:member, :role)
     user = User.find_by(email: email)
 
+    unless OrganizationMembership::ROLES.include?(role)
+      redirect_back_or_to members_path, alert: "Choose a valid role.", inertia: { errors: { "member.role" => [ "is not included in the list" ] } }
+      return
+    end
+
+    # Answer exactly as for a sent invitation: anyone can sign up and own an
+    # organization, so a distinct "no account" reply would let them probe which
+    # emails are registered (the password-reset form hides this too).
     if user.nil?
-      redirect_to members_path, alert: "No account found with that email. They need to create a Makerstorage account first."
+      redirect_to members_path, notice: invitation_notice(email)
       return
     end
 
@@ -40,7 +48,7 @@ class MembersController < ApplicationController
     )
 
     if membership.save
-      redirect_to members_path, notice: "Invitation sent to #{user.email}. They'll join once they accept it from their profile."
+      redirect_to members_path, notice: invitation_notice(user.email)
     else
       redirect_back_or_to members_path, alert: "Failed to add member.", inertia: { errors: inertia_errors(membership, as: :member) }
     end
@@ -95,6 +103,11 @@ class MembersController < ApplicationController
     return if current_user.owner_of?(current_organization)
 
     redirect_to members_path, alert: "Only an owner can remove another owner."
+  end
+
+  def invitation_notice(email)
+    "If #{email} has a Makerstorage account, they've been invited and will join once they accept it from their profile. " \
+      "Otherwise, ask them to sign up first, then invite them again."
   end
 
   def member_params
