@@ -295,6 +295,20 @@ class OrdersControllerTest < ActionDispatch::IntegrationTest
     assert_match(/DigiKey/, order.notes.to_s)
   end
 
+  test "import_supplier_order via digikey reports a malformed order number instead of failing" do
+    @org.update!(
+      digikey_client_id: "cid", digikey_client_secret: "csecret",
+      digikey_access_token: "acc", digikey_refresh_token: "ref", digikey_token_expires_at: 1.hour.from_now
+    )
+    sign_in @user
+
+    assert_no_difference -> { Order.count } do
+      post import_supplier_order_orders_path, params: { provider: "digikey", order_number: "12 34" }
+    end
+    assert_redirected_to orders_path
+    assert_match(/sales order number/, flash[:alert])
+  end
+
   test "import_supplier_order via digikey prompts to connect when no account" do
     sign_in @user
     post import_supplier_order_orders_path, params: { provider: "digikey", order_number: "DK-1" }
