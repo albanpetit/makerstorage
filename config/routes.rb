@@ -1,4 +1,11 @@
 Rails.application.routes.draw do
+  # Active Storage's direct-upload endpoints accept a file from anyone holding a
+  # CSRF token — no sign-in needed — and the app never uses them (uploads go
+  # through the authenticated forms). Shadow them ahead of the engine's routes so
+  # they can't be used to fill the disk.
+  match "rails/active_storage/direct_uploads", to: proc { [ 404, {}, [] ] }, via: :all
+  match "rails/active_storage/disk/:encoded_token", to: proc { [ 404, {}, [] ] }, via: :put
+
   devise_for :users, skip: [ :sessions, :passwords, :registrations ]
   as :user do
     get "login", to: "users/sessions#new", as: :new_user_session
