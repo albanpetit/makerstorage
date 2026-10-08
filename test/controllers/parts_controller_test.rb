@@ -721,6 +721,50 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
     assert_equal 40, part.reload.total_quantity
   end
 
+  test "import reuses an existing category whatever its case" do
+    user = create_user
+    org = user.organizations.first
+    category = create_category(organization: org, name: "Resistors")
+
+    csv = <<~CSV
+      Name,Category
+      Resistor 10k,resistors
+    CSV
+
+    sign_in user
+    assert_no_difference -> { Category.count } do
+      post import_parts_path, params: { file: csv_upload(csv) }
+    end
+    assert_equal category, org.parts.find_by(name: "Resistor 10k").category
+  end
+
+  test "import finds a zone by code or full path, and skips a name several zones share" do
+    user = create_user
+    org = user.organizations.first
+    create_category(organization: org, name: "Resistors")
+    cabinet_a = create_storage_location(organization: org, name: "Cabinet A", location_type: "cabinet")
+    cabinet_b = create_storage_location(organization: org, name: "Cabinet B", location_type: "cabinet")
+    drawer_a = create_storage_location(organization: org, name: "Drawer 1", location_type: "drawer", parent: cabinet_a)
+    drawer_b = create_storage_location(organization: org, name: "Drawer 1", location_type: "drawer", parent: cabinet_b, code: "B-D1")
+
+    csv = <<~CSV
+      Name,Category,MPN,Location,Quantity
+      By path,Resistors,P-1,cabinet a > drawer 1,4
+      By code,Resistors,P-2,b-d1,6
+      Ambiguous,Resistors,P-3,Drawer 1,8
+    CSV
+
+    sign_in user
+    assert_no_difference -> { StorageLocation.count } do
+      post import_parts_path, params: { file: csv_upload(csv) }
+    end
+
+    assert_match(/2 created, 0 updated, 1 skipped/, flash[:notice])
+    assert_equal 4, PartStorage.find_by(part: org.parts.find_by(mpn: "P-1"), storage_location: drawer_a).quantity
+    assert_equal 6, PartStorage.find_by(part: org.parts.find_by(mpn: "P-2"), storage_location: drawer_b).quantity
+    assert_nil org.parts.find_by(mpn: "P-3")
+  end
+
   test "import without a location column leaves stock untouched" do
     user = create_user
     org = user.organizations.first

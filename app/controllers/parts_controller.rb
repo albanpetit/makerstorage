@@ -15,6 +15,9 @@ class PartsController < ApplicationController
   before_action :verify_organization_admin, only: %i[bulk_destroy]
   before_action :set_part, only: %i[show edit update destroy]
 
+  # Raised when an import row's location names several zones; skips the row.
+  class AmbiguousLocationError < StandardError; end
+
   # Part attribute => BomParser field for the optional CSV import columns.
   IMPORTED_ATTRIBUTES = {
     mpn: :mpn,
@@ -283,7 +286,7 @@ class PartsController < ApplicationController
         # whole instead of leaving a half-imported part or aborting the file.
         imported = ActiveRecord::Base.transaction do
           part ||= current_organization.parts.build(min_stock_threshold: 0, status: "active")
-          part.assign_attributes(name: name, category: current_organization.categories.find_or_create_by!(name: category_name))
+          part.assign_attributes(name: name, category: import_category(category_name))
           # Only what the sheet actually states: a column the file doesn't have,
           # or a blank cell, leaves an existing part's value alone instead of
           # wiping it (a re-import of a partial sheet must not erase data).
@@ -297,7 +300,7 @@ class PartsController < ApplicationController
           part.save!
           assign_stock(part, row)
           true
-        rescue ActiveRecord::RecordInvalid, ActiveRecord::RecordNotSaved
+        rescue ActiveRecord::RecordInvalid, ActiveRecord::RecordNotSaved, AmbiguousLocationError
           raise ActiveRecord::Rollback
         end
 
@@ -372,23 +375,20 @@ class PartsController < ApplicationController
 
   def assign_stock(part, row)
     location_name = import_value(row, :location)
-    return if location_name.blank?
+    quantity = import_value(row, :quantity)
+    # A row naming a location without a quantity states nothing about stock:
+    # leave it as is rather than reading the missing value as zero and
+    # emptying the location.
+    return if location_name.blank? || quantity.nil?
 
-    location = current_organization.storage_locations.find_or_create_by!(name: location_name) do |loc|
-      loc.location_type = "shelf"
-    end
+    location = import_location(location_name)
 
     # The import "Quantity" is the absolute stock the sheet declares for this
     # location. Reconcile it through the ledger rather than writing
     # PartStorage.quantity directly: stock_movements is the single source of
     # truth (PartStorage is maintained by StockMovement's callback), so a direct
     # write would desync the movements "Stock After" running balance. Only the
-    # delta from the current level is recorded, as an adjustment. A row naming a
-    # location without a quantity states nothing about stock: leave it as is
-    # rather than reading the missing value as zero and emptying the location.
-    quantity = import_value(row, :quantity)
-    return if quantity.nil?
-
+    # delta from the current level is recorded, as an adjustment.
     target = quantity.to_i
     current = PartStorage.find_by(part: part, storage_location: location)&.quantity || 0
     delta = target - current
@@ -403,6 +403,34 @@ class PartsController < ApplicationController
       quantity_delta: delta,
       reason: "Import"
     )
+  end
+
+  # The sheet's category, matched regardless of case ("resistors" is the
+  # existing "Resistors", not a new near-duplicate), created when missing.
+  def import_category(name)
+    current_organization.categories.find_by("LOWER(name) = ?", name.downcase) ||
+      current_organization.categories.create!(name: name)
+  end
+
+  # Resolves the sheet's location cell to a zone: by its scanner code, by its
+  # full path ("Workshop > Cabinet A > Drawer 1"), or by its bare name when only
+  # one zone has it — all case-insensitively. Several zones sharing that name
+  # (a "Drawer 1" in two cabinets) can't be told apart, so the row is skipped
+  # rather than its stock landing in an arbitrary one. An unknown location is
+  # created as a top-level shelf.
+  def import_location(label)
+    key = label.downcase
+    zones = current_organization.storage_locations.to_a
+    paths = StorageLocation.full_path_cache(current_organization.storage_locations)
+
+    match = zones.find { |zone| zone.code.present? && zone.code.downcase == key } ||
+            zones.find { |zone| zone.full_path(cache: paths).downcase == key }
+    return match if match
+
+    named = zones.select { |zone| zone.name.downcase == key }
+    raise AmbiguousLocationError if named.size > 1
+
+    named.first || current_organization.storage_locations.create!(name: label, location_type: "shelf")
   end
 
   def find_existing_part(row)
