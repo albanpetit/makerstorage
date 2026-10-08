@@ -30,8 +30,8 @@ jobs:
         with:
           bundler-cache: true
 
-      # The image is built for arm64 (the production server) on this amd64 runner,
-      # so register QEMU/binfmt handlers for cross-arch emulation.
+      # The image is multi-arch (amd64 + arm64, see builder.arch in config/deploy.yml);
+      # register QEMU/binfmt handlers so this amd64 runner can build the arm64 half.
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v4
 

@@ -108,9 +108,12 @@ volumes:
 asset_path: /rails/public/assets
 
 # Configure the image builder. The production server is arm64 (same host as
-# PaperFlux), so build for arm64.
+# PaperFlux), but the image is also published on GHCR for self-hosters, most of
+# whom run x86_64 — so build a multi-arch image (Docker picks the right one).
 builder:
-  arch: arm64
+  arch:
+    - amd64
+    - arm64
 
 # Keep the last few images/containers on the server for quick rollbacks.
 retain_containers: 5

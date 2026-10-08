@@ -54,6 +54,9 @@ Electronics-parts inventory manager for makerspaces/fablabs: components, categor
 ## Design reference
 `design-makerstorage/` (not committed — it may be absent from a given checkout; ask for it rather than guessing) contains high-fidelity static HTML prototypes (not production code) covering the full intended app: dashboard, inventory table, component detail, storage zones tree, scanner, movements ledger, suppliers, alerts, members/roles, settings. See `design-makerstorage/README.md` for the full breakdown, design tokens, and interaction notes. Reimplement designs using the existing shadcn component set rather than recreating the prototypes' raw inline styles.
 
+## Marketing site
+`site/` is the public landing page: a standalone Astro + Tailwind v4 project (own `package.json`/lockfile, no imports from `app/`), deployed to GitHub Pages by `.github/workflows/site.yml` on pushes to `main` that touch it. It reuses the app's palette and Geist fonts but not shadcn — it's static HTML. Copy is English and must only claim features the app actually has. Build with `cd site && npm ci && npm run build`; the base path defaults to `/makerstorage` (the workflow overrides it, e.g. for a custom domain).
+
 ## Commit convention
 `type(scope): description` — see `CONTRIBUTING.md` for full type/scope list. Lowercase, imperative mood, no trailing period, no `Co-Authored-By` trailer.
 

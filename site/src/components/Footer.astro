@@ -1,0 +1,23 @@
+---
+import { APP_URL, REPO_URL } from "../site";
+
+const base = import.meta.env.BASE_URL;
+---
+
+<footer class="border-t">
+  <div
+    class="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-10 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-6"
+  >
+    <div class="flex items-center gap-2.5">
+      <img src={`${base}favicon.svg`} alt="" width="20" height="20" class="rounded" />
+      <span>Makerstorage · Open source under AGPL-3.0</span>
+    </div>
+    <nav aria-label="Footer" class="flex flex-wrap gap-x-6 gap-y-2">
+      <a href={APP_URL} class="hover:text-foreground">Hosted app</a>
+      <a href={REPO_URL} class="hover:text-foreground">Source code</a>
+      <a href={`${REPO_URL}/issues`} class="hover:text-foreground">Issues</a>
+      <a href={`${REPO_URL}/blob/main/CONTRIBUTING.md`} class="hover:text-foreground">Contributing</a>
+      <a href={`${REPO_URL}/blob/main/LICENSE`} class="hover:text-foreground">License</a>
+    </nav>
+  </div>
+</footer>
