@@ -48,6 +48,23 @@ module Makerstorage
     settings
   end
 
+  # HTTPS is opt-in (FORCE_SSL): LAN installs often serve plain HTTP.
+  def self.force_ssl_from_env?
+    %w[1 true yes].include?(ENV["FORCE_SSL"].to_s.strip.downcase)
+  end
+
+  # Absolute links in emails (e.g. password reset) point at APP_HOST. They use
+  # APP_PROTOCOL when set (e.g. "https" behind a TLS proxy that doesn't set
+  # FORCE_SSL), else https only with FORCE_SSL — plain-HTTP LAN installs would
+  # otherwise mail dead https links.
+  def self.mailer_url_options_from_env
+    protocol = ENV["APP_PROTOCOL"].to_s.strip.downcase.presence_in(%w[http https])
+    {
+      host: ENV["APP_HOST"].presence || "localhost",
+      protocol: protocol || (force_ssl_from_env? ? "https" : "http")
+    }
+  end
+
   class Application < Rails::Application
     # Initialize configuration defaults for originally generated Rails version.
     config.load_defaults 8.1

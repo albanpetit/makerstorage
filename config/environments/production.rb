@@ -29,7 +29,7 @@ Rails.application.configure do
   # TLS-terminating reverse proxy, set FORCE_SSL=true to trust it as HTTPS,
   # redirect http to https, send Strict-Transport-Security, and mark the session
   # cookie Secure.
-  if %w[1 true yes].include?(ENV["FORCE_SSL"].to_s.strip.downcase)
+  if Makerstorage.force_ssl_from_env?
     config.assume_ssl = true
     config.force_ssl = true
     # Skip http-to-https redirect for the default health check endpoint.
@@ -56,12 +56,9 @@ Rails.application.configure do
   config.active_job.queue_adapter = :solid_queue
   config.solid_queue.connects_to = { database: { writing: :queue } }
 
-  # Absolute links in emails (e.g. password reset) use APP_HOST over HTTPS —
-  # production is expected to sit behind a TLS-terminating reverse proxy.
-  config.action_mailer.default_url_options = {
-    host: ENV["APP_HOST"].presence || "localhost",
-    protocol: "https"
-  }
+  # Absolute links in emails (e.g. password reset) use APP_HOST, over HTTPS only
+  # when FORCE_SSL is on.
+  config.action_mailer.default_url_options = Makerstorage.mailer_url_options_from_env
 
   # Outgoing mail is configured entirely from environment variables (see README).
   # When SMTP is configured, surface delivery failures instead of dropping mail;
