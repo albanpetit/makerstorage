@@ -89,6 +89,28 @@ class SupplierCatalog::RemoteFileTest < ActiveSupport::TestCase
     assert_nil captured_headers["Accept-Encoding"]
   end
 
+  test "download ignores a proxy from the environment so the validated IP is what it reaches" do
+    connection = nil
+    original = Net::HTTP.method(:new)
+    building = lambda do |*args|
+      connection = original.call(*args)
+      connection.define_singleton_method(:start) { nil }
+      connection
+    end
+
+    # Net::HTTP reads http_proxy for both schemes.
+    previous = ENV["http_proxy"]
+    ENV["http_proxy"] = "http://10.0.0.1:3128"
+    stub_singleton(Net::HTTP, :new, building) do
+      RemoteFile.download("https://8.8.8.8/datasheet.pdf")
+    end
+
+    assert_not connection.proxy?
+    assert_equal "8.8.8.8", connection.ipaddr
+  ensure
+    ENV["http_proxy"] = previous
+  end
+
   test "download aborts once the streamed body exceeds max_bytes" do
     response = Net::HTTPOK.new("1.1", "200", "OK")
     response["Content-Type"] = "application/pdf"

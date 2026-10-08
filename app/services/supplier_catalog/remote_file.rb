@@ -145,10 +145,13 @@ module SupplierCatalog
       # opens the connection, so a host that passes the public-IP check could
       # rebind to an internal address before connect. `ipaddr=` connects to the
       # pinned IP while still sending the hostname for SNI/cert verification.
+      # The explicit nil proxy keeps Net::HTTP from picking one up from
+      # http_proxy (read for both schemes): through a proxy, the pinned IP would
+      # no longer be what the request actually reaches.
       ip = validated_ip(uri.host)
       return nil unless ip
 
-      http = Net::HTTP.new(uri.host, uri.port)
+      http = Net::HTTP.new(uri.host, uri.port, nil)
       http.ipaddr = ip
       http.use_ssl = uri.scheme == "https"
       http.open_timeout = OPEN_TIMEOUT
