@@ -7,7 +7,7 @@
 
 A multi-tenant inventory manager for makerspaces and fablabs, purpose-built for electronic components. Catalog parts, keep stock accurate down to the drawer, and reorder before you run out, all scoped per organization.
 
-**[Website](https://albanpetit.github.io/makerstorage/)** · **[Hosted app](https://app.makerstorage.io)** · **[Self-host it](#getting-started)**
+**[Website](https://makerstorage.io)** · **[Hosted app](https://app.makerstorage.io)** · **[Self-host it](#getting-started)**
 
 ![Makerstorage dashboard](.github/assets/makerstorage.png)
 

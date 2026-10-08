@@ -3,14 +3,12 @@ import { defineConfig } from "astro/config";
 import sitemap from "@astrojs/sitemap";
 import tailwindcss from "@tailwindcss/vite";
 
-// GitHub Pages serves the project site from https://<owner>.github.io/<repo>/.
-// The deploy workflow passes the real origin and base path (with a custom
-// domain the base path is empty), so these defaults only matter locally.
-const basePath = process.env.BASE_PATH;
-
+// Served by GitHub Pages on the custom domain https://makerstorage.io/. The
+// deploy workflow passes the real origin and base path (a /<repo>/ prefix if the
+// custom domain is ever removed), so these defaults only matter locally.
 export default defineConfig({
-  site: process.env.SITE_URL || "https://albanpetit.github.io",
-  base: basePath === undefined ? "/makerstorage" : basePath || "/",
+  site: process.env.SITE_URL || "https://makerstorage.io",
+  base: process.env.BASE_PATH || "/",
   trailingSlash: "always",
   integrations: [sitemap()],
   vite: {
