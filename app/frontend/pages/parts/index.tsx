@@ -874,14 +874,25 @@ export default function PartsIndex({ parts, initial_query, categories, footprint
                 className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-xs font-medium"
               >
                 {pill.label}
-                <button onClick={pill.remove} className="text-muted-foreground hover:text-foreground">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={pill.remove}
+                  aria-label={`Remove filter ${pill.label}`}
+                  className="size-4 rounded-full text-muted-foreground hover:bg-transparent hover:text-foreground"
+                >
                   <X className="size-3" />
-                </button>
+                </Button>
               </span>
             ))}
-            <button onClick={clearAllFilters} className="text-xs font-medium text-muted-foreground underline underline-offset-2 hover:text-foreground">
+            <Button
+              variant="link"
+              size="sm"
+              onClick={clearAllFilters}
+              className="h-auto px-0 text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+            >
               Clear all
-            </button>
+            </Button>
           </div>
         )}
         </div>
@@ -899,19 +910,26 @@ export default function PartsIndex({ parts, initial_query, categories, footprint
             </span>
             <div className="h-5 w-px bg-background/25" />
             {bulkActions.map((action) => (
-              <button
+              <Button
                 key={action.label}
+                variant="ghost"
+                size="sm"
                 onClick={action.action}
-                className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-sm hover:bg-background/10"
+                className="h-7 px-2 font-normal hover:bg-background/10 hover:text-background"
               >
                 <action.icon className="size-4" />
                 {action.label}
-              </button>
+              </Button>
             ))}
             <div className="flex-1" />
-            <button onClick={() => setSelected([])} className="text-sm text-background/75 hover:text-background">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setSelected([])}
+              className="h-7 px-2 font-normal text-background/75 hover:bg-background/10 hover:text-background"
+            >
               Deselect
-            </button>
+            </Button>
           </div>
         )}
 

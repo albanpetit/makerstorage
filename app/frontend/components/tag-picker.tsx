@@ -114,7 +114,14 @@ export function TagPicker({ tags, value, onChange }: TagPickerProps) {
         {tags.map((tag) => {
           const selected = value.includes(tag.id)
           return (
-            <button key={tag.id} type="button" onClick={() => toggle(tag.id)}>
+            <Button
+              key={tag.id}
+              type="button"
+              variant="ghost"
+              aria-pressed={selected}
+              onClick={() => toggle(tag.id)}
+              className="h-auto rounded-md p-0 hover:bg-transparent"
+            >
               <Badge
                 variant={selected ? 'default' : 'outline'}
                 className="cursor-pointer gap-1.5"
@@ -130,7 +137,7 @@ export function TagPicker({ tags, value, onChange }: TagPickerProps) {
                 )}
                 {tag.name}
               </Badge>
-            </button>
+            </Button>
           )
         })}
         <Button

@@ -770,7 +770,14 @@ export default function StorageLocationsIndex({ storage_locations, part_storages
                           <BreadcrumbPage>{z.name}</BreadcrumbPage>
                         ) : (
                           <BreadcrumbLink asChild>
-                            <button onClick={() => setSelectedId(z.id)}>{z.name}</button>
+                            <Button
+                              variant="link"
+                              size="sm"
+                              onClick={() => setSelectedId(z.id)}
+                              className="h-auto p-0 font-normal text-muted-foreground hover:text-foreground hover:no-underline"
+                            >
+                              {z.name}
+                            </Button>
                           </BreadcrumbLink>
                         )}
                       </BreadcrumbItem>
