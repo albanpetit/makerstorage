@@ -69,12 +69,7 @@ class AlertsController < ApplicationController
   end
 
   def advance_order
-    # Preload each line's part and its storage locations so Order#advance!'s stock
-    # receipt reads `line.part.storage_locations.first` off memory instead of
-    # firing a query per line (N+1) once the order is marked received.
-    order = current_organization.orders
-      .includes(order_lines: [ { part: :storage_locations }, { allocations: :storage_location } ])
-      .find(params[:id])
+    order = current_organization.orders.find(params[:id])
 
     result = order.advance!(user: current_user)
 

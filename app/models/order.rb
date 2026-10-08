@@ -97,8 +97,7 @@ class Order < ApplicationRecord
   # reaches "received". Row-locks and re-reads status inside the transaction so
   # two concurrent advances can't both credit stock (the second blocks, then
   # re-evaluates the already-advanced status). Returns an AdvanceResult; when
-  # already at the end, +advanced+ is false. Preload
-  # `order_lines: { part: :storage_locations }` to avoid an N+1 on receipt.
+  # already at the end, +advanced+ is false.
   def advance!(user:)
     advanced = false
     next_status = nil
@@ -128,10 +127,14 @@ class Order < ApplicationRecord
   # split — falls back to the part's first location. Lines needing that fallback
   # but with no location can't be recorded, so their references are collected
   # and returned rather than silently dropped.
+  #
+  # Lines are loaded here with what each needs (rather than relying on a
+  # caller's preload): #advance!'s row lock reloads the order, which drops any
+  # association a controller had preloaded and turned receipt into an N+1.
   def receive_into_stock!(user:)
     skipped = []
 
-    order_lines.each do |line|
+    order_lines.includes(part: :storage_locations, allocations: :storage_location).each do |line|
       allocations = line.allocations.to_a
       allocations.each { |allocation| credit_stock(line.part, allocation.storage_location, allocation.quantity, user) }
 

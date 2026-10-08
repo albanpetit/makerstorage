@@ -97,12 +97,6 @@ class OrdersController < ApplicationController
   end
 
   def advance
-    # Preload each line's part and its storage locations so stock receipt reads
-    # `line.part.storage_locations.first` off memory instead of an N+1.
-    @order = current_organization.orders
-      .includes(order_lines: [ { part: :storage_locations }, { allocations: :storage_location } ])
-      .find(params[:id])
-
     result = @order.advance!(user: current_user)
 
     unless result.advanced
