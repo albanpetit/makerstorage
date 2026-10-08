@@ -5,22 +5,26 @@
 ![Rails](https://img.shields.io/badge/Rails-8.1-CC0000?logo=rubyonrails&logoColor=white)
 ![React](https://img.shields.io/badge/React-19-149ECA?logo=react&logoColor=white)
 
-A multi-tenant inventory manager for makerspaces and fablabs, purpose-built for electronic components. Catalog parts, keep stock accurate down to the drawer, reorder before you run out all scoped per organization.
+A multi-tenant inventory manager for makerspaces and fablabs, purpose-built for electronic components. Catalog parts, keep stock accurate down to the drawer, and reorder before you run out, all scoped per organization.
+
+**[Website](https://albanpetit.github.io/makerstorage/)** · **[Hosted app](https://app.makerstorage.io)** · **[Self-host it](#getting-started)**
 
 ![Makerstorage dashboard](.github/assets/makerstorage.png)
 
 ## Features
 
-- **Inventory** — parts with SKU / MPN / barcode, manufacturer, technical specs, and per-supplier pricing
-- **Classification** — organize parts with hierarchical categories, reusable footprints, and free-form tags, each managed from its own page
-- **Stock tracking** — quantities per storage location, backed by an append-only stock-movement ledger
-- **Storage zones** — a hierarchical location tree (room → cabinet → shelf → bench → drawer → box)
-- **Barcode scanner** — look up parts and record stock movements straight from a scan
-- **Suppliers & purchasing** — preferred suppliers, pricing, lead times, and generated purchase orders
-- **Low-stock alerts** — automatic reorder suggestions from configurable per-part thresholds
-- **Dashboard** — at-a-glance stock value, low-stock counts, and category breakdowns
-- **Multi-tenant** — every organization has isolated data, its own members with roles (owner / admin / member / viewer), and a configurable internal part-number (IPN) scheme
-- **CSV import** — bulk-load parts, auto-creating categories and locations as needed
+- **Inventory**: parts with SKU / MPN / barcode, manufacturer, technical specs, datasheets, and per-supplier pricing
+- **Classification**: organize parts with hierarchical categories, reusable footprints, and free-form tags, each managed from its own page
+- **Stock tracking**: quantities per storage location, backed by an append-only stock-movement ledger
+- **Storage zones**: a hierarchical location tree (room → cabinet → shelf → bench → drawer → box), with stock moves between zones
+- **Barcode scanner**: look up parts and record stock movements straight from a phone or webcam scan
+- **Suppliers & purchase orders**: preferred suppliers, pricing, lead times, and orders tracked from pending to received, with deliveries split across storage zones
+- **Mouser & DigiKey**: look parts up in the supplier catalogs, import orders, and push a Mouser cart
+- **Projects**: import a BOM, check what you can build, order the shortfall, and deduct parts when you build
+- **Low-stock alerts**: reorder suggestions from per-part thresholds that account for what's already on order
+- **Dashboard**: at-a-glance stock value, low-stock counts, and category breakdowns
+- **Multi-tenant**: every organization has isolated data, its own members invited with roles (owner / admin / member / viewer), and a configurable internal part-number (IPN) scheme
+- **CSV import**: bulk-load parts (UTF-8 or Excel's Windows-1252), auto-creating categories and locations as needed
 
 ## Tech stack
 
@@ -32,7 +36,11 @@ A multi-tenant inventory manager for makerspaces and fablabs, purpose-built for 
 
 ## Getting started
 
-Makerstorage ships as a self-contained Docker image (Rails behind Thruster on port
+Don't want to run a server? Create a free account on the hosted instance at
+**[app.makerstorage.io](https://app.makerstorage.io)**. It's run by the maintainer on a
+best-effort basis, with no SLA; self-host if you need guarantees.
+
+To run your own, Makerstorage ships as a self-contained Docker image (Rails behind Thruster on port
 80, using SQLite and local file storage). It needs its own secrets to boot;
 configure [SMTP](#email-smtp) as well if you want it to send email.
 
@@ -120,7 +128,10 @@ delivered — mail is simply skipped.
 ```bash
 docker run -d --name makerstorage \
   -p 3000:80 \
-  -e RAILS_MASTER_KEY="$RAILS_MASTER_KEY" \
+  -e SECRET_KEY_BASE="$SECRET_KEY_BASE" \
+  -e AR_ENCRYPTION_PRIMARY_KEY="$AR_ENCRYPTION_PRIMARY_KEY" \
+  -e AR_ENCRYPTION_DETERMINISTIC_KEY="$AR_ENCRYPTION_DETERMINISTIC_KEY" \
+  -e AR_ENCRYPTION_KEY_DERIVATION_SALT="$AR_ENCRYPTION_KEY_DERIVATION_SALT" \
   -e APP_HOST="parts.example.org" \
   -e MAILER_SENDER="Makerstorage <no-reply@example.org>" \
   -e SMTP_ADDRESS="smtp.example.org" \
@@ -133,8 +144,8 @@ docker run -d --name makerstorage \
 ```
 
 > **Tip:** to avoid a long `-e` list, put the variables in a file and pass
-> `--env-file makerstorage.env`. Keep that file out of version control — it holds
-> `SMTP_PASSWORD`.
+> `--env-file makerstorage.env`. Keep that file out of version control: it holds
+> your secrets and `SMTP_PASSWORD`.
 
 For deliverability, add **SPF**, **DKIM**, and **DMARC** DNS records for your
 sending domain as instructed by your mail provider.
