@@ -6,6 +6,7 @@ import {
   BellRing,
   Boxes,
   ClipboardList,
+  Cloud,
   FileSpreadsheet,
   ScanBarcode,
   Server,
@@ -18,7 +19,7 @@ import Header from "../components/Header.astro";
 import Footer from "../components/Footer.astro";
 import GithubMark from "../components/GithubMark.astro";
 import dashboard from "../assets/dashboard.png";
-import { IMAGE, REPO_URL } from "../site";
+import { APP_URL, IMAGE, REPO_URL } from "../site";
 
 const ogImage = await getImage({ src: dashboard, width: 1200, format: "png" });
 
@@ -122,7 +123,7 @@ docker run -d --name makerstorage \\
           class="mx-auto inline-flex items-center gap-2 rounded-full border bg-card px-3 py-1 font-mono text-xs text-muted-foreground"
         >
           <span class="size-1.5 rounded-full bg-primary"></span>
-          Open source · Self-hosted · AGPL-3.0
+          Open source · Hosted or self-hosted · AGPL-3.0
         </p>
         <h1 class="mx-auto mt-6 max-w-3xl text-4xl font-semibold tracking-tight text-balance sm:text-6xl">
           Know where every part is.
@@ -131,13 +132,20 @@ docker run -d --name makerstorage \\
           Makerstorage is an inventory manager for makerspaces and fablabs, built for electronic components. Keep stock
           accurate down to the drawer, and reorder before you run out.
         </p>
-        <div class="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+        <div class="mt-8 flex flex-col flex-wrap items-center justify-center gap-3 sm:flex-row">
           <a
-            href="#self-host"
+            href={`${APP_URL}/signup`}
             class="inline-flex h-11 items-center gap-2 rounded-md bg-primary px-5 font-medium text-primary-foreground shadow-xs transition hover:brightness-95"
           >
-            Self-host with Docker
+            Try it free
             <ArrowRight class="size-4" />
+          </a>
+          <a
+            href="#self-host"
+            class="inline-flex h-11 items-center gap-2 rounded-md border bg-card px-5 font-medium shadow-xs transition-colors hover:bg-muted"
+          >
+            <Server class="size-4" />
+            Self-host with Docker
           </a>
           <a
             href={REPO_URL}
@@ -210,7 +218,55 @@ docker run -d --name makerstorage \\
       </div>
     </section>
 
-    <section id="self-host" class="scroll-mt-16 border-t bg-subtle">
+    <section id="get-started" class="scroll-mt-16 border-t bg-subtle">
+      <div class="mx-auto max-w-6xl px-4 py-20 sm:px-6">
+        <div class="max-w-2xl">
+          <h2 class="text-3xl font-semibold tracking-tight">Hosted or self-hosted — your call</h2>
+          <p class="mt-3 text-muted-foreground">
+            Same app, same features. Start on the hosted instance in a minute, or run your own copy on your own hardware.
+          </p>
+        </div>
+        <div class="mt-12 grid gap-4 md:grid-cols-2">
+          <div class="flex flex-col rounded-xl border-2 border-primary bg-card p-6 sm:p-8">
+            <div class="flex size-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+              <Cloud class="size-5" />
+            </div>
+            <h3 class="mt-4 text-xl font-semibold">Use the hosted version</h3>
+            <p class="mt-2 text-muted-foreground">
+              Create an account on <span class="font-mono text-sm text-foreground">app.makerstorage.com</span> and you
+              get your own organization right away. Nothing to install — invite your team and start cataloging.
+            </p>
+            <div class="mt-6 flex flex-wrap gap-3">
+              <a href={`${APP_URL}/signup`} class="inline-flex h-10 items-center gap-2 rounded-md px-4 text-sm font-medium shadow-xs transition bg-primary text-primary-foreground hover:brightness-95">
+                Create a free account
+                <ArrowRight class="size-4" />
+              </a>
+              <a href={`${APP_URL}/login`} class="inline-flex h-10 items-center gap-2 rounded-md px-4 text-sm font-medium shadow-xs transition border bg-card hover:bg-muted">Sign in</a>
+            </div>
+            <p class="mt-auto pt-6 text-xs text-muted-foreground">
+              Free, run by the maintainer on a best-effort basis — no SLA. Self-host if you need guarantees.
+            </p>
+          </div>
+          <div class="flex flex-col rounded-xl border bg-card p-6 sm:p-8">
+            <div class="flex size-10 items-center justify-center rounded-lg bg-muted">
+              <Server class="size-5" />
+            </div>
+            <h3 class="mt-4 text-xl font-semibold">Run it yourself</h3>
+            <p class="mt-2 text-muted-foreground">
+              Keep your data on your own hardware. One Docker image, SQLite included, published for amd64 and arm64 —
+              a small server on your workshop's network is plenty.
+            </p>
+            <div class="mt-6 flex flex-wrap gap-3">
+              <a href="#self-host" class="inline-flex h-10 items-center gap-2 rounded-md px-4 text-sm font-medium shadow-xs transition border bg-card hover:bg-muted">
+                See the Docker command
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="self-host" class="scroll-mt-16 border-t">
       <div class="mx-auto grid max-w-6xl gap-10 px-4 py-20 sm:px-6 lg:grid-cols-[2fr_3fr] lg:items-center">
         <div>
           <div class="flex size-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">

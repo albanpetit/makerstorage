@@ -1,5 +1,5 @@
 ---
-import { REPO_URL } from "../site";
+import { APP_URL, REPO_URL } from "../site";
 
 const base = import.meta.env.BASE_URL;
 ---
@@ -13,6 +13,7 @@ const base = import.meta.env.BASE_URL;
       <span>Makerstorage · Open source under AGPL-3.0</span>
     </div>
     <nav aria-label="Footer" class="flex flex-wrap gap-x-6 gap-y-2">
+      <a href={APP_URL} class="hover:text-foreground">Hosted app</a>
       <a href={REPO_URL} class="hover:text-foreground">Source code</a>
       <a href={`${REPO_URL}/issues`} class="hover:text-foreground">Issues</a>
       <a href={`${REPO_URL}/blob/main/CONTRIBUTING.md`} class="hover:text-foreground">Contributing</a>
