@@ -18,12 +18,11 @@ class StoredFilesController < ApplicationController
     if blob.content_type == SVG_TYPE
       send_svg(blob)
     else
-      send_data blob.download,
-        filename: blob.filename.sanitized,
+      send_blob blob,
         type: blob.content_type_for_serving,
         disposition: blob.forced_disposition_for_serving || params[:disposition].presence_in(%w[inline attachment]) || "inline"
     end
-  rescue ActiveStorage::FileNotFoundError
+  rescue ActiveStorage::FileNotFoundError, ActionController::MissingFile
     head :not_found
   end
 
@@ -40,7 +39,18 @@ class StoredFilesController < ApplicationController
   # by its own enforced CSP.
   def send_svg(blob)
     response.headers["Content-Security-Policy"] = SVG_POLICY
-    send_data blob.download, filename: blob.filename.sanitized, type: SVG_TYPE, disposition: "inline"
+    send_blob blob, type: SVG_TYPE, disposition: "inline"
+  end
+
+  # Files on disk (the Disk service every environment uses) are streamed from
+  # the file rather than read whole into memory first — datasheets run to
+  # 25 MB. Any other service falls back to downloading the blob.
+  def send_blob(blob, type:, disposition:)
+    if blob.service.respond_to?(:path_for)
+      send_file blob.service.path_for(blob.key), filename: blob.filename.sanitized, type: type, disposition: disposition
+    else
+      send_data blob.download, filename: blob.filename.sanitized, type: type, disposition: disposition
+    end
   end
 
   def readable?(blob)

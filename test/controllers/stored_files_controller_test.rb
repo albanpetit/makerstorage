@@ -50,6 +50,15 @@ class StoredFilesControllerTest < ActionDispatch::IntegrationTest
     assert_equal "nosniff", response.headers["X-Content-Type-Options"]
   end
 
+  test "a file missing from storage is not found rather than an error" do
+    File.delete(@image.blob.service.path_for(@image.blob.key))
+
+    sign_in @owner
+    get file_path(@image)
+
+    assert_response :not_found
+  end
+
   test "signed-out visitors are refused" do
     get file_path(@image)
     # A file request isn't navigational, so Devise answers 401 rather than
