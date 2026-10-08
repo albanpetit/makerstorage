@@ -29,6 +29,11 @@ class ApplicationController < ActionController::Base
 
   helper_method :current_organization
 
+  # "Today", default order dates, generated references (PO-YYYYMMDD…) and every
+  # serialized timestamp follow the organization's configured time zone rather
+  # than the server's (UTC).
+  around_action :use_organization_time_zone
+
   def current_organization
     return nil unless user_signed_in?
 
@@ -45,6 +50,10 @@ class ApplicationController < ActionController::Base
   end
 
   private
+
+  def use_organization_time_zone(&action)
+    Time.use_zone(current_organization&.timezone || Time.zone_default, &action)
+  end
 
   # Namespace an ActiveModel's validation errors so their keys match the nested
   # Inertia form data. React forms use `useForm({ part: { name } })`, so Inertia

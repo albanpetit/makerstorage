@@ -113,6 +113,26 @@ class ScansControllerTest < ActionDispatch::IntegrationTest
     assert_equal "unknown", inertia_props["result"]["kind"]
   end
 
+  test "today's scan count follows the organization's time zone" do
+    user = create_user
+    org = user.organizations.first
+    org.update!(timezone: "Pacific/Auckland")
+    part = create_part(organization: org)
+    location = create_storage_location(organization: org)
+
+    travel_to Time.utc(2026, 10, 8, 20, 0) do # already Oct 9, 09:00 in Auckland
+      # 10:00 UTC Oct 8 is Oct 8 in Auckland (yesterday there); 12:00 UTC is Oct 9.
+      [ Time.utc(2026, 10, 8, 10, 0), Time.utc(2026, 10, 8, 12, 0) ].each do |at|
+        StockMovement.create!(organization: org, part: part, storage_location: location, user: user,
+                              movement_type: "in", quantity_delta: 1, reason: ScansController::SCANNER_REASON, created_at: at)
+      end
+
+      sign_in user
+      get scan_path
+      assert_equal 1, inertia_props["today_count"]
+    end
+  end
+
   test "index lists only scanner movements in recent scans and counts today's" do
     user = create_user
     org = user.organizations.first

@@ -37,6 +37,20 @@ class OrdersControllerTest < ActionDispatch::IntegrationTest
     assert_equal Date.current, order.ordered_at
   end
 
+  test "create dates the order in the organization's time zone, not the server's" do
+    @org.update!(timezone: "Pacific/Auckland")
+    sign_in @user
+
+    # 20:00 UTC on Oct 8 is already Oct 9 in Auckland.
+    travel_to Time.utc(2026, 10, 8, 20, 0) do
+      post orders_path, params: { order: { supplier_id: @supplier.id } }
+    end
+
+    order = Order.order(:id).last
+    assert_equal Date.new(2026, 10, 9), order.ordered_at
+    assert_equal "PO-20261009-#{@supplier.id}", order.reference
+  end
+
   test "create without a supplier re-prompts" do
     sign_in @user
     assert_no_difference -> { Order.count } do
