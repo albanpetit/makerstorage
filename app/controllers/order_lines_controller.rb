@@ -72,20 +72,21 @@ class OrderLinesController < ApplicationController
     end
 
     part = find_or_build_catalog_part(category)
-    unless part.persisted? || part.save
-      redirect_to order_path(@order), alert: part.errors.full_messages.to_sentence.presence || "Could not create the component."
-      return
-    end
 
-    link_order_supplier(part)
+    # The new part, its supplier link, and the line go in together: a rejected
+    # line (e.g. a bad quantity) mustn't leave a stray part in the inventory.
+    ActiveRecord::Base.transaction do
+      part.save! unless part.persisted?
+      link_order_supplier(part)
 
-    line = @order.order_lines.build(part: part, quantity: line_params[:quantity].presence || 1, unit_price: catalog_unit_price(part))
-    if line.save
+      @order.order_lines.create!(part: part, quantity: line_params[:quantity].presence || 1, unit_price: catalog_unit_price(part))
       @order.recalculate_total!
-      redirect_to order_path(@order), notice: "Added #{part.reference} to the order."
-    else
-      redirect_to order_path(@order), alert: line.errors.full_messages.to_sentence.presence || "Could not add that component."
     end
+
+    redirect_to order_path(@order), notice: "Added #{part.reference} to the order."
+  rescue ActiveRecord::RecordInvalid => e
+    fallback = e.record.is_a?(Part) ? "Could not create the component." : "Could not add that component."
+    redirect_to order_path(@order), alert: e.record.errors.full_messages.to_sentence.presence || fallback
   end
 
   private
