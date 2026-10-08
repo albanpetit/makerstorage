@@ -12,6 +12,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 
+import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
 export interface ZoneNode {
@@ -96,30 +97,33 @@ export function StorageZoneTreePicker({
       return (
         <div key={zone.id}>
           <div className="flex items-center" style={{ paddingLeft: `${depth * 14}px` }}>
-            <button
+            <Button
               type="button"
+              variant="ghost"
+              size="icon"
               tabIndex={-1}
               aria-label={hasChildren ? (isOpen ? 'Collapse' : 'Expand') : undefined}
               onClick={() => hasChildren && toggle(zone.id)}
-              className="flex size-5 shrink-0 items-center justify-center"
+              className="size-5 hover:bg-transparent dark:hover:bg-transparent"
             >
               {hasChildren && <ChevronRight className={cn('size-3.5 transition-transform', isOpen && 'rotate-90')} />}
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
+              variant="ghost"
               onClick={() => {
                 onChange(zone.id)
                 setOpen(false)
               }}
               className={cn(
-                'flex flex-1 items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm outline-none hover:bg-accent hover:text-accent-foreground',
+                'h-auto flex-1 shrink justify-start gap-2 rounded-sm px-2 py-1.5 text-left font-normal has-[>svg]:px-2',
                 zone.id === value && 'bg-accent/60 font-medium'
               )}
             >
               <Icon className="size-4 shrink-0 text-muted-foreground" />
               <span className="line-clamp-1">{zone.name}</span>
               {zone.code && <span className="ml-auto shrink-0 text-xs text-muted-foreground">{zone.code}</span>}
-            </button>
+            </Button>
           </div>
           {hasChildren && isOpen && renderNodes(zone.id, depth + 1)}
         </div>

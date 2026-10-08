@@ -753,14 +753,15 @@ export default function StorageLocationsIndex({ storage_locations, part_storages
           {/* Detail panel */}
           {effectiveSelected && selMeta && (
             <div className={`${mobileDetail ? 'block' : 'hidden'} min-w-0 flex-1 space-y-4 overflow-y-auto bg-muted/40 p-5 lg:block`}>
-              <button
+              <Button
                 type="button"
+                variant="ghost"
                 onClick={() => setMobileDetail(false)}
-                className="sticky top-0 z-10 -mx-5 -mt-5 mb-1 flex items-center gap-1.5 border-b bg-background/95 px-5 py-3 text-sm font-medium backdrop-blur lg:hidden"
+                className="sticky top-0 z-10 -mx-5 -mt-5 mb-1 flex h-auto w-[calc(100%+2.5rem)] justify-start gap-1.5 rounded-none border-b bg-background/95 px-5 py-3 backdrop-blur has-[>svg]:px-5 lg:hidden"
               >
                 <ChevronLeft className="size-4" />
                 Back to zones
-              </button>
+              </Button>
               <Breadcrumb>
                 <BreadcrumbList>
                   {path.map((z, i) => (

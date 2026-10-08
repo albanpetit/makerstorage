@@ -198,18 +198,19 @@ export default function AlertsIndex({ alerts, orders }: AlertsPageProps) {
         {/* Filter tabs */}
         <div className="flex flex-wrap items-center gap-2">
           {tabs.map((tab) => (
-            <button
+            <Button
               key={tab.value}
+              variant="ghost"
               onClick={() => setFilter(tab.value)}
-              className={`inline-flex h-8 items-center gap-1.5 rounded-md border px-3 text-sm font-medium transition-colors ${
+              className={`h-8 gap-1.5 border px-3 ${
                 filter === tab.value
-                  ? 'border-foreground bg-foreground text-background'
-                  : 'border-border bg-background hover:bg-accent'
+                  ? 'border-foreground bg-foreground text-background hover:bg-foreground/90 hover:text-background dark:hover:bg-foreground/90'
+                  : 'border-border bg-background'
               }`}
             >
               {tab.label}
               <span className="font-mono opacity-60">{tab.count}</span>
-            </button>
+            </Button>
           ))}
         </div>
 

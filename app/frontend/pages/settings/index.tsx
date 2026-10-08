@@ -414,21 +414,22 @@ export default function SettingsIndex({ organization, currencies, ipn_separators
           {/* Section nav */}
           <nav className="flex shrink-0 gap-1 overflow-x-auto lg:w-56 lg:flex-col lg:overflow-visible">
             {sections.map((s) => (
-              <button
+              <Button
                 key={s.key}
                 type="button"
+                variant="ghost"
                 onClick={() => setSection(s.key)}
-                className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm font-medium whitespace-nowrap transition-colors ${
+                className={`h-auto justify-start gap-2.5 rounded-lg px-3 py-2 text-left has-[>svg]:px-3 ${
                   section === s.key
-                    ? 'bg-muted text-foreground'
+                    ? 'bg-muted text-foreground hover:bg-muted dark:hover:bg-muted'
                     : s.key === 'danger'
-                      ? 'text-destructive hover:bg-destructive/10'
-                      : 'text-muted-foreground hover:bg-accent'
+                      ? 'text-destructive hover:bg-destructive/10 hover:text-destructive dark:hover:bg-destructive/10'
+                      : 'text-muted-foreground'
                 }`}
               >
                 <s.icon className="size-4 shrink-0" />
                 {s.label}
-              </button>
+              </Button>
             ))}
           </nav>
 
@@ -662,12 +663,13 @@ export default function SettingsIndex({ organization, currencies, ipn_separators
                     {IPN_MODES.map((m) => {
                       const active = ipnMode === m.value
                       return (
-                        <button
+                        <Button
                           key={m.value}
                           type="button"
+                          variant="ghost"
                           onClick={() => ipnForm.setData('organization', { ...ipnForm.data.organization, ipn_generation_mode: m.value })}
-                          className={`flex flex-col rounded-lg border-[1.5px] p-3 text-left transition-colors ${
-                            active ? 'border-primary bg-accent' : 'border-border hover:bg-accent'
+                          className={`h-auto flex-col items-stretch justify-start gap-0 rounded-lg border-[1.5px] p-3 text-left font-normal whitespace-normal ${
+                            active ? 'border-primary bg-accent dark:hover:bg-accent' : 'border-border'
                           }`}
                         >
                           <div className="flex items-center gap-2">
@@ -676,7 +678,7 @@ export default function SettingsIndex({ organization, currencies, ipn_separators
                             {active && <Check className="ml-auto size-4 text-primary" />}
                           </div>
                           <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">{m.description}</p>
-                        </button>
+                        </Button>
                       )
                     })}
                   </CardContent>
@@ -727,16 +729,18 @@ export default function SettingsIndex({ organization, currencies, ipn_separators
                         {orderSeparators(ipn_separators).map((sep) => {
                           const active = ipnForm.data.organization.ipn_separator === sep
                           return (
-                            <button
+                            <Button
                               key={sep || 'none'}
                               type="button"
+                              variant={active ? 'default' : 'outline'}
+                              size="sm"
                               onClick={() => ipnForm.setData('organization', { ...ipnForm.data.organization, ipn_separator: sep })}
-                              className={`h-8 min-w-9 rounded-md border px-2.5 font-mono text-sm font-semibold transition-colors ${
-                                active ? 'border-transparent bg-primary text-primary-foreground' : 'border-border text-muted-foreground hover:bg-accent'
+                              className={`min-w-9 border px-2.5 font-mono font-semibold shadow-none ${
+                                active ? 'border-transparent' : 'text-muted-foreground'
                               }`}
                             >
                               {SEPARATOR_LABELS[sep] ?? sep}
-                            </button>
+                            </Button>
                           )
                         })}
                       </div>
@@ -792,16 +796,18 @@ export default function SettingsIndex({ organization, currencies, ipn_separators
                             {CHARSET_OPTIONS.map((c) => {
                               const active = ipnForm.data.organization.ipn_charset === c.value
                               return (
-                                <button
+                                <Button
                                   key={c.value}
                                   type="button"
+                                  variant={active ? 'default' : 'outline'}
+                                  size="sm"
                                   onClick={() => ipnForm.setData('organization', { ...ipnForm.data.organization, ipn_charset: c.value })}
-                                  className={`h-8 rounded-md border px-3 text-xs font-medium transition-colors ${
-                                    active ? 'border-transparent bg-primary text-primary-foreground' : 'border-border text-muted-foreground hover:bg-accent'
+                                  className={`border px-3 text-xs shadow-none ${
+                                    active ? 'border-transparent' : 'text-muted-foreground'
                                   }`}
                                 >
                                   {c.label}
-                                </button>
+                                </Button>
                               )
                             })}
                           </div>

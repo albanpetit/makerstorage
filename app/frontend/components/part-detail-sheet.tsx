@@ -565,17 +565,18 @@ export function PartDetailSheet({
           <form onSubmit={submitMovement} className="flex min-w-0 flex-col gap-4">
             <div className="grid grid-cols-2 gap-2">
               {(['in', 'out'] as const).map((type) => (
-                <button
+                <Button
                   key={type}
                   type="button"
+                  variant="ghost"
                   onClick={() => mvtForm.setData('stock_movement', { ...mvtForm.data.stock_movement, movement_type: type })}
-                  className={`flex items-center justify-center gap-2 rounded-lg border-[1.5px] p-2.5 text-sm font-semibold transition-colors ${
-                    mvtType === type ? 'border-primary bg-accent' : 'border-border hover:bg-accent'
+                  className={`h-auto gap-2 rounded-lg border-[1.5px] p-2.5 font-semibold has-[>svg]:px-2.5 ${
+                    mvtType === type ? 'border-primary bg-accent dark:hover:bg-accent' : 'border-border'
                   }`}
                 >
                   {type === 'in' ? <ArrowDown className="size-4 text-emerald-600 dark:text-emerald-400" /> : <ArrowUp className="size-4 text-red-600 dark:text-red-400" />}
                   {type === 'in' ? 'Stock in' : 'Stock out'}
-                </button>
+                </Button>
               ))}
             </div>
             <Field>

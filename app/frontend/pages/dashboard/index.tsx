@@ -155,13 +155,14 @@ export default function Dashboard({ stats, category_breakdown, low_stock_parts, 
                     {low_stock_parts.map((part) => (
                       <TableRow key={part.id}>
                         <TableCell>
-                          <button
+                          <Button
                             type="button"
+                            variant="link"
                             onClick={() => setDetailPartId(part.id)}
-                            className="text-left font-mono text-sm font-semibold hover:underline"
+                            className="h-auto p-0 text-left font-mono font-semibold text-foreground"
                           >
                             {part.reference}
-                          </button>
+                          </Button>
                           <div className="text-xs text-muted-foreground">{part.name}</div>
                         </TableCell>
                         <TableCell className="font-mono text-sm text-muted-foreground">
@@ -245,13 +246,14 @@ export default function Dashboard({ stats, category_breakdown, low_stock_parts, 
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <button
+                        <Button
                           type="button"
+                          variant="link"
                           onClick={() => setDetailPartId(movement.part_id)}
-                          className="text-left font-mono text-sm font-semibold hover:underline"
+                          className="h-auto p-0 text-left font-mono font-semibold text-foreground"
                         >
                           {movement.reference}
-                        </button>
+                        </Button>
                         <div className="text-xs text-muted-foreground">{movement.location_name}</div>
                       </TableCell>
                       <TableCell className="max-w-[220px] truncate text-sm text-muted-foreground">

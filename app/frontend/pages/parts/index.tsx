@@ -749,30 +749,26 @@ export default function PartsIndex({ parts, initial_query, categories, footprint
           <div className="flex flex-1 flex-wrap items-center gap-2">
             {categoryChips.length > 0 && (
               <>
-                <button
+                <Button
+                  variant={categoryId === 'all' ? 'default' : 'outline'}
+                  size="sm"
                   onClick={() => { setCategoryId('all'); setPage(0) }}
-                  className={`inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-sm font-medium transition-colors ${
-                    categoryId === 'all'
-                      ? 'border-primary bg-primary text-primary-foreground'
-                      : 'border-border bg-background hover:bg-accent'
-                  }`}
+                  className={`h-8 gap-1.5 rounded-full border px-3 shadow-none ${categoryId === 'all' ? 'border-primary' : ''}`}
                 >
                   All
                   <span className="text-xs opacity-75">{parts.length}</span>
-                </button>
+                </Button>
                 {categoryChips.map((chip) => (
-                  <button
+                  <Button
                     key={chip.id}
+                    variant={categoryId === chip.id ? 'default' : 'outline'}
+                    size="sm"
                     onClick={() => { setCategoryId(chip.id); setPage(0) }}
-                    className={`inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-sm font-medium transition-colors ${
-                      categoryId === chip.id
-                        ? 'border-primary bg-primary text-primary-foreground'
-                        : 'border-border bg-background hover:bg-accent'
-                    }`}
+                    className={`h-8 gap-1.5 rounded-full border px-3 shadow-none ${categoryId === chip.id ? 'border-primary' : ''}`}
                   >
                     {chip.name}
                     <span className="text-xs opacity-75">{chip.count}</span>
-                  </button>
+                  </Button>
                 ))}
               </>
             )}
@@ -795,17 +791,15 @@ export default function PartsIndex({ parts, initial_query, categories, footprint
             <div className="flex flex-wrap items-center gap-1.5">
               <span className="text-xs font-medium text-muted-foreground">Status</span>
               {statusOptions.map((opt) => (
-                <button
+                <Button
                   key={opt.value}
+                  variant={fStatus.includes(opt.value) ? 'default' : 'outline'}
+                  size="sm"
                   onClick={() => { toggleFacet(fStatus, setFStatus, opt.value); setPage(0) }}
-                  className={`inline-flex h-7 items-center gap-1 rounded-md border px-2 text-xs font-medium transition-colors ${
-                    fStatus.includes(opt.value)
-                      ? 'border-primary bg-primary text-primary-foreground'
-                      : 'border-border bg-background hover:bg-accent'
-                  }`}
+                  className={`h-7 gap-1 rounded-md border px-2 text-xs shadow-none ${fStatus.includes(opt.value) ? 'border-primary' : ''}`}
                 >
                   {opt.label} <span className="opacity-75">({opt.count})</span>
-                </button>
+                </Button>
               ))}
             </div>
           )}
@@ -813,17 +807,15 @@ export default function PartsIndex({ parts, initial_query, categories, footprint
             <div className="flex flex-wrap items-center gap-1.5">
               <span className="text-xs font-medium text-muted-foreground">Package</span>
               {packageOptions.map(([value, count]) => (
-                <button
+                <Button
                   key={value}
+                  variant={fPackage.includes(value) ? 'default' : 'outline'}
+                  size="sm"
                   onClick={() => { toggleFacet(fPackage, setFPackage, value); setPage(0) }}
-                  className={`inline-flex h-7 items-center gap-1 rounded-md border px-2 text-xs font-medium transition-colors ${
-                    fPackage.includes(value)
-                      ? 'border-primary bg-primary text-primary-foreground'
-                      : 'border-border bg-background hover:bg-accent'
-                  }`}
+                  className={`h-7 gap-1 rounded-md border px-2 text-xs shadow-none ${fPackage.includes(value) ? 'border-primary' : ''}`}
                 >
                   {value} <span className="opacity-75">({count})</span>
-                </button>
+                </Button>
               ))}
             </div>
           )}
@@ -831,17 +823,15 @@ export default function PartsIndex({ parts, initial_query, categories, footprint
             <div className="flex flex-wrap items-center gap-1.5">
               <span className="text-xs font-medium text-muted-foreground">Footprint</span>
               {footprintOptions.map(([value, count]) => (
-                <button
+                <Button
                   key={value}
+                  variant={fFootprint.includes(value) ? 'default' : 'outline'}
+                  size="sm"
                   onClick={() => { toggleFacet(fFootprint, setFFootprint, value); setPage(0) }}
-                  className={`inline-flex h-7 items-center gap-1 rounded-md border px-2 text-xs font-medium transition-colors ${
-                    fFootprint.includes(value)
-                      ? 'border-primary bg-primary text-primary-foreground'
-                      : 'border-border bg-background hover:bg-accent'
-                  }`}
+                  className={`h-7 gap-1 rounded-md border px-2 text-xs shadow-none ${fFootprint.includes(value) ? 'border-primary' : ''}`}
                 >
                   {value} <span className="opacity-75">({count})</span>
-                </button>
+                </Button>
               ))}
             </div>
           )}
@@ -849,17 +839,15 @@ export default function PartsIndex({ parts, initial_query, categories, footprint
             <div className="flex flex-wrap items-center gap-1.5">
               <span className="text-xs font-medium text-muted-foreground">Supplier</span>
               {supplierOptions.map(([value, count]) => (
-                <button
+                <Button
                   key={value}
+                  variant={fSupplier.includes(value) ? 'default' : 'outline'}
+                  size="sm"
                   onClick={() => { toggleFacet(fSupplier, setFSupplier, value); setPage(0) }}
-                  className={`inline-flex h-7 items-center gap-1 rounded-md border px-2 text-xs font-medium transition-colors ${
-                    fSupplier.includes(value)
-                      ? 'border-primary bg-primary text-primary-foreground'
-                      : 'border-border bg-background hover:bg-accent'
-                  }`}
+                  className={`h-7 gap-1 rounded-md border px-2 text-xs shadow-none ${fSupplier.includes(value) ? 'border-primary' : ''}`}
                 >
                   {value} <span className="opacity-75">({count})</span>
-                </button>
+                </Button>
               ))}
             </div>
           )}
@@ -984,13 +972,14 @@ export default function PartsIndex({ parts, initial_query, categories, footprint
                   <TableRow className="bg-muted hover:bg-muted">
                     <TableHead colSpan={12} className="py-1.5 text-center text-xs font-normal text-muted-foreground">
                       All {pageIds.length} parts on this page are selected.{' '}
-                      <button
+                      <Button
                         type="button"
+                        variant="link"
                         onClick={selectAllMatching}
-                        className="font-medium text-primary underline underline-offset-2 hover:no-underline"
+                        className="h-auto p-0 underline underline-offset-2 hover:no-underline"
                       >
                         Select all {sorted.length} parts matching filters
-                      </button>
+                      </Button>
                     </TableHead>
                   </TableRow>
                 )}
@@ -1012,14 +1001,15 @@ export default function PartsIndex({ parts, initial_query, categories, footprint
                         <div className="flex items-center gap-3">
                           <PartThumbnail url={part.thumbnail_url} />
                           <div className="min-w-0">
-                            <button
+                            <Button
                               type="button"
+                              variant="link"
                               onClick={() => setDetailPartId(part.id)}
                               title={part.mpn || part.sku || part.name}
-                              className="block max-w-[240px] truncate text-left font-mono text-sm font-semibold hover:underline"
+                              className="block h-auto max-w-[240px] truncate p-0 text-left font-mono font-semibold text-foreground"
                             >
                               {part.mpn || part.sku || part.name}
-                            </button>
+                            </Button>
                             <div className="max-w-[240px] truncate text-xs text-muted-foreground" title={part.name}>
                               {part.name}
                             </div>
@@ -1382,16 +1372,16 @@ export default function PartsIndex({ parts, initial_query, categories, footprint
           <div className="space-y-4">
             <div className="inline-flex rounded-md border p-0.5">
               {(['add', 'remove'] as const).map((mode) => (
-                <button
+                <Button
                   key={mode}
                   type="button"
+                  variant={tagsMode === mode ? 'default' : 'ghost'}
+                  size="sm"
                   onClick={() => setTagsMode(mode)}
-                  className={`rounded px-3 py-1 text-sm font-medium capitalize transition-colors ${
-                    tagsMode === mode ? 'bg-primary text-primary-foreground' : 'hover:bg-accent'
-                  }`}
+                  className="h-7 rounded px-3 capitalize"
                 >
                   {mode}
-                </button>
+                </Button>
               ))}
             </div>
 

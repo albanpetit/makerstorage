@@ -225,27 +225,29 @@ export default function StockMovementsIndex({ movements, pagination, filter, sta
         {/* Filter tabs */}
         <div className="flex flex-wrap items-center gap-2">
           {tabs.map((tab) => (
-            <button
+            <Button
               key={tab.value}
+              variant="ghost"
               onClick={() => navigate({ type: tab.value, page: 1 })}
-              className={`inline-flex h-8 items-center gap-1.5 rounded-md border px-3 text-sm font-medium transition-colors ${
+              className={`h-8 gap-1.5 border px-3 ${
                 filter === tab.value
-                  ? 'border-foreground bg-foreground text-background'
-                  : 'border-border bg-background hover:bg-accent'
+                  ? 'border-foreground bg-foreground text-background hover:bg-foreground/90 hover:text-background dark:hover:bg-foreground/90'
+                  : 'border-border bg-background'
               }`}
             >
               {tab.label}
               <span className="font-mono opacity-60">{tab.count}</span>
-            </button>
+            </Button>
           ))}
           <div className="flex-1" />
-          <button
+          <Button
+            variant="ghost"
             onClick={soonFilters}
-            className="inline-flex h-8 items-center gap-1.5 rounded-md border border-dashed px-3 text-sm text-muted-foreground hover:bg-accent"
+            className="h-8 gap-1.5 border border-dashed px-3 font-normal text-muted-foreground has-[>svg]:px-3"
           >
             <Filter className="size-3.5" />
             Period · Project · User
-          </button>
+          </Button>
         </div>
 
         {/* Table */}
