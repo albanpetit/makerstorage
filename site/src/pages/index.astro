@@ -32,7 +32,7 @@ const features = [
   {
     icon: Warehouse,
     title: "Stock down to the drawer",
-    body: "Model your space as a tree — room, cabinet, shelf, bench, drawer, box — and track quantities for every part in every location.",
+    body: "Model your space as a tree of rooms, cabinets, shelves, benches, drawers and boxes, and track quantities for every part in every location.",
   },
   {
     icon: ArrowRightLeft,
@@ -62,7 +62,7 @@ const features = [
   {
     icon: Users,
     title: "Built for teams",
-    body: "Each organization's data is isolated. Invite members as owner, admin, member or viewer — read-only access for students, full control for staff.",
+    body: "Each organization's data is isolated. Invite members as owner, admin, member or viewer: read-only access for students, full control for staff.",
   },
   {
     icon: FileSpreadsheet,
@@ -103,7 +103,7 @@ docker run -d --name makerstorage \\
 ---
 
 <Base
-  title="Makerstorage — open-source inventory for makerspaces"
+  title="Makerstorage: open-source inventory for makerspaces"
   description="Makerstorage is an open-source, self-hosted inventory manager for makerspaces and fablabs, built for electronic components: stock per drawer, barcode scanning, low-stock alerts, purchase orders and project BOMs."
 >
   <Fragment slot="head">
@@ -181,7 +181,7 @@ docker run -d --name makerstorage \\
         <div class="max-w-2xl">
           <h2 class="text-3xl font-semibold tracking-tight">Everything a parts room needs</h2>
           <p class="mt-3 text-muted-foreground">
-            Not a generic stock tool with resistors bolted on — Makerstorage knows about footprints, MPNs, BOMs and the
+            Not a generic stock tool with resistors bolted on. Makerstorage knows about footprints, MPNs, BOMs and the
             reality of a shared workshop.
           </p>
         </div>
@@ -221,7 +221,7 @@ docker run -d --name makerstorage \\
     <section id="get-started" class="scroll-mt-16 border-t bg-subtle">
       <div class="mx-auto max-w-6xl px-4 py-20 sm:px-6">
         <div class="max-w-2xl">
-          <h2 class="text-3xl font-semibold tracking-tight">Hosted or self-hosted — your call</h2>
+          <h2 class="text-3xl font-semibold tracking-tight">Hosted or self-hosted, your call</h2>
           <p class="mt-3 text-muted-foreground">
             Same app, same features. Start on the hosted instance in a minute, or run your own copy on your own hardware.
           </p>
@@ -234,7 +234,7 @@ docker run -d --name makerstorage \\
             <h3 class="mt-4 text-xl font-semibold">Use the hosted version</h3>
             <p class="mt-2 text-muted-foreground">
               Create an account on <span class="font-mono text-sm text-foreground">app.makerstorage.com</span> and you
-              get your own organization right away. Nothing to install — invite your team and start cataloging.
+              get your own organization right away. Nothing to install: invite your team and start cataloging.
             </p>
             <div class="mt-6 flex flex-wrap gap-3">
               <a href={`${APP_URL}/signup`} class="inline-flex h-10 items-center gap-2 rounded-md px-4 text-sm font-medium shadow-xs transition bg-primary text-primary-foreground hover:brightness-95">
@@ -244,7 +244,7 @@ docker run -d --name makerstorage \\
               <a href={`${APP_URL}/login`} class="inline-flex h-10 items-center gap-2 rounded-md px-4 text-sm font-medium shadow-xs transition border bg-card hover:bg-muted">Sign in</a>
             </div>
             <p class="mt-auto pt-6 text-xs text-muted-foreground">
-              Free, run by the maintainer on a best-effort basis — no SLA. Self-host if you need guarantees.
+              Free, run by the maintainer on a best-effort basis, with no SLA. Self-host if you need guarantees.
             </p>
           </div>
           <div class="flex flex-col rounded-xl border bg-card p-6 sm:p-8">
@@ -253,8 +253,8 @@ docker run -d --name makerstorage \\
             </div>
             <h3 class="mt-4 text-xl font-semibold">Run it yourself</h3>
             <p class="mt-2 text-muted-foreground">
-              Keep your data on your own hardware. One Docker image, SQLite included, published for amd64 and arm64 —
-              a small server on your workshop's network is plenty.
+              Keep your data on your own hardware. One Docker image, SQLite included, published for amd64 and arm64.
+              A small server on your workshop's network is plenty.
             </p>
             <div class="mt-6 flex flex-wrap gap-3">
               <a href="#self-host" class="inline-flex h-10 items-center gap-2 rounded-md px-4 text-sm font-medium shadow-xs transition border bg-card hover:bg-muted">
@@ -274,7 +274,7 @@ docker run -d --name makerstorage \\
           </div>
           <h2 class="mt-4 text-3xl font-semibold tracking-tight">Your data, on your hardware</h2>
           <p class="mt-3 text-muted-foreground">
-            Makerstorage ships as a single Docker image backed by SQLite — no external database to run. Put it on a
+            Makerstorage ships as a single Docker image backed by SQLite, so there's no external database to run. Put it on a
             small server on your workshop's network and you're done.
           </p>
           <p class="mt-3 text-muted-foreground">
