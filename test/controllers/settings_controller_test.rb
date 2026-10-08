@@ -278,6 +278,20 @@ class SettingsControllerTest < ActionDispatch::IntegrationTest
     assert_nil org.digikey_client_secret
   end
 
+  test "removing DigiKey credentials also disconnects the linked account" do
+    user = create_user
+    org = user.organizations.first
+    org.update!(digikey_client_id: "existing-id", digikey_client_secret: "existing-secret",
+                digikey_access_token: "at", digikey_refresh_token: "rt", digikey_token_expires_at: 1.hour.from_now)
+    sign_in user
+
+    patch settings_path, params: { organization: { remove_digikey: "true" } }
+    org.reload
+    assert_not org.digikey_account_connected?
+    assert_nil org.digikey_access_token
+    assert_nil org.digikey_token_expires_at
+  end
+
   test "adding a Mouser key recreates its supplier and announces it" do
     user = create_user
     org = user.organizations.first
