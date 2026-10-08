@@ -28,7 +28,7 @@ before_action :verify_organization_admin,  only: %i[...]                        
 
 ## 3. Membership `active` flag
 
-`OrganizationMembership` has an `active` boolean. Only active memberships grant access: `user.organizations` goes through `active_organization_memberships`, and so do `User#member_of_organization?`, `#writer_of?`, `#admin_of?`, `#owner_of?`, `#role_in`. Any new membership check must do the same (never `user.organization_memberships.exists?` for access), and come with a test proving a deactivated member is denied (see `RoleAuthorizationTest`).
+`OrganizationMembership` has an `active` boolean, and an invitation (`invitation_sent_at` set) stays pending until `invitation_accepted_at` is. Only active, non-pending memberships (`OrganizationMembership.granting_access`) grant access: `user.organizations` goes through `active_organization_memberships`, and so do `User#member_of_organization?`, `#writer_of?`, `#admin_of?`, `#owner_of?`, `#role_in`. Any new membership check must do the same (never `user.organization_memberships.exists?` for access), and come with a test proving a deactivated member (and an unaccepted invitee) is denied (see `RoleAuthorizationTest`).
 
 ## 4. Foreign keys always have a dependent rule
 

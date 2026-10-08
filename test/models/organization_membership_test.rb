@@ -102,4 +102,59 @@ class OrganizationMembershipTest < ActiveSupport::TestCase
 
     assert membership.update(active: false)
   end
+
+  test "an inactive owner can be removed while one active owner remains" do
+    OrganizationMembership.create!(organization: @org, user: @user, role: "owner")
+    other_user = User.create!(firstname: "O", lastname: "2", email: "owner_2@example.com", password: "password123")
+    inactive = OrganizationMembership.create!(organization: @org, user: other_user, role: "owner", active: false)
+
+    assert inactive.destroy
+  end
+
+  test "an inactive owner can be demoted while one active owner remains" do
+    OrganizationMembership.create!(organization: @org, user: @user, role: "owner")
+    other_user = User.create!(firstname: "O", lastname: "2", email: "owner_2@example.com", password: "password123")
+    inactive = OrganizationMembership.create!(organization: @org, user: other_user, role: "owner", active: false)
+
+    assert inactive.update(role: "member")
+  end
+
+  test "the sole active owner can't be demoted even when inactive owners remain" do
+    active = OrganizationMembership.create!(organization: @org, user: @user, role: "owner")
+    other_user = User.create!(firstname: "O", lastname: "2", email: "owner_2@example.com", password: "password123")
+    OrganizationMembership.create!(organization: @org, user: other_user, role: "owner", active: false)
+
+    assert_not active.update(role: "admin")
+    assert_not active.reload.destroy
+  end
+
+  test "a pending invitation doesn't count as an active owner" do
+    owner = OrganizationMembership.create!(organization: @org, user: @user, role: "owner")
+    invitee = User.create!(firstname: "I", lastname: "N", email: "invited_owner@example.com", password: "password123")
+    OrganizationMembership.create!(organization: @org, user: invitee, role: "owner", invitation_sent_at: Time.current)
+
+    assert_not owner.destroy, "the invited owner hasn't accepted, so this is still the last active owner"
+  end
+
+  test "granting_access excludes inactive memberships and unanswered invitations" do
+    direct = OrganizationMembership.create!(organization: @org, user: @user, role: "owner")
+    invited = OrganizationMembership.create!(
+      organization: @org, role: "member", invitation_sent_at: Time.current,
+      user: User.create!(firstname: "I", lastname: "N", email: "invited_scope@example.com", password: "password123")
+    )
+    accepted = OrganizationMembership.create!(
+      organization: @org, role: "member", invitation_sent_at: Time.current, invitation_accepted_at: Time.current,
+      user: User.create!(firstname: "A", lastname: "C", email: "accepted_scope@example.com", password: "password123")
+    )
+    inactive = OrganizationMembership.create!(
+      organization: @org, role: "member", active: false,
+      user: User.create!(firstname: "D", lastname: "E", email: "inactive_scope@example.com", password: "password123")
+    )
+
+    granting = @org.organization_memberships.granting_access
+    assert_includes granting, direct
+    assert_includes granting, accepted
+    assert_not_includes granting, invited
+    assert_not_includes granting, inactive
+  end
 end

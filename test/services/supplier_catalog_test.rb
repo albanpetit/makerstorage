@@ -92,6 +92,50 @@ class SupplierCatalogTest < ActiveSupport::TestCase
     assert_equal "super-secret", org.digikey_client_secret
   end
 
+  # An organization with a linked DigiKey account whose access token expired.
+  # Saved without validation: a bare test organization has no owner, which the
+  # update validation requires.
+  def org_with_expired_digikey_token
+    org = create_organization
+    org.assign_attributes(
+      digikey_client_id: "c", digikey_client_secret: "s",
+      digikey_access_token: "old-a", digikey_refresh_token: "old-r", digikey_token_expires_at: 1.minute.ago
+    )
+    org.save!(validate: false)
+    org
+  end
+
+  test "digikey_order_client uses tokens a concurrent request refreshed first" do
+    org = org_with_expired_digikey_token
+
+    # Another request refreshes (rotating the refresh token) while ours is in
+    # flight, so DigiKey rejects ours.
+    concurrent_refresh = lambda do |**|
+      Organization.find(org.id).tap do |other|
+        other.digikey_access_token = "fresh-a"
+        other.digikey_refresh_token = "fresh-r"
+        other.digikey_token_expires_at = 30.minutes.from_now
+        other.save!(validate: false)
+      end
+      raise SupplierCatalog::LookupError, "DigiKey rejected the authorization."
+    end
+
+    client = stub_singleton(SupplierCatalog::Digikey, :refresh_token, concurrent_refresh) do
+      SupplierCatalog.digikey_order_client(org)
+    end
+
+    assert_equal "fresh-a", client.instance_variable_get(:@access_token)
+  end
+
+  test "digikey_order_client still reports a refresh nobody else recovered from" do
+    org = org_with_expired_digikey_token
+
+    rejected = ->(**) { raise SupplierCatalog::LookupError, "DigiKey rejected the authorization." }
+    stub_singleton(SupplierCatalog::Digikey, :refresh_token, rejected) do
+      assert_raises(SupplierCatalog::LookupError) { SupplierCatalog.digikey_order_client(org) }
+    end
+  end
+
   private
 
   # A stand-in provider whose #search always yields the given results.

@@ -127,6 +127,11 @@ class ProjectsController < ApplicationController
   # Consumes the required quantity of every matched line from stock, recording an
   # "out" movement per source location. Only allowed when the project is fully
   # buildable, so we never leave a kit half-deducted.
+  #
+  # Building the same kit again is legitimate, but a double click or a replayed
+  # request must not deduct it twice. The page posts the builds_count it showed;
+  # the build only goes ahead if bumping that exact count succeeds — an atomic
+  # compare-and-increment, so a second, stale submission matches no row.
   def build
     unless @project.buildable?
       redirect_to project_path(@project), alert: "This project isn't buildable yet — resolve shortfalls and unmatched lines first."
@@ -134,8 +139,18 @@ class ProjectsController < ApplicationController
     end
 
     required = @project.required_by_part
-    ActiveRecord::Base.transaction do
+    built = ActiveRecord::Base.transaction do
+      claimed = Project.where(id: @project.id, builds_count: params[:builds_count].to_s.presence&.to_i)
+        .update_all([ "builds_count = builds_count + 1, last_built_at = ?, updated_at = ?", Time.current, Time.current ])
+      raise ActiveRecord::Rollback if claimed.zero?
+
       required.each { |part, quantity| deduct_part_stock(part, quantity) }
+      true
+    end
+
+    unless built
+      redirect_to project_path(@project), alert: "This kit was already built from this page. Reload to build another one."
+      return
     end
 
     redirect_to project_path(@project), notice: "Stock deducted for #{required.size} reference#{'s' if required.size != 1}."
@@ -200,6 +215,8 @@ class ProjectsController < ApplicationController
       short_count: project.short_lines.size,
       unmatched_count: project.unmatched_lines.size,
       checked_at: project.checked_at&.iso8601,
+      builds_count: project.builds_count,
+      last_built_at: project.last_built_at&.iso8601,
       lines: project.project_lines.map { |line| serialize_line(line, shortfalls) }
     }
   end

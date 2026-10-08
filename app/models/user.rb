@@ -6,8 +6,10 @@ class User < ApplicationRecord
 
   has_many :organization_memberships, dependent: :destroy
   # Only active memberships grant access: a deactivated member keeps their
-  # membership row (and role) but no longer sees or acts in the organization.
-  has_many :active_organization_memberships, -> { active }, class_name: "OrganizationMembership"
+  # membership row (and role) but no longer sees or acts in the organization,
+  # and an invitation grants nothing until the invitee accepts it.
+  has_many :active_organization_memberships, -> { granting_access }, class_name: "OrganizationMembership"
+  has_many :pending_invitations, -> { active.pending_invitation }, class_name: "OrganizationMembership"
   has_many :organizations, through: :active_organization_memberships
   # Rows that merely reference the user as an author keep existing (the ledger
   # and memberships outlive the account) with the reference cleared.

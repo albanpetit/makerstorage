@@ -183,7 +183,7 @@ class ProjectsControllerTest < ActionDispatch::IntegrationTest
 
     sign_in @user
     assert_difference -> { StockMovement.outbound.count } => 1 do
-      post build_project_path(project)
+      post build_project_path(project), params: { builds_count: 0 }
     end
 
     assert_equal 70, PartStorage.find_by(part: @cap, storage_location: @location).quantity
@@ -194,7 +194,7 @@ class ProjectsControllerTest < ActionDispatch::IntegrationTest
     project = build_project([ @cap, 30, "sku" ], [ @cap, 20, "manual" ]) # stock 100
 
     sign_in @user
-    post build_project_path(project)
+    post build_project_path(project), params: { builds_count: 0 }
 
     assert_equal 50, PartStorage.find_by(part: @cap, storage_location: @location).quantity
     assert_match(/1 reference\b/, flash[:notice])
@@ -205,7 +205,7 @@ class ProjectsControllerTest < ActionDispatch::IntegrationTest
 
     sign_in @user
     assert_no_difference -> { StockMovement.count } do
-      post build_project_path(project)
+      post build_project_path(project), params: { builds_count: 0 }
     end
     assert_match(/isn't buildable/i, flash[:alert])
   end
@@ -238,7 +238,7 @@ class ProjectsControllerTest < ActionDispatch::IntegrationTest
     project = build_project([ @resistor, 999, "mpn" ]) # short
     sign_in @user
     assert_no_difference -> { StockMovement.count } do
-      post build_project_path(project)
+      post build_project_path(project), params: { builds_count: 0 }
     end
     assert_match(/isn't buildable/i, flash[:alert])
   end
@@ -254,6 +254,72 @@ class ProjectsControllerTest < ActionDispatch::IntegrationTest
       post projects_path, params: { file: csv_upload(csv) }
     end
     assert_match(/read-only/i, flash[:alert])
+  end
+
+  test "build records the kit and refuses a replayed submission" do
+    project = build_project([ @cap, 30, "sku" ]) # stock 100
+
+    sign_in @user
+    post build_project_path(project), params: { builds_count: 0 }
+    assert_equal 1, project.reload.builds_count
+    assert project.last_built_at
+
+    assert_no_difference -> { StockMovement.count } do
+      post build_project_path(project), params: { builds_count: 0 }
+    end
+    assert_match(/already built/i, flash[:alert])
+    assert_equal 70, PartStorage.find_by(part: @cap, storage_location: @location).quantity
+  end
+
+  test "build without the page's builds count deducts nothing" do
+    project = build_project([ @cap, 30, "sku" ])
+
+    sign_in @user
+    assert_no_difference -> { StockMovement.count } do
+      post build_project_path(project)
+    end
+    assert_equal 0, project.reload.builds_count
+  end
+
+  test "another kit can be built from a fresh page" do
+    project = build_project([ @cap, 30, "sku" ]) # stock 100
+
+    sign_in @user
+    post build_project_path(project), params: { builds_count: 0 }
+    post build_project_path(project), params: { builds_count: 1 }
+
+    assert_equal 2, project.reload.builds_count
+    assert_equal 40, PartStorage.find_by(part: @cap, storage_location: @location).quantity
+  end
+
+  test "a build that fails halfway leaves no movements and no build count" do
+    project = build_project([ @cap, 30, "sku" ], [ @resistor, 5, "mpn" ]) # stock 100 / 5
+
+    # The resistor's stock vanishes between the buildability check and its
+    # deduction (a concurrent movement), after the capacitor was already taken.
+    original = PartStorage.method(:find_by)
+    vanished = ->(*args, **kwargs) { kwargs[:part] == @resistor ? PartStorage.new(quantity: 0) : original.call(*args, **kwargs) }
+
+    sign_in @user
+    stub_singleton(PartStorage, :find_by, vanished) do
+      assert_no_difference -> { StockMovement.count } do
+        post build_project_path(project), params: { builds_count: 0 }
+      end
+    end
+
+    assert_match(/could not deduct/i, flash[:alert])
+    assert_equal 0, project.reload.builds_count
+    assert_equal 100, PartStorage.find_by(part: @cap, storage_location: @location).quantity
+  end
+
+  test "updating a line without line params is a bad request, not a crash" do
+    project = build_project([ @cap, 3, "sku" ])
+    line = project.project_lines.first
+
+    sign_in @user
+    patch project_project_line_path(project, line)
+
+    assert_response :bad_request
   end
 
   private

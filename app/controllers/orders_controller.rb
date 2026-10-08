@@ -138,17 +138,20 @@ class OrdersController < ApplicationController
     quantities = params[:mode].to_s == "shortfall" ? project.shortfall_by_part : project.required_by_part
     added = 0
 
-    quantities.each do |part, quantity|
-      next unless quantity.positive?
+    # All or nothing, so a line that fails doesn't leave the order half-imported.
+    ActiveRecord::Base.transaction do
+      quantities.each do |part, quantity|
+        next unless quantity.positive?
 
-      line = @order.order_lines.find_or_initialize_by(part_id: part.id)
-      line.quantity = line.quantity.to_i + quantity
-      line.unit_price ||= part.order_unit_price(@order.supplier_id)
-      line.save!
-      added += 1
+        line = @order.order_lines.find_or_initialize_by(part_id: part.id)
+        line.quantity = line.quantity.to_i + quantity
+        line.unit_price ||= part.order_unit_price(@order.supplier_id)
+        line.save!
+        added += 1
+      end
+
+      @order.recalculate_total!
     end
-
-    @order.recalculate_total!
 
     if added.zero?
       redirect_to order_path(@order), alert: "Nothing to import from #{project.name} — no matched line needed ordering."
@@ -163,6 +166,8 @@ class OrdersController < ApplicationController
     else
       redirect_to order_path(@order), notice: notice
     end
+  rescue ActiveRecord::RecordInvalid => e
+    redirect_to order_path(@order), alert: "Nothing was imported: #{e.record.errors.full_messages.to_sentence}."
   end
 
   # Bulk-presets a single target storage zone for every line: each line gets one

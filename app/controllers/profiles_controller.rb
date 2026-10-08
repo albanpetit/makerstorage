@@ -9,7 +9,17 @@ class ProfilesController < ApplicationController
         firstname: current_user.firstname,
         lastname: current_user.lastname,
         email: current_user.email
-      }
+      },
+      invitations: current_user.pending_invitations.includes(:organization, :invited_by).order(:invitation_sent_at).map do |invitation|
+        inviter = invitation.invited_by
+        {
+          id: invitation.id,
+          organization_name: invitation.organization.name,
+          role: invitation.role,
+          invited_by: inviter && ("#{inviter.firstname} #{inviter.lastname}".strip.presence || inviter.email),
+          sent_at: invitation.invitation_sent_at.iso8601
+        }
+      end
     }
   end
 

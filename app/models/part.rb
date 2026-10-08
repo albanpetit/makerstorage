@@ -54,9 +54,9 @@ class Part < ApplicationRecord
   validates :status, presence: true, inclusion: { in: STATUSES }
   validates :unit, presence: true, inclusion: { in: UNITS }
   validates :unit_price, numericality: { greater_than_or_equal_to: 0 }, allow_nil: true
-  validates :min_stock_threshold, numericality: { greater_than_or_equal_to: 0 }
-  validates :target_stock, numericality: { greater_than: 0 }, allow_nil: true
-  validates :lead_time_days, numericality: { greater_than_or_equal_to: 0 }, allow_nil: true
+  validates :min_stock_threshold, numericality: { greater_than_or_equal_to: 0, less_than_or_equal_to: MAX_INTEGER }
+  validates :target_stock, numericality: { greater_than: 0, less_than_or_equal_to: MAX_INTEGER }, allow_nil: true
+  validates :lead_time_days, numericality: { greater_than_or_equal_to: 0, less_than_or_equal_to: MAX_INTEGER }, allow_nil: true
   # Hotlinked supplier image (e.g. Mouser, whose CDN blocks server-side download);
   # rendered directly in an <img>, so only allow http(s) URLs.
   validates :image_source_url, format: { with: %r{\Ahttps?://[^\s]+\z}i }, allow_blank: true

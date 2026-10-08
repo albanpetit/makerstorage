@@ -10,7 +10,7 @@ class StockMovement < ApplicationRecord
 
   # Validations
   validates :movement_type, presence: true, inclusion: { in: MOVEMENT_TYPES }
-  validates :quantity_delta, numericality: { only_integer: true, other_than: 0 }
+  validates :quantity_delta, numericality: { only_integer: true, other_than: 0, in: -MAX_INTEGER..MAX_INTEGER }
   validate :quantity_delta_sign_matches_movement_type
   validate :storage_location_must_belong_to_same_organization
   validate :part_must_belong_to_same_organization
@@ -81,6 +81,9 @@ class StockMovement < ApplicationRecord
   # acceptable quantity and then both decrement past zero — whichever executes
   # second re-evaluates `quantity` and its guard matches no row. On overdraw the
   # update affects no rows, so we abort the create (rolling back the transaction).
+  # It raises RecordInvalid, as the validation would have: `save` turns that into
+  # false and `create!` callers rescue one error class for both overdraw paths,
+  # where a plain `throw(:abort)` would surface as RecordNotSaved.
   def apply_to_part_storage
     part_storage = PartStorage.find_or_create_by!(part: part, storage_location: storage_location) do |ps|
       ps.quantity = 0
@@ -91,7 +94,7 @@ class StockMovement < ApplicationRecord
 
     if scope.update_all([ "quantity = quantity + ?", quantity_delta ]).zero?
       errors.add(:quantity_delta, "would result in negative stock at this location")
-      throw(:abort)
+      raise ActiveRecord::RecordInvalid, self
     end
   end
 end

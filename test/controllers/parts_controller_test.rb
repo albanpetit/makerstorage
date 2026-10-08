@@ -64,9 +64,8 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "https://www.mouser.com/img.png", hotlinked_json["thumbnail_url"]
 
     # The URL must serve the image without an image processor (no variant): the
-    # blob redirect resolves to the original bytes.
+    # member-only file route serves the original bytes.
     get with_json["thumbnail_url"]
-    follow_redirect!
     assert_response :success
     assert_equal "fake-image-bytes", response.body
   end
@@ -381,16 +380,18 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "Renamed", part.reload.name
   end
 
-  test "create rejects a tag from another organization" do
+  test "create never links a tag from another organization" do
     user = create_user
     org = user.organizations.first
     category = create_category(organization: org, name: "Resistors")
     foreign_tag = create_tag(organization: create_organization, name: "foreign")
 
     sign_in user
-    assert_no_difference -> { Part.count } do
-      post parts_path, params: { part: { name: "Resistor 10k", category_id: category.id, tag_ids: [ foreign_tag.id ] } }
-    end
+    post parts_path, params: { part: { name: "Resistor 10k", category_id: category.id, tag_ids: [ foreign_tag.id ] } }
+
+    part = org.parts.find_by!(name: "Resistor 10k")
+    assert_empty part.tags
+    assert_not PartTag.exists?(tag: foreign_tag)
   end
 
   test "edit serializes the tag options and the part's current tag_ids" do
@@ -490,6 +491,26 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
 
     assert_match(/0 created, 1 updated, 0 skipped/, flash[:notice])
     assert_equal "Resistor 10k", Part.find_by(mpn: "RES-10K").name
+  end
+
+  test "import matches an existing part's mpn regardless of case" do
+    user = create_user
+    org = user.organizations.first
+    category = create_category(organization: org, name: "Resistors")
+    part = create_part(organization: org, category: category, name: "Old name", mpn: "RES-10K")
+
+    csv = <<~CSV
+      Name,Category,MPN
+      Resistor 10k,Resistors,res-10k
+    CSV
+
+    sign_in user
+    assert_no_difference "Part.count" do
+      post import_parts_path, params: { file: csv_upload(csv) }
+    end
+
+    assert_match(/0 created, 1 updated, 0 skipped/, flash[:notice])
+    assert_equal "Resistor 10k", part.reload.name
   end
 
   test "import skips rows missing a name or category" do
@@ -785,9 +806,9 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
 
     get parts_path
     part_json = inertia_props["parts"].find { |p| p["id"] == part.id }
-    # The uploaded blob wins over the hotlink: a local Active Storage URL, not
-    # the Mouser URL.
-    assert_match %r{/rails/active_storage/}, part_json["thumbnail_url"]
+    # The uploaded blob wins over the hotlink: a local, member-only file URL,
+    # not the Mouser URL.
+    assert_match %r{\A/files/}, part_json["thumbnail_url"]
     refute_equal "https://www.mouser.com/img.png", part_json["thumbnail_url"]
   end
 
@@ -1217,6 +1238,33 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
     follow_redirect!
     assert_match(/choose a supplier/i, flash[:alert])
     assert_match(/choose a supplier/i, inertia_props["errors"]["base"])
+  end
+
+  test "update ignores tags from another organization" do
+    user = create_user
+    org = user.organizations.first
+    part = create_part(organization: org)
+    own_tag = create_tag(organization: org, name: "own")
+    foreign_tag = create_tag(organization: create_user.organizations.first, name: "foreign")
+
+    sign_in user
+    patch part_path(part), params: { part: { name: part.name, category_id: part.category_id, tag_ids: [ own_tag.id, foreign_tag.id ] } }
+
+    assert_response :redirect
+    assert_equal [ own_tag ], part.reload.tags
+  end
+
+  test "a rejected update keeps the part's previous tags" do
+    user = create_user
+    org = user.organizations.first
+    part = create_part(organization: org)
+    old_tag = create_tag(organization: org, name: "old")
+    part.tags << old_tag
+
+    sign_in user
+    patch part_path(part), params: { part: { name: "", category_id: part.category_id, tag_ids: [ create_tag(organization: org, name: "new").id ] } }
+
+    assert_equal [ old_tag ], part.reload.tags
   end
 
   private

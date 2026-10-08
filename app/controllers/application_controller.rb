@@ -21,7 +21,8 @@ class ApplicationController < ActionController::Base
         alerts_count: current_organization&.low_stock_parts_count || 0,
         is_organization_admin: current_organization ? current_user.admin_of?(current_organization) : false,
         is_organization_writer: current_organization ? current_user.writer_of?(current_organization) : false,
-        organization_role: current_organization ? current_user.role_in(current_organization) : nil
+        organization_role: current_organization ? current_user.role_in(current_organization) : nil,
+        pending_invitations_count: current_user.pending_invitations.count
       }
     end
   }
@@ -54,12 +55,17 @@ class ApplicationController < ActionController::Base
     model.errors.to_hash.transform_keys { |attribute| "#{as}.#{attribute}" }
   end
 
+  # Link to an uploaded file, served to members only (StoredFilesController).
+  def stored_file_path_for(attachment)
+    stored_file_path(attachment.blob.signed_id, attachment.filename.to_s)
+  end
+
   def serialize_organization(org)
     {
       id: org.id,
       name: org.name,
-      member_count: org.organization_memberships.active.count,
-      logo_url: org.logo.attached? ? rails_blob_path(org.logo, only_path: true) : nil
+      member_count: org.organization_memberships.granting_access.count,
+      logo_url: org.logo.attached? ? stored_file_path_for(org.logo) : nil
     }
   end
 

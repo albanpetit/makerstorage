@@ -27,18 +27,20 @@ class MembersController < ApplicationController
       return
     end
 
-    if current_organization.organization_memberships.exists?(user: user)
-      redirect_to members_path, alert: "#{user.email} is already a member of this organization."
+    if (existing = current_organization.organization_memberships.find_by(user: user))
+      state = existing.pending_invitation? ? "has already been invited to" : "is already a member of"
+      redirect_to members_path, alert: "#{user.email} #{state} this organization."
       return
     end
 
+    # An invitation, not a membership yet: it grants nothing until the invitee
+    # accepts it from their profile, so nobody is enrolled without consent.
     membership = current_organization.organization_memberships.build(
-      user: user, role: role, invited_by: current_user,
-      invitation_sent_at: Time.current, invitation_accepted_at: Time.current
+      user: user, role: role, invited_by: current_user, invitation_sent_at: Time.current
     )
 
     if membership.save
-      redirect_to members_path, notice: "#{user.email} added to the organization."
+      redirect_to members_path, notice: "Invitation sent to #{user.email}. They'll join once they accept it from their profile."
     else
       redirect_back_or_to members_path, alert: "Failed to add member.", inertia: { errors: inertia_errors(membership, as: :member) }
     end
@@ -108,6 +110,7 @@ class MembersController < ApplicationController
       email: user.email,
       role: membership.role,
       active: membership.active,
+      pending: membership.pending_invitation?,
       is_you: user.id == current_user.id,
       joined_at: membership.created_at.iso8601
     }

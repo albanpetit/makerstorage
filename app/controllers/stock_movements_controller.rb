@@ -47,7 +47,9 @@ class StockMovementsController < ApplicationController
       .order(created_at: :desc, id: :desc)
       .to_a
 
-    balances = running_balances(movements.map(&:id))
+    # The export holds the whole (filtered) ledger, so compute every balance in
+    # one pass rather than listing each id in the query.
+    balances = running_balances(nil)
 
     csv = CSV.generate do |out|
       out << [ "Date", "Type", "Reference", "Reason", "Location", "User", "Quantity", "Stock After" ]
@@ -136,13 +138,14 @@ class StockMovementsController < ApplicationController
     }
   end
 
-  # Running stock level after each of the given movements. The window sum runs
-  # over the org's *entire* ledger per (part, location) so the balance reflects
-  # all movement types even when the view is filtered or paginated; only the
-  # requested rows are returned. Ordering by (created_at, id) makes the
-  # cumulative sum deterministic for movements sharing a timestamp.
+  # Running stock level after each of the given movements (every movement of
+  # the org when +ids+ is nil). The window sum runs over the org's *entire*
+  # ledger per (part, location) so the balance reflects all movement types even
+  # when the view is filtered or paginated; only the requested rows are
+  # returned. Ordering by (created_at, id) makes the cumulative sum
+  # deterministic for movements sharing a timestamp.
   def running_balances(ids)
-    return {} if ids.empty?
+    return {} if ids&.empty?
 
     sql = <<~SQL.squish
       SELECT id, balance_after FROM (
@@ -154,8 +157,8 @@ class StockMovementsController < ApplicationController
         FROM stock_movements
         WHERE organization_id = :org
       ) AS running
-      WHERE id IN (:ids)
     SQL
+    sql += " WHERE id IN (:ids)" if ids
 
     rows = StockMovement.connection.select_all(
       StockMovement.sanitize_sql([ sql, org: current_organization.id, ids: ids ])

@@ -1,9 +1,10 @@
-import { Head, useForm } from '@inertiajs/react'
+import { Head, router, useForm } from '@inertiajs/react'
 import { FormEvent } from 'react'
 
 import { AppLayout } from '@/layouts/app-layout'
 import { PageHeader } from '@/components/page-header'
 import { FlashMessages } from '@/components/flash-messages'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -16,11 +17,20 @@ interface ProfileUser {
   email: string
 }
 
-interface PageProps {
-  user: ProfileUser
+interface Invitation {
+  id: number
+  organization_name: string
+  role: 'owner' | 'admin' | 'member' | 'viewer'
+  invited_by: string | null
+  sent_at: string
 }
 
-export default function Profile({ user }: PageProps) {
+interface PageProps {
+  user: ProfileUser
+  invitations: Invitation[]
+}
+
+export default function Profile({ user, invitations }: PageProps) {
   const detailsForm = useForm({
     user: {
       firstname: user.firstname,
@@ -62,6 +72,43 @@ export default function Profile({ user }: PageProps) {
 
       <div className="mx-auto w-full min-w-0 max-w-[680px] space-y-6">
         <FlashMessages />
+
+        {/* Pending organization invitations */}
+        {invitations.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Invitations</CardTitle>
+              <CardDescription>You'll only join an organization once you accept its invitation.</CardDescription>
+            </CardHeader>
+            <CardContent className="divide-y">
+              {invitations.map((invitation) => (
+                <div key={invitation.id} className="flex flex-wrap items-center gap-3 py-3 first:pt-0 last:pb-0">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 font-semibold">
+                      <span className="truncate">{invitation.organization_name}</span>
+                      <Badge variant="outline" className="capitalize">{invitation.role}</Badge>
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {invitation.invited_by ? `Invited by ${invitation.invited_by}` : 'Invited'} on {new Date(invitation.sent_at).toLocaleDateString()}
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => router.delete(`/invitations/${invitation.id}/decline`, { preserveScroll: true })}
+                    >
+                      Decline
+                    </Button>
+                    <Button size="sm" onClick={() => router.post(`/invitations/${invitation.id}/accept`)}>
+                      Accept
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Personal information */}
         <form onSubmit={submitDetails}>

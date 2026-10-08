@@ -92,18 +92,16 @@ module BomParser
   end
 
   # Resolves a parsed BOM line against +organization+'s parts, trying MPN, then
-  # SKU, then an exact case-insensitive name match. Returns [part_or_nil,
-  # match_type] where match_type is "mpn"/"sku"/"name"/"none".
+  # SKU, then name — each an exact, case-insensitive match (MPN and SKU are
+  # unique per organization regardless of case, and BOM exports often change
+  # it). Returns [part_or_nil, match_type] where match_type is
+  # "mpn"/"sku"/"name"/"none".
   def match(organization, line)
-    if line[:mpn].present? && (part = organization.parts.find_by(mpn: line[:mpn]))
-      return [ part, "mpn" ]
-    end
-    if line[:sku].present? && (part = organization.parts.find_by(sku: line[:sku]))
-      return [ part, "sku" ]
-    end
-    if line[:designation].present? &&
-       (part = organization.parts.where("LOWER(name) = ?", line[:designation].downcase).first)
-      return [ part, "name" ]
+    { mpn: :mpn, sku: :sku, name: :designation }.each do |column, key|
+      next if line[key].blank?
+
+      part = organization.parts.where(Part.arel_table[column].lower.eq(line[key].downcase)).first
+      return [ part, column.to_s ] if part
     end
 
     [ nil, "none" ]

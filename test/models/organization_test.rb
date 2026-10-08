@@ -161,16 +161,6 @@ class OrganizationTest < ActiveSupport::TestCase
     assert org.destroyed?
   end
 
-  test "viewers returns only users with the viewer role" do
-    org = create_organization
-    owner = User.create!(firstname: "O", lastname: "W", email: "owner2@example.com", password: "password123")
-    viewer = User.create!(firstname: "V", lastname: "I", email: "viewer2@example.com", password: "password123")
-    OrganizationMembership.create!(organization: org, user: owner, role: "owner")
-    OrganizationMembership.create!(organization: org, user: viewer, role: "viewer")
-
-    assert_equal [ viewer ], org.viewers.to_a
-  end
-
   test "low_stock_parts_count and out_of_stock_parts_count return integers, not hashes" do
     org = create_organization
     cat = create_category(organization: org)
@@ -260,5 +250,19 @@ class OrganizationTest < ActiveSupport::TestCase
 
     org.logo.attach(io: StringIO.new("<svg xmlns='http://www.w3.org/2000/svg'/>"), filename: "logo.svg", content_type: "image/svg+xml", identify: false)
     assert org.valid?, "SVG logos are allowed"
+  end
+
+  test "timezone must be one of the zones Settings offers" do
+    org = Organization.new(name: "Lab", timezone: "Mars/Olympus_Mons")
+    assert_not org.valid?
+    assert org.errors[:timezone].any?
+
+    org.timezone = "America/New_York"
+    org.valid?
+    assert_empty org.errors[:timezone]
+  end
+
+  test "the default timezone is valid" do
+    assert_includes Organization::TIMEZONES, Organization.new.timezone
   end
 end

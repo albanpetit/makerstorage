@@ -60,4 +60,18 @@ class NPlusOneTest < ActionDispatch::IntegrationTest
   test "alerts index does not N+1 on stock/supplier per low-stock part" do
     assert_no_query_growth alerts_path
   end
+
+  test "category pick-lists don't walk each category's ancestry with queries" do
+    parent = @category
+    2.times { parent = create_category(organization: @org, parent: parent) }
+    baseline = count_queries { get parts_path }
+    assert_response :success
+
+    ROWS_ADDED.times { parent = create_category(organization: @org, parent: parent) }
+    grown = count_queries { get parts_path }
+
+    growth = grown - baseline
+    assert growth <= QUERY_NOISE_TOLERANCE,
+      "parts index query count grew by #{growth} (#{baseline} → #{grown}) after nesting #{ROWS_ADDED} categories"
+  end
 end

@@ -105,13 +105,14 @@ class SuppliersControllerTest < ActionDispatch::IntegrationTest
   test "destroy of a catalog supplier clears the provider's credentials" do
     user = create_user
     org = user.organizations.first
-    org.update!(mouser_api_key: "secret-key")
+    org.update!(mouser_api_key: "secret-key", mouser_order_api_key: "order-key")
     mouser = org.suppliers.find_by(catalog_provider: "mouser")
 
     sign_in user
     delete supplier_path(mouser)
 
     assert_nil org.reload.mouser_api_key
+    assert_nil org.mouser_order_api_key, "the Order/Cart API key belongs to the same integration"
     assert_match(/Mouser Electronics/, flash[:notice])
   end
 

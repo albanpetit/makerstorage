@@ -57,6 +57,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -130,6 +131,7 @@ interface PageProps {
     organizations?: Organization[]
     alerts_count?: number
     is_organization_admin?: boolean
+    pending_invitations_count?: number
   }
 }
 
@@ -141,6 +143,7 @@ export function AppSidebar() {
   const currentOrganization = auth?.current_organization
   const organizations = auth?.organizations || []
   const alertsCount = auth?.alerts_count || 0
+  const pendingInvitationsCount = auth?.pending_invitations_count || 0
   const isOrganizationAdmin = auth?.is_organization_admin || false
   const visibleNavigationItems = navigationItems.filter((item) => !item.adminOnly || isOrganizationAdmin)
 
@@ -302,7 +305,12 @@ export function AppSidebar() {
                     <span className="truncate font-semibold">{userDisplayName}</span>
                     <span className="truncate text-xs text-muted-foreground">{userEmail}</span>
                   </div>
-                  <ChevronUp className="ml-auto size-4" />
+                  {pendingInvitationsCount > 0 && (
+                    <Badge className="ml-auto" aria-label={`${pendingInvitationsCount} pending invitation${pendingInvitationsCount !== 1 ? 's' : ''}`}>
+                      {pendingInvitationsCount}
+                    </Badge>
+                  )}
+                  <ChevronUp className={pendingInvitationsCount > 0 ? 'size-4' : 'ml-auto size-4'} />
                 </SidebarMenuButton>
               </DropdownMenuTrigger>
               <DropdownMenuContent
@@ -315,6 +323,11 @@ export function AppSidebar() {
                   <Link href="/profile" className="cursor-pointer">
                     <User className="mr-2 size-4" />
                     Profile
+                    {pendingInvitationsCount > 0 && (
+                      <Badge variant="secondary" className="ml-auto">
+                        {pendingInvitationsCount} invitation{pendingInvitationsCount !== 1 ? 's' : ''}
+                      </Badge>
+                    )}
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />

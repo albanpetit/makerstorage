@@ -115,12 +115,17 @@ class PartsController < ApplicationController
   end
 
   def update
-    @part.assign_attributes(part_params)
-    # Only from a fresh catalog lookup; a plain edit doesn't send it, so an
-    # existing hotlinked image is preserved.
-    @part.image_source_url = params[:image_url].presence if params[:image_url].present?
+    # On a saved part, assigning tag_ids writes the tag links immediately; run the
+    # whole edit in one transaction so a rejected edit doesn't keep them.
+    saved = ActiveRecord::Base.transaction do
+      @part.assign_attributes(part_params)
+      # Only from a fresh catalog lookup; a plain edit doesn't send it, so an
+      # existing hotlinked image is preserved.
+      @part.image_source_url = params[:image_url].presence if params[:image_url].present?
+      @part.save || raise(ActiveRecord::Rollback)
+    end
 
-    if @part.save
+    if saved
       attach_remote_datasheet(@part)
       # Return to wherever the edit was launched (list, detail, or the standalone
       # edit page) so the modal flow stays put instead of navigating away.
@@ -388,10 +393,13 @@ class PartsController < ApplicationController
     mpn = import_value(row, :mpn)
     sku = import_value(row, :sku)
 
+    # Case-insensitive, like the per-organization uniqueness of these columns:
+    # otherwise a row differing only in case would be skipped as a duplicate
+    # instead of updating its part.
     if mpn.present?
-      current_organization.parts.find_by(mpn: mpn)
+      current_organization.parts.find_by("LOWER(mpn) = ?", mpn.downcase)
     elsif sku.present?
-      current_organization.parts.find_by(sku: sku)
+      current_organization.parts.find_by("LOWER(sku) = ?", sku.downcase)
     end
   end
 
@@ -433,7 +441,7 @@ class PartsController < ApplicationController
   end
 
   def part_params
-    params.require(:part).permit(
+    permitted = params.require(:part).permit(
       :name, :mpn, :sku, :barcode, :ipn, :manufacturer, :description,
       :value, :tolerance, :voltage_rating, :power_rating, :package_type,
       :category_id, :footprint_id,
@@ -446,6 +454,11 @@ class PartsController < ApplicationController
         :url, :is_preferred, :notes, :_destroy
       ]
     )
+    # Through-association ids are looked up across every organization, and a
+    # foreign tag then fails PartTag's validation as an exception (a 500). Keep
+    # only this organization's tags.
+    permitted[:tag_ids] = current_organization.tags.where(id: permitted[:tag_ids]).pluck(:id) if permitted.key?(:tag_ids)
+    permitted
   end
 
   # URL for the part's thumbnail in the list. A manually uploaded image wins
@@ -459,7 +472,7 @@ class PartsController < ApplicationController
   # processor turns every thumbnail into a broken image.
   def part_thumbnail_url(part)
     if part.images.attached? && part.images.first.content_type.to_s.start_with?("image/")
-      rails_blob_path(part.images.first)
+      stored_file_path_for(part.images.first)
     else
       part.image_source_url.presence
     end

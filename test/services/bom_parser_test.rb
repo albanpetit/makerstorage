@@ -60,6 +60,8 @@ class BomParserTest < ActiveSupport::TestCase
     assert_equal [ by_sku, "sku" ], BomParser.match(org, { mpn: nil, sku: "SKU-1", designation: nil })
     assert_equal [ by_name, "name" ], BomParser.match(org, { mpn: nil, sku: nil, designation: "widget" })
     assert_equal [ nil, "none" ], BomParser.match(org, { mpn: "ZZZ", sku: nil, designation: nil })
+    assert_equal [ by_mpn, "mpn" ], BomParser.match(org, { mpn: "mpn-1", sku: nil, designation: nil })
+    assert_equal [ by_sku, "sku" ], BomParser.match(org, { mpn: nil, sku: "sku-1", designation: nil })
   end
 
   private

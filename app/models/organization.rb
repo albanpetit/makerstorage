@@ -45,6 +45,8 @@ class Organization < ApplicationRecord
   IPN_GENERATION_MODES = %w[incremental random category_sequence manual].freeze
   IPN_CHARSETS = %w[numeric alphanumeric].freeze
   CURRENCIES = %w[EUR USD GBP CHF].freeze
+  # The zones Settings offers (IANA names behind Rails' friendly zone names).
+  TIMEZONES = ActiveSupport::TimeZone::MAPPING.values.uniq.sort.freeze
 
   # Validations
   validates :name, presence: true, length: { minimum: 2, maximum: 100 }
@@ -55,9 +57,10 @@ class Organization < ApplicationRecord
   validates :ipn_generation_mode, inclusion: { in: IPN_GENERATION_MODES }
   validates :ipn_charset, inclusion: { in: IPN_CHARSETS }
   validates :ipn_digits, numericality: { only_integer: true, greater_than_or_equal_to: 3, less_than_or_equal_to: 8 }
-  validates :ipn_next_sequence, numericality: { only_integer: true, greater_than: 0 }
+  validates :ipn_next_sequence, numericality: { only_integer: true, greater_than: 0, less_than_or_equal_to: MAX_INTEGER }
   validates :currency, presence: true, inclusion: { in: CURRENCIES }
-  validates :default_low_stock_threshold, numericality: { only_integer: true, greater_than_or_equal_to: 0 }
+  validates :timezone, inclusion: { in: TIMEZONES }
+  validates :default_low_stock_threshold, numericality: { only_integer: true, greater_than_or_equal_to: 0, less_than_or_equal_to: MAX_INTEGER }
 
   # Callbacks
   validate :must_have_at_least_one_owner, on: :update
@@ -66,43 +69,6 @@ class Organization < ApplicationRecord
   # Scopes
   scope :alphabetical, -> { order(:name) }
   scope :recent, -> { order(created_at: :desc) }
-
-  # Methods - Members
-  def owners
-    users.joins(:organization_memberships)
-         .where(organization_memberships: { role: "owner" })
-         .distinct
-  end
-
-  def admins
-    users.joins(:organization_memberships)
-         .where(organization_memberships: { role: %w[owner admin] })
-         .distinct
-  end
-
-  def members
-    users.joins(:organization_memberships)
-         .where(organization_memberships: { role: "member" })
-         .distinct
-  end
-
-  def viewers
-    users.joins(:organization_memberships)
-         .where(organization_memberships: { role: "viewer" })
-         .distinct
-  end
-
-  def member?(user)
-    users.include?(user)
-  end
-
-  def owner?(user)
-    organization_memberships.exists?(user: user, role: "owner")
-  end
-
-  def admin?(user)
-    organization_memberships.exists?(user: user, role: %w[owner admin])
-  end
 
   # Methods - IPN numbering
   #

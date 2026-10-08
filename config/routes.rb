@@ -1,4 +1,12 @@
 Rails.application.routes.draw do
+  # Active Storage's own routes are all public: direct uploads accept a file from
+  # anyone holding a CSRF token (no sign-in needed), and blob links serve a file
+  # to anyone who has the URL, forever. Shadow every one of them ahead of the
+  # engine's routes; uploads go through the authenticated forms and files are
+  # served by StoredFilesController to members of the owning organization.
+  match "rails/active_storage/*path", to: proc { [ 404, {}, [] ] }, via: :all, format: false
+  get "files/:signed_id/*filename", to: "stored_files#show", as: :stored_file, format: false
+
   devise_for :users, skip: [ :sessions, :passwords, :registrations ]
   as :user do
     get "login", to: "users/sessions#new", as: :new_user_session
@@ -115,12 +123,23 @@ Rails.application.routes.draw do
 
   resource :profile, only: %i[show update]
 
+  # Organization invitations addressed to the signed-in user.
+  resources :invitations, only: [] do
+    member do
+      post :accept
+      delete :decline
+    end
+  end
+
   root "dashboard#index"
   # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
 
   # Reveal health status on /up that returns 200 if the app boots with no exceptions, otherwise 500.
   # Can be used by load balancers and uptime monitors to verify that the app is live.
   get "up" => "rails/health#show", as: :rails_health_check
+
+  # Content-Security-Policy violation reports (report-only policy).
+  post "csp-violations" => "csp_reports#create", as: :csp_reports
 
   # Render dynamic PWA files from app/views/pwa/* (manifest linked in application.html.erb)
   get "manifest" => "rails/pwa#manifest", as: :pwa_manifest

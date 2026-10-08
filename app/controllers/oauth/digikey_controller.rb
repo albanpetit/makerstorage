@@ -19,6 +19,9 @@ module Oauth
 
       state = SecureRandom.hex(24)
       session[:digikey_oauth_state] = state
+      # The tokens belong to the organization that started the handshake, not
+      # whichever one is current when DigiKey redirects back.
+      session[:digikey_oauth_organization_id] = current_organization.id
 
       redirect_to SupplierCatalog::Digikey.authorize_url(
         client_id: current_organization.digikey_client_id,
@@ -29,6 +32,7 @@ module Oauth
 
     def callback
       expected = session.delete(:digikey_oauth_state)
+      started_in = session.delete(:digikey_oauth_organization_id)
 
       if params[:error].present?
         redirect_to settings_path, alert: "DigiKey authorization was cancelled."
@@ -37,6 +41,11 @@ module Oauth
 
       if expected.blank? || params[:state] != expected
         redirect_to settings_path, alert: "DigiKey authorization could not be verified. Please try connecting again."
+        return
+      end
+
+      if started_in != current_organization.id
+        redirect_to settings_path, alert: "You switched organization during the DigiKey connection. Please connect again from this organization."
         return
       end
 
