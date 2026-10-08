@@ -107,6 +107,40 @@ class ProfilesControllerTest < ActionDispatch::IntegrationTest
     assert user.valid_password?("password123")
   end
 
+  test "wrong current passwords count toward the account lock and end the session" do
+    user = create_user(email: "keep@example.com")
+
+    sign_in user
+    Devise.maximum_attempts.times do
+      patch profile_path, params: { user: { email: "attacker@example.com", current_password: "guess" } }
+    end
+
+    user.reload
+    assert user.access_locked?
+    assert_equal "keep@example.com", user.email
+
+    get profile_path
+    assert_redirected_to new_user_session_path
+  end
+
+  test "a wrong current password on the password form counts as a failed attempt" do
+    user = create_user
+
+    sign_in user
+    assert_difference -> { user.reload.failed_attempts }, 1 do
+      patch profile_path, params: { user: { current_password: "wrong", password: "new-password456", password_confirmation: "new-password456" } }
+    end
+  end
+
+  test "a blank current password isn't counted as a guess" do
+    user = create_user
+
+    sign_in user
+    assert_no_difference -> { user.reload.failed_attempts } do
+      patch profile_path, params: { user: { email: "other@example.com", current_password: "" } }
+    end
+  end
+
   test "changing the password sends a password-change notification" do
     user = create_user(email: "pw@example.com")
 
