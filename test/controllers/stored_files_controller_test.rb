@@ -34,6 +34,22 @@ class StoredFilesControllerTest < ActionDispatch::IntegrationTest
     assert_equal "LOGO", response.body
   end
 
+  test "an svg logo is served as an inline image locked down by its own csp" do
+    svg = "<svg xmlns='http://www.w3.org/2000/svg'><script>alert(1)</script></svg>"
+    @org.logo.attach(io: StringIO.new(svg), filename: "logo.svg", content_type: "image/svg+xml", identify: false)
+
+    sign_in @owner
+    get file_path(@org.logo)
+
+    assert_response :success
+    assert_equal "image/svg+xml", response.media_type
+    assert_match(/\Ainline/, response.headers["Content-Disposition"])
+    policy = response.headers["Content-Security-Policy"]
+    assert_match(/default-src 'none'/, policy)
+    assert_match(/sandbox/, policy)
+    assert_equal "nosniff", response.headers["X-Content-Type-Options"]
+  end
+
   test "signed-out visitors are refused" do
     get file_path(@image)
     # A file request isn't navigational, so Devise answers 401 rather than
