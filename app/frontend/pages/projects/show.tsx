@@ -57,6 +57,8 @@ interface Project {
   short_count: number
   unmatched_count: number
   checked_at: string | null
+  builds_count: number
+  last_built_at: string | null
   lines: ProjectLine[]
 }
 
@@ -184,6 +186,11 @@ export default function ProjectShow({ project, parts }: ProjectShowProps) {
                 </p>
               </>
             )}
+            {project.builds_count > 0 && project.last_built_at && (
+              <p className="ml-auto text-xs text-muted-foreground">
+                Built {project.builds_count} time{project.builds_count !== 1 ? 's' : ''} · last on {new Date(project.last_built_at).toLocaleDateString()}
+              </p>
+            )}
           </CardContent>
         </Card>
 
@@ -274,7 +281,7 @@ export default function ProjectShow({ project, parts }: ProjectShowProps) {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
-                router.post(`/projects/${project.id}/build`, {}, { preserveScroll: true })
+                router.post(`/projects/${project.id}/build`, { builds_count: project.builds_count }, { preserveScroll: true })
                 setBuildOpen(false)
               }}
             >
