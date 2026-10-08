@@ -100,14 +100,39 @@ module SupplierCatalog
       Resolv.getaddresses(host)
     end
 
+    # Every IANA special-purpose block that isn't a public internet host:
+    # "this network", private, carrier-grade NAT, loopback, link-local,
+    # documentation, benchmarking, multicast, reserved, unique-local... An
+    # allowlist would be stricter still, but public space has no compact one.
+    NON_PUBLIC_RANGES = %w[
+      0.0.0.0/8 10.0.0.0/8 100.64.0.0/10 127.0.0.0/8 169.254.0.0/16
+      172.16.0.0/12 192.0.0.0/24 192.0.2.0/24 192.88.99.0/24 192.168.0.0/16
+      198.18.0.0/15 198.51.100.0/24 203.0.113.0/24 224.0.0.0/4 240.0.0.0/4
+      ::/128 ::1/128 100::/64 2001::/23 2001:db8::/32 fc00::/7 fe80::/10
+      fec0::/10 ff00::/8
+    ].map { |range| IPAddr.new(range) }.freeze
+
+    # IPv6 forms that carry an IPv4 address the connection may end up at:
+    # IPv4-mapped, IPv4-compatible, NAT64 (well-known and local-use), 6to4.
+    EMBEDDED_IPV4_RANGES = {
+      IPAddr.new("::ffff:0:0/96") => ->(ip) { ip.to_i & 0xffff_ffff },
+      IPAddr.new("::/96") => ->(ip) { ip.to_i & 0xffff_ffff },
+      IPAddr.new("64:ff9b::/96") => ->(ip) { ip.to_i & 0xffff_ffff },
+      IPAddr.new("64:ff9b:1::/48") => ->(ip) { ip.to_i & 0xffff_ffff },
+      IPAddr.new("2002::/16") => ->(ip) { (ip.to_i >> 80) & 0xffff_ffff }
+    }.freeze
+
     def public_ip?(address)
       ip = IPAddr.new(address)
-      return false if ip.loopback? || ip.link_local? || ip.private?
-      return false if ip.to_s == "0.0.0.0" || ip.to_s == "::"
+      return false if NON_PUBLIC_RANGES.any? { |range| range.family == ip.family && range.include?(ip) }
 
-      # Carrier-grade NAT (100.64.0.0/10) and IPv4-mapped ranges aren't covered
-      # by IPAddr#private? — reject them explicitly.
-      return false if ip.ipv4? && IPAddr.new("100.64.0.0/10").include?(ip)
+      if ip.ipv6?
+        EMBEDDED_IPV4_RANGES.each do |range, extract|
+          next unless range.include?(ip)
+
+          return public_ip?(IPAddr.new(extract.call(ip), Socket::AF_INET).to_s)
+        end
+      end
 
       true
     rescue IPAddr::InvalidAddressError
