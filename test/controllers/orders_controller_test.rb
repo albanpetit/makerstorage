@@ -79,6 +79,22 @@ class OrdersControllerTest < ActionDispatch::IntegrationTest
     assert_match(/received/i, flash[:alert])
   end
 
+  test "update refuses to edit a received or cancelled order's details" do
+    other_supplier = create_supplier(organization: @org)
+    sign_in @user
+
+    %w[received cancelled].each do |status|
+      order = create_order(organization: @org, supplier: @supplier, status: status, reference: "PO-#{status}", notes: "Original")
+
+      patch order_path(order), params: { order: { supplier_id: other_supplier.id, reference: "PO-NEW", notes: "Rewritten" } }
+
+      assert_redirected_to order_path(order)
+      assert_match(/can no longer be edited/, flash[:alert])
+      order.reload
+      assert_equal [ @supplier, "PO-#{status}", "Original" ], [ order.supplier, order.reference, order.notes ]
+    end
+  end
+
   test "update can cancel an open order" do
     order = create_order(organization: @org, supplier: @supplier, status: "pending", reference: "PO-1")
     sign_in @user

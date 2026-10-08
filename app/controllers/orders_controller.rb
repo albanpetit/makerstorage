@@ -76,6 +76,14 @@ class OrdersController < ApplicationController
   end
 
   def update
+    # A received or cancelled order is a closed record (its stock receipt names
+    # it): the page hides Edit, and a crafted request mustn't rewrite its
+    # supplier, reference, or dates either.
+    unless @order.editable?
+      redirect_to order_path(@order), alert: "This order is #{@order.status} and can no longer be edited."
+      return
+    end
+
     # Receiving credits stock, so it must go through #advance — never a plain
     # attribute write that would skip the ledger update.
     if order_params[:status] == "received"
