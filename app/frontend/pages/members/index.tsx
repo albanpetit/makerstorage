@@ -348,12 +348,13 @@ export default function MembersIndex({ members }: MembersPageProps) {
                     const meta = ROLE_META[role]
                     const on = inviteForm.data.member.role === role
                     return (
-                      <button
+                      <Button
                         key={role}
                         type="button"
+                        variant="ghost"
                         onClick={() => inviteForm.setData('member', { ...inviteForm.data.member, role })}
-                        className={`flex items-center gap-3 rounded-lg border-[1.5px] p-3 text-left transition-colors ${
-                          on ? 'border-primary bg-accent' : 'border-border hover:bg-accent'
+                        className={`h-auto justify-start gap-3 rounded-lg border-[1.5px] p-3 text-left font-normal whitespace-normal has-[>svg]:px-3 ${
+                          on ? 'border-primary bg-accent dark:hover:bg-accent' : 'border-border'
                         }`}
                       >
                         <meta.icon className="size-4 shrink-0" />
@@ -362,7 +363,7 @@ export default function MembersIndex({ members }: MembersPageProps) {
                           <div className="text-xs text-muted-foreground">{meta.description}</div>
                         </div>
                         {on && <Check className="size-4 shrink-0 text-primary" />}
-                      </button>
+                      </Button>
                     )
                   })}
                 </div>

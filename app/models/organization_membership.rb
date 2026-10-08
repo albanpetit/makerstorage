@@ -3,7 +3,9 @@ class OrganizationMembership < ApplicationRecord
   belongs_to :organization, inverse_of: :organization_memberships
   belongs_to :invited_by, class_name: "User", optional: true
 
-  validates :role, presence: true, inclusion: { in: %w[owner admin member viewer] }
+  ROLES = %w[owner admin member viewer].freeze
+
+  validates :role, presence: true, inclusion: { in: ROLES }
   validates :user_id, uniqueness: { scope: :organization_id }
   validates :invitation_token, uniqueness: true, allow_nil: true
 

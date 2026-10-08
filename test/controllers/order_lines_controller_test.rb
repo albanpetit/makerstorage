@@ -80,6 +80,31 @@ class OrderLinesControllerTest < ActionDispatch::IntegrationTest
     assert part.part_suppliers.exists?(supplier: @supplier)
   end
 
+  test "catalog leaves no new part behind when the line is rejected" do
+    sign_in @user
+    assert_no_difference [ "Part.count", "PartSupplier.count", "OrderLine.count" ] do
+      post catalog_order_order_lines_path(@order), params: {
+        category_id: @category.id,
+        order_line: { quantity: 0 },
+        part: { name: "LM358 op-amp", mpn: "LM358DR" }
+      }
+    end
+
+    assert_redirected_to order_path(@order)
+    assert_match(/quantity/i, flash[:alert])
+  end
+
+  test "catalog reports a component it couldn't create" do
+    sign_in @user
+    assert_no_difference [ "Part.count", "OrderLine.count" ] do
+      post catalog_order_order_lines_path(@order), params: {
+        category_id: @category.id, order_line: { quantity: 1 }, part: { name: "" }
+      }
+    end
+
+    assert_match(/name/i, flash[:alert])
+  end
+
   test "catalog reuses an existing part with the same MPN instead of duplicating" do
     existing = create_part(organization: @org, category: @category, name: "Existing", mpn: "REUSE-1")
     sign_in @user

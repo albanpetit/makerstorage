@@ -34,7 +34,19 @@ module BomParser
     status: %i[status statut]
   }.freeze
 
+  # Files are read whole into memory; tens of thousands of rows fit well below.
+  MAX_FILE_SIZE = 10.megabytes
+
   module_function
+
+  # Whether an uploaded file is over MAX_FILE_SIZE (callers refuse it unread).
+  def too_large?(file)
+    file.size > MAX_FILE_SIZE
+  end
+
+  def too_large_message
+    "That file is too large to import (the limit is #{ActiveSupport::NumberHelper.number_to_human_size(MAX_FILE_SIZE)})."
+  end
 
   # Yields each raw CSV::Row (with symbolized headers) from +path+, sniffing the
   # delimiter (";" vs ",") from the first line. Raises CSV::MalformedCSVError on

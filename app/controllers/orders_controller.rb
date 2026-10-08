@@ -76,6 +76,14 @@ class OrdersController < ApplicationController
   end
 
   def update
+    # A received or cancelled order is a closed record (its stock receipt names
+    # it): the page hides Edit, and a crafted request mustn't rewrite its
+    # supplier, reference, or dates either.
+    unless @order.editable?
+      redirect_to order_path(@order), alert: "This order is #{@order.status} and can no longer be edited."
+      return
+    end
+
     # Receiving credits stock, so it must go through #advance — never a plain
     # attribute write that would skip the ledger update.
     if order_params[:status] == "received"
@@ -97,12 +105,6 @@ class OrdersController < ApplicationController
   end
 
   def advance
-    # Preload each line's part and its storage locations so stock receipt reads
-    # `line.part.storage_locations.first` off memory instead of an N+1.
-    @order = current_organization.orders
-      .includes(order_lines: [ { part: :storage_locations }, { allocations: :storage_location } ])
-      .find(params[:id])
-
     result = @order.advance!(user: current_user)
 
     unless result.advanced
@@ -206,7 +208,11 @@ class OrdersController < ApplicationController
       return
     end
 
-    skus = @order.order_lines.map { |line| [ line, mouser_sku_for(line) ] }
+    # The Mouser part number each line carries via its part's link to this
+    # order's supplier, fetched in one query rather than one per line.
+    mouser_skus = PartSupplier.where(part_id: @order.order_lines.map(&:part_id), supplier_id: @order.supplier_id)
+      .pluck(:part_id, :supplier_sku).to_h
+    skus = @order.order_lines.map { |line| [ line, mouser_skus[line.part_id] ] }
     items = skus.filter_map { |line, sku| { supplier_sku: sku, quantity: line.quantity } if sku.present? }
 
     if items.empty?
@@ -340,13 +346,15 @@ class OrdersController < ApplicationController
       .find_by(part_suppliers: { supplier_sku: line.supplier_sku })
   end
 
+  # Matched regardless of case, like category names are unique. A concurrent
+  # import creating it first trips the unique index: use theirs.
   def import_category
-    @import_category ||= current_organization.categories.find_or_create_by!(name: "Uncategorized")
-  end
-
-  # The Mouser part number a line carries via its link to this order's supplier.
-  def mouser_sku_for(line)
-    line.part.part_suppliers.find_by(supplier_id: @order.supplier_id)&.supplier_sku
+    find = -> { current_organization.categories.find_by("LOWER(name) = ?", "uncategorized") }
+    @import_category ||= begin
+      find.call || current_organization.categories.create!(name: "Uncategorized")
+    rescue ActiveRecord::RecordNotUnique
+      find.call || raise
+    end
   end
 
   def set_order

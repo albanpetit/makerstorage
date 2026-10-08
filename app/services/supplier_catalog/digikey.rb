@@ -21,6 +21,7 @@ module SupplierCatalog
     ORDER_STATUS_ENDPOINT = "https://api.digikey.com/orderstatus/v4/salesorder"
     MAX_RECORDS = 10
     PROVIDER = "digikey"
+    SALES_ORDER_NUMBER = /\A[A-Za-z0-9-]{1,50}\z/
 
     # --- 3-legged OAuth (Authorization Code) for the user-scoped Order API ------
 
@@ -71,7 +72,7 @@ module SupplierCatalog
       end
 
       JSON.parse(response.body)
-    rescue Net::OpenTimeout, Net::ReadTimeout, SocketError, Errno::ECONNREFUSED => e
+    rescue *NETWORK_ERRORS => e
       raise LookupError, "Could not reach DigiKey: #{e.message}"
     rescue JSON::ParserError
       raise LookupError, "DigiKey returned an unreadable token response"
@@ -110,7 +111,14 @@ module SupplierCatalog
     # SupplierCatalog::OrderResult. Uses the user access token (Order Status API
     # is user-scoped). Raises LookupError on failure.
     def import_order(sales_order_number)
-      payload = order_get("#{ORDER_STATUS_ENDPOINT}/#{sales_order_number.to_s.strip}")
+      number = sales_order_number.to_s.strip
+      # The number becomes a path segment of a request carrying the account's
+      # bearer token: accept only a plain identifier, so "../" or "?" can't
+      # point that request at another DigiKey endpoint (and a stray space
+      # can't make an invalid URI).
+      raise LookupError, "Enter a DigiKey sales order number (letters, digits, and dashes only)." unless number.match?(SALES_ORDER_NUMBER)
+
+      payload = order_get("#{ORDER_STATUS_ENDPOINT}/#{number}")
       build_order_result(payload, sales_order_number)
     end
 
@@ -144,7 +152,7 @@ module SupplierCatalog
       end
 
       JSON.parse(response.body)
-    rescue Net::OpenTimeout, Net::ReadTimeout, SocketError, Errno::ECONNREFUSED => e
+    rescue *NETWORK_ERRORS => e
       raise LookupError, "Could not reach DigiKey Order API: #{e.message}"
     rescue JSON::ParserError
       raise LookupError, "DigiKey Order API returned an unreadable response"
@@ -234,7 +242,7 @@ module SupplierCatalog
       end
 
       JSON.parse(response.body)
-    rescue Net::OpenTimeout, Net::ReadTimeout, SocketError, Errno::ECONNREFUSED => e
+    rescue *NETWORK_ERRORS => e
       raise LookupError, "Could not reach DigiKey API: #{e.message}"
     rescue JSON::ParserError
       raise LookupError, "DigiKey API returned an unreadable response"
@@ -291,7 +299,7 @@ module SupplierCatalog
       raise LookupError, "DigiKey did not return an access token." if token.blank?
 
       token
-    rescue Net::OpenTimeout, Net::ReadTimeout, SocketError, Errno::ECONNREFUSED => e
+    rescue *NETWORK_ERRORS => e
       raise LookupError, "Could not reach DigiKey API: #{e.message}"
     rescue JSON::ParserError
       raise LookupError, "DigiKey API returned an unreadable token response"

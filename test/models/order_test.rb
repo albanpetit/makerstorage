@@ -126,6 +126,28 @@ class OrderTest < ActiveSupport::TestCase
     assert_equal 25, part.reload.total_quantity
   end
 
+  test "advance! to received looks storage zones up once, however many lines" do
+    user = create_user
+    category = create_category(organization: @org)
+    location = create_storage_location(organization: @org)
+
+    zone_lookups = lambda do |line_count|
+      order = Order.create!(organization: @org, supplier: @supplier, status: "shipped")
+      line_count.times do
+        part = create_part(organization: @org, category: category)
+        part.part_storages.create!(storage_location: location, quantity: 0)
+        OrderLine.create!(order: order, part: part, quantity: 5, unit_price: 1.0)
+      end
+
+      count = 0
+      counter = ->(*, payload) { count += 1 if payload[:sql] =~ /\ASELECT.*"storage_locations"/m && !payload[:cached] }
+      ActiveSupport::Notifications.subscribed(counter, "sql.active_record") { order.advance!(user: user) }
+      count
+    end
+
+    assert_equal zone_lookups.call(1), zone_lookups.call(4)
+  end
+
   test "advance! to received splits a line's allocations across zones" do
     user = create_user
     category = create_category(organization: @org)

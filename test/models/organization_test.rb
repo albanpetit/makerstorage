@@ -265,4 +265,26 @@ class OrganizationTest < ActiveSupport::TestCase
   test "the default timezone is valid" do
     assert_includes Organization::TIMEZONES, Organization.new.timezone
   end
+
+  test "replacing the DigiKey client id unlinks the connected account" do
+    org = create_user.organizations.first
+    org.update!(digikey_client_id: "app-1", digikey_client_secret: "s",
+                digikey_access_token: "at", digikey_refresh_token: "rt", digikey_token_expires_at: 1.hour.from_now)
+
+    org.update!(digikey_client_id: "app-2")
+
+    assert_not org.reload.digikey_account_connected?
+    assert_nil org.digikey_access_token
+  end
+
+  test "rotating only the DigiKey secret keeps the connected account" do
+    org = create_user.organizations.first
+    org.update!(digikey_client_id: "app-1", digikey_client_secret: "s",
+                digikey_access_token: "at", digikey_refresh_token: "rt")
+
+    org.update!(digikey_client_secret: "rotated")
+    org.update!(digikey_client_id: "app-1")
+
+    assert org.reload.digikey_account_connected?
+  end
 end

@@ -44,7 +44,7 @@ class ProfilesController < ApplicationController
     # The sign-in email is what password resets go to, so changing it takes the
     # current password — otherwise a hijacked session could redirect resets to
     # an attacker's inbox and take the account over.
-    if current_user.will_save_change_to_email? && !current_user.valid_password?(params.dig(:user, :current_password).to_s)
+    if current_user.will_save_change_to_email? && !current_password_valid?(params.dig(:user, :current_password))
       current_user.errors.add(:current_password, params.dig(:user, :current_password).blank? ? :blank : :invalid)
       return redirect_to profile_path, inertia: { errors: inertia_errors(current_user, as: :user) },
         alert: "Enter your current password to change your email."
@@ -58,6 +58,11 @@ class ProfilesController < ApplicationController
   end
 
   def update_password
+    unless current_password_valid?(password_params[:current_password])
+      current_user.errors.add(:current_password, password_params[:current_password].blank? ? :blank : :invalid)
+      return redirect_to profile_path, inertia: { errors: inertia_errors(current_user, as: :user) }, alert: "Failed to update password."
+    end
+
     if current_user.update_with_password(password_params)
       # Changing the password rotates the Devise auth token, which would sign
       # the user out — keep the current session alive.
@@ -66,6 +71,17 @@ class ProfilesController < ApplicationController
     else
       redirect_to profile_path, inertia: { errors: inertia_errors(current_user, as: :user) }, alert: "Failed to update password."
     end
+  end
+
+  # A wrong current password counts as a failed sign-in (Devise :lockable), so a
+  # hijacked session can't guess it any faster than the login form allows: the
+  # account locks after the same number of misses and the session then ends.
+  # Checked on a fresh copy because a miss saves the user, and current_user may
+  # hold the unsaved profile edits being guarded. A blank field isn't a guess.
+  def current_password_valid?(password)
+    return false if password.blank?
+
+    User.find(current_user.id).valid_for_authentication? { current_user.valid_password?(password) }
   end
 
   def details_params

@@ -15,6 +15,25 @@ class PartsController < ApplicationController
   before_action :verify_organization_admin, only: %i[bulk_destroy]
   before_action :set_part, only: %i[show edit update destroy]
 
+  # Raised when an import row's location names several zones; skips the row.
+  class AmbiguousLocationError < StandardError; end
+  # Raised when an import row's quantity isn't a whole number; skips the row.
+  class InvalidQuantityError < StandardError; end
+  # Raised when the add-part form's opening stock can't be recorded.
+  class InitialStockError < StandardError; end
+
+  # Part attribute => BomParser field for the optional CSV import columns.
+  IMPORTED_ATTRIBUTES = {
+    mpn: :mpn,
+    sku: :sku,
+    manufacturer: :manufacturer,
+    value: :value,
+    package_type: :package,
+    unit_price: :unit_price,
+    min_stock_threshold: :min_stock_threshold,
+    status: :status
+  }.freeze
+
   def index
     parts = current_organization.parts
       .includes(:category, :footprint, :tags, :part_storages, :storage_locations, part_suppliers: :supplier)
@@ -48,7 +67,7 @@ class PartsController < ApplicationController
 
         render json: {
           part: serialize_part_full(@part),
-          storages: @part.part_storages.includes(:storage_location).map { |ps| serialize_part_storage(ps) },
+          storages: @part.part_storages.includes(:storage_location).map { |ps| serialize_part_storage(ps, location_paths) },
           movements: movements.map { |movement| serialize_part_movement(movement) },
           storage_locations: serialize_storage_locations,
           categories: serialize_categories,
@@ -88,14 +107,28 @@ class PartsController < ApplicationController
     part = current_organization.parts.build(part_params)
     part.image_source_url = params[:image_url].presence
 
-    if part.save
+    # The part and its opening stock land together: a refused stock movement
+    # must not leave the part created behind an error.
+    stock_errors = []
+    saved = ActiveRecord::Base.transaction do
+      raise ActiveRecord::Rollback unless part.save
+
       assign_initial_stock(part)
+      true
+    rescue InitialStockError, ActiveRecord::RecordInvalid => e
+      stock_errors = e.respond_to?(:record) ? e.record.errors.full_messages : [ e.message ]
+      raise ActiveRecord::Rollback
+    end
+
+    if saved
       attach_remote_datasheet(part)
       redirect_to parts_path, notice: "Part created successfully."
     else
       # No flash alert here: the add-part modal renders these errors inline, and
       # a page-level alert would surface behind the still-open dialog instead.
-      redirect_back_or_to parts_path, inertia: { errors: inertia_errors(part, as: :part) }
+      errors = inertia_errors(part, as: :part)
+      errors["initial_quantity"] = stock_errors if stock_errors.any?
+      redirect_back_or_to parts_path, inertia: { errors: errors }
     end
   end
 
@@ -248,6 +281,7 @@ class PartsController < ApplicationController
   def import
     file = params[:file]
     return redirect_to(parts_path, alert: "Please choose a CSV file to import.") unless file
+    return redirect_to(parts_path, alert: BomParser.too_large_message) if BomParser.too_large?(file)
 
     created = 0
     updated = 0
@@ -270,23 +304,22 @@ class PartsController < ApplicationController
         # part, location, or a stock level the ledger refuses) is skipped as a
         # whole instead of leaving a half-imported part or aborting the file.
         imported = ActiveRecord::Base.transaction do
-          part ||= current_organization.parts.build
-          part.assign_attributes(
-            name: name,
-            category: current_organization.categories.find_or_create_by!(name: category_name),
-            mpn: import_value(row, :mpn),
-            sku: import_value(row, :sku),
-            manufacturer: import_value(row, :manufacturer),
-            value: import_value(row, :value),
-            package_type: import_value(row, :package),
-            unit_price: import_value(row, :unit_price)&.tr(",", "."),
-            min_stock_threshold: import_value(row, :min_stock_threshold) || 0,
-            status: import_value(row, :status) || "active"
-          )
+          part ||= current_organization.parts.build(min_stock_threshold: 0, status: "active")
+          part.assign_attributes(name: name, category: import_category(category_name))
+          # Only what the sheet actually states: a column the file doesn't have,
+          # or a blank cell, leaves an existing part's value alone instead of
+          # wiping it (a re-import of a partial sheet must not erase data).
+          IMPORTED_ATTRIBUTES.each do |attribute, field|
+            value = import_value(row, field)
+            next if value.nil?
+
+            value = value.tr(",", ".") if attribute == :unit_price
+            part.assign_attributes(attribute => value)
+          end
           part.save!
           assign_stock(part, row)
           true
-        rescue ActiveRecord::RecordInvalid, ActiveRecord::RecordNotSaved
+        rescue ActiveRecord::RecordInvalid, ActiveRecord::RecordNotSaved, AmbiguousLocationError, InvalidQuantityError
           raise ActiveRecord::Rollback
         end
 
@@ -361,11 +394,16 @@ class PartsController < ApplicationController
 
   def assign_stock(part, row)
     location_name = import_value(row, :location)
-    return if location_name.blank?
+    quantity = import_value(row, :quantity)
+    # A row naming a location without a quantity states nothing about stock:
+    # leave it as is rather than reading the missing value as zero and
+    # emptying the location.
+    return if location_name.blank? || quantity.nil?
+    # The quantity is the absolute stock to reach, so a cell like "n/a" or "~50"
+    # must not read as 0 (to_i) and empty the location: skip the row instead.
+    raise InvalidQuantityError unless quantity.match?(/\A\d+\z/)
 
-    location = current_organization.storage_locations.find_or_create_by!(name: location_name) do |loc|
-      loc.location_type = "shelf"
-    end
+    location = import_location(location_name)
 
     # The import "Quantity" is the absolute stock the sheet declares for this
     # location. Reconcile it through the ledger rather than writing
@@ -373,7 +411,7 @@ class PartsController < ApplicationController
     # truth (PartStorage is maintained by StockMovement's callback), so a direct
     # write would desync the movements "Stock After" running balance. Only the
     # delta from the current level is recorded, as an adjustment.
-    target = import_value(row, :quantity).to_i
+    target = quantity.to_i
     current = PartStorage.find_by(part: part, storage_location: location)&.quantity || 0
     delta = target - current
     return if delta.zero?
@@ -387,6 +425,37 @@ class PartsController < ApplicationController
       quantity_delta: delta,
       reason: "Import"
     )
+  end
+
+  # The sheet's category, matched regardless of case ("resistors" is the
+  # existing "Resistors", not a new near-duplicate), created when missing. A
+  # concurrent import creating the same one trips the unique index: use theirs.
+  def import_category(name)
+    find = -> { current_organization.categories.find_by("LOWER(name) = ?", name.downcase) }
+    find.call || current_organization.categories.create!(name: name)
+  rescue ActiveRecord::RecordNotUnique
+    find.call || raise
+  end
+
+  # Resolves the sheet's location cell to a zone: by its scanner code, by its
+  # full path ("Workshop > Cabinet A > Drawer 1"), or by its bare name when only
+  # one zone has it — all case-insensitively. Several zones sharing that name
+  # (a "Drawer 1" in two cabinets) can't be told apart, so the row is skipped
+  # rather than its stock landing in an arbitrary one. An unknown location is
+  # created as a top-level shelf.
+  def import_location(label)
+    key = label.downcase
+    zones = current_organization.storage_locations.to_a
+    paths = StorageLocation.full_path_cache(current_organization.storage_locations)
+
+    match = zones.find { |zone| zone.code.present? && zone.code.downcase == key } ||
+            zones.find { |zone| zone.full_path(cache: paths).downcase == key }
+    return match if match
+
+    named = zones.select { |zone| zone.name.downcase == key }
+    raise AmbiguousLocationError if named.size > 1
+
+    named.first || current_organization.storage_locations.create!(name: label, location_type: "shelf")
   end
 
   def find_existing_part(row)
@@ -406,6 +475,7 @@ class PartsController < ApplicationController
   def assign_initial_stock(part)
     quantity = params[:initial_quantity].to_i
     return if params[:initial_location_id].blank? || quantity <= 0
+    raise InitialStockError, "Quantity is too large" if quantity > ApplicationRecord::MAX_INTEGER
 
     location = current_organization.storage_locations.find_by(id: params[:initial_location_id])
     return unless location
@@ -524,14 +594,19 @@ class PartsController < ApplicationController
     )
   end
 
-  def serialize_part_storage(ps)
+  def serialize_part_storage(ps, paths)
     location = ps.storage_location
     {
       location_id: location.id,
       location_name: location.name,
-      location_path: (location.ancestors.reverse + [ location ]).map(&:name),
+      location_path: location.path_names(cache: paths),
       quantity: ps.quantity
     }
+  end
+
+  # id => zone map so each storage's path resolves in memory, not a query per level.
+  def location_paths
+    @location_paths ||= StorageLocation.full_path_cache(current_organization.storage_locations)
   end
 
   def serialize_part_movement(movement)

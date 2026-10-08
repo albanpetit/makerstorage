@@ -7,8 +7,8 @@ module AttachmentValidation
 
   IMAGE_TYPES = %w[image/png image/jpeg image/gif image/webp].freeze
   # Logos and footprint drawings are often vector art. SVG is safe here: it's
-  # only shown through <img>, and Active Storage serves it as a download rather
-  # than inline.
+  # only shown through <img>, and StoredFilesController serves it under a
+  # sandboxing CSP that keeps any embedded script inert.
   LOGO_TYPES = (IMAGE_TYPES + %w[image/svg+xml]).freeze
   PDF_TYPES = %w[application/pdf].freeze
 

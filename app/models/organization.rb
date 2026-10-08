@@ -64,6 +64,7 @@ class Organization < ApplicationRecord
 
   # Callbacks
   validate :must_have_at_least_one_owner, on: :update
+  before_save :unlink_digikey_account, if: :digikey_app_replaced?
   after_create :seed_catalog_suppliers
 
   # Scopes
@@ -225,6 +226,21 @@ class Organization < ApplicationRecord
   # Supplier.ensure_catalog_provider).
   def seed_catalog_suppliers
     Supplier::CATALOG_PROVIDERS.each { |provider| Supplier.ensure_catalog_provider(self, provider) }
+  end
+
+  # A linked DigiKey account's tokens were issued to one DigiKey app (Client
+  # ID). Removing or replacing that app leaves them unusable — refreshing needs
+  # the original client — yet the account would still show as connected, so
+  # drop them with it. Rotating only the secret keeps the same app and link.
+  # Saving new tokens alongside the client id (seeds, tests) is a fresh link.
+  def digikey_app_replaced?
+    will_save_change_to_digikey_client_id? && !will_save_change_to_digikey_refresh_token?
+  end
+
+  def unlink_digikey_account
+    self.digikey_access_token = nil
+    self.digikey_refresh_token = nil
+    self.digikey_token_expires_at = nil
   end
 
   def random_ipn_body(seed)

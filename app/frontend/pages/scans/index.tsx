@@ -363,14 +363,15 @@ export default function ScansIndex({ code, result, recent_scans, today_count, al
 
               {/* Stop control while live */}
               {cameraActive && (
-                <button
+                <Button
                   type="button"
+                  variant="ghost"
                   onClick={stopCamera}
-                  className="absolute top-2.5 right-2.5 inline-flex items-center gap-1.5 rounded-lg border border-white/20 bg-black/40 px-2.5 py-1.5 text-xs font-medium text-white backdrop-blur transition-colors hover:bg-black/60"
+                  className="absolute top-2.5 right-2.5 h-auto gap-1.5 rounded-lg border border-white/20 bg-black/40 px-2.5 py-1.5 text-xs text-white backdrop-blur hover:bg-black/60 hover:text-white has-[>svg]:px-2.5 dark:hover:bg-black/60"
                 >
                   <CameraOff className="size-3.5" />
                   Stop
-                </button>
+                </Button>
               )}
             </div>
 

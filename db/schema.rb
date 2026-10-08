@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_08_120000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_08_200000) do
   create_table "active_storage_attachments", force: :cascade do |t|
     t.bigint "blob_id", null: false
     t.datetime "created_at", null: false
@@ -49,8 +49,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_08_120000) do
     t.integer "organization_id", null: false
     t.integer "parent_id"
     t.datetime "updated_at", null: false
+    t.index "organization_id, LOWER(name)", name: "index_categories_on_organization_id_and_lower_name", unique: true
     t.index ["organization_id", "code"], name: "index_categories_on_organization_id_and_code"
-    t.index ["organization_id", "name"], name: "index_categories_on_organization_id_and_name"
     t.index ["organization_id"], name: "index_categories_on_organization_id"
     t.index ["parent_id"], name: "index_categories_on_parent_id"
   end
@@ -68,10 +68,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_08_120000) do
   end
 
   create_table "order_line_allocations", force: :cascade do |t|
-    t.datetime "created_at", null: false
     t.integer "order_line_id", null: false
-    t.integer "quantity", null: false
     t.integer "storage_location_id", null: false
+    t.integer "quantity", null: false
+    t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["order_line_id"], name: "index_order_line_allocations_on_order_line_id"
     t.index ["storage_location_id"], name: "index_order_line_allocations_on_storage_location_id"
@@ -79,8 +79,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_08_120000) do
 
   create_table "order_lines", force: :cascade do |t|
     t.datetime "created_at", null: false
-    t.integer "order_id", null: false
     t.integer "part_id", null: false
+    t.integer "order_id", null: false
     t.integer "quantity", null: false
     t.decimal "unit_price", precision: 10, scale: 2
     t.datetime "updated_at", null: false
@@ -90,8 +90,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_08_120000) do
 
   create_table "orders", force: :cascade do |t|
     t.datetime "created_at", null: false
-    t.date "expected_delivery"
-    t.text "notes"
     t.date "ordered_at"
     t.integer "organization_id", null: false
     t.string "reference"
@@ -99,6 +97,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_08_120000) do
     t.integer "supplier_id", null: false
     t.decimal "total_amount", precision: 10, scale: 2
     t.datetime "updated_at", null: false
+    t.text "notes"
+    t.date "expected_delivery"
     t.index ["organization_id", "reference"], name: "index_orders_on_organization_id_and_reference", unique: true, where: "reference IS NOT NULL AND reference != ''"
     t.index ["organization_id"], name: "index_orders_on_organization_id"
     t.index ["status"], name: "index_orders_on_status"
@@ -133,28 +133,28 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_08_120000) do
     t.datetime "created_at", null: false
     t.string "currency", default: "EUR", null: false
     t.integer "default_low_stock_threshold", default: 50, null: false
-    t.text "digikey_access_token"
-    t.text "digikey_client_id"
-    t.text "digikey_client_secret"
-    t.text "digikey_refresh_token"
-    t.datetime "digikey_token_expires_at"
     t.string "email"
-    t.string "ipn_charset", default: "numeric", null: false
     t.integer "ipn_digits", default: 5, null: false
-    t.string "ipn_generation_mode", default: "incremental", null: false
     t.integer "ipn_next_sequence", default: 1, null: false
     t.string "ipn_prefix", default: "MS", null: false
     t.string "ipn_separator", default: "-", null: false
     t.boolean "ipn_use_category_code", default: true, null: false
-    t.text "mouser_api_key"
-    t.text "mouser_order_api_key"
     t.string "name", null: false
-    t.boolean "personal", default: false, null: false
     t.string "phone"
     t.string "postcode"
     t.string "timezone", default: "Europe/Paris", null: false
     t.datetime "updated_at", null: false
     t.string "website"
+    t.string "ipn_generation_mode", default: "incremental", null: false
+    t.string "ipn_charset", default: "numeric", null: false
+    t.boolean "personal", default: false, null: false
+    t.text "mouser_api_key"
+    t.text "digikey_client_id"
+    t.text "digikey_client_secret"
+    t.text "mouser_order_api_key"
+    t.text "digikey_access_token"
+    t.text "digikey_refresh_token"
+    t.datetime "digikey_token_expires_at"
     t.index ["email"], name: "index_organizations_on_email"
     t.index ["name"], name: "index_organizations_on_name"
   end
@@ -203,8 +203,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_08_120000) do
     t.datetime "created_at", null: false
     t.text "description"
     t.integer "footprint_id"
-    t.string "image_source_url"
-    t.string "ipn"
     t.integer "lead_time_days"
     t.string "manufacturer"
     t.integer "min_stock_threshold", default: 0, null: false
@@ -224,6 +222,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_08_120000) do
     t.datetime "updated_at", null: false
     t.string "value"
     t.string "voltage_rating"
+    t.string "image_source_url"
+    t.string "ipn"
     t.index ["category_id"], name: "index_parts_on_category_id"
     t.index ["footprint_id"], name: "index_parts_on_footprint_id"
     t.index ["manufacturer"], name: "index_parts_on_manufacturer"
@@ -238,29 +238,29 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_08_120000) do
   end
 
   create_table "project_lines", force: :cascade do |t|
-    t.datetime "created_at", null: false
-    t.string "designation"
-    t.string "match_type", default: "none", null: false
-    t.integer "part_id"
     t.integer "project_id", null: false
-    t.integer "quantity", default: 1, null: false
+    t.integer "part_id"
     t.string "raw_reference"
+    t.string "designation"
+    t.integer "quantity", default: 1, null: false
+    t.string "match_type", default: "none", null: false
+    t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["part_id"], name: "index_project_lines_on_part_id"
     t.index ["project_id"], name: "index_project_lines_on_project_id"
   end
 
   create_table "projects", force: :cascade do |t|
-    t.integer "builds_count", default: 0, null: false
-    t.datetime "checked_at"
-    t.datetime "created_at", null: false
-    t.string "description"
-    t.datetime "last_built_at"
-    t.string "name", null: false
     t.integer "organization_id", null: false
+    t.string "name", null: false
+    t.string "description"
     t.string "reference"
     t.string "status", default: "draft", null: false
+    t.datetime "checked_at"
+    t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.integer "builds_count", default: 0, null: false
+    t.datetime "last_built_at"
     t.index ["organization_id", "reference"], name: "index_projects_on_organization_id_and_reference", unique: true, where: "reference IS NOT NULL AND reference != ''"
     t.index ["organization_id"], name: "index_projects_on_organization_id"
   end
@@ -302,7 +302,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_08_120000) do
   create_table "suppliers", force: :cascade do |t|
     t.string "address_line1"
     t.string "address_line2"
-    t.string "catalog_provider"
     t.string "city"
     t.string "country"
     t.datetime "created_at", null: false
@@ -314,6 +313,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_08_120000) do
     t.string "postcode"
     t.datetime "updated_at", null: false
     t.string "website"
+    t.string "catalog_provider"
     t.index ["organization_id", "catalog_provider"], name: "index_suppliers_on_organization_id_and_catalog_provider", unique: true, where: "catalog_provider IS NOT NULL"
     t.index ["organization_id", "name"], name: "index_suppliers_on_organization_id_and_name"
     t.index ["organization_id"], name: "index_suppliers_on_organization_id"

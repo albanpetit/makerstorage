@@ -83,17 +83,35 @@ class MembersControllerTest < ActionDispatch::IntegrationTest
     assert_equal true, row["pending"]
   end
 
-  test "create fails when no account exists for that email" do
+  test "create answers the same whether or not the email has an account" do
     user = create_user
+    create_user(email: "known@example.com")
 
     sign_in user
     assert_no_difference "OrganizationMembership.count" do
       post members_path, params: { member: { email: "ghost@example.com", role: "member" } }
     end
-
     assert_redirected_to members_path
-    follow_redirect!
-    assert_match(/No account found/, flash[:alert])
+    unknown_notice = flash[:notice]
+    assert_nil flash[:alert]
+
+    assert_difference "OrganizationMembership.count", 1 do
+      post members_path, params: { member: { email: "known@example.com", role: "member" } }
+    end
+    assert_redirected_to members_path
+    assert_nil flash[:alert]
+
+    assert_equal unknown_notice.sub("ghost@", ""), flash[:notice].sub("known@", "")
+  end
+
+  test "create rejects an invalid role before looking the email up" do
+    user = create_user
+
+    sign_in user
+    [ "ghost@example.com", user.email ].each do |email|
+      post members_path, params: { member: { email: email, role: "superuser" } }
+      assert_equal "Choose a valid role.", flash[:alert]
+    end
   end
 
   test "create fails when the user is already a member" do

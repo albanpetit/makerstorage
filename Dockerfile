@@ -85,6 +85,10 @@ USER 1000:1000
 COPY --chown=rails:rails --from=build "${BUNDLE_PATH}" "${BUNDLE_PATH}"
 COPY --chown=rails:rails --from=build /rails /rails
 
+# Background jobs (datasheet downloads, the daily orphan-file purge) run in the
+# web server's Puma process, so a plain `docker run` gets a job worker too.
+ENV SOLID_QUEUE_IN_PUMA="true"
+
 # Entrypoint prepares the database.
 ENTRYPOINT ["/rails/bin/docker-entrypoint"]
 

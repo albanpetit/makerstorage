@@ -17,6 +17,27 @@ class CategoryTest < ActiveSupport::TestCase
     assert_includes dup.errors[:name], "has already been taken"
   end
 
+  test "the database rejects a duplicate name that skips validation (concurrent creation)" do
+    create_category(organization: @org, name: "Resistors")
+    assert_raises(ActiveRecord::RecordNotUnique) do
+      Category.new(organization: @org, name: "Resistors").save!(validate: false)
+    end
+  end
+
+  test "requires a unique name regardless of case" do
+    create_category(organization: @org, name: "Resistors")
+    dup = Category.new(organization: @org, name: "resistors")
+    assert_not dup.valid?
+    assert_includes dup.errors[:name], "has already been taken"
+  end
+
+  test "the database rejects a name differing only in case" do
+    create_category(organization: @org, name: "Resistors")
+    assert_raises(ActiveRecord::RecordNotUnique) do
+      Category.new(organization: @org, name: "RESISTORS").save!(validate: false)
+    end
+  end
+
   test "allows the same name in a different organization" do
     create_category(organization: @org, name: "Resistors")
     other_org = create_organization

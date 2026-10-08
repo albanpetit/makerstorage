@@ -457,10 +457,11 @@ export default function OrderShow({ order, suppliers, parts, categories, catalog
                     </TableCell>
                     <TableCell>
                       {canWrite && order.editable ? (
-                        <button
+                        <Button
                           type="button"
+                          variant="ghost"
                           onClick={() => openAllocEditor(line)}
-                          className="group flex max-w-[260px] flex-col items-start gap-1 text-left"
+                          className="group h-auto max-w-[260px] flex-col items-start gap-1 p-0 text-left font-normal whitespace-normal hover:bg-transparent dark:hover:bg-transparent"
                         >
                           {line.allocations.length === 0 ? (
                             <span className="text-xs text-muted-foreground underline decoration-dotted group-hover:text-foreground">
@@ -476,7 +477,7 @@ export default function OrderShow({ order, suppliers, parts, categories, catalog
                               )}
                             </>
                           )}
-                        </button>
+                        </Button>
                       ) : line.allocations.length === 0 ? (
                         <span className="text-xs text-muted-foreground">—</span>
                       ) : (

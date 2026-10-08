@@ -37,6 +37,20 @@ class OrdersControllerTest < ActionDispatch::IntegrationTest
     assert_equal Date.current, order.ordered_at
   end
 
+  test "create dates the order in the organization's time zone, not the server's" do
+    @org.update!(timezone: "Pacific/Auckland")
+    sign_in @user
+
+    # 20:00 UTC on Oct 8 is already Oct 9 in Auckland.
+    travel_to Time.utc(2026, 10, 8, 20, 0) do
+      post orders_path, params: { order: { supplier_id: @supplier.id } }
+    end
+
+    order = Order.order(:id).last
+    assert_equal Date.new(2026, 10, 9), order.ordered_at
+    assert_equal "PO-20261009-#{@supplier.id}", order.reference
+  end
+
   test "create without a supplier re-prompts" do
     sign_in @user
     assert_no_difference -> { Order.count } do
@@ -63,6 +77,22 @@ class OrdersControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to order_path(order)
     assert_equal "received", order.reload.status
     assert_match(/received/i, flash[:alert])
+  end
+
+  test "update refuses to edit a received or cancelled order's details" do
+    other_supplier = create_supplier(organization: @org)
+    sign_in @user
+
+    %w[received cancelled].each do |status|
+      order = create_order(organization: @org, supplier: @supplier, status: status, reference: "PO-#{status}", notes: "Original")
+
+      patch order_path(order), params: { order: { supplier_id: other_supplier.id, reference: "PO-NEW", notes: "Rewritten" } }
+
+      assert_redirected_to order_path(order)
+      assert_match(/can no longer be edited/, flash[:alert])
+      order.reload
+      assert_equal [ @supplier, "PO-#{status}", "Original" ], [ order.supplier, order.reference, order.notes ]
+    end
   end
 
   test "update can cancel an open order" do
@@ -248,6 +278,26 @@ class OrdersControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to order_path(order)
   end
 
+  test "import_supplier_order files new parts under an existing uncategorized category whatever its case" do
+    @org.update!(mouser_order_api_key: "order-key")
+    existing = create_category(organization: @org, name: "uncategorized")
+    sign_in @user
+
+    result = SupplierCatalog::OrderResult.new(
+      order_number: "9989", status: "Shipped", placed_at: "2026-07-01", total: "5.0", currency: "EUR",
+      lines: [ SupplierCatalog::OrderLineResult.new(mpn: "NEW-IC-2", supplier_sku: "603-new2", description: "New regulator", quantity: 3, unit_price: "1.00") ]
+    )
+    fake = FakeOrderClient.new(order: result)
+
+    assert_no_difference -> { Category.count } do
+      stub_singleton(SupplierCatalog, :mouser_order_client, ->(_org) { fake }) do
+        post import_supplier_order_orders_path, params: { order_number: "9989" }
+      end
+    end
+
+    assert_equal existing, @org.parts.find_by!(mpn: "NEW-IC-2").category
+  end
+
   test "import_supplier_order refuses a duplicate reference" do
     @org.update!(mouser_order_api_key: "order-key")
     mouser, = Supplier.ensure_catalog_provider(@org, "mouser")
@@ -293,6 +343,20 @@ class OrdersControllerTest < ActionDispatch::IntegrationTest
     order = Order.order(:created_at).last
     assert_equal "DK-77", order.reference
     assert_match(/DigiKey/, order.notes.to_s)
+  end
+
+  test "import_supplier_order via digikey reports a malformed order number instead of failing" do
+    @org.update!(
+      digikey_client_id: "cid", digikey_client_secret: "csecret",
+      digikey_access_token: "acc", digikey_refresh_token: "ref", digikey_token_expires_at: 1.hour.from_now
+    )
+    sign_in @user
+
+    assert_no_difference -> { Order.count } do
+      post import_supplier_order_orders_path, params: { provider: "digikey", order_number: "12 34" }
+    end
+    assert_redirected_to orders_path
+    assert_match(/sales order number/, flash[:alert])
   end
 
   test "import_supplier_order via digikey prompts to connect when no account" do

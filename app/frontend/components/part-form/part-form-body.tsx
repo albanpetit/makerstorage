@@ -55,17 +55,18 @@ function Section({
 }) {
   return (
     <div className="rounded-lg border">
-      <button
+      <Button
         type="button"
+        variant="ghost"
         onClick={onToggle}
-        className="flex w-full items-center gap-2 px-4 py-3 text-left"
+        className="flex h-auto w-full justify-start gap-2 px-4 py-3 text-left font-normal whitespace-normal has-[>svg]:px-4 hover:bg-transparent dark:hover:bg-transparent"
       >
         <ChevronRight className={`size-4 shrink-0 text-muted-foreground transition-transform ${open ? 'rotate-90' : ''}`} />
         <span className="flex-1">
           <span className="block text-sm font-medium">{title}</span>
           <span className="block text-xs text-muted-foreground">{description}</span>
         </span>
-      </button>
+      </Button>
       {open && <div className="border-t px-4 py-4">{children}</div>}
     </div>
   )
@@ -332,6 +333,7 @@ export function PartFormBody({
                   onChange={(e) => onInitialQuantityChange?.(e.target.value.replace(/[^0-9]/g, ''))}
                 />
               </FieldContent>
+              {errors['initial_quantity'] && <FieldError>{errors['initial_quantity']}</FieldError>}
             </Field>
           </>
         )}

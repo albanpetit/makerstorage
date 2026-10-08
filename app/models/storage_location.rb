@@ -54,13 +54,19 @@ class StorageLocation < ApplicationRecord
   # id => StorageLocation map of the sibling set (see .full_path_cache) — to
   # resolve parents in memory instead.
   def full_path(cache: nil)
+    path_names(cache: cache).join(" > ")
+  end
+
+  # The zone names from the root down to this zone, e.g. ["Room", "Cabinet",
+  # "Shelf"]. Takes the same +cache+ as #full_path.
+  def path_names(cache: nil)
     path = [ name ]
     current = self
     while (parent = cache ? cache[current.parent_id] : current.parent)
       current = parent
       path.unshift(current.name)
     end
-    path.join(" > ")
+    path
   end
 
   def ancestors

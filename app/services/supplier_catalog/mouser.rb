@@ -101,7 +101,7 @@ module SupplierCatalog
       end
 
       JSON.parse(response.body)
-    rescue Net::OpenTimeout, Net::ReadTimeout, SocketError, Errno::ECONNREFUSED => e
+    rescue *NETWORK_ERRORS => e
       raise LookupError, "Could not reach Mouser API: #{e.message}"
     rescue JSON::ParserError
       raise LookupError, "Mouser API returned an unreadable response"
@@ -213,7 +213,7 @@ module SupplierCatalog
       raise LookupError, "Mouser Order API returned #{response.code}" unless response.is_a?(Net::HTTPSuccess)
 
       JSON.parse(response.body)
-    rescue Net::OpenTimeout, Net::ReadTimeout, SocketError, Errno::ECONNREFUSED => e
+    rescue *NETWORK_ERRORS => e
       raise LookupError, "Could not reach Mouser Order API: #{e.message}"
     rescue JSON::ParserError
       raise LookupError, "Mouser Order API returned an unreadable response"

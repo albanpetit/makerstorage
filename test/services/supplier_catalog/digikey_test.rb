@@ -174,6 +174,33 @@ class SupplierCatalog::DigikeyTest < ActiveSupport::TestCase
     assert_equal "old", captured[:refresh_token]
   end
 
+  test "import_order rejects a sales order number that isn't a plain identifier" do
+    requested = []
+    provider = SupplierCatalog::Digikey.new(client_id: "cid", client_secret: "cs", access_token: "user-token")
+    provider.define_singleton_method(:order_get) { |url| requested << url and {} }
+
+    [ "12 34", "../../products/v4/search", "123?x=1", "123/456", "" ].each do |number|
+      error = assert_raises(SupplierCatalog::LookupError) { provider.import_order(number) }
+      assert_match(/sales order number/, error.message)
+    end
+    assert_empty requested
+  end
+
+  test "a TLS or socket failure becomes a LookupError, not a crash" do
+    [ OpenSSL::SSL::SSLError.new("handshake"), Errno::ECONNRESET.new, Errno::EHOSTUNREACH.new, EOFError.new ].each do |failure|
+      http = Object.new
+      %i[use_ssl= open_timeout= read_timeout=].each { |setter| http.define_singleton_method(setter) { |_value| } }
+      http.define_singleton_method(:request) { |_request| raise failure }
+
+      stub_singleton(Net::HTTP, :new, ->(*_args) { http }) do
+        error = assert_raises(SupplierCatalog::LookupError) do
+          SupplierCatalog::Digikey.refresh_token(client_id: "c", client_secret: "s", refresh_token: "r")
+        end
+        assert_match(/Could not reach DigiKey/, error.message)
+      end
+    end
+  end
+
   test "authorize_url carries the client id, redirect uri and state" do
     url = SupplierCatalog::Digikey.authorize_url(client_id: "cid", redirect_uri: "https://app.test/cb", state: "xyz")
     assert_includes url, "response_type=code"

@@ -158,11 +158,12 @@ export function SupplierLookup({ defaultQuery = '', onApply, attached }: Supplie
           <p className="text-xs font-medium text-muted-foreground">{results.length} matches — select one:</p>
           <div className="max-h-64 space-y-2 overflow-y-auto">
             {results.map((result, index) => (
-              <button
+              <Button
                 key={`${result.supplier_sku ?? result.mpn}-${index}`}
                 type="button"
+                variant="ghost"
                 onClick={() => apply(result)}
-                className="flex w-full items-start gap-3 rounded-md border bg-background p-2.5 text-left transition-colors hover:border-primary hover:bg-accent"
+                className="flex h-auto w-full items-start justify-start gap-3 border bg-background p-2.5 text-left font-normal whitespace-normal hover:border-primary"
               >
                 {result.image_url && (
                   <img
@@ -187,7 +188,7 @@ export function SupplierLookup({ defaultQuery = '', onApply, attached }: Supplie
                     {result.unit_price && <span className="font-mono">${parseFloat(result.unit_price).toFixed(2)}</span>}
                   </div>
                 </div>
-              </button>
+              </Button>
             ))}
           </div>
         </div>

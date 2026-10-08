@@ -1,5 +1,8 @@
 # frozen_string_literal: true
 
+require "net/http"
+require "openssl"
+
 # Looks up electronic-component data from external supplier catalogs (Mouser,
 # DigiKey, and future providers) by manufacturer part number, returning
 # normalized results that map onto our Part model.
@@ -18,6 +21,15 @@ module SupplierCatalog
 
   # The upstream provider request failed (network, auth, bad response...).
   class LookupError < Error; end
+
+  # Everything a request to a provider can fail with below the HTTP layer:
+  # timeouts, DNS, refused/reset/unreachable sockets (all SystemCallError),
+  # TLS failures, and a connection dropped or garbled mid-response. Rescued
+  # into a LookupError so a flaky network shows a message, never a 500.
+  NETWORK_ERRORS = [
+    Timeout::Error, SocketError, SystemCallError, IOError,
+    OpenSSL::SSL::SSLError, Net::HTTPBadResponse, Net::ProtocolError
+  ].freeze
 
   # A supplier order fetched from a provider's order API, normalized across
   # providers. +lines+ is an Array<OrderLineResult>.
