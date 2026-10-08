@@ -342,8 +342,13 @@ class OrdersController < ApplicationController
       .find_by(part_suppliers: { supplier_sku: line.supplier_sku })
   end
 
+  # A concurrent import creating it first trips the unique index: use theirs.
   def import_category
-    @import_category ||= current_organization.categories.find_or_create_by!(name: "Uncategorized")
+    @import_category ||= begin
+      current_organization.categories.find_or_create_by!(name: "Uncategorized")
+    rescue ActiveRecord::RecordNotUnique
+      current_organization.categories.find_by!(name: "Uncategorized")
+    end
   end
 
   # The Mouser part number a line carries via its link to this order's supplier.

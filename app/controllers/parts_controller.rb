@@ -406,10 +406,13 @@ class PartsController < ApplicationController
   end
 
   # The sheet's category, matched regardless of case ("resistors" is the
-  # existing "Resistors", not a new near-duplicate), created when missing.
+  # existing "Resistors", not a new near-duplicate), created when missing. A
+  # concurrent import creating the same one trips the unique index: use theirs.
   def import_category(name)
-    current_organization.categories.find_by("LOWER(name) = ?", name.downcase) ||
-      current_organization.categories.create!(name: name)
+    find = -> { current_organization.categories.find_by("LOWER(name) = ?", name.downcase) }
+    find.call || current_organization.categories.create!(name: name)
+  rescue ActiveRecord::RecordNotUnique
+    find.call || raise
   end
 
   # Resolves the sheet's location cell to a zone: by its scanner code, by its
