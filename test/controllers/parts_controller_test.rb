@@ -494,6 +494,26 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "Resistor 10k", Part.find_by(mpn: "RES-10K").name
   end
 
+  test "import matches an existing part's mpn regardless of case" do
+    user = create_user
+    org = user.organizations.first
+    category = create_category(organization: org, name: "Resistors")
+    part = create_part(organization: org, category: category, name: "Old name", mpn: "RES-10K")
+
+    csv = <<~CSV
+      Name,Category,MPN
+      Resistor 10k,Resistors,res-10k
+    CSV
+
+    sign_in user
+    assert_no_difference "Part.count" do
+      post import_parts_path, params: { file: csv_upload(csv) }
+    end
+
+    assert_match(/0 created, 1 updated, 0 skipped/, flash[:notice])
+    assert_equal "Resistor 10k", part.reload.name
+  end
+
   test "import skips rows missing a name or category" do
     user = create_user
     sign_in user

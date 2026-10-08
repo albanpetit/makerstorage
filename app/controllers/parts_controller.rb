@@ -393,10 +393,13 @@ class PartsController < ApplicationController
     mpn = import_value(row, :mpn)
     sku = import_value(row, :sku)
 
+    # Case-insensitive, like the per-organization uniqueness of these columns:
+    # otherwise a row differing only in case would be skipped as a duplicate
+    # instead of updating its part.
     if mpn.present?
-      current_organization.parts.find_by(mpn: mpn)
+      current_organization.parts.find_by("LOWER(mpn) = ?", mpn.downcase)
     elsif sku.present?
-      current_organization.parts.find_by(sku: sku)
+      current_organization.parts.find_by("LOWER(sku) = ?", sku.downcase)
     end
   end
 
