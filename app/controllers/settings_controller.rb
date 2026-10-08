@@ -128,7 +128,7 @@ class SettingsController < ApplicationController
 
     {
       id: org.id,
-      logo_url: org.logo.attached? ? rails_blob_path(org.logo, only_path: true) : nil,
+      logo_url: org.logo.attached? ? stored_file_path_for(org.logo) : nil,
       name: org.name, email: org.email, phone: org.phone, website: org.website,
       address_line1: org.address_line1, address_line2: org.address_line2,
       city: org.city, postcode: org.postcode, country: org.country,

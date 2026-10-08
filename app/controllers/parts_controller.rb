@@ -472,7 +472,7 @@ class PartsController < ApplicationController
   # processor turns every thumbnail into a broken image.
   def part_thumbnail_url(part)
     if part.images.attached? && part.images.first.content_type.to_s.start_with?("image/")
-      rails_blob_path(part.images.first)
+      stored_file_path_for(part.images.first)
     else
       part.image_source_url.presence
     end

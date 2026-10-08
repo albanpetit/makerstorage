@@ -64,9 +64,8 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "https://www.mouser.com/img.png", hotlinked_json["thumbnail_url"]
 
     # The URL must serve the image without an image processor (no variant): the
-    # blob redirect resolves to the original bytes.
+    # member-only file route serves the original bytes.
     get with_json["thumbnail_url"]
-    follow_redirect!
     assert_response :success
     assert_equal "fake-image-bytes", response.body
   end
@@ -807,9 +806,9 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
 
     get parts_path
     part_json = inertia_props["parts"].find { |p| p["id"] == part.id }
-    # The uploaded blob wins over the hotlink: a local Active Storage URL, not
-    # the Mouser URL.
-    assert_match %r{/rails/active_storage/}, part_json["thumbnail_url"]
+    # The uploaded blob wins over the hotlink: a local, member-only file URL,
+    # not the Mouser URL.
+    assert_match %r{\A/files/}, part_json["thumbnail_url"]
     refute_equal "https://www.mouser.com/img.png", part_json["thumbnail_url"]
   end
 

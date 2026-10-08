@@ -1,7 +1,8 @@
 require "test_helper"
 
-# The app never uses Active Storage direct uploads, and the engine serves them
-# to anyone with a CSRF token — no sign-in — so config/routes.rb shadows them.
+# Every Active Storage route is public (direct uploads need only a CSRF token,
+# blob links only the URL), so config/routes.rb shadows them all; files are
+# served by StoredFilesController instead.
 class ActiveStorageRoutesTest < ActionDispatch::IntegrationTest
   BLOB_PARAMS = { blob: { filename: "x.bin", byte_size: 4, checksum: "AAAAAAAAAAAAAAAAAAAAAA==", content_type: "application/octet-stream" } }.freeze
 
@@ -26,12 +27,14 @@ class ActiveStorageRoutesTest < ActionDispatch::IntegrationTest
     assert_response :not_found
   end
 
-  test "attached files are still served" do
+  test "public blob links are closed" do
     org = create_user.organizations.first
-    org.logo.attach(io: StringIO.new("<svg xmlns='http://www.w3.org/2000/svg'/>"), filename: "logo.svg", content_type: "image/svg+xml")
+    org.logo.attach(io: StringIO.new("PNG"), filename: "logo.png", content_type: "image/png", identify: false)
 
     get rails_blob_path(org.logo)
+    assert_response :not_found
 
-    assert_response :redirect
+    get rails_storage_proxy_path(org.logo)
+    assert_response :not_found
   end
 end

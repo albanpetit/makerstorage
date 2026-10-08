@@ -55,12 +55,17 @@ class ApplicationController < ActionController::Base
     model.errors.to_hash.transform_keys { |attribute| "#{as}.#{attribute}" }
   end
 
+  # Link to an uploaded file, served to members only (StoredFilesController).
+  def stored_file_path_for(attachment)
+    stored_file_path(attachment.blob.signed_id, attachment.filename.to_s)
+  end
+
   def serialize_organization(org)
     {
       id: org.id,
       name: org.name,
       member_count: org.organization_memberships.granting_access.count,
-      logo_url: org.logo.attached? ? rails_blob_path(org.logo, only_path: true) : nil
+      logo_url: org.logo.attached? ? stored_file_path_for(org.logo) : nil
     }
   end
 
