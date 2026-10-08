@@ -721,6 +721,28 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
     assert_equal 40, part.reload.total_quantity
   end
 
+  test "import skips a row whose quantity isn't a whole number instead of emptying stock" do
+    user = create_user
+    org = user.organizations.first
+    category = create_category(organization: org, name: "Resistors")
+    location = create_storage_location(organization: org, name: "Shelf A")
+    part = create_part(organization: org, category: category, mpn: "RES-10K")
+    StockMovement.create!(organization: org, part: part, storage_location: location, movement_type: "in", quantity_delta: 40)
+
+    csv = <<~CSV
+      Name,Category,MPN,Location,Quantity
+      Resistor 10k,Resistors,RES-10K,Shelf A,n/a
+      Resistor 22k,Resistors,RES-22K,Shelf A,-5
+    CSV
+
+    sign_in user
+    assert_no_difference [ "StockMovement.count", "Part.count" ] do
+      post import_parts_path, params: { file: csv_upload(csv) }
+    end
+    assert_equal 40, part.reload.total_quantity
+    assert_match "2 skipped", flash[:notice]
+  end
+
   test "import reuses an existing category whatever its case" do
     user = create_user
     org = user.organizations.first

@@ -17,6 +17,8 @@ class PartsController < ApplicationController
 
   # Raised when an import row's location names several zones; skips the row.
   class AmbiguousLocationError < StandardError; end
+  # Raised when an import row's quantity isn't a whole number; skips the row.
+  class InvalidQuantityError < StandardError; end
 
   # Part attribute => BomParser field for the optional CSV import columns.
   IMPORTED_ATTRIBUTES = {
@@ -300,7 +302,7 @@ class PartsController < ApplicationController
           part.save!
           assign_stock(part, row)
           true
-        rescue ActiveRecord::RecordInvalid, ActiveRecord::RecordNotSaved, AmbiguousLocationError
+        rescue ActiveRecord::RecordInvalid, ActiveRecord::RecordNotSaved, AmbiguousLocationError, InvalidQuantityError
           raise ActiveRecord::Rollback
         end
 
@@ -380,6 +382,9 @@ class PartsController < ApplicationController
     # leave it as is rather than reading the missing value as zero and
     # emptying the location.
     return if location_name.blank? || quantity.nil?
+    # The quantity is the absolute stock to reach, so a cell like "n/a" or "~50"
+    # must not read as 0 (to_i) and empty the location: skip the row instead.
+    raise InvalidQuantityError unless quantity.match?(/\A\d+\z/)
 
     location = import_location(location_name)
 
