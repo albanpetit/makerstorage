@@ -3,7 +3,7 @@
 Electronics-parts inventory manager for makerspaces/fablabs: components, categories, footprints, storage zones, stock movements, suppliers, purchase orders, project BOMs, low-stock alerts — scoped per organization (multi-tenant).
 
 ## Stack
-- **Backend**: Rails 8.1 (8.1.3), **SQLite** in every environment (production too, with Solid Cache/Queue/Cable on separate SQLite DBs — see `config/database.yml`), Devise (auth), Inertia Rails.
+- **Backend**: Rails 8.1 (8.1.4), **SQLite** in every environment (production too, with Solid Cache/Queue/Cable on separate SQLite DBs — see `config/database.yml`), Devise (auth), Inertia Rails.
 - **Frontend**: Inertia.js + React 19 + TypeScript, Vite, Tailwind v4.
 - **Components**: shadcn/ui (`new-york` style, `neutral` base color, Lucide icons) — see `components.json`.
 - Ruby 3.4.8, Node 24+.
