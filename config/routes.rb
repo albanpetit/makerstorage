@@ -137,6 +137,9 @@ Rails.application.routes.draw do
   # Can be used by load balancers and uptime monitors to verify that the app is live.
   get "up" => "rails/health#show", as: :rails_health_check
 
+  # Content-Security-Policy violation reports (report-only policy).
+  post "csp-violations" => "csp_reports#create", as: :csp_reports
+
   # Render dynamic PWA files from app/views/pwa/* (manifest linked in application.html.erb)
   get "manifest" => "rails/pwa#manifest", as: :pwa_manifest
 

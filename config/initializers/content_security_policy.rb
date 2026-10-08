@@ -26,6 +26,9 @@ Rails.application.configure do
     # The scanner reads the camera stream into a blob-backed <video>.
     policy.media_src   :self, :blob
     policy.connect_src :self
+    # Violations are logged by CspReportsController, so switching to an enforced
+    # policy can be judged from real reports first.
+    policy.report_uri "/csp-violations"
 
     if Rails.env.development?
       # Vite dev server: module scripts, HMR websocket, and the React refresh
