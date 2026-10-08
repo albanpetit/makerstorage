@@ -38,6 +38,9 @@ configure [SMTP](#email-smtp) as well if you want it to send email.
 
 ### Pull the prebuilt image from GHCR
 
+The image is published for both `linux/amd64` and `linux/arm64`; Docker pulls the
+right one for your machine.
+
 The prebuilt image carries no secrets you can use: generate your own once, keep
 them safe (they sign sessions and encrypt the supplier API keys stored in the
 database — losing them makes those keys unreadable), and pass them on every run.
