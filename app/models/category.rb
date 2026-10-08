@@ -28,11 +28,21 @@ class Category < ApplicationRecord
     children.any?
   end
 
-  def full_path
+  # Loads a whole scope (e.g. one org's categories) into an id => Category map
+  # with a single query, for #full_path(cache:) — see StorageLocation's twin.
+  def self.full_path_cache(scope = all)
+    scope.select(:id, :name, :parent_id).index_by(&:id)
+  end
+
+  # "Passives > Resistors > SMD". In a serialization loop, pass +cache+ (see
+  # .full_path_cache) so parents resolve in memory instead of one query per level.
+  def full_path(cache: nil)
     path = [ name ]
     current = self
-    while current.parent.present?
-      current = current.parent
+    seen = [ id ]
+    while (parent = cache ? cache[current.parent_id] : current.parent) && seen.exclude?(parent.id)
+      seen << parent.id
+      current = parent
       path.unshift(current.name)
     end
     path.join(" > ")

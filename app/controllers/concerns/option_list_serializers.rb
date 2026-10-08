@@ -13,8 +13,10 @@ module OptionListSerializers
   private
 
   def serialize_categories
-    current_organization.categories.alphabetical.map do |category|
-      { id: category.id, name: category.full_path }
+    categories = current_organization.categories.alphabetical.to_a
+    cache = categories.index_by(&:id)
+    categories.map do |category|
+      { id: category.id, name: category.full_path(cache: cache) }
     end
   end
 
