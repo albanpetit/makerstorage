@@ -14,6 +14,13 @@ class OrderLineTest < ActiveSupport::TestCase
     assert line.valid?
   end
 
+  test "rejects a part from another organization" do
+    foreign_part = create_part(organization: create_organization)
+    line = OrderLine.new(order: @order, part: foreign_part, quantity: 1)
+    assert_not line.valid?
+    assert_includes line.errors[:part], "must belong to the same organization"
+  end
+
   test "rejects a zero or negative quantity" do
     line = OrderLine.new(order: @order, part: @part, quantity: 0, unit_price: 1)
     assert_not line.valid?

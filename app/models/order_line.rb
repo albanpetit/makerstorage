@@ -11,6 +11,7 @@ class OrderLine < ApplicationRecord
   # Validations
   validates :quantity, numericality: { greater_than: 0, less_than_or_equal_to: MAX_INTEGER, only_integer: true }
   validates :unit_price, numericality: { greater_than_or_equal_to: 0 }, allow_nil: true
+  validate :part_must_belong_to_same_organization
 
   # Callbacks
   # A split sized for the old quantity no longer adds up; keeping it would credit
@@ -35,6 +36,12 @@ class OrderLine < ApplicationRecord
   end
 
   private
+
+  def part_must_belong_to_same_organization
+    if part.present? && order.present? && part.organization_id != order.organization_id
+      errors.add(:part, "must belong to the same organization")
+    end
+  end
 
   def clear_stale_allocations
     allocations.destroy_all
