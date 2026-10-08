@@ -278,6 +278,26 @@ class OrdersControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to order_path(order)
   end
 
+  test "import_supplier_order files new parts under an existing uncategorized category whatever its case" do
+    @org.update!(mouser_order_api_key: "order-key")
+    existing = create_category(organization: @org, name: "uncategorized")
+    sign_in @user
+
+    result = SupplierCatalog::OrderResult.new(
+      order_number: "9989", status: "Shipped", placed_at: "2026-07-01", total: "5.0", currency: "EUR",
+      lines: [ SupplierCatalog::OrderLineResult.new(mpn: "NEW-IC-2", supplier_sku: "603-new2", description: "New regulator", quantity: 3, unit_price: "1.00") ]
+    )
+    fake = FakeOrderClient.new(order: result)
+
+    assert_no_difference -> { Category.count } do
+      stub_singleton(SupplierCatalog, :mouser_order_client, ->(_org) { fake }) do
+        post import_supplier_order_orders_path, params: { order_number: "9989" }
+      end
+    end
+
+    assert_equal existing, @org.parts.find_by!(mpn: "NEW-IC-2").category
+  end
+
   test "import_supplier_order refuses a duplicate reference" do
     @org.update!(mouser_order_api_key: "order-key")
     mouser, = Supplier.ensure_catalog_provider(@org, "mouser")

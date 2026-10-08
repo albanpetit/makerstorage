@@ -342,12 +342,14 @@ class OrdersController < ApplicationController
       .find_by(part_suppliers: { supplier_sku: line.supplier_sku })
   end
 
-  # A concurrent import creating it first trips the unique index: use theirs.
+  # Matched regardless of case, like category names are unique. A concurrent
+  # import creating it first trips the unique index: use theirs.
   def import_category
+    find = -> { current_organization.categories.find_by("LOWER(name) = ?", "uncategorized") }
     @import_category ||= begin
-      current_organization.categories.find_or_create_by!(name: "Uncategorized")
+      find.call || current_organization.categories.create!(name: "Uncategorized")
     rescue ActiveRecord::RecordNotUnique
-      current_organization.categories.find_by!(name: "Uncategorized")
+      find.call || raise
     end
   end
 
