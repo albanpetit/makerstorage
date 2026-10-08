@@ -824,6 +824,20 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "import refuses a CSV over the size limit without reading it" do
+    user = create_user
+    sign_in user
+
+    stub_singleton(BomParser, :each_row, ->(*) { raise "the file must not be parsed" }) do
+      file = csv_upload("x" * (BomParser::MAX_FILE_SIZE + 1))
+      assert_no_difference "Part.count" do
+        post import_parts_path, params: { file: file }
+      end
+    end
+
+    assert_match(/too large/i, flash[:alert])
+  end
+
   test "import redirects with an alert when no file is given" do
     user = create_user
     sign_in user

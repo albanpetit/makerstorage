@@ -18,6 +18,20 @@ class ProjectsControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to new_user_session_path
   end
 
+  test "create refuses a CSV over the size limit without reading it" do
+    user = create_user
+    sign_in user
+
+    stub_singleton(BomParser, :each_row, ->(*) { raise "the file must not be parsed" }) do
+      file = csv_upload("x" * (BomParser::MAX_FILE_SIZE + 1))
+      assert_no_difference "Project.count" do
+        post projects_path, params: { file: file }
+      end
+    end
+
+    assert_match(/too large/i, flash[:alert])
+  end
+
   test "create parses a CSV, matches parts by mpn/sku/name and persists draft lines" do
     csv = <<~CSV
       Designation,MPN,SKU,Quantity

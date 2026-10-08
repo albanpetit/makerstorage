@@ -30,6 +30,7 @@ class ProjectsController < ApplicationController
   def create
     file = params[:file]
     return redirect_to(projects_path, alert: "Please choose a CSV file to import.") unless file
+    return redirect_to(projects_path, alert: BomParser.too_large_message) if BomParser.too_large?(file)
 
     name = params[:name].presence || File.basename(file.original_filename.to_s, ".*").presence || "Untitled project"
 

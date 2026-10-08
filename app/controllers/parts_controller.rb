@@ -281,6 +281,7 @@ class PartsController < ApplicationController
   def import
     file = params[:file]
     return redirect_to(parts_path, alert: "Please choose a CSV file to import.") unless file
+    return redirect_to(parts_path, alert: BomParser.too_large_message) if BomParser.too_large?(file)
 
     created = 0
     updated = 0
