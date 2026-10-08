@@ -1,6 +1,6 @@
 # Makerstorage
 
-[![test](https://github.com/albanpetit/partstable/actions/workflows/test.yml/badge.svg)](https://github.com/albanpetit/partstable/actions/workflows/ci.yml)
+[![test](https://github.com/albanpetit/makerstorage/actions/workflows/test.yml/badge.svg)](https://github.com/albanpetit/makerstorage/actions/workflows/test.yml)
 ![Ruby](https://img.shields.io/badge/Ruby-3.4.8-CC342D?logo=ruby&logoColor=white)
 ![Rails](https://img.shields.io/badge/Rails-8.1-CC0000?logo=rubyonrails&logoColor=white)
 ![React](https://img.shields.io/badge/React-19-149ECA?logo=react&logoColor=white)
