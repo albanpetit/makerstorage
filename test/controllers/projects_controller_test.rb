@@ -256,33 +256,6 @@ class ProjectsControllerTest < ActionDispatch::IntegrationTest
     assert_match(/read-only/i, flash[:alert])
   end
 
-  private
-
-  def stock(part, quantity)
-    StockMovement.create!(organization: @org, part: part, storage_location: @location,
-      movement_type: "in", quantity_delta: quantity)
-  end
-
-  # Builds a persisted project with the given [part, quantity, match_type] lines.
-  def build_project(*lines)
-    project = create_project(organization: @org, reference: Project.next_reference(@org))
-    lines.each do |part, quantity, match_type|
-      project.project_lines.create!(part: part, quantity: quantity, match_type: match_type)
-    end
-    project
-  end
-
-  def csv_upload(content)
-    file = Tempfile.new([ "bom", ".csv" ])
-    file.write(content)
-    file.rewind
-    Rack::Test::UploadedFile.new(file.path, "text/csv")
-  end
-
-  def inertia_props
-    JSON.parse(@response.body[/data-page="app" type="application\/json"[^>]*>(.*?)<\/script>/m, 1])["props"]
-  end
-
   test "build records the kit and refuses a replayed submission" do
     project = build_project([ @cap, 30, "sku" ]) # stock 100
 
@@ -347,5 +320,32 @@ class ProjectsControllerTest < ActionDispatch::IntegrationTest
     patch project_project_line_path(project, line)
 
     assert_response :bad_request
+  end
+
+  private
+
+  def stock(part, quantity)
+    StockMovement.create!(organization: @org, part: part, storage_location: @location,
+      movement_type: "in", quantity_delta: quantity)
+  end
+
+  # Builds a persisted project with the given [part, quantity, match_type] lines.
+  def build_project(*lines)
+    project = create_project(organization: @org, reference: Project.next_reference(@org))
+    lines.each do |part, quantity, match_type|
+      project.project_lines.create!(part: part, quantity: quantity, match_type: match_type)
+    end
+    project
+  end
+
+  def csv_upload(content)
+    file = Tempfile.new([ "bom", ".csv" ])
+    file.write(content)
+    file.rewind
+    Rack::Test::UploadedFile.new(file.path, "text/csv")
+  end
+
+  def inertia_props
+    JSON.parse(@response.body[/data-page="app" type="application\/json"[^>]*>(.*?)<\/script>/m, 1])["props"]
   end
 end

@@ -331,6 +331,25 @@ class OrdersControllerTest < ActionDispatch::IntegrationTest
     assert_equal 5, PartStorage.find_by(part: @part, storage_location: zone).quantity
   end
 
+  test "import_project imports nothing when a line can't be saved" do
+    cap = create_part(organization: @org, category: @category, name: "Cap 100nF", sku: "CAP")
+    project = create_project(organization: @org, reference: Project.next_reference(@org))
+    project.project_lines.create!(part: cap, quantity: 3, match_type: "sku")
+    project.project_lines.create!(part: @part, quantity: 5, match_type: "mpn")
+
+    order = create_order(organization: @org, supplier: @supplier, status: "pending", reference: "PO-1")
+    # Topping this line up would push it past the largest storable quantity.
+    order.order_lines.create!(part: @part, quantity: ApplicationRecord::MAX_INTEGER, unit_price: 0.1)
+    sign_in @user
+
+    assert_no_difference -> { OrderLine.count } do
+      post import_project_order_path(order), params: { project_id: project.id, mode: "full" }
+    end
+    assert_redirected_to order_path(order)
+    assert_match(/nothing was imported/i, flash[:alert])
+    assert_equal ApplicationRecord::MAX_INTEGER, order.order_lines.find_by(part: @part).quantity
+  end
+
   private
 
   # Stands in for a configured SupplierCatalog::Mouser order client.
@@ -352,24 +371,5 @@ class OrdersControllerTest < ActionDispatch::IntegrationTest
   def stock(part, quantity)
     StockMovement.create!(organization: @org, part: part, storage_location: @location,
       movement_type: "in", quantity_delta: quantity)
-  end
-
-  test "import_project imports nothing when a line can't be saved" do
-    cap = create_part(organization: @org, category: @category, name: "Cap 100nF", sku: "CAP")
-    project = create_project(organization: @org, reference: Project.next_reference(@org))
-    project.project_lines.create!(part: cap, quantity: 3, match_type: "sku")
-    project.project_lines.create!(part: @part, quantity: 5, match_type: "mpn")
-
-    order = create_order(organization: @org, supplier: @supplier, status: "pending", reference: "PO-1")
-    # Topping this line up would push it past the largest storable quantity.
-    order.order_lines.create!(part: @part, quantity: ApplicationRecord::MAX_INTEGER, unit_price: 0.1)
-    sign_in @user
-
-    assert_no_difference -> { OrderLine.count } do
-      post import_project_order_path(order), params: { project_id: project.id, mode: "full" }
-    end
-    assert_redirected_to order_path(order)
-    assert_match(/nothing was imported/i, flash[:alert])
-    assert_equal ApplicationRecord::MAX_INTEGER, order.order_lines.find_by(part: @part).quantity
   end
 end

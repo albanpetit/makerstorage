@@ -1221,19 +1221,6 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
     assert_match(/choose a supplier/i, inertia_props["errors"]["base"])
   end
 
-  private
-
-  def csv_upload(content)
-    file = Tempfile.new([ "import", ".csv" ], binmode: true)
-    file.write(content)
-    file.rewind
-    Rack::Test::UploadedFile.new(file.path, "text/csv")
-  end
-
-  def inertia_props
-    JSON.parse(@response.body[/data-page="app" type="application\/json"[^>]*>(.*?)<\/script>/m, 1])["props"]
-  end
-
   test "update ignores tags from another organization" do
     user = create_user
     org = user.organizations.first
@@ -1259,5 +1246,18 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
     patch part_path(part), params: { part: { name: "", category_id: part.category_id, tag_ids: [ create_tag(organization: org, name: "new").id ] } }
 
     assert_equal [ old_tag ], part.reload.tags
+  end
+
+  private
+
+  def csv_upload(content)
+    file = Tempfile.new([ "import", ".csv" ], binmode: true)
+    file.write(content)
+    file.rewind
+    Rack::Test::UploadedFile.new(file.path, "text/csv")
+  end
+
+  def inertia_props
+    JSON.parse(@response.body[/data-page="app" type="application\/json"[^>]*>(.*?)<\/script>/m, 1])["props"]
   end
 end
