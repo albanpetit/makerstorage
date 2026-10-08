@@ -15,7 +15,8 @@ class Users::PasswordsControllerTest < ActionDispatch::IntegrationTest
     # End-to-end guard: the email renders and links to the app's custom reset
     # route with a token (the stock Devise edit_password_url doesn't exist here).
     assert_includes body, "/reset-password"
-    assert_match(/reset_password_token=\w/, body)
+    # Devise tokens are URL-safe base64, so they can start with "-" or "_".
+    assert_match(/reset_password_token=[\w-]+/, body)
   end
 
   test "requesting a reset for an unknown email sends no mail but answers the same" do
