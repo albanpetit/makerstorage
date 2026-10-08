@@ -42,4 +42,21 @@ class PartsBulkActionsTest < ApplicationSystemTestCase
       assert_text @new_category.name
     end
   end
+
+  test "printed labels show part data as text, never as markup" do
+    payload = %(<img src=x onerror="window.opener.__xss = true">Evil)
+    create_part(organization: @org, category: @old_category, name: payload)
+
+    visit parts_path
+    assert_selector "table", wait: 10
+    find("button[aria-label='Select #{payload}']").click
+
+    label_window = window_opened_by { click_on "Labels" }
+    within_window(label_window) do
+      assert_text payload
+      assert_no_selector "img"
+    end
+
+    assert_not page.evaluate_script("window.__xss === true")
+  end
 end

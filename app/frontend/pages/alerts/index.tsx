@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react'
 import { AlertTriangle, CheckCircle2, FileText, Printer } from 'lucide-react'
 
 import { AppLayout } from '@/layouts/app-layout'
+import { html, printDocument } from '@/lib/print-document'
 import { usePermissions } from '@/hooks/use-permissions'
 import { PageHeader } from '@/components/page-header'
 import { FlashMessages } from '@/components/flash-messages'
@@ -120,7 +121,7 @@ export default function AlertsIndex({ alerts, orders }: AlertsPageProps) {
   }, [alerts])
 
   const printPo = () => {
-    const rowsHtml = groups.map((g) => `
+    const rows = groups.map((g) => html`
       <h3 style="margin:18px 0 6px;font-size:14px;">${g.supplier} — ${formatMoney(g.subtotal)}</h3>
       <table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:8px;">
         <thead><tr style="text-align:left;border-bottom:1px solid #ccc;">
@@ -128,31 +129,25 @@ export default function AlertsIndex({ alerts, orders }: AlertsPageProps) {
           <th style="padding:4px 8px;text-align:right;">Qty</th><th style="padding:4px 8px;text-align:right;">Unit price</th>
           <th style="padding:4px 8px;text-align:right;">Total</th>
         </tr></thead>
-        <tbody>${g.items.map((it) => `
+        <tbody>${g.items.map((it) => html`
           <tr style="border-bottom:1px solid #eee;">
             <td style="padding:4px 8px;font-family:monospace;">${it.reference}</td>
             <td style="padding:4px 8px;">${it.name}</td>
             <td style="padding:4px 8px;text-align:right;">+${it.reorder_quantity}</td>
             <td style="padding:4px 8px;text-align:right;">${formatMoney(it.unit_price)}</td>
             <td style="padding:4px 8px;text-align:right;">${formatMoney(it.reorder_quantity * it.unit_price)}</td>
-          </tr>`).join('')}</tbody>
-      </table>`).join('')
+          </tr>`)}</tbody>
+      </table>`)
 
-    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Purchase order</title></head>
-      <body style="font-family:Arial,sans-serif;padding:32px;color:#111;">
+    printDocument(
+      'Purchase order',
+      html`
         <h1 style="font-size:20px;margin:0 0 4px;">Restock purchase order</h1>
         <p style="color:#666;font-size:12px;margin:0 0 20px;">Makerstorage · Generated ${new Date().toLocaleDateString()}</p>
-        ${rowsHtml}
-        <p style="margin-top:16px;font-size:14px;font-weight:bold;">Estimated total: ${formatMoney(poTotal)}</p>
-      </body></html>`
-
-    const w = window.open('', '_blank')
-    if (w) {
-      w.document.write(html)
-      w.document.close()
-      w.focus()
-      setTimeout(() => w.print(), 300)
-    }
+        ${rows}
+        <p style="margin-top:16px;font-size:14px;font-weight:bold;">Estimated total: ${formatMoney(poTotal)}</p>`,
+      'font-family:Arial,sans-serif;padding:32px;color:#111;',
+    )
   }
 
   const submitPurchaseOrders = () => {

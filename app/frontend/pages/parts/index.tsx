@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 
 import { AppLayout } from '@/layouts/app-layout'
+import { html, printDocument } from '@/lib/print-document'
 import { SidebarTrigger } from '@/components/ui/sidebar'
 import { usePermissions } from '@/hooks/use-permissions'
 import { ReadOnlyBadge } from '@/components/read-only-badge'
@@ -250,25 +251,18 @@ function exportCsv(parts: Part[]) {
 function printLabels(parts: Part[]) {
   if (parts.length === 0) return
 
-  const labels = parts.map((part) => `
+  const labels = parts.map((part) => html`
     <div style="width:189px;height:95px;border:1px dashed #999;border-radius:4px;padding:8px 10px;box-sizing:border-box;page-break-inside:avoid;">
       <div style="font-family:monospace;font-weight:700;font-size:13px;">${part.mpn || part.sku || part.name}</div>
       <div style="font-size:9.5px;color:#555;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${part.name}</div>
       <div style="font-family:monospace;font-size:10px;margin-top:6px;">${locationLabel(part.location_names)}</div>
-    </div>`).join('')
+    </div>`)
 
-  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Labels</title></head>
-    <body style="font-family:Arial,sans-serif;padding:24px;background:#fff;">
-      <div style="display:flex;flex-wrap:wrap;gap:10px;">${labels}</div>
-    </body></html>`
-
-  const printWindow = window.open('', '_blank')
-  if (printWindow) {
-    printWindow.document.write(html)
-    printWindow.document.close()
-    printWindow.focus()
-    setTimeout(() => printWindow.print(), 300)
-  }
+  printDocument(
+    'Labels',
+    html`<div style="display:flex;flex-wrap:wrap;gap:10px;">${labels}</div>`,
+    'font-family:Arial,sans-serif;padding:24px;background:#fff;',
+  )
 }
 
 function csrfToken(): string {
