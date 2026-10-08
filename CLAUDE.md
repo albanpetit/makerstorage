@@ -39,7 +39,7 @@ Electronics-parts inventory manager for makerspaces/fablabs: components, categor
 - **CSV imports** go through `BomParser.each_row`, which accepts UTF-8 (with or without BOM) and Windows-1252 (French Excel's default).
 - **Order line splits**: changing an `OrderLine`'s quantity drops its `OrderLineAllocation` split (`after_update` callback), and `receive_into_stock!` credits any unsplit remainder to the fallback location.
 - **Supplier catalogs**: `SupplierCatalog` (Mouser, DigiKey) for part lookup, order import, and Mouser cart push. API keys and DigiKey OAuth tokens are stored encrypted on `Organization`. Remote asset downloads go through `SupplierCatalog::RemoteFile` (SSRF-guarded) — don't fetch supplier URLs any other way.
-- **Pending gem advisory**: `rack-proxy` 0.8.3 (GHSA-42qh-8mx8-7wqm) is pinned `~> 0.6` by `vite_ruby` 3.10. Fixing it needs `vite_ruby` 3.11.1 (allows `rack-proxy` 2.x) **and** npm `vite-plugin-ruby` `^5.2.5` together — the gem refuses to boot otherwise. Deferred on 2026-10-07 because `vite-plugin-ruby` 5.2.5 was only 8 days old; upgrade both in one change and run the system tests. `rack-proxy` is only used by the Vite dev-server proxy in development.
+- **Vite gems and npm plugin move together**: `vite_ruby` checks the npm `vite-plugin-ruby` version at boot and refuses to start on a mismatch, so bump them in one change (and run the system tests). `rack-proxy` is only used by the Vite dev-server proxy in development.
 - **Active Storage** is installed so `.destroy` on `Organization`, `Part`, `Footprint`, and `Supplier` (all declare attachments) works correctly.
 
 ## Testing
