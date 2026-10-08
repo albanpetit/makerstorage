@@ -258,8 +258,11 @@ module SupplierCatalog
       end
     end
 
+    # Keyed on both halves of the credential pair: keyed on the (non-secret)
+    # client id alone, an organization entering another's client id with any
+    # secret would be handed that organization's cached token.
     def token_cache_key
-      Digest::SHA256.hexdigest(@client_id.to_s)
+      Digest::SHA256.hexdigest("#{@client_id}:#{@client_secret}")
     end
 
     def request_token

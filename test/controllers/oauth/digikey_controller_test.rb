@@ -76,4 +76,25 @@ class Oauth::DigikeyControllerTest < ActionDispatch::IntegrationTest
     get oauth_digikey_authorize_path
     assert_redirected_to root_path
   end
+
+  test "callback refuses tokens when the organization changed mid-handshake" do
+    other = Organization.create!(name: "Other lab")
+    OrganizationMembership.create!(organization: other, user: @user, role: "owner")
+    other.update!(digikey_client_id: "cid2", digikey_client_secret: "csecret2")
+
+    sign_in @user
+    get oauth_digikey_authorize_path
+    state = session[:digikey_oauth_state]
+    post switch_organization_path(other)
+
+    tokens = { "access_token" => "acc", "refresh_token" => "ref", "expires_in" => 1800 }
+    stub_singleton(SupplierCatalog::Digikey, :exchange_code, ->(**_kw) { tokens }) do
+      get oauth_digikey_callback_path(code: "the-code", state: state)
+    end
+
+    assert_redirected_to settings_path
+    assert_match(/switched organization/i, flash[:alert])
+    assert_nil other.reload.digikey_refresh_token
+    assert_nil @org.reload.digikey_refresh_token
+  end
 end

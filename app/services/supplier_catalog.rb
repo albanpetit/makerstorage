@@ -66,12 +66,24 @@ module SupplierCatalog
 
   # DigiKey rotates the refresh token on refresh, so persist whatever it returns
   # (falling back to the current one if the response omits it).
+  #
+  # Two requests can find the token expired at once; DigiKey then accepts the
+  # first refresh and rejects the second's now-rotated refresh token. When ours
+  # is rejected, reload: if a concurrent request already stored fresh tokens,
+  # use those rather than failing.
   def refresh_digikey_token!(organization)
-    tokens = Digikey.refresh_token(
-      client_id: organization.digikey_client_id,
-      client_secret: organization.digikey_client_secret,
-      refresh_token: organization.digikey_refresh_token
-    )
+    tokens = begin
+      Digikey.refresh_token(
+        client_id: organization.digikey_client_id,
+        client_secret: organization.digikey_client_secret,
+        refresh_token: organization.digikey_refresh_token
+      )
+    rescue LookupError
+      organization.reload
+      raise if digikey_token_expired?(organization)
+
+      return
+    end
 
     organization.update!(
       digikey_access_token: tokens["access_token"],

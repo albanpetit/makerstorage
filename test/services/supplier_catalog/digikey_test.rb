@@ -181,4 +181,11 @@ class SupplierCatalog::DigikeyTest < ActiveSupport::TestCase
     assert_includes url, "state=xyz"
     assert_includes url, CGI.escape("https://app.test/cb")
   end
+
+  test "the cached client-credentials token is keyed on the secret too" do
+    key = ->(secret) { SupplierCatalog::Digikey.new(client_id: "shared-id", client_secret: secret).send(:token_cache_key) }
+
+    assert_not_equal key.call("secret-a"), key.call("secret-b")
+    assert_equal key.call("secret-a"), key.call("secret-a")
+  end
 end
