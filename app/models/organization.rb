@@ -67,43 +67,6 @@ class Organization < ApplicationRecord
   scope :alphabetical, -> { order(:name) }
   scope :recent, -> { order(created_at: :desc) }
 
-  # Methods - Members
-  def owners
-    users.joins(:organization_memberships)
-         .where(organization_memberships: { role: "owner" })
-         .distinct
-  end
-
-  def admins
-    users.joins(:organization_memberships)
-         .where(organization_memberships: { role: %w[owner admin] })
-         .distinct
-  end
-
-  def members
-    users.joins(:organization_memberships)
-         .where(organization_memberships: { role: "member" })
-         .distinct
-  end
-
-  def viewers
-    users.joins(:organization_memberships)
-         .where(organization_memberships: { role: "viewer" })
-         .distinct
-  end
-
-  def member?(user)
-    users.include?(user)
-  end
-
-  def owner?(user)
-    organization_memberships.exists?(user: user, role: "owner")
-  end
-
-  def admin?(user)
-    organization_memberships.exists?(user: user, role: %w[owner admin])
-  end
-
   # Methods - IPN numbering
   #
   # The generation mode decides how the numeric segment is produced:

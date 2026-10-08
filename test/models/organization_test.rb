@@ -161,16 +161,6 @@ class OrganizationTest < ActiveSupport::TestCase
     assert org.destroyed?
   end
 
-  test "viewers returns only users with the viewer role" do
-    org = create_organization
-    owner = User.create!(firstname: "O", lastname: "W", email: "owner2@example.com", password: "password123")
-    viewer = User.create!(firstname: "V", lastname: "I", email: "viewer2@example.com", password: "password123")
-    OrganizationMembership.create!(organization: org, user: owner, role: "owner")
-    OrganizationMembership.create!(organization: org, user: viewer, role: "viewer")
-
-    assert_equal [ viewer ], org.viewers.to_a
-  end
-
   test "low_stock_parts_count and out_of_stock_parts_count return integers, not hashes" do
     org = create_organization
     cat = create_category(organization: org)
