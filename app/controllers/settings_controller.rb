@@ -11,7 +11,7 @@ class SettingsController < ApplicationController
       organization: serialize_organization_settings,
       currencies: Organization::CURRENCIES,
       ipn_separators: Organization::IPN_SEPARATORS,
-      timezones: ActiveSupport::TimeZone::MAPPING.values.sort.uniq
+      timezones: Organization::TIMEZONES
     }
   end
 

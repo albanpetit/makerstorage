@@ -45,6 +45,8 @@ class Organization < ApplicationRecord
   IPN_GENERATION_MODES = %w[incremental random category_sequence manual].freeze
   IPN_CHARSETS = %w[numeric alphanumeric].freeze
   CURRENCIES = %w[EUR USD GBP CHF].freeze
+  # The zones Settings offers (IANA names behind Rails' friendly zone names).
+  TIMEZONES = ActiveSupport::TimeZone::MAPPING.values.uniq.sort.freeze
 
   # Validations
   validates :name, presence: true, length: { minimum: 2, maximum: 100 }
@@ -57,6 +59,7 @@ class Organization < ApplicationRecord
   validates :ipn_digits, numericality: { only_integer: true, greater_than_or_equal_to: 3, less_than_or_equal_to: 8 }
   validates :ipn_next_sequence, numericality: { only_integer: true, greater_than: 0, less_than_or_equal_to: MAX_INTEGER }
   validates :currency, presence: true, inclusion: { in: CURRENCIES }
+  validates :timezone, inclusion: { in: TIMEZONES }
   validates :default_low_stock_threshold, numericality: { only_integer: true, greater_than_or_equal_to: 0, less_than_or_equal_to: MAX_INTEGER }
 
   # Callbacks

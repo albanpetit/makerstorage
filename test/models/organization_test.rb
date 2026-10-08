@@ -251,4 +251,18 @@ class OrganizationTest < ActiveSupport::TestCase
     org.logo.attach(io: StringIO.new("<svg xmlns='http://www.w3.org/2000/svg'/>"), filename: "logo.svg", content_type: "image/svg+xml", identify: false)
     assert org.valid?, "SVG logos are allowed"
   end
+
+  test "timezone must be one of the zones Settings offers" do
+    org = Organization.new(name: "Lab", timezone: "Mars/Olympus_Mons")
+    assert_not org.valid?
+    assert org.errors[:timezone].any?
+
+    org.timezone = "America/New_York"
+    org.valid?
+    assert_empty org.errors[:timezone]
+  end
+
+  test "the default timezone is valid" do
+    assert_includes Organization::TIMEZONES, Organization.new.timezone
+  end
 end
