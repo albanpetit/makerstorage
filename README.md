@@ -33,15 +33,28 @@ A multi-tenant inventory manager for makerspaces and fablabs, purpose-built for 
 ## Getting started
 
 Makerstorage ships as a self-contained Docker image (Rails behind Thruster on port
-80, using SQLite and local file storage). You only need a `RAILS_MASTER_KEY` to
-boot; configure [SMTP](#email-smtp) as well if you want it to send email.
+80, using SQLite and local file storage). It needs its own secrets to boot;
+configure [SMTP](#email-smtp) as well if you want it to send email.
 
 ### Pull the prebuilt image from GHCR
 
+The prebuilt image carries no secrets you can use: generate your own once, keep
+them safe (they sign sessions and encrypt the supplier API keys stored in the
+database — losing them makes those keys unreadable), and pass them on every run.
+
 ```bash
+# Once — store these values somewhere safe and reuse them.
+SECRET_KEY_BASE=$(openssl rand -hex 64)
+AR_ENCRYPTION_PRIMARY_KEY=$(openssl rand -hex 32)
+AR_ENCRYPTION_DETERMINISTIC_KEY=$(openssl rand -hex 32)
+AR_ENCRYPTION_KEY_DERIVATION_SALT=$(openssl rand -hex 32)
+
 docker run -d --name makerstorage \
   -p 3000:80 \
-  -e RAILS_MASTER_KEY="$RAILS_MASTER_KEY" \
+  -e SECRET_KEY_BASE="$SECRET_KEY_BASE" \
+  -e AR_ENCRYPTION_PRIMARY_KEY="$AR_ENCRYPTION_PRIMARY_KEY" \
+  -e AR_ENCRYPTION_DETERMINISTIC_KEY="$AR_ENCRYPTION_DETERMINISTIC_KEY" \
+  -e AR_ENCRYPTION_KEY_DERIVATION_SALT="$AR_ENCRYPTION_KEY_DERIVATION_SALT" \
   -v makerstorage-storage:/rails/storage \
   ghcr.io/albanpetit/makerstorage:latest
 ```
@@ -63,7 +76,9 @@ docker run -d --name makerstorage \
 The app is then served at `http://localhost:3000`.
 
 - **`RAILS_MASTER_KEY`** decrypts `config/credentials.yml.enc`; it must match the
-  credentials baked into the image.
+  credentials baked into the image, so it only applies to an image you built
+  from your own credentials. Without it, the secrets come from the environment
+  variables shown for the prebuilt image.
 - The **`makerstorage-storage` volume** holds the SQLite databases and uploaded
   files — it persists across restarts and is what you back up.
 - Background jobs (supplier datasheet downloads, the daily clean-up of orphaned
