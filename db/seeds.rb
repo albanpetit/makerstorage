@@ -4,11 +4,14 @@
 # Run with: bin/rails db:seed
 #
 # This is SAMPLE data only (incl. default admin/test logins) — it must never run
-# in production. `rails db:prepare` runs seeds when it creates a fresh database,
-# so guard against seeding any environment other than development/test.
+# in production. `rails db:prepare` runs seeds when it creates a fresh database —
+# which is exactly what the Docker entrypoint does on a new install — so skip
+# (rather than abort, which would kill the container's first boot) in any
+# environment other than development/test.
 
 unless Rails.env.development? || Rails.env.test?
-  abort "db/seeds.rb contains sample data and must not run in #{Rails.env}."
+  puts "Skipping db/seeds.rb: it holds sample data and only runs in development and test."
+  return
 end
 
 puts "Seeding database..."
