@@ -338,4 +338,14 @@ class ProjectsControllerTest < ActionDispatch::IntegrationTest
     assert_equal 0, project.reload.builds_count
     assert_equal 100, PartStorage.find_by(part: @cap, storage_location: @location).quantity
   end
+
+  test "updating a line without line params is a bad request, not a crash" do
+    project = build_project([ @cap, 3, "sku" ])
+    line = project.project_lines.first
+
+    sign_in @user
+    patch project_project_line_path(project, line)
+
+    assert_response :bad_request
+  end
 end

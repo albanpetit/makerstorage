@@ -9,7 +9,7 @@ class ProjectLine < ApplicationRecord
   MATCH_TYPES = %w[mpn sku name manual none].freeze
 
   # Validations
-  validates :quantity, numericality: { only_integer: true, greater_than: 0 }
+  validates :quantity, numericality: { only_integer: true, greater_than: 0, less_than_or_equal_to: MAX_INTEGER }
   validates :match_type, presence: true, inclusion: { in: MATCH_TYPES }
   validate :part_must_belong_to_same_organization
 

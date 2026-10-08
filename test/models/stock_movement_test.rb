@@ -197,4 +197,25 @@ class StockMovementTest < ActiveSupport::TestCase
     assert_equal [ outbound ], StockMovement.outbound.to_a
     assert_equal [ adjustment ], StockMovement.adjustments.to_a
   end
+
+  test "an overdraw caught by the apply step raises RecordInvalid from save!" do
+    PartStorage.create!(part: @part, storage_location: @location, quantity: 5)
+    movement = StockMovement.new(
+      organization: @org, part: @part, storage_location: @location,
+      movement_type: "out", quantity_delta: -10
+    )
+
+    assert_raises(ActiveRecord::RecordInvalid) { movement.save!(validate: false) }
+    assert_equal 5, PartStorage.find_by(part: @part, storage_location: @location).quantity
+  end
+
+  test "rejects a quantity too large to store" do
+    movement = StockMovement.new(
+      organization: @org, part: @part, storage_location: @location,
+      movement_type: "in", quantity_delta: 99_999_999_999_999_999_999
+    )
+
+    assert_not movement.valid?
+    assert movement.errors[:quantity_delta].any?
+  end
 end

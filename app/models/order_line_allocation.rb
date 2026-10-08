@@ -8,7 +8,7 @@ class OrderLineAllocation < ApplicationRecord
   belongs_to :storage_location
 
   # Validations
-  validates :quantity, numericality: { only_integer: true, greater_than: 0 }
+  validates :quantity, numericality: { only_integer: true, greater_than: 0, less_than_or_equal_to: MAX_INTEGER }
   validate :storage_location_must_belong_to_same_organization
 
   private

@@ -154,7 +154,7 @@ class ProjectsController < ApplicationController
     end
 
     redirect_to project_path(@project), notice: "Stock deducted for #{required.size} reference#{'s' if required.size != 1}."
-  rescue ActiveRecord::RecordInvalid, ActiveRecord::RecordNotSaved => e
+  rescue ActiveRecord::RecordInvalid => e
     redirect_to project_path(@project), alert: "Could not deduct stock: #{e.record.errors.full_messages.to_sentence}."
   end
 

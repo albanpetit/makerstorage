@@ -381,16 +381,18 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "Renamed", part.reload.name
   end
 
-  test "create rejects a tag from another organization" do
+  test "create never links a tag from another organization" do
     user = create_user
     org = user.organizations.first
     category = create_category(organization: org, name: "Resistors")
     foreign_tag = create_tag(organization: create_organization, name: "foreign")
 
     sign_in user
-    assert_no_difference -> { Part.count } do
-      post parts_path, params: { part: { name: "Resistor 10k", category_id: category.id, tag_ids: [ foreign_tag.id ] } }
-    end
+    post parts_path, params: { part: { name: "Resistor 10k", category_id: category.id, tag_ids: [ foreign_tag.id ] } }
+
+    part = org.parts.find_by!(name: "Resistor 10k")
+    assert_empty part.tags
+    assert_not PartTag.exists?(tag: foreign_tag)
   end
 
   test "edit serializes the tag options and the part's current tag_ids" do
@@ -1230,5 +1232,32 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
 
   def inertia_props
     JSON.parse(@response.body[/data-page="app" type="application\/json"[^>]*>(.*?)<\/script>/m, 1])["props"]
+  end
+
+  test "update ignores tags from another organization" do
+    user = create_user
+    org = user.organizations.first
+    part = create_part(organization: org)
+    own_tag = create_tag(organization: org, name: "own")
+    foreign_tag = create_tag(organization: create_user.organizations.first, name: "foreign")
+
+    sign_in user
+    patch part_path(part), params: { part: { name: part.name, category_id: part.category_id, tag_ids: [ own_tag.id, foreign_tag.id ] } }
+
+    assert_response :redirect
+    assert_equal [ own_tag ], part.reload.tags
+  end
+
+  test "a rejected update keeps the part's previous tags" do
+    user = create_user
+    org = user.organizations.first
+    part = create_part(organization: org)
+    old_tag = create_tag(organization: org, name: "old")
+    part.tags << old_tag
+
+    sign_in user
+    patch part_path(part), params: { part: { name: "", category_id: part.category_id, tag_ids: [ create_tag(organization: org, name: "new").id ] } }
+
+    assert_equal [ old_tag ], part.reload.tags
   end
 end

@@ -55,9 +55,9 @@ class Organization < ApplicationRecord
   validates :ipn_generation_mode, inclusion: { in: IPN_GENERATION_MODES }
   validates :ipn_charset, inclusion: { in: IPN_CHARSETS }
   validates :ipn_digits, numericality: { only_integer: true, greater_than_or_equal_to: 3, less_than_or_equal_to: 8 }
-  validates :ipn_next_sequence, numericality: { only_integer: true, greater_than: 0 }
+  validates :ipn_next_sequence, numericality: { only_integer: true, greater_than: 0, less_than_or_equal_to: MAX_INTEGER }
   validates :currency, presence: true, inclusion: { in: CURRENCIES }
-  validates :default_low_stock_threshold, numericality: { only_integer: true, greater_than_or_equal_to: 0 }
+  validates :default_low_stock_threshold, numericality: { only_integer: true, greater_than_or_equal_to: 0, less_than_or_equal_to: MAX_INTEGER }
 
   # Callbacks
   validate :must_have_at_least_one_owner, on: :update

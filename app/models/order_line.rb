@@ -9,7 +9,7 @@ class OrderLine < ApplicationRecord
   has_many :allocations, class_name: "OrderLineAllocation", dependent: :destroy
 
   # Validations
-  validates :quantity, numericality: { greater_than: 0, only_integer: true }
+  validates :quantity, numericality: { greater_than: 0, less_than_or_equal_to: MAX_INTEGER, only_integer: true }
   validates :unit_price, numericality: { greater_than_or_equal_to: 0 }, allow_nil: true
 
   # Callbacks

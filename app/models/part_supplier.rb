@@ -8,7 +8,7 @@ class PartSupplier < ApplicationRecord
   # Validations
   validates :supplier_id, uniqueness: { scope: :part_id, message: "is already linked to this part" }
   validates :unit_price, numericality: { greater_than_or_equal_to: 0 }, allow_nil: true
-  validates :lead_time_days, numericality: { greater_than_or_equal_to: 0 }, allow_nil: true
+  validates :lead_time_days, numericality: { greater_than_or_equal_to: 0, less_than_or_equal_to: MAX_INTEGER }, allow_nil: true
   validates :url, format: { with: URI::DEFAULT_PARSER.make_regexp(%w[http https]) }, allow_blank: true
   validate :supplier_must_belong_to_same_organization
 

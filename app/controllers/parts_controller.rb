@@ -115,12 +115,17 @@ class PartsController < ApplicationController
   end
 
   def update
-    @part.assign_attributes(part_params)
-    # Only from a fresh catalog lookup; a plain edit doesn't send it, so an
-    # existing hotlinked image is preserved.
-    @part.image_source_url = params[:image_url].presence if params[:image_url].present?
+    # On a saved part, assigning tag_ids writes the tag links immediately; run the
+    # whole edit in one transaction so a rejected edit doesn't keep them.
+    saved = ActiveRecord::Base.transaction do
+      @part.assign_attributes(part_params)
+      # Only from a fresh catalog lookup; a plain edit doesn't send it, so an
+      # existing hotlinked image is preserved.
+      @part.image_source_url = params[:image_url].presence if params[:image_url].present?
+      @part.save || raise(ActiveRecord::Rollback)
+    end
 
-    if @part.save
+    if saved
       attach_remote_datasheet(@part)
       # Return to wherever the edit was launched (list, detail, or the standalone
       # edit page) so the modal flow stays put instead of navigating away.
@@ -433,7 +438,7 @@ class PartsController < ApplicationController
   end
 
   def part_params
-    params.require(:part).permit(
+    permitted = params.require(:part).permit(
       :name, :mpn, :sku, :barcode, :ipn, :manufacturer, :description,
       :value, :tolerance, :voltage_rating, :power_rating, :package_type,
       :category_id, :footprint_id,
@@ -446,6 +451,11 @@ class PartsController < ApplicationController
         :url, :is_preferred, :notes, :_destroy
       ]
     )
+    # Through-association ids are looked up across every organization, and a
+    # foreign tag then fails PartTag's validation as an exception (a 500). Keep
+    # only this organization's tags.
+    permitted[:tag_ids] = current_organization.tags.where(id: permitted[:tag_ids]).pluck(:id) if permitted.key?(:tag_ids)
+    permitted
   end
 
   # URL for the part's thumbnail in the list. A manually uploaded image wins

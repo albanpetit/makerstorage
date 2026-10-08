@@ -11,16 +11,17 @@ class ProjectLinesController < ApplicationController
   # clear the match), and/or change the required quantity. Choosing a part by
   # hand is recorded as a "manual" match; clearing it falls back to "none".
   def update
+    line_params = params.require(:project_line)
     attributes = {}
 
-    if params[:project_line].key?(:part_id)
+    if line_params.key?(:part_id)
       part_id = params.dig(:project_line, :part_id).presence
       part = part_id && current_organization.parts.find_by(id: part_id)
       attributes[:part] = part
       attributes[:match_type] = part ? "manual" : "none"
     end
 
-    if params[:project_line].key?(:quantity)
+    if line_params.key?(:quantity)
       attributes[:quantity] = params.dig(:project_line, :quantity)
     end
 
