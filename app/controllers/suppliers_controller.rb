@@ -55,7 +55,7 @@ class SuppliersController < ApplicationController
   def clear_catalog_credentials(provider)
     case provider
     when "mouser"
-      current_organization.update!(mouser_api_key: nil)
+      current_organization.update!(mouser_api_key: nil, mouser_order_api_key: nil)
     when "digikey"
       current_organization.update!(
         digikey_client_id: nil, digikey_client_secret: nil,
