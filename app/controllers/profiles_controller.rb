@@ -8,9 +8,13 @@ class ProfilesController < ApplicationController
       user: {
         firstname: current_user.firstname,
         lastname: current_user.lastname,
-        email: current_user.email
+        email: current_user.email,
+        email_confirmed: current_user.confirmed?,
+        unconfirmed_email: current_user.unconfirmed_email
       },
-      invitations: current_user.pending_invitations.includes(:organization, :invited_by).order(:invitation_sent_at).map do |invitation|
+      # Hidden until the address is confirmed: they're addressed to an email the
+      # user hasn't yet proven is theirs.
+      invitations: visible_invitations.map do |invitation|
         inviter = invitation.invited_by
         {
           id: invitation.id,
@@ -28,6 +32,12 @@ class ProfilesController < ApplicationController
   end
 
   private
+
+  def visible_invitations
+    return OrganizationMembership.none unless current_user.can_answer_invitations?
+
+    current_user.pending_invitations.includes(:organization, :invited_by).order(:invitation_sent_at)
+  end
 
   # The password form always sends a `password` field (even blank); the details
   # form never does, though it may carry `current_password` for an email change.
@@ -51,7 +61,11 @@ class ProfilesController < ApplicationController
     end
 
     if current_user.save
-      redirect_to profile_path, notice: "Profile updated successfully."
+      notice = "Profile updated successfully."
+      if current_user.saved_change_to_unconfirmed_email? && current_user.pending_reconfirmation?
+        notice += " Confirm #{current_user.unconfirmed_email} from the email we sent there to start signing in with it."
+      end
+      redirect_to profile_path, notice: notice
     else
       redirect_to profile_path, inertia: { errors: inertia_errors(current_user, as: :user) }, alert: "Failed to update profile."
     end

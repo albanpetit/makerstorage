@@ -1,15 +1,26 @@
 class User < ApplicationRecord
   # Include default devise modules. Others available are:
-  # :confirmable, :lockable, :timeoutable, :trackable and :omniauthable
+  # :timeoutable, :trackable and :omniauthable
+  #
+  # :confirmable proves the user owns their email. Invitations are addressed by
+  # email, so without it anyone could sign up as an invitee-to-be (or switch
+  # their email to one) and accept a role meant for someone else. Unconfirmed
+  # accounts still sign in (allow_unconfirmed_access_for = nil); they just can't
+  # see or answer invitations. See User.email_verification?.
   devise :database_authenticatable, :registerable,
-         :recoverable, :rememberable, :validatable, :lockable
+         :recoverable, :rememberable, :validatable, :lockable, :confirmable
+
+  # Without a way to send mail (no SMTP), nobody could ever confirm: accounts
+  # start out confirmed and email changes apply at once, as before.
+  before_create :skip_confirmation!, unless: -> { User.email_verification? }
 
   has_many :organization_memberships, dependent: :destroy
   # Only active memberships grant access: a deactivated member keeps their
   # membership row (and role) but no longer sees or acts in the organization,
   # and an invitation grants nothing until the invitee accepts it.
   has_many :active_organization_memberships, -> { granting_access }, class_name: "OrganizationMembership"
-  has_many :pending_invitations, -> { active.pending_invitation }, class_name: "OrganizationMembership"
+  # Invitations still open to answer (expired ones are left for an admin to renew).
+  has_many :pending_invitations, -> { active.pending_invitation.unexpired_invitation }, class_name: "OrganizationMembership"
   has_many :organizations, through: :active_organization_memberships
   # Rows that merely reference the user as an author keep existing (the ledger
   # and memberships outlive the account) with the reference cleared.
@@ -25,21 +36,6 @@ class User < ApplicationRecord
   def personal_organization
     organizations.find_by(personal: true) ||
     organizations.first
-  end
-
-  # Get all organizations where the user is an owner
-  def organizations_where_owner
-    organizations.where(organization_memberships: { role: "owner" })
-  end
-
-  # Get all organizations where the user is an admin or owner
-  def organizations_where_admin
-    organizations.where(organization_memberships: { role: %w[owner admin] })
-  end
-
-  # Check if the user is a member of an organization
-  def member_of?(organization)
-    organizations.include?(organization)
   end
 
   # Check if the user is a member of an organization by ID (more efficient)
@@ -62,9 +58,26 @@ class User < ApplicationRecord
     active_organization_memberships.exists?(organization: organization, role: %w[owner admin member])
   end
 
+  # Whether addresses must be confirmed by mail (config.x.email_verification).
+  def self.email_verification?
+    Rails.configuration.x.email_verification != false
+  end
+
+  # Invitations name an email address, so they're only shown to and answerable
+  # by someone who has proven they own it.
+  def can_answer_invitations?
+    confirmed?
+  end
+
   # Get the user's role in an organization
   def role_in(organization)
     active_organization_memberships.find_by(organization: organization)&.role
+  end
+
+  # Devise holds a new sign-in email in unconfirmed_email until it's confirmed;
+  # with verification off there's no mail to confirm it with, so apply it now.
+  def postpone_email_change?
+    User.email_verification? && super
   end
 
   private

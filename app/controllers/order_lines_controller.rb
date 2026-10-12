@@ -19,11 +19,12 @@ class OrderLinesController < ApplicationController
       return
     end
 
-    line = @order.order_lines.build(
-      part: part,
-      quantity: line_params[:quantity].presence || 1,
-      unit_price: line_params.key?(:unit_price) ? line_params[:unit_price] : default_price(part)
-    )
+    line = line_for(part, line_params[:quantity].presence || 1)
+    if line_params.key?(:unit_price)
+      line.unit_price = line_params[:unit_price]
+    elsif line.new_record?
+      line.unit_price = default_price(part)
+    end
 
     if line.save
       @order.recalculate_total!
@@ -79,7 +80,9 @@ class OrderLinesController < ApplicationController
       part.save! unless part.persisted?
       link_order_supplier(part)
 
-      @order.order_lines.create!(part: part, quantity: line_params[:quantity].presence || 1, unit_price: catalog_unit_price(part))
+      line = line_for(part, line_params[:quantity].presence || 1)
+      line.unit_price ||= catalog_unit_price(part)
+      line.save!
       @order.recalculate_total!
     end
 
@@ -90,6 +93,18 @@ class OrderLinesController < ApplicationController
   end
 
   private
+
+  # The order's line for +part+ with +quantity+ more on it: an existing line is
+  # topped up rather than duplicated, so receipt, totals and project imports
+  # (which already merge by part) all see one line per part.
+  def line_for(part, quantity)
+    line = @order.order_lines.find_or_initialize_by(part: part)
+    added = quantity.to_s.match?(/\A\d+\z/) ? quantity.to_i : 0
+    # Anything but a positive whole number leaves 0, which the line's
+    # validation rejects, rather than silently adding nothing.
+    line.quantity = added.positive? ? line.quantity.to_i + added : 0
+    line
+  end
 
   def set_order
     @order = current_organization.orders.find(params[:order_id])
@@ -109,11 +124,15 @@ class OrderLinesController < ApplicationController
 
   # Normalized allocation rows from the request, or nil when the key is absent
   # (so a price-only edit leaves allocations untouched). Blank-zone rows dropped.
+  # Accepts a list or an index-keyed hash ({ "0" => {...} }, as plain form
+  # encoding sends it), which Array() would wrap as one row and so wipe the split.
   def allocation_params
     raw = params.dig(:order_line, :allocations)
     return nil if raw.nil?
 
-    Array(raw)
+    rows = raw.respond_to?(:values) ? raw.values : Array(raw)
+    rows
+      .select { |a| a.respond_to?(:key?) }
       .map { |a| { storage_location_id: a[:storage_location_id], quantity: a[:quantity].to_i } }
       .reject { |a| a[:storage_location_id].blank? }
   end

@@ -57,6 +57,28 @@ class MembersControllerTest < ActionDispatch::IntegrationTest
     assert_not invitee.member_of_organization?(org.id)
   end
 
+  test "inviting again renews an expired invitation" do
+    user = create_user
+    org = user.organizations.first
+    invitee = create_user(email: "late@example.com")
+    stale = OrganizationMembership.create!(organization: org, user: invitee, role: "viewer",
+                                           invitation_sent_at: OrganizationMembership::INVITATION_VALIDITY.ago - 1.day)
+
+    sign_in user
+    get members_path
+    assert inertia_props["members"].find { |m| m["email"] == "late@example.com" }["invitation_expired"]
+
+    assert_no_difference -> { OrganizationMembership.count } do
+      post members_path, params: { member: { email: "late@example.com", role: "member" } }
+    end
+
+    assert_match(/invited/, flash[:notice])
+    stale.reload
+    assert_equal "member", stale.role
+    assert_not stale.invitation_expired?
+    assert_includes invitee.pending_invitations, stale
+  end
+
   test "create refuses to invite someone twice" do
     user = create_user
     org = user.organizations.first

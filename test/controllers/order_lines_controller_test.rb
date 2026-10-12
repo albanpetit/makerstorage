@@ -29,6 +29,29 @@ class OrderLinesControllerTest < ActionDispatch::IntegrationTest
     assert_equal 1.25, @order.order_lines.last.unit_price.to_f
   end
 
+  test "create tops up the line of a part already on the order" do
+    line = @order.order_lines.create!(part: @part, quantity: 3, unit_price: 2.0)
+    sign_in @user
+
+    assert_no_difference -> { OrderLine.count } do
+      post order_order_lines_path(@order), params: { order_line: { part_id: @part.id, quantity: 4 } }
+    end
+
+    assert_equal 7, line.reload.quantity
+    assert_equal 2.0, line.unit_price.to_f, "an existing line keeps its price unless one is given"
+    assert_equal 14.0, @order.reload.total_amount.to_f
+  end
+
+  test "create refuses a quantity that isn't a positive whole number" do
+    line = @order.order_lines.create!(part: @part, quantity: 3)
+    sign_in @user
+
+    post order_order_lines_path(@order), params: { order_line: { part_id: @part.id, quantity: "1.5" } }
+
+    assert_equal 3, line.reload.quantity
+    assert_match(/quantity/i, flash[:alert])
+  end
+
   test "update reprices a line and recomputes the total" do
     line = @order.order_lines.create!(part: @part, quantity: 2, unit_price: 1.0)
     sign_in @user
@@ -121,6 +144,21 @@ class OrderLinesControllerTest < ActionDispatch::IntegrationTest
     assert_equal existing, @order.order_lines.last.part
   end
 
+  test "catalog tops up the line when the reused part is already on the order" do
+    existing = create_part(organization: @org, category: @category, name: "Existing", mpn: "REUSE-2")
+    line = @order.order_lines.create!(part: existing, quantity: 5, unit_price: 0.3)
+    sign_in @user
+
+    assert_no_difference -> { OrderLine.count } do
+      post catalog_order_order_lines_path(@order), params: {
+        category_id: @category.id, order_line: { quantity: 2 }, part: { name: "Whatever", mpn: "REUSE-2", unit_price: "0.9" }
+      }
+    end
+
+    assert_equal 7, line.reload.quantity
+    assert_equal 0.3, line.unit_price.to_f
+  end
+
   test "catalog without a category re-prompts" do
     sign_in @user
     assert_no_difference -> { Part.count } do
@@ -156,6 +194,31 @@ class OrderLinesControllerTest < ActionDispatch::IntegrationTest
 
     assert_equal 2, line.reload.allocations.count
     assert line.fully_allocated?
+  end
+
+  test "update reads a storage split sent as an index-keyed hash" do
+    line = @order.order_lines.create!(part: @part, quantity: 10)
+    a = create_storage_location(organization: @org)
+    b = create_storage_location(organization: @org)
+    sign_in @user
+
+    patch order_order_line_path(@order, line), params: {
+      order_line: { allocations: { "0" => { storage_location_id: a.id, quantity: 6 }, "1" => { storage_location_id: b.id, quantity: 4 } } }
+    }
+
+    assert_equal [ 6, 4 ], line.reload.allocations.order(:id).pluck(:quantity)
+  end
+
+  test "update ignores malformed storage split rows instead of failing" do
+    line = @order.order_lines.create!(part: @part, quantity: 10)
+    a = create_storage_location(organization: @org)
+    line.allocations.create!(storage_location: a, quantity: 10)
+    sign_in @user
+
+    patch order_order_line_path(@order, line), params: { order_line: { allocations: [ "junk" ] } }
+
+    assert_redirected_to order_path(@order)
+    assert_empty line.reload.allocations
   end
 
   test "update rejects an unbalanced storage split" do

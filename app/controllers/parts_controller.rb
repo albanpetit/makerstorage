@@ -326,6 +326,9 @@ class PartsController < ApplicationController
         if imported
           is_new ? created += 1 : updated += 1
         else
+          # A zone the row created was rolled back with it: reload the zone
+          # index rather than hand a later row a zone that no longer exists.
+          @import_zones = nil
           skipped += 1
         end
       end
@@ -445,17 +448,33 @@ class PartsController < ApplicationController
   # created as a top-level shelf.
   def import_location(label)
     key = label.downcase
-    zones = current_organization.storage_locations.to_a
-    paths = StorageLocation.full_path_cache(current_organization.storage_locations)
+    zones = import_zones
 
-    match = zones.find { |zone| zone.code.present? && zone.code.downcase == key } ||
-            zones.find { |zone| zone.full_path(cache: paths).downcase == key }
+    match = zones[:by_code][key] || zones[:by_path][key]
     return match if match
 
-    named = zones.select { |zone| zone.name.downcase == key }
+    named = zones[:by_name].fetch(key, [])
     raise AmbiguousLocationError if named.size > 1
 
-    named.first || current_organization.storage_locations.create!(name: label, location_type: "shelf")
+    named.first || current_organization.storage_locations.create!(name: label, location_type: "shelf").tap do |zone|
+      zones[:by_path][key] = zone
+      zones[:by_name][key] = [ zone ]
+    end
+  end
+
+  # The organization's zones indexed by lowercased code, full path, and name,
+  # loaded once per import instead of once per row.
+  def import_zones
+    @import_zones ||= begin
+      all = current_organization.storage_locations.to_a
+      paths = all.index_by(&:id)
+
+      {
+        by_code: all.select { |zone| zone.code.present? }.index_by { |zone| zone.code.downcase },
+        by_path: all.each_with_object({}) { |zone, index| index[zone.full_path(cache: paths).downcase] ||= zone },
+        by_name: all.group_by { |zone| zone.name.downcase }
+      }
+    end
   end
 
   def find_existing_part(row)

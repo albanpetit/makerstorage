@@ -81,5 +81,11 @@ module Makerstorage
     #
     # config.time_zone = "Central Time (US & Canada)"
     # config.eager_load_paths << Rails.root.join("extras")
+
+    # Email verification (Devise :confirmable, see User). On, signup still signs
+    # in straight away, but answering an invitation needs a confirmed address and
+    # a new sign-in email only applies once confirmed. Production turns it off
+    # when no SMTP server is configured, since no confirmation mail could arrive.
+    config.x.email_verification = true
   end
 end

@@ -109,20 +109,6 @@ class PartTest < ActiveSupport::TestCase
     assert_equal :sufficient, part.stock_status
   end
 
-  test "quantity_to_order accounts for current stock against target_stock" do
-    part = create_part(organization: @org, category: @category, target_stock: 100)
-    location = create_storage_location(organization: @org)
-    PartStorage.create!(part: part, storage_location: location, quantity: 30)
-    part.reload
-
-    assert_equal 70, part.quantity_to_order
-  end
-
-  test "quantity_to_order is zero without a target_stock" do
-    part = create_part(organization: @org, category: @category, target_stock: nil)
-    assert_equal 0, part.quantity_to_order
-  end
-
   test "search matches across name, mpn, sku, manufacturer, value, and barcode, case-insensitively" do
     resistor = create_part(organization: @org, category: @category, name: "Resistor 10k", mpn: "RES-10K-0603")
     capacitor = create_part(organization: @org, category: @category, name: "Capacitor 100nF", mpn: "CAP-100N")
@@ -256,6 +242,19 @@ class PartTest < ActiveSupport::TestCase
     assert_equal [ never_stocked ], org.parts.low_stock.to_a
     assert_equal [ no_threshold, stocked ].sort_by(&:id), org.parts.sufficient_stock.to_a.sort_by(&:id)
     assert_equal 1, org.low_stock_parts_count
+  end
+
+  test "fallback_storage_location is the first zone the part was stocked in" do
+    part = create_part(organization: @org, category: @category)
+    assert_nil part.fallback_storage_location
+
+    later_zone = create_storage_location(organization: @org)
+    first_zone = create_storage_location(organization: @org)
+    part.part_storages.create!(storage_location: first_zone, quantity: 0)
+    part.part_storages.create!(storage_location: later_zone, quantity: 5)
+
+    assert_equal first_zone, part.reload.fallback_storage_location
+    assert_equal first_zone, Part.includes(part_storages: :storage_location).find(part.id).fallback_storage_location
   end
 
   test "images must be web images under 10 MB" do

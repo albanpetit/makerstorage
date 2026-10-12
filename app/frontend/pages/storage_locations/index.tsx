@@ -1,22 +1,13 @@
 import { Head, useForm, router } from '@inertiajs/react'
-import { FormEvent, useEffect, useMemo, useState } from 'react'
+import { FormEvent, useEffect, useState } from 'react'
 import {
   Search,
   Plus,
   ChevronRight,
   ChevronLeft,
-  DoorOpen,
   Archive,
-  Layers,
-  Wrench,
-  ArchiveRestore,
-  Package,
   Pencil,
   Trash2,
-  ArrowUpRight,
-  ArrowRightLeft,
-  GripVertical,
-  type LucideIcon,
 } from 'lucide-react'
 
 import { AppLayout } from '@/layouts/app-layout'
@@ -25,26 +16,9 @@ import { usePermissions } from '@/hooks/use-permissions'
 import { PageHeader } from '@/components/page-header'
 import { ReadOnlyBadge } from '@/components/read-only-badge'
 import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import { Field, FieldContent, FieldError, FieldLabel } from '@/components/ui/field'
 import { Card, CardContent } from '@/components/ui/card'
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -63,99 +37,17 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
 import { FlashMessages } from '@/components/flash-messages'
-
-interface StorageLocationRecord {
-  id: number
-  name: string
-  location_type: string
-  code: string | null
-  parent_id: number | null
-}
-
-interface PartStorageEntry {
-  location_id: number
-  quantity: number
-  part: {
-    id: number
-    reference: string
-    name: string
-    package_type: string | null
-  }
-}
-
-interface RecentMovement {
-  location_id: number
-  part_reference: string
-  movement_type: 'in' | 'out' | 'adjustment'
-  quantity_delta: number
-  reason: string | null
-  created_at: string
-}
-
-interface StorageLocationsPageProps {
-  storage_locations: StorageLocationRecord[]
-  part_storages: PartStorageEntry[]
-  recent_movements: RecentMovement[]
-}
-
-const LOCATION_TYPES = ['room', 'cabinet', 'shelf', 'bench', 'drawer', 'box'] as const
-
-const TYPE_META: Record<string, { label: string; icon: LucideIcon; className: string }> = {
-  room: { label: 'Room', icon: DoorOpen, className: 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400' },
-  cabinet: { label: 'Cabinet', icon: Archive, className: 'bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-400' },
-  shelf: { label: 'Shelf', icon: Layers, className: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-950 dark:text-cyan-400' },
-  bench: { label: 'Bench', icon: Wrench, className: 'bg-pink-100 text-pink-700 dark:bg-pink-950 dark:text-pink-400' },
-  drawer: { label: 'Drawer', icon: ArchiveRestore, className: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400' },
-  box: { label: 'Box', icon: Package, className: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400' },
-}
-
-const MOVEMENT_META: Record<RecentMovement['movement_type'], { label: string; className: string }> = {
-  in: { label: 'In', className: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400' },
-  out: { label: 'Out', className: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400' },
-  adjustment: { label: 'Adjustment', className: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400' },
-}
-
-function typeMeta(type: string) {
-  return TYPE_META[type] || TYPE_META.box
-}
-
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString(undefined, { day: '2-digit', month: '2-digit', year: 'numeric' })
-}
-
-interface ZoneFormData {
-  storage_location: {
-    name: string
-    location_type: string
-    code: string
-    parent_id: string
-  }
-}
-
-interface MoveRow {
-  partId: number
-  reference: string
-  name: string
-  quantity: number
-  max: number
-}
-
-interface MoveDialogState {
-  // 'fixed' when the destination came from a drop; 'select' for the bulk button.
-  mode: 'fixed' | 'select'
-  fromId: number
-  toId: number | null
-  rows: MoveRow[]
-}
+import { MoveStockDialog } from '@/components/storage-locations/move-stock-dialog'
+import { SubZoneGrid } from '@/components/storage-locations/sub-zone-grid'
+import type {
+  MoveDialogState, MoveRow, PartStorageEntry, StorageLocationsPageProps, ZoneFormData,
+} from '@/components/storage-locations/types'
+import { useZoneTree } from '@/components/storage-locations/use-zone-tree'
+import { ZoneComponentsTable } from '@/components/storage-locations/zone-components-table'
+import { ZoneFormDialog } from '@/components/storage-locations/zone-form-dialog'
+import { ZoneHistory } from '@/components/storage-locations/zone-history'
+import { typeMeta } from '@/components/storage-locations/zone-meta'
 
 export default function StorageLocationsIndex({ storage_locations, part_storages, recent_movements }: StorageLocationsPageProps) {
   const { canWrite } = usePermissions()
@@ -165,9 +57,6 @@ export default function StorageLocationsIndex({ storage_locations, part_storages
   // them: false shows the tree, true shows the selected zone's detail. Ignored
   // at lg+ where both panels are always visible.
   const [mobileDetail, setMobileDetail] = useState(false)
-  const [expanded, setExpanded] = useState<Set<number>>(
-    () => new Set(storage_locations.filter((z) => storage_locations.some((c) => c.parent_id === z.id)).map((z) => z.id))
-  )
   const [newOpen, setNewOpen] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
@@ -182,135 +71,16 @@ export default function StorageLocationsIndex({ storage_locations, part_storages
   const [draggingPartIds, setDraggingPartIds] = useState<number[] | null>(null)
   const [moveDialog, setMoveDialog] = useState<MoveDialogState | null>(null)
 
-  const byId = useMemo(() => new Map(storage_locations.map((z) => [z.id, z])), [storage_locations])
-
-  const childrenByParent = useMemo(() => {
-    const map = new Map<number | null, StorageLocationRecord[]>()
-    storage_locations.forEach((z) => {
-      const key = z.parent_id
-      if (!map.has(key)) map.set(key, [])
-      map.get(key)!.push(z)
-    })
-    map.forEach((list) => list.sort((a, b) => a.name.localeCompare(b.name)))
-    return map
-  }, [storage_locations])
-
-  const partStoragesByLocation = useMemo(() => {
-    const map = new Map<number, PartStorageEntry[]>()
-    part_storages.forEach((ps) => {
-      if (!map.has(ps.location_id)) map.set(ps.location_id, [])
-      map.get(ps.location_id)!.push(ps)
-    })
-    return map
-  }, [part_storages])
+  const tree = useZoneTree(storage_locations, part_storages, query)
+  const {
+    byId, childrenByParent, partStoragesByLocation, aggCounts, subtreeIds, pathOf,
+    visibleIds, treeRows, expanded, setExpanded, toggleExpand, expandAll, collapseAll,
+    parentOptions, allZoneOptions,
+  } = tree
 
   const roots = childrenByParent.get(null) || []
   const selected = selectedId != null ? byId.get(selectedId) : undefined
   const effectiveSelected = selected || roots[0]
-
-  function aggCounts(id: number): { refs: number; units: number } {
-    const direct = partStoragesByLocation.get(id) || []
-    let refs = direct.length
-    let units = direct.reduce((sum, ps) => sum + ps.quantity, 0)
-    for (const child of childrenByParent.get(id) || []) {
-      const agg = aggCounts(child.id)
-      refs += agg.refs
-      units += agg.units
-    }
-    return { refs, units }
-  }
-
-  function subtreeIds(id: number): number[] {
-    const ids = [id]
-    for (const child of childrenByParent.get(id) || []) {
-      ids.push(...subtreeIds(child.id))
-    }
-    return ids
-  }
-
-  function pathOf(id: number): StorageLocationRecord[] {
-    const path: StorageLocationRecord[] = []
-    let current = byId.get(id)
-    while (current) {
-      path.unshift(current)
-      current = current.parent_id != null ? byId.get(current.parent_id) : undefined
-    }
-    return path
-  }
-
-  const visibleIds = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    if (!q) return null
-    const matches = new Set<number>()
-    storage_locations.forEach((z) => {
-      if (z.name.toLowerCase().includes(q) || (z.code || '').toLowerCase().includes(q)) {
-        let current: StorageLocationRecord | undefined = z
-        while (current) {
-          matches.add(current.id)
-          current = current.parent_id != null ? byId.get(current.parent_id) : undefined
-        }
-      }
-    })
-    return matches
-  }, [query, storage_locations, byId])
-
-  interface TreeRow {
-    location: StorageLocationRecord
-    depth: number
-    hasChildren: boolean
-    refCount: number
-  }
-
-  const treeRows = useMemo(() => {
-    const rows: TreeRow[] = []
-    const walk = (parentId: number | null, depth: number) => {
-      const kids = (childrenByParent.get(parentId) || []).filter((z) => !visibleIds || visibleIds.has(z.id))
-      kids.forEach((z) => {
-        const hasChildren = (childrenByParent.get(z.id) || []).length > 0
-        rows.push({ location: z, depth, hasChildren, refCount: aggCounts(z.id).refs })
-        const isExpanded = visibleIds ? true : expanded.has(z.id)
-        if (hasChildren && isExpanded) walk(z.id, depth + 1)
-      })
-    }
-    walk(null, 0)
-    return rows
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [childrenByParent, visibleIds, expanded, partStoragesByLocation])
-
-  function toggleExpand(id: number) {
-    setExpanded((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) {
-        next.delete(id)
-      } else {
-        next.add(id)
-      }
-      return next
-    })
-  }
-
-  function expandAll() {
-    setExpanded(new Set(storage_locations.filter((z) => (childrenByParent.get(z.id) || []).length > 0).map((z) => z.id)))
-  }
-
-  function collapseAll() {
-    setExpanded(new Set())
-  }
-
-  function parentOptions(excludeId?: number) {
-    const excluded = excludeId != null ? new Set(subtreeIds(excludeId)) : new Set<number>()
-    const options: { id: number; label: string }[] = []
-    const walk = (parentId: number | null, depth: number) => {
-      (childrenByParent.get(parentId) || []).forEach((z) => {
-        if (!excluded.has(z.id)) {
-          options.push({ id: z.id, label: `${'— '.repeat(depth)}${z.name}` })
-          walk(z.id, depth + 1)
-        }
-      })
-    }
-    walk(null, 0)
-    return options
-  }
 
   const newForm = useForm<ZoneFormData>({
     storage_location: { name: '', location_type: 'box', code: '', parent_id: '' },
@@ -402,18 +172,6 @@ export default function StorageLocationsIndex({ storage_locations, part_storages
     setSelectedPartIds(new Set())
   }, [effectiveSelected?.id])
 
-  // Flat, indented list of every zone (for the bulk "move to" picker).
-  function allZoneOptions() {
-    const options: { id: number; label: string }[] = []
-    const walk = (parentId: number | null, depth: number) => {
-      (childrenByParent.get(parentId) || []).forEach((z) => {
-        options.push({ id: z.id, label: `${'— '.repeat(depth)}${z.name}` })
-        walk(z.id, depth + 1)
-      })
-    }
-    walk(null, 0)
-    return options
-  }
 
   // Build editable move rows for the given parts, sourced from the zone they
   // currently live in (their full on-hand quantity is the max and the default).
@@ -440,11 +198,6 @@ export default function StorageLocationsIndex({ storage_locations, part_storages
     setMoveDialog({ mode: 'select', fromId: effectiveSelected.id, toId: null, rows })
   }
 
-  function setMoveRowQuantity(partId: number, quantity: number) {
-    setMoveDialog((prev) => (prev
-      ? { ...prev, rows: prev.rows.map((r) => (r.partId === partId ? { ...r, quantity } : r)) }
-      : prev))
-  }
 
   const moveDialogValid =
     moveDialog != null &&
@@ -487,6 +240,17 @@ export default function StorageLocationsIndex({ storage_locations, part_storages
     })
   }
 
+  const newZoneDialog = (
+    <ZoneFormDialog
+      mode="new"
+      open={newOpen}
+      onOpenChange={setNewOpen}
+      form={newForm}
+      onSubmit={submitNew}
+      parentOptions={parentOptions()}
+    />
+  )
+
   if (storage_locations.length === 0) {
     return (
       <AppLayout
@@ -513,7 +277,7 @@ export default function StorageLocationsIndex({ storage_locations, part_storages
             </CardContent>
           </Card>
         </div>
-        {NewZoneDialog()}
+        {newZoneDialog}
       </AppLayout>
     )
   }
@@ -539,93 +303,6 @@ export default function StorageLocationsIndex({ storage_locations, part_storages
         { label: 'Depth', value: `L${path.length}` },
       ]
     : []
-
-  function NewZoneDialog() {
-    return (
-      <Dialog open={newOpen} onOpenChange={setNewOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>New storage zone</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={submitNew} className="flex flex-col gap-4">
-            <Field>
-              <FieldLabel>
-                <Label>Zone name</Label>
-              </FieldLabel>
-              <FieldContent>
-                <Input
-                  placeholder="e.g. Box B2-T06"
-                  value={newForm.data.storage_location.name}
-                  onChange={(e) => newForm.setData('storage_location', { ...newForm.data.storage_location, name: e.target.value })}
-                />
-              </FieldContent>
-              {newForm.errors['storage_location.name'] && <FieldError>{newForm.errors['storage_location.name']}</FieldError>}
-            </Field>
-            <div className="grid grid-cols-2 gap-4">
-              <Field>
-                <FieldLabel>
-                  <Label>Type</Label>
-                </FieldLabel>
-                <FieldContent>
-                  <Select
-                    value={newForm.data.storage_location.location_type}
-                    onValueChange={(value) => newForm.setData('storage_location', { ...newForm.data.storage_location, location_type: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {LOCATION_TYPES.map((t) => (
-                        <SelectItem key={t} value={t}>{typeMeta(t).label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </FieldContent>
-              </Field>
-              <Field>
-                <FieldLabel>
-                  <Label>Parent zone</Label>
-                </FieldLabel>
-                <FieldContent>
-                  <Select
-                    value={newForm.data.storage_location.parent_id || 'none'}
-                    onValueChange={(value) => newForm.setData('storage_location', { ...newForm.data.storage_location, parent_id: value === 'none' ? '' : value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">— Root (none) —</SelectItem>
-                      {parentOptions().map((o) => (
-                        <SelectItem key={o.id} value={String(o.id)}>{o.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </FieldContent>
-              </Field>
-            </div>
-            <Field>
-              <FieldLabel>
-                <Label>Code <span className="font-normal text-muted-foreground">(optional)</span></Label>
-              </FieldLabel>
-              <FieldContent>
-                <Input
-                  placeholder="e.g. B2-T06"
-                  value={newForm.data.storage_location.code}
-                  onChange={(e) => newForm.setData('storage_location', { ...newForm.data.storage_location, code: e.target.value })}
-                />
-              </FieldContent>
-              {newForm.errors['storage_location.code'] && <FieldError>{newForm.errors['storage_location.code']}</FieldError>}
-            </Field>
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setNewOpen(false)}>Cancel</Button>
-              <Button type="submit" disabled={newForm.processing}>Create zone</Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-    )
-  }
 
   return (
     <AppLayout>
@@ -838,263 +515,42 @@ export default function StorageLocationsIndex({ storage_locations, part_storages
               </div>
 
               {/* Sub-zones */}
-              <div>
-                <div className="mb-2 flex items-center justify-between">
-                  <h2 className="text-sm font-semibold">
-                    Sub-zones <span className="font-normal text-muted-foreground">· {selChildren.length}</span>
-                  </h2>
-                  {canWrite && (
-                    <Button variant="ghost" size="sm" className="text-xs text-muted-foreground" onClick={() => openNewDialog(effectiveSelected.id)}>
-                      <Plus className="size-3.5" />
-                      Add here
-                    </Button>
-                  )}
-                </div>
-                {selChildren.length > 0 ? (
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    {selChildren.map((z) => {
-                      const meta = typeMeta(z.location_type)
-                      const agg = aggCounts(z.id)
-                      const childCount = (childrenByParent.get(z.id) || []).length
-                      return (
-                        <Card key={z.id} className="cursor-pointer py-3 transition-colors hover:border-primary" onClick={() => setSelectedId(z.id)}>
-                          <CardContent className="flex items-center gap-3 px-4">
-                            <div className={`flex size-9 shrink-0 items-center justify-center rounded-lg ${meta.className}`}>
-                              <meta.icon className="size-4.5" />
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <div className="truncate text-sm font-semibold">{z.name}</div>
-                              <div className="text-xs text-muted-foreground">
-                                {meta.label}
-                                {childCount > 0 && ` · ${childCount} sub-zone${childCount > 1 ? 's' : ''}`}
-                                {` · ${agg.refs} ref${agg.refs !== 1 ? 's' : ''}`}
-                              </div>
-                            </div>
-                            <ArrowUpRight className="size-4 shrink-0 text-muted-foreground" />
-                          </CardContent>
-                        </Card>
-                      )
-                    })}
-                  </div>
-                ) : (
-                  <div className="rounded-lg border border-dashed p-5 text-center text-sm text-muted-foreground">
-                    This zone has no sub-zone. It's a final storage location.
-                  </div>
-                )}
-              </div>
+              <SubZoneGrid
+                subZones={selChildren}
+                tree={tree}
+                onSelect={setSelectedId}
+                onAddHere={() => openNewDialog(effectiveSelected.id)}
+              />
 
               {/* Components stored here */}
-              <div>
-                <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                  <h2 className="text-sm font-semibold">
-                    Components stored here <span className="font-normal text-muted-foreground">· {selDirect.length}</span>
-                  </h2>
-                  {canWrite && selDirect.length > 0 && (
-                    selectedPartIds.size > 0 ? (
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-xs text-muted-foreground">{selectedPartIds.size} selected</span>
-                        <Button size="sm" variant="outline" onClick={openBulkMove}>
-                          <ArrowRightLeft className="size-3.5" />
-                          Move to…
-                        </Button>
-                        <Button size="sm" variant="ghost" className="text-muted-foreground" onClick={() => setSelectedPartIds(new Set())}>
-                          Clear
-                        </Button>
-                      </div>
-                    ) : (
-                      <span className="hidden text-xs text-muted-foreground lg:inline">Drag a row onto a zone, or select to move in bulk</span>
-                    )
-                  )}
-                </div>
-                {selDirect.length > 0 ? (
-                  <Card className="gap-0 py-0">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          {canWrite && (
-                            <TableHead className="w-9">
-                              <Checkbox
-                                aria-label="Select all components"
-                                checked={selDirect.every((ps) => selectedPartIds.has(ps.part.id))}
-                                onCheckedChange={(checked) =>
-                                  setSelectedPartIds(checked === true ? new Set(selDirect.map((ps) => ps.part.id)) : new Set())
-                                }
-                              />
-                            </TableHead>
-                          )}
-                          <TableHead>Reference</TableHead>
-                          <TableHead>Name</TableHead>
-                          <TableHead>Package</TableHead>
-                          <TableHead className="text-right">Stock</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {selDirect.map((ps) => {
-                          const checked = selectedPartIds.has(ps.part.id)
-                          const dragging = draggingPartIds?.includes(ps.part.id) ?? false
-                          return (
-                            <TableRow
-                              key={ps.part.id}
-                              data-state={checked ? 'selected' : undefined}
-                              draggable={canWrite}
-                              onDragStart={canWrite ? (e) => {
-                                startComponentDrag(ps.part.id)
-                                e.dataTransfer.effectAllowed = 'move'
-                                e.dataTransfer.setData('text/plain', ps.part.reference)
-                              } : undefined}
-                              onDragEnd={endComponentDrag}
-                              className={`${canWrite ? 'cursor-grab' : ''} ${dragging ? 'opacity-50' : ''}`}
-                            >
-                              {canWrite && (
-                                <TableCell className="w-9">
-                                  <div className="flex items-center gap-1">
-                                    <GripVertical className="size-3.5 shrink-0 text-muted-foreground/50" />
-                                    <Checkbox
-                                      aria-label={`Select ${ps.part.reference}`}
-                                      checked={checked}
-                                      onCheckedChange={() => toggleSelectPart(ps.part.id)}
-                                    />
-                                  </div>
-                                </TableCell>
-                              )}
-                              <TableCell className="font-mono text-sm font-semibold">{ps.part.reference}</TableCell>
-                              <TableCell className="text-sm text-muted-foreground">{ps.part.name}</TableCell>
-                              <TableCell>
-                                {ps.part.package_type && (
-                                  <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">{ps.part.package_type}</span>
-                                )}
-                              </TableCell>
-                              <TableCell className="text-right font-mono font-semibold">{ps.quantity}</TableCell>
-                            </TableRow>
-                          )
-                        })}
-                      </TableBody>
-                    </Table>
-                  </Card>
-                ) : (
-                  <div className="rounded-lg border border-dashed p-5 text-center text-sm text-muted-foreground">
-                    No component directly in this zone — they're stored in the sub-zones above.
-                  </div>
-                )}
-              </div>
+              <ZoneComponentsTable
+                entries={selDirect}
+                selectedPartIds={selectedPartIds}
+                onSelectionChange={setSelectedPartIds}
+                onToggle={toggleSelectPart}
+                draggingPartIds={draggingPartIds}
+                onDragStart={startComponentDrag}
+                onDragEnd={endComponentDrag}
+                onBulkMove={openBulkMove}
+              />
 
               {/* Zone movement history */}
-              <div>
-                <div className="mb-2 flex items-center justify-between">
-                  <h2 className="text-sm font-semibold">
-                    Zone history <span className="font-normal text-muted-foreground">· subtree included</span>
-                  </h2>
-                </div>
-                {zoneHistory.length > 0 ? (
-                  <Card className="gap-0 py-0 divide-y">
-                    {zoneHistory.map((m, i) => (
-                      <div key={i} className="flex items-center gap-3 px-4 py-2.5 text-sm">
-                        <Badge className={MOVEMENT_META[m.movement_type].className} variant="outline">
-                          {MOVEMENT_META[m.movement_type].label}
-                        </Badge>
-                        <span className="shrink-0 font-mono font-semibold">{m.part_reference}</span>
-                        <span className="min-w-0 flex-1 truncate text-muted-foreground">{m.reason}</span>
-                        <span className="shrink-0 whitespace-nowrap text-xs text-muted-foreground">{formatDate(m.created_at)}</span>
-                        <span className="w-12 shrink-0 text-right font-mono font-semibold">
-                          {m.quantity_delta > 0 ? `+${m.quantity_delta}` : m.quantity_delta}
-                        </span>
-                      </div>
-                    ))}
-                  </Card>
-                ) : (
-                  <div className="rounded-lg border border-dashed p-5 text-center text-sm text-muted-foreground">
-                    No movement recorded for this zone yet.
-                  </div>
-                )}
-              </div>
+              <ZoneHistory movements={zoneHistory} />
             </div>
           )}
         </div>
       </div>
 
-      {NewZoneDialog()}
+      {newZoneDialog}
 
-      {/* Edit zone dialog */}
-      <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit zone</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={submitEdit} className="flex flex-col gap-4">
-            <Field>
-              <FieldLabel>
-                <Label>Zone name</Label>
-              </FieldLabel>
-              <FieldContent>
-                <Input
-                  value={editForm.data.storage_location.name}
-                  onChange={(e) => editForm.setData('storage_location', { ...editForm.data.storage_location, name: e.target.value })}
-                />
-              </FieldContent>
-              {editForm.errors['storage_location.name'] && <FieldError>{editForm.errors['storage_location.name']}</FieldError>}
-            </Field>
-            <div className="grid grid-cols-2 gap-4">
-              <Field>
-                <FieldLabel>
-                  <Label>Type</Label>
-                </FieldLabel>
-                <FieldContent>
-                  <Select
-                    value={editForm.data.storage_location.location_type}
-                    onValueChange={(value) => editForm.setData('storage_location', { ...editForm.data.storage_location, location_type: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {LOCATION_TYPES.map((t) => (
-                        <SelectItem key={t} value={t}>{typeMeta(t).label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </FieldContent>
-              </Field>
-              <Field>
-                <FieldLabel>
-                  <Label>Parent zone <span className="font-normal text-muted-foreground">(move)</span></Label>
-                </FieldLabel>
-                <FieldContent>
-                  <Select
-                    value={editForm.data.storage_location.parent_id || 'none'}
-                    onValueChange={(value) => editForm.setData('storage_location', { ...editForm.data.storage_location, parent_id: value === 'none' ? '' : value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">— Root (none) —</SelectItem>
-                      {parentOptions(effectiveSelected?.id).map((o) => (
-                        <SelectItem key={o.id} value={String(o.id)}>{o.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </FieldContent>
-              </Field>
-            </div>
-            <Field>
-              <FieldLabel>
-                <Label>Code <span className="font-normal text-muted-foreground">(optional)</span></Label>
-              </FieldLabel>
-              <FieldContent>
-                <Input
-                  value={editForm.data.storage_location.code}
-                  onChange={(e) => editForm.setData('storage_location', { ...editForm.data.storage_location, code: e.target.value })}
-                />
-              </FieldContent>
-              {editForm.errors['storage_location.code'] && <FieldError>{editForm.errors['storage_location.code']}</FieldError>}
-            </Field>
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>
-              <Button type="submit" disabled={editForm.processing}>Save</Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+      <ZoneFormDialog
+        mode="edit"
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        form={editForm}
+        onSubmit={submitEdit}
+        parentOptions={parentOptions(effectiveSelected?.id)}
+      />
 
       {/* Delete confirmation */}
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
@@ -1114,79 +570,14 @@ export default function StorageLocationsIndex({ storage_locations, part_storages
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Move components dialog */}
-      <Dialog open={moveDialog !== null} onOpenChange={(open) => !open && setMoveDialog(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              Move {moveDialog?.rows.length === 1 ? 'component' : `${moveDialog?.rows.length} components`}
-            </DialogTitle>
-          </DialogHeader>
-          {moveDialog && (
-            <div className="flex flex-col gap-4">
-              <Field>
-                <FieldLabel>
-                  <Label>Destination zone</Label>
-                </FieldLabel>
-                <FieldContent>
-                  {moveDialog.mode === 'select' ? (
-                    <Select
-                      value={moveDialog.toId != null ? String(moveDialog.toId) : ''}
-                      onValueChange={(value) => setMoveDialog((prev) => prev && { ...prev, toId: Number(value) })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Choose a zone…" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {allZoneOptions()
-                          .filter((o) => o.id !== moveDialog.fromId)
-                          .map((o) => (
-                            <SelectItem key={o.id} value={String(o.id)}>{o.label}</SelectItem>
-                          ))}
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <div className="rounded-md border bg-muted px-3 py-2 text-sm font-medium">
-                      {moveDialog.toId != null ? byId.get(moveDialog.toId)?.name : ''}
-                    </div>
-                  )}
-                </FieldContent>
-              </Field>
-
-              <div className="overflow-hidden rounded-lg border divide-y">
-                {moveDialog.rows.map((r) => (
-                  <div key={r.partId} className="flex items-center gap-3 px-3 py-2">
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate font-mono text-sm font-semibold">{r.reference}</div>
-                      <div className="truncate text-xs text-muted-foreground">{r.name}</div>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <Input
-                        type="number"
-                        min={1}
-                        max={r.max}
-                        value={r.quantity}
-                        onChange={(e) => setMoveRowQuantity(r.partId, Math.max(1, Math.min(r.max, Math.floor(Number(e.target.value) || 0))))}
-                        className="h-8 w-20 text-right font-mono"
-                        aria-label={`Quantity to move for ${r.reference}`}
-                      />
-                      <span className="w-14 text-xs text-muted-foreground">/ {r.max}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setMoveDialog(null)}>Cancel</Button>
-                <Button type="button" onClick={submitMove} disabled={!moveDialogValid}>
-                  <ArrowRightLeft className="size-4" />
-                  Move
-                </Button>
-              </DialogFooter>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+      <MoveStockDialog
+        moveDialog={moveDialog}
+        setMoveDialog={setMoveDialog}
+        zoneOptions={allZoneOptions()}
+        zoneName={(id) => byId.get(id)?.name}
+        valid={moveDialogValid}
+        onSubmit={submitMove}
+      />
     </AppLayout>
   )
 }

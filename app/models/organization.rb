@@ -135,28 +135,6 @@ class Organization < ApplicationRecord
     }
   end
 
-  # Methods - Address
-  def full_address
-    [
-      address_line1,
-      address_line2,
-      [ postcode, city ].compact.join(" "),
-      country
-    ].compact.reject(&:blank?).join(", ")
-  end
-
-  def has_complete_address?
-    address_line1.present? && city.present? && country.present?
-  end
-
-  def has_contact_info?
-    email.present? || phone.present?
-  end
-
-  def has_logo?
-    logo.attached?
-  end
-
   # Methods - Supplier catalog integration
   # Whether an external supplier catalog (Mouser, DigiKey, ...) can be queried
   # for this org.

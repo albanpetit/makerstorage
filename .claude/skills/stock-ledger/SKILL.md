@@ -16,7 +16,7 @@ Stock is the core asset of the app; a bug here silently corrupts inventory count
 ## Order lifecycle (credits stock exactly once)
 
 - Statuses: `pending → shipped → received` via `Order#advance!` (row-locked). `cancelled` is terminal and outside that sequence.
-- Reaching `received` calls `receive_into_stock!`: per line, one `in` movement per `OrderLineAllocation`, or the whole quantity to `part.storage_locations.first` when the line has no allocations; lines with neither are returned as `skipped`, never silently dropped.
+- Reaching `received` calls `receive_into_stock!`: per line, one `in` movement per `OrderLineAllocation`, or the whole quantity to `part.fallback_storage_location` (the first zone the part was stocked in) when the line has no allocations; lines with neither are returned as `skipped`, never silently dropped.
 - Allocations: empty, or summing **exactly** to `line.quantity`. Changing a line's quantity must clear or rebalance its split. Only editable (`pending`/`shipped`) orders may change lines or allocations.
 - **A received or cancelled order must never move again.** Enforced by `Order#status_transition_must_be_allowed` (terminal statuses; `received` only via `advance!`, which sets `@advancing`) and by `advance!` refusing any status outside `ADVANCE_SEQUENCE`. Don't bypass it with `update_column`/`update_all` on `status`; keep the regression tests in `test/models/order_test.rb` passing (cancelled can't advance, received can't be re-opened).
 

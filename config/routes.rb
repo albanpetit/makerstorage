@@ -7,7 +7,7 @@ Rails.application.routes.draw do
   match "rails/active_storage/*path", to: proc { [ 404, {}, [] ] }, via: :all, format: false
   get "files/:signed_id/*filename", to: "stored_files#show", as: :stored_file, format: false
 
-  devise_for :users, skip: [ :sessions, :passwords, :registrations ]
+  devise_for :users, skip: [ :sessions, :passwords, :registrations, :confirmations ]
   as :user do
     get "login", to: "users/sessions#new", as: :new_user_session
     post "login", to: "users/sessions#create", as: :user_session
@@ -18,6 +18,8 @@ Rails.application.routes.draw do
     post "forgot-password", to: "users/passwords#create", as: :user_password
     get "reset-password", to: "users/passwords#edit", as: :edit_user_password
     put "reset-password", to: "users/passwords#update", as: :update_user_password
+    get "confirm-email", to: "users/confirmations#show", as: :user_confirmation
+    post "confirm-email", to: "users/confirmations#create", as: :resend_user_confirmation
   end
 
   # Redirect to localhost from 127.0.0.1 to use same IP address with Vite server.

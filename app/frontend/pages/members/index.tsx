@@ -55,6 +55,8 @@ interface Member {
   role: Role
   active: boolean
   pending: boolean
+  // Unanswered for too long: no longer offered to the invitee until re-invited.
+  invitation_expired: boolean
   is_you: boolean
   joined_at: string
 }
@@ -238,8 +240,8 @@ export default function MembersIndex({ members }: MembersPageProps) {
                       <TableCell className="py-2.5">
                         {member.pending ? (
                           <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
-                            <span className="size-1.5 rounded-full bg-amber-500" />
-                            Invited
+                            <span className={`size-1.5 rounded-full ${member.invitation_expired ? 'bg-muted-foreground' : 'bg-amber-500'}`} />
+                            {member.invitation_expired ? 'Invitation expired' : 'Invited'}
                           </span>
                         ) : (
                           <span className={`inline-flex items-center gap-1.5 text-sm ${member.active ? '' : 'text-muted-foreground'}`}>

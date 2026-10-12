@@ -1,0 +1,128 @@
+import { FormEvent } from 'react'
+import type { InertiaFormProps } from '@inertiajs/react'
+
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Field, FieldContent, FieldError, FieldLabel } from '@/components/ui/field'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+
+import { LOCATION_TYPES, typeMeta } from './zone-meta'
+import type { ZoneFormData } from './types'
+
+interface ZoneFormDialogProps {
+  mode: 'new' | 'edit'
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  form: InertiaFormProps<ZoneFormData>
+  onSubmit: (e: FormEvent) => void
+  parentOptions: { id: number; label: string }[]
+}
+
+// Create or edit a storage zone (name, type, parent, code). In edit mode the
+// parent picker doubles as "move", and excludes the zone's own subtree.
+export function ZoneFormDialog({ mode, open, onOpenChange, form, onSubmit, parentOptions }: ZoneFormDialogProps) {
+  const isNew = mode === 'new'
+  const data = form.data.storage_location
+  const set = (patch: Partial<ZoneFormData['storage_location']>) =>
+    form.setData('storage_location', { ...data, ...patch })
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{isNew ? 'New storage zone' : 'Edit zone'}</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={onSubmit} className="flex flex-col gap-4">
+          <Field>
+            <FieldLabel>
+              <Label>Zone name</Label>
+            </FieldLabel>
+            <FieldContent>
+              <Input
+                placeholder={isNew ? 'e.g. Box B2-T06' : undefined}
+                value={data.name}
+                onChange={(e) => set({ name: e.target.value })}
+              />
+            </FieldContent>
+            {form.errors['storage_location.name'] && <FieldError>{form.errors['storage_location.name']}</FieldError>}
+          </Field>
+          <div className="grid grid-cols-2 gap-4">
+            <Field>
+              <FieldLabel>
+                <Label>Type</Label>
+              </FieldLabel>
+              <FieldContent>
+                <Select value={data.location_type} onValueChange={(value) => set({ location_type: value })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {LOCATION_TYPES.map((t) => (
+                      <SelectItem key={t} value={t}>{typeMeta(t).label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </FieldContent>
+            </Field>
+            <Field>
+              <FieldLabel>
+                {isNew ? (
+                  <Label>Parent zone</Label>
+                ) : (
+                  <Label>Parent zone <span className="font-normal text-muted-foreground">(move)</span></Label>
+                )}
+              </FieldLabel>
+              <FieldContent>
+                <Select
+                  value={data.parent_id || 'none'}
+                  onValueChange={(value) => set({ parent_id: value === 'none' ? '' : value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">— Root (none) —</SelectItem>
+                    {parentOptions.map((o) => (
+                      <SelectItem key={o.id} value={String(o.id)}>{o.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </FieldContent>
+            </Field>
+          </div>
+          <Field>
+            <FieldLabel>
+              <Label>Code <span className="font-normal text-muted-foreground">(optional)</span></Label>
+            </FieldLabel>
+            <FieldContent>
+              <Input
+                placeholder={isNew ? 'e.g. B2-T06' : undefined}
+                value={data.code}
+                onChange={(e) => set({ code: e.target.value })}
+              />
+            </FieldContent>
+            {form.errors['storage_location.code'] && <FieldError>{form.errors['storage_location.code']}</FieldError>}
+          </Field>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+            <Button type="submit" disabled={form.processing}>{isNew ? 'Create zone' : 'Save'}</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
+}

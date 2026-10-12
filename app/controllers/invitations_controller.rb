@@ -7,6 +7,7 @@
 class InvitationsController < ApplicationController
   include Auth
 
+  before_action :require_confirmed_email
   before_action :set_invitation
 
   def accept
@@ -21,6 +22,14 @@ class InvitationsController < ApplicationController
   end
 
   private
+
+  # An invitation is addressed to an email: until the user proves they own it,
+  # they might have signed up with someone else's address to intercept it.
+  def require_confirmed_email
+    return if current_user.can_answer_invitations?
+
+    redirect_to profile_path, alert: "Confirm your email address to answer invitations."
+  end
 
   def set_invitation
     @invitation = current_user.pending_invitations.includes(:organization).find(params[:id])

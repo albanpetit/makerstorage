@@ -126,6 +126,24 @@ class OrderTest < ActiveSupport::TestCase
     assert_equal 25, part.reload.total_quantity
   end
 
+  test "advance! credits an unsplit line to the zone the part was first stocked in" do
+    user = create_user
+    category = create_category(organization: @org)
+    # Created first (lower id), but the part only reaches it later.
+    drawer_a = create_storage_location(organization: @org, name: "Drawer A")
+    drawer_b = create_storage_location(organization: @org, name: "Drawer B")
+    part = create_part(organization: @org, category: category)
+    part.part_storages.create!(storage_location: drawer_b, quantity: 0)
+    part.part_storages.create!(storage_location: drawer_a, quantity: 0)
+
+    order = Order.create!(organization: @org, supplier: @supplier, status: "shipped")
+    OrderLine.create!(order: order, part: part, quantity: 30, unit_price: 1.0)
+    order.advance!(user: user)
+
+    assert_equal 30, PartStorage.find_by(part: part, storage_location: drawer_b).quantity
+    assert_equal 0, PartStorage.find_by(part: part, storage_location: drawer_a).quantity
+  end
+
   test "advance! to received looks storage zones up once, however many lines" do
     user = create_user
     category = create_category(organization: @org)
