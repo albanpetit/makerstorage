@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_12_120000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_12_150000) do
   create_table "active_storage_attachments", force: :cascade do |t|
     t.bigint "blob_id", null: false
     t.datetime "created_at", null: false
@@ -246,6 +246,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_12_120000) do
     t.string "match_type", default: "none", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.text "designators"
+    t.string "value"
+    t.string "footprint"
     t.index ["part_id"], name: "index_project_lines_on_part_id"
     t.index ["project_id"], name: "index_project_lines_on_project_id"
   end

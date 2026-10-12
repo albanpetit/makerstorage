@@ -9,7 +9,10 @@ class BomParserTest < ActiveSupport::TestCase
     CSV
 
     assert_equal 2, rows.size
-    assert_equal({ designation: "Resistor 10k", mpn: "RC0805-10K", sku: nil, quantity: 10 }, rows.first)
+    assert_equal(
+      { designation: "Resistor 10k", mpn: "RC0805-10K", sku: nil, value: nil, footprint: nil, designators: nil, quantity: 10 },
+      rows.first
+    )
   end
 
   test "sniffs a semicolon delimiter" do

@@ -40,8 +40,11 @@ interface ProjectLine {
   id: number
   raw_reference: string | null
   designation: string | null
+  value: string | null
+  footprint: string | null
+  designators: string | null
   quantity: number
-  match_type: 'mpn' | 'sku' | 'name' | 'manual' | 'none'
+  match_type: 'mpn' | 'sku' | 'supplier_sku' | 'value_footprint' | 'name' | 'manual' | 'none'
   in_stock: number
   shortfall: number
   available: boolean
@@ -80,6 +83,8 @@ const NONE = '__none__'
 const MATCH_LABELS: Record<ProjectLine['match_type'], string> = {
   mpn: 'by MPN',
   sku: 'by SKU',
+  supplier_sku: 'by supplier SKU',
+  value_footprint: 'by value + footprint',
   name: 'by name',
   manual: 'manual',
   none: 'no match',
@@ -212,6 +217,18 @@ export default function ProjectShow({ project, parts }: ProjectShowProps) {
                   <TableCell>
                     <div className="font-mono text-sm font-medium">{line.raw_reference || '—'}</div>
                     <div className="max-w-[220px] truncate text-xs text-muted-foreground">{line.designation}</div>
+                    {(line.footprint || (line.value && line.value !== line.designation)) && (
+                      <div className="max-w-[220px] truncate text-xs text-muted-foreground" title={line.footprint ?? undefined}>
+                        {[line.value !== line.designation ? line.value : null, line.footprint?.split(':').pop()]
+                          .filter(Boolean)
+                          .join(' · ')}
+                      </div>
+                    )}
+                    {line.designators && (
+                      <div className="max-w-[220px] truncate font-mono text-xs text-muted-foreground" title={line.designators}>
+                        {line.designators}
+                      </div>
+                    )}
                   </TableCell>
                   <TableCell>
                     {canWrite ? (

@@ -6,7 +6,7 @@ class ProjectLine < ApplicationRecord
   # Constants
   # How the line's part was resolved, surfaced in the review UI so the operator
   # can judge each proposed match. "none" = no inventory part found.
-  MATCH_TYPES = %w[mpn sku name manual none].freeze
+  MATCH_TYPES = %w[mpn sku supplier_sku value_footprint name manual none].freeze
 
   # Validations
   validates :quantity, numericality: { only_integer: true, greater_than: 0, less_than_or_equal_to: MAX_INTEGER }
