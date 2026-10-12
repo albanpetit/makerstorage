@@ -1,4 +1,5 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { router } from '@inertiajs/react'
 import { Upload } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -12,17 +13,23 @@ import {
 } from '@/components/ui/dialog'
 
 import { csrfToken, parseCsvPreview, type ParsedImportRow } from './csv'
-import type { Part } from './types'
 
 interface ImportPartsDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  parts: Part[]
+  // Every MPN/SKU already in the inventory, loaded when the dialog opens.
+  identifiers?: { mpns: string[]; skus: string[] }
 }
 
 // CSV import: previews the picked file client-side (new vs. updated rows),
 // then submits it as a plain multipart form to PartsController#import.
-export function ImportPartsDialog({ open, onOpenChange, parts }: ImportPartsDialogProps) {
+export function ImportPartsDialog({ open, onOpenChange, identifiers }: ImportPartsDialogProps) {
+  // The page only holds one page of parts, so the existing references are a
+  // lazy prop, fetched once the dialog opens.
+  useEffect(() => {
+    if (open) router.reload({ only: [ 'part_identifiers' ] })
+  }, [open])
+
   const [importRows, setImportRows] = useState<ParsedImportRow[] | null>(null)
   const [importError, setImportError] = useState('')
   const [importFileName, setImportFileName] = useState('')
@@ -50,10 +57,12 @@ export function ImportPartsDialog({ open, onOpenChange, parts }: ImportPartsDial
     reader.readAsText(file)
   }
 
-  const importNewCount = useMemo(() => {
-    if (!importRows) return 0
-    return importRows.filter((r) => !parts.some((p) => (r.mpn && p.mpn === r.mpn) || (r.sku && p.sku === r.sku))).length
-  }, [importRows, parts])
+  const isNewRow = useMemo(() => {
+    const mpns = new Set(identifiers?.mpns)
+    const skus = new Set(identifiers?.skus)
+    return (r: ParsedImportRow) => !((r.mpn && mpns.has(r.mpn)) || (r.sku && skus.has(r.sku)))
+  }, [identifiers])
+  const importNewCount = importRows ? importRows.filter(isNewRow).length : 0
   const importUpdateCount = importRows ? importRows.length - importNewCount : 0
 
   const closeImport = () => {
@@ -105,7 +114,7 @@ export function ImportPartsDialog({ open, onOpenChange, parts }: ImportPartsDial
               </div>
               <div className="max-h-40 space-y-1 overflow-y-auto rounded-md border p-2">
                 {importRows.slice(0, 8).map((r, i) => {
-                  const isNew = !parts.some((p) => (r.mpn && p.mpn === r.mpn) || (r.sku && p.sku === r.sku))
+                  const isNew = isNewRow(r)
                   return (
                     <div key={i} className="flex items-center gap-2 text-sm">
                       <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${

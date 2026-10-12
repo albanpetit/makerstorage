@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { router } from '@inertiajs/react'
+import { toast } from 'sonner'
 import {
   Move, Tag as TagIcon, Trash2, Layers, CircleDot, Tags, Truck, Download,
 } from 'lucide-react'
@@ -40,7 +41,10 @@ import type { Category, Part, StorageLocationOption, Supplier, Tag } from './typ
 
 interface BulkActionsProps {
   selected: number[]
-  selectedParts: Part[]
+  // Resolves the selected parts, fetching any not on the current page.
+  loadSelectedParts: () => Promise<Part[]>
+  // Whether every selected part is already loaded (no fetch needed).
+  selectionLoaded: boolean
   hiddenSelectedCount: number
   onClearSelection: () => void
   categories: Category[]
@@ -52,7 +56,7 @@ interface BulkActionsProps {
 // The dark bar shown while parts are selected, plus the edit + confirmation
 // dialogs behind each of its bulk actions (PartsController#bulk_*).
 export function BulkActions({
-  selected, selectedParts, hiddenSelectedCount, onClearSelection,
+  selected, loadSelectedParts, selectionLoaded, hiddenSelectedCount, onClearSelection,
   categories, suppliers, tags, storageLocations,
 }: BulkActionsProps) {
   const { canWrite, canAdminister } = usePermissions()
@@ -173,14 +177,29 @@ export function BulkActions({
       bulkVisitOptions(() => { setSupplierConfirmOpen(false); setSupplierOpen(false) }, () => setSupplierConfirmOpen(false)))
   }
 
+  const printSelectedLabels = () => {
+    // The print window must open inside the click handler; when parts still
+    // have to be fetched, open it now and fill it once they arrive.
+    const target = selectionLoaded ? undefined : window.open('', '_blank')
+    loadSelectedParts()
+      .then((parts) => printLabels(parts, target))
+      .catch(() => { target?.close(); toast.error('Could not load the selected parts.') })
+  }
+
+  const exportSelected = () => {
+    loadSelectedParts()
+      .then(exportCsv)
+      .catch(() => toast.error('Could not load the selected parts.'))
+  }
+
   const bulkActions = [
     { label: 'Move', icon: Move, action: openMove },
     { label: 'Category', icon: Layers, action: openCategory },
     { label: 'Status', icon: CircleDot, action: openStatus },
     { label: 'Tags', icon: Tags, action: openTags },
     { label: 'Supplier', icon: Truck, action: openSupplier },
-    { label: 'Labels', icon: TagIcon, action: () => printLabels(selectedParts) },
-    { label: 'Export', icon: Download, action: () => exportCsv(selectedParts) },
+    { label: 'Labels', icon: TagIcon, action: printSelectedLabels },
+    { label: 'Export', icon: Download, action: exportSelected },
     // Bulk delete is admin-gated server-side (PartsController#bulk_destroy) —
     // hidden here too so members/viewers don't hit a dead-end confirmation
     // dialog for an action the server will always reject.
