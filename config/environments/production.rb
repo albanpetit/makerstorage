@@ -70,6 +70,8 @@ Rails.application.configure do
     config.action_mailer.smtp_settings = smtp
   else
     config.action_mailer.perform_deliveries = false
+    # No mail can be sent, so there is nothing to confirm an address with.
+    config.x.email_verification = false
   end
 
   # Enable locale fallbacks for I18n (makes lookups for any locale fall back to

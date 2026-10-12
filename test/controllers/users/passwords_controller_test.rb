@@ -38,6 +38,26 @@ class Users::PasswordsControllerTest < ActionDispatch::IntegrationTest
     assert_match(/enter your email/i, flash[:alert])
   end
 
+  test "resetting the password through the mailed link confirms the address" do
+    user = create_user(confirmed_at: nil)
+    token = user.send_reset_password_instructions
+
+    put update_user_password_path, params: { user: { reset_password_token: token, password: "brand-new-pass1", password_confirmation: "brand-new-pass1" } }
+
+    assert user.reload.confirmed?
+  end
+
+  test "a password reset doesn't apply an email change still awaiting confirmation" do
+    user = create_user(email: "current@example.com")
+    user.update!(email: "pending@example.com")
+    token = user.send_reset_password_instructions
+
+    put update_user_password_path, params: { user: { reset_password_token: token, password: "brand-new-pass1", password_confirmation: "brand-new-pass1" } }
+
+    assert_equal "current@example.com", user.reload.email
+    assert_equal "pending@example.com", user.unconfirmed_email
+  end
+
   test "reset requests are throttled per IP" do
     Users::PasswordsController::RATE_LIMIT.times { post user_password_path, params: { user: { email: "nobody@example.com" } } }
 

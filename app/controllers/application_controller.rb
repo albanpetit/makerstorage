@@ -22,7 +22,7 @@ class ApplicationController < ActionController::Base
         is_organization_admin: current_organization ? current_user.admin_of?(current_organization) : false,
         is_organization_writer: current_organization ? current_user.writer_of?(current_organization) : false,
         organization_role: current_organization ? current_user.role_in(current_organization) : nil,
-        pending_invitations_count: current_user.pending_invitations.count
+        pending_invitations_count: current_user.can_answer_invitations? ? current_user.pending_invitations.count : 0
       }
     end
   }

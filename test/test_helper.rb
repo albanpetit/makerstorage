@@ -40,6 +40,16 @@ module ActiveSupport
       singleton.send(:define_method, name, original)
     end
 
+    # Runs the block with email verification (config.x.email_verification) on
+    # or off, as an instance with or without SMTP would.
+    def with_email_verification(enabled)
+      original = Rails.configuration.x.email_verification
+      Rails.configuration.x.email_verification = enabled
+      yield
+    ensure
+      Rails.configuration.x.email_verification = original
+    end
+
     def create_organization(name: "Test Org #{SecureRandom.hex(4)}", **attrs)
       Organization.create!(name: name, **attrs)
     end
@@ -69,8 +79,10 @@ module ActiveSupport
       Supplier.create!(organization: organization, name: name, **attrs)
     end
 
+    # Confirmed by default, like any account that has answered its confirmation
+    # mail; pass confirmed_at: nil for one that hasn't.
     def create_user(email: "user_#{SecureRandom.hex(4)}@example.com", **attrs)
-      User.create!(firstname: "Test", lastname: "User", email: email, password: "password123", **attrs)
+      User.create!(firstname: "Test", lastname: "User", email: email, password: "password123", confirmed_at: Time.current, **attrs)
     end
 
     def create_project(organization:, name: "Project #{SecureRandom.hex(4)}", **attrs)

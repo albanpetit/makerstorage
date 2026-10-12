@@ -5,9 +5,11 @@ one:
   encrypted_password: <%= Devise::Encryptor.digest(User, "password123") %>
   firstname: Fixture
   lastname: One
+  confirmed_at: <%= Time.current %>
 
 two:
   email: fixture_two@example.com
   encrypted_password: <%= Devise::Encryptor.digest(User, "password123") %>
   firstname: Fixture
   lastname: Two
+  confirmed_at: <%= Time.current %>

@@ -106,10 +106,18 @@ The app is then served at `http://localhost:3000`.
 
 ### Email (SMTP)
 
-Makerstorage sends transactional email (password resets and account-security
-notices). Point it at any SMTP provider with the environment variables below.
-Without `SMTP_ADDRESS` the app still runs, but password-reset emails aren't
-delivered — mail is simply skipped.
+Makerstorage sends transactional email (password resets, email confirmations
+and account-security notices). Point it at any SMTP provider with the
+environment variables below. Without `SMTP_ADDRESS` the app still runs, but
+password-reset emails aren't delivered — mail is simply skipped.
+
+With SMTP configured, email addresses are verified: a new account signs in
+straight away but must confirm its address (from the mailed link, or by
+resetting its password) before it sees or answers organization invitations,
+and a changed sign-in email only applies once confirmed. Without SMTP there is
+no way to confirm, so accounts start out confirmed and email changes apply at
+once. Accounts that existed before verification was introduced count as
+confirmed.
 
 | Variable              | Default                                | Description                                                              |
 | --------------------- | -------------------------------------- | ------------------------------------------------------------------------ |
