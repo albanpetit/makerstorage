@@ -11,6 +11,7 @@ class StockMovementsController < ApplicationController
 
   PAGE_SIZE = 25
   MOVEMENT_TYPES = %w[in out adjustment].freeze
+  EXPORT_BATCH_SIZE = 500
 
   def index
     type = filter_type
@@ -39,22 +40,22 @@ class StockMovementsController < ApplicationController
   end
 
   # Full-ledger CSV download. Paginated views only ever hold one page, so the
-  # export is a dedicated endpoint that streams every movement matching the
-  # active type filter (with the same running balance shown in the table).
+  # export is a dedicated endpoint covering every movement matching the active
+  # type filter (with the same running balance shown in the table). The ledger
+  # only grows, so movements are loaded EXPORT_BATCH_SIZE at a time rather than
+  # all instantiated at once.
   def export
-    movements = filtered_scope(filter_type)
-      .includes(:storage_location, :user, part: :category)
-      .order(created_at: :desc, id: :desc)
-      .to_a
+    csv = +CSV.generate_line([ "Date", "Type", "Reference", "Reason", "Location", "User", "Quantity", "Stock After" ])
 
-    # The export holds the whole (filtered) ledger, so compute every balance in
-    # one pass rather than listing each id in the query.
-    balances = running_balances(nil)
+    export_balances(filter_type).each_slice(EXPORT_BATCH_SIZE) do |rows|
+      movements = current_organization.stock_movements
+        .includes(:storage_location, :user, :part)
+        .where(id: rows.map(&:first))
+        .index_by(&:id)
 
-    csv = CSV.generate do |out|
-      out << [ "Date", "Type", "Reference", "Reason", "Location", "User", "Quantity", "Stock After" ]
-      movements.each do |movement|
-        out << [
+      rows.each do |id, balance|
+        movement = movements.fetch(id)
+        csv << CSV.generate_line([
           movement.created_at.iso8601,
           movement.movement_type,
           csv_text(movement.part.reference),
@@ -62,8 +63,8 @@ class StockMovementsController < ApplicationController
           csv_text(movement.storage_location.name),
           csv_text(movement.user ? "#{movement.user.firstname} #{movement.user.lastname}".strip : nil),
           movement.quantity_delta,
-          balances[movement.id]
-        ]
+          balance
+        ])
       end
     end
 
@@ -138,32 +139,42 @@ class StockMovementsController < ApplicationController
     }
   end
 
-  # Running stock level after each of the given movements (every movement of
-  # the org when +ids+ is nil). The window sum runs over the org's *entire*
-  # ledger per (part, location) so the balance reflects all movement types even
-  # when the view is filtered or paginated; only the requested rows are
-  # returned. Ordering by (created_at, id) makes the cumulative sum
-  # deterministic for movements sharing a timestamp.
+  # Running stock level after each movement of the org. The window sum runs
+  # over the org's *entire* ledger per (part, location) so the balance reflects
+  # all movement types even when the view is filtered or paginated; callers
+  # narrow the outer query to the rows they need. Ordering by (created_at, id)
+  # makes the cumulative sum deterministic for movements sharing a timestamp.
+  RUNNING_BALANCES_SQL = <<~SQL.squish
+    SELECT id, balance_after FROM (
+      SELECT id, movement_type, created_at,
+             SUM(quantity_delta) OVER (
+               PARTITION BY part_id, storage_location_id
+               ORDER BY created_at, id
+             ) AS balance_after
+      FROM stock_movements
+      WHERE organization_id = :org
+    ) AS running
+  SQL
+
+  # id => balance_after for the given movement ids.
   def running_balances(ids)
-    return {} if ids&.empty?
+    return {} if ids.empty?
 
-    sql = <<~SQL.squish
-      SELECT id, balance_after FROM (
-        SELECT id,
-               SUM(quantity_delta) OVER (
-                 PARTITION BY part_id, storage_location_id
-                 ORDER BY created_at, id
-               ) AS balance_after
-        FROM stock_movements
-        WHERE organization_id = :org
-      ) AS running
-    SQL
-    sql += " WHERE id IN (:ids)" if ids
+    StockMovement.connection.select_rows(
+      StockMovement.sanitize_sql([ "#{RUNNING_BALANCES_SQL} WHERE id IN (:ids)", org: current_organization.id, ids: ids ])
+    ).to_h
+  end
 
-    rows = StockMovement.connection.select_all(
-      StockMovement.sanitize_sql([ sql, org: current_organization.id, ids: ids ])
+  # [id, balance_after] for every movement of +type+ (all when nil), newest
+  # first: the export's rows, as plain pairs rather than records.
+  def export_balances(type)
+    sql = RUNNING_BALANCES_SQL.dup
+    sql << " WHERE movement_type = :type" if type
+    sql << " ORDER BY created_at DESC, id DESC"
+
+    StockMovement.connection.select_rows(
+      StockMovement.sanitize_sql([ sql, org: current_organization.id, type: type ])
     )
-    rows.each_with_object({}) { |row, result| result[row["id"]] = row["balance_after"] }
   end
 
   def serialize_movement(movement, balance_after)
