@@ -1,0 +1,99 @@
+import { useEffect, useRef, useState } from 'react'
+import { router } from '@inertiajs/react'
+
+import type { PartListFacets, PartListFilters } from './types'
+
+type FacetKey = 'status' | 'package' | 'footprint' | 'supplier'
+
+// Query string for a list visit: empty filters, the default sort and the
+// first page are left out so a plain /parts URL stays plain.
+function toParams(filters: PartListFilters, page: number) {
+  return {
+    ...(filters.search ? { search: filters.search } : {}),
+    ...(filters.category != null ? { category: filters.category } : {}),
+    ...(filters.status.length ? { status: filters.status } : {}),
+    ...(filters.package.length ? { package: filters.package } : {}),
+    ...(filters.footprint.length ? { footprint: filters.footprint } : {}),
+    ...(filters.supplier.length ? { supplier: filters.supplier } : {}),
+    ...(filters.sort !== 'ref' ? { sort: filters.sort } : {}),
+    ...(page > 1 ? { page } : {}),
+  }
+}
+
+// The inventory list's search, category, facet and sort state. Filtering runs
+// on the server (PartsIndexQuery): every change is a visit to /parts with the
+// new query string, which also returns to the first page. The search box
+// waits for a pause in typing before it visits.
+export function usePartFilters(filters: PartListFilters, facets: PartListFacets) {
+  const [query, setQuery] = useState(filters.search)
+  const queryRef = useRef(query)
+  queryRef.current = query
+  // The search last sent to the server, so the debounce doesn't repeat a
+  // visit another control already made.
+  const sentSearch = useRef(filters.search)
+
+  const visit = (changes: Partial<PartListFilters>, page = 1, replace = false) => {
+    const next = { ...filters, search: queryRef.current.trim(), ...changes }
+    sentSearch.current = next.search
+    router.get('/parts', toParams(next, page), { preserveState: true, preserveScroll: true, replace })
+  }
+
+  useEffect(() => {
+    if (query.trim() === sentSearch.current) return
+    const timer = setTimeout(() => visit({ search: query.trim() }, 1, true), 300)
+    return () => clearTimeout(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query])
+
+  const toggleFacet = (key: FacetKey, value: string) => {
+    const list = filters[key]
+    visit({ [key]: list.includes(value) ? list.filter((v) => v !== value) : [ ...list, value ] })
+  }
+
+  const setCategory = (category: number | null) => visit({ category })
+  const setSort = (sort: PartListFilters['sort']) => visit({ sort })
+  const goToPage = (page: number) => visit({}, page)
+
+  const clearSearch = () => {
+    setQuery('')
+    queryRef.current = ''
+    visit({ search: '' })
+  }
+
+  const clearAllFilters = () => {
+    setQuery('')
+    queryRef.current = ''
+    visit({ search: '', category: null, status: [], package: [], footprint: [], supplier: [] })
+  }
+
+  const facetLabel = (key: FacetKey, value: string) =>
+    facets[key].find((option) => option.value === value)?.label ?? value
+
+  const activePills: { key: string; label: string; remove: () => void }[] = []
+  if (filters.category != null) {
+    const chip = facets.categories.find((c) => c.id === filters.category)
+    activePills.push({ key: 'cat', label: `Category: ${chip?.name || filters.category}`, remove: () => setCategory(null) })
+  }
+  if (filters.search) {
+    activePills.push({ key: 'q', label: `Search: "${filters.search}"`, remove: clearSearch })
+  }
+  filters.status.forEach((v) => activePills.push({ key: `status-${v}`, label: facetLabel('status', v), remove: () => toggleFacet('status', v) }))
+  filters.package.forEach((v) => activePills.push({ key: `pkg-${v}`, label: `Package: ${v}`, remove: () => toggleFacet('package', v) }))
+  filters.footprint.forEach((v) => activePills.push({ key: `fp-${v}`, label: `Footprint: ${v}`, remove: () => toggleFacet('footprint', v) }))
+  filters.supplier.forEach((v) => activePills.push({ key: `sup-${v}`, label: v, remove: () => toggleFacet('supplier', v) }))
+
+  return {
+    filters,
+    facets,
+    query,
+    setQuery,
+    setCategory,
+    setSort,
+    toggleFacet,
+    goToPage,
+    activePills,
+    clearAllFilters,
+  }
+}
+
+export type PartFilters = ReturnType<typeof usePartFilters>

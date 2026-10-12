@@ -4,6 +4,8 @@ import { FormEvent } from 'react'
 import { AppLayout } from '@/layouts/app-layout'
 import { PageHeader } from '@/components/page-header'
 import { FlashMessages } from '@/components/flash-messages'
+import { MailWarning } from 'lucide-react'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
@@ -15,6 +17,9 @@ interface ProfileUser {
   firstname: string
   lastname: string
   email: string
+  email_confirmed: boolean
+  // A new sign-in email waiting for confirmation (the current one still applies).
+  unconfirmed_email: string | null
 }
 
 interface Invitation {
@@ -72,6 +77,31 @@ export default function Profile({ user, invitations }: PageProps) {
 
       <div className="mx-auto w-full min-w-0 max-w-[680px] space-y-6">
         <FlashMessages />
+
+        {/* Email confirmation still owed: invitations stay hidden until then */}
+        {(!user.email_confirmed || user.unconfirmed_email) && (
+          <Alert>
+            <MailWarning />
+            <AlertTitle>
+              {user.unconfirmed_email ? `Confirm ${user.unconfirmed_email}` : 'Confirm your email address'}
+            </AlertTitle>
+            <AlertDescription>
+              <p>
+                {user.unconfirmed_email
+                  ? `You'll keep signing in with ${user.email} until you open the link we sent to ${user.unconfirmed_email}.`
+                  : `Open the link we sent to ${user.email}. Invitations to join an organization appear here once your address is confirmed.`}
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-2"
+                onClick={() => router.post('/confirm-email', {}, { preserveScroll: true })}
+              >
+                Resend confirmation email
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
 
         {/* Pending organization invitations */}
         {invitations.length > 0 && (

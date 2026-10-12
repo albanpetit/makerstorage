@@ -134,6 +134,22 @@ class StockMovementsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "70", data[7]
   end
 
+  test "export lists every movement newest first with its running balance, in batches" do
+    user = create_user
+    org = user.organizations.first
+    location = create_storage_location(organization: org)
+    part = create_part(organization: org)
+    base = Time.current.change(usec: 0)
+    5.times { |i| StockMovement.create!(organization: org, part: part, storage_location: location, movement_type: "in", quantity_delta: i + 1, created_at: base + i.seconds) }
+
+    sign_in user
+    with_export_batch_size(2) { get export_stock_movements_path }
+
+    rows = CSV.parse(@response.body).drop(1)
+    assert_equal %w[5 4 3 2 1], rows.map { |row| row[6] }
+    assert_equal %w[15 10 6 3 1], rows.map { |row| row[7] }
+  end
+
   test "export neutralizes spreadsheet formulas in user-entered text" do
     user = create_user
     org = user.organizations.first
@@ -253,6 +269,16 @@ class StockMovementsControllerTest < ActionDispatch::IntegrationTest
   end
 
   private
+
+  def with_export_batch_size(size)
+    original = StockMovementsController::EXPORT_BATCH_SIZE
+    StockMovementsController.send(:remove_const, :EXPORT_BATCH_SIZE)
+    StockMovementsController.const_set(:EXPORT_BATCH_SIZE, size)
+    yield
+  ensure
+    StockMovementsController.send(:remove_const, :EXPORT_BATCH_SIZE)
+    StockMovementsController.const_set(:EXPORT_BATCH_SIZE, original)
+  end
 
   def inertia_props
     JSON.parse(@response.body[/data-page="app" type="application\/json"[^>]*>(.*?)<\/script>/m, 1])["props"]

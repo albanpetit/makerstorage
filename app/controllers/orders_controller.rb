@@ -320,7 +320,7 @@ class OrdersController < ApplicationController
   # minimal part (under an "Uncategorized" category) when none exists, and keeps
   # the Mouser supplier link's SKU/price in sync.
   def reconcile_imported_part(supplier, line)
-    part = existing_part_for(line)
+    part = existing_part_for(supplier, line)
     part ||= current_organization.parts.create!(
       category: import_category,
       name: (line.description.presence || line.mpn.presence || line.supplier_sku).to_s.slice(0, 255),
@@ -335,7 +335,9 @@ class OrdersController < ApplicationController
     part
   end
 
-  def existing_part_for(line)
+  # A supplier SKU only identifies a part at that supplier: another
+  # distributor's catalog can reuse the same string for something else.
+  def existing_part_for(supplier, line)
     if line.mpn.present?
       by_mpn = current_organization.parts.where("LOWER(mpn) = ?", line.mpn.downcase).first
       return by_mpn if by_mpn
@@ -343,7 +345,7 @@ class OrdersController < ApplicationController
     return nil if line.supplier_sku.blank?
 
     current_organization.parts.joins(:part_suppliers)
-      .find_by(part_suppliers: { supplier_sku: line.supplier_sku })
+      .find_by(part_suppliers: { supplier_id: supplier.id, supplier_sku: line.supplier_sku })
   end
 
   # Matched regardless of case, like category names are unique. A concurrent

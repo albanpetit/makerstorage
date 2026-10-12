@@ -1,0 +1,14 @@
+Confirm your email address
+
+Hello <%= @email %>,
+
+Confirm that this is your address to use it on Makerstorage. Organizations
+invite members by email, so invitations sent to this address only show up
+once it's confirmed. Open the link below:
+
+<%= user_confirmation_url(confirmation_token: @token) %>
+
+This link expires in <%= (Devise.confirm_within / 86_400).to_i %> days.
+
+If you didn't sign up or change your email on Makerstorage, you can safely
+ignore this email.

@@ -25,12 +25,14 @@ admin_user = User.find_or_create_by!(email: "admin@example.com") do |user|
   user.firstname = "Admin"
   user.lastname = "User"
   user.password = "password123"
+  user.confirmed_at = Time.current
 end
 
 test_user = User.find_or_create_by!(email: "test@example.com") do |user|
   user.firstname = "Test"
   user.lastname = "User"
   user.password = "password123"
+  user.confirmed_at = Time.current
 end
 
 puts "  Created #{User.count} users"

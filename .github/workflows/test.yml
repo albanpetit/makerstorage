@@ -71,11 +71,16 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v7
         with:
-          node-version: 24
+          node-version-file: .node-version
           cache: npm
 
       - name: Install JS dependencies
         run: npm ci
+
+      # Vite strips types without checking them, so a type error would otherwise
+      # build and ship.
+      - name: Type-check the frontend
+        run: npm run check
 
       # Build assets up front so the manifest exists before any controller test
       # renders a view. Relying on vite_ruby's on-demand autoBuild races under
@@ -113,7 +118,7 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v7
         with:
-          node-version: 24
+          node-version-file: .node-version
           cache: npm
 
       - name: Install JS dependencies

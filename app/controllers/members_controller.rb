@@ -36,6 +36,13 @@ class MembersController < ApplicationController
     end
 
     if (existing = current_organization.organization_memberships.find_by(user: user))
+      if existing.invitation_expired?
+        # Renew rather than refuse: the old invitation is no longer offered.
+        existing.update!(role: role, invited_by: current_user, invitation_sent_at: Time.current)
+        redirect_to members_path, notice: invitation_notice(user.email)
+        return
+      end
+
       state = existing.pending_invitation? ? "has already been invited to" : "is already a member of"
       redirect_to members_path, alert: "#{user.email} #{state} this organization."
       return
@@ -124,6 +131,7 @@ class MembersController < ApplicationController
       role: membership.role,
       active: membership.active,
       pending: membership.pending_invitation?,
+      invitation_expired: membership.invitation_expired?,
       is_you: user.id == current_user.id,
       joined_at: membership.created_at.iso8601
     }

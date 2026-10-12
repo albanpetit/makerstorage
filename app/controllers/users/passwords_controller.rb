@@ -42,6 +42,10 @@ class Users::PasswordsController < Devise::PasswordsController
 
     if resource.errors.empty?
       resource.unlock_access! if unlockable?(resource)
+      # The reset link reached this inbox, which proves the address is theirs.
+      # A direct write, not #confirm: that would also apply a pending email
+      # change the reset says nothing about.
+      resource.update_column(:confirmed_at, Time.current) unless resource.confirmed?
       if Devise.sign_in_after_reset_password
         flash[:notice] = I18n.t("devise.passwords.updated")
         sign_in(resource_name, resource)

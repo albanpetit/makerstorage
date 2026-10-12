@@ -28,10 +28,45 @@ class ProfilesControllerTest < ActionDispatch::IntegrationTest
     } }
 
     assert_redirected_to profile_path
+    assert_match(/confirm new-email@example.com/i, flash[:notice])
     user.reload
     assert_equal "New", user.firstname
     assert_equal "Name", user.lastname
-    assert_equal "new-email@example.com", user.email
+    # The new address only applies once its owner confirms it.
+    assert_equal "new-email@example.com", user.unconfirmed_email
+    assert_not_equal "new-email@example.com", user.email
+
+    user.confirm
+    assert_equal "new-email@example.com", user.reload.email
+  end
+
+  test "an email change applies at once when email verification is off" do
+    user = create_user
+    sign_in user
+
+    with_email_verification(false) do
+      patch profile_path, params: { user: { email: "direct@example.com", current_password: "password123" } }
+    end
+
+    assert_equal "direct@example.com", user.reload.email
+    assert_nil user.unconfirmed_email
+  end
+
+  test "show reports an unconfirmed address and hides invitations until it's confirmed" do
+    user = create_user(confirmed_at: nil)
+    org = create_organization(name: "Hackerspace")
+    OrganizationMembership.create!(organization: org, user: user, role: "member", invitation_sent_at: Time.current)
+
+    sign_in user
+    get profile_path
+
+    assert_equal false, inertia_props.dig("user", "email_confirmed")
+    assert_empty inertia_props["invitations"]
+    assert_equal 0, inertia_props.dig("auth", "pending_invitations_count")
+
+    user.confirm
+    get profile_path
+    assert_equal [ "Hackerspace" ], inertia_props["invitations"].map { |i| i["organization_name"] }
   end
 
   test "changing the email without the current password is refused" do
@@ -158,15 +193,19 @@ class ProfilesControllerTest < ActionDispatch::IntegrationTest
     assert_match(/password/i, mail.subject)
   end
 
-  test "changing the email sends an email-changed notification" do
+  test "changing the email warns the old address and asks the new one to confirm" do
     user = create_user(email: "old@example.com")
 
     sign_in user
-    assert_difference -> { ActionMailer::Base.deliveries.size }, 1 do
+    assert_difference -> { ActionMailer::Base.deliveries.size }, 2 do
       patch profile_path, params: { user: { email: "new@example.com", current_password: "password123" } }
     end
 
-    assert_match(/email/i, ActionMailer::Base.deliveries.last.subject)
+    notice, confirmation = ActionMailer::Base.deliveries.last(2)
+    assert_equal [ "old@example.com" ], notice.to
+    assert_match(/email/i, notice.subject)
+    assert_equal [ "new@example.com" ], confirmation.to
+    assert_match(/confirm/i, confirmation.subject)
   end
 
   private

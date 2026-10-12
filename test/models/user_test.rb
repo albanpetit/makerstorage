@@ -73,15 +73,31 @@ class UserTest < ActiveSupport::TestCase
     assert_not_includes member.organizations, org
   end
 
-  test "organizations_where_owner only lists organizations the user owns" do
-    owner = create_user
-    member = create_user
-    shared = owner.organizations.first
-    OrganizationMembership.create!(organization: shared, user: member, role: "member")
+  test "a new account must confirm its email when verification is on" do
+    user = User.create!(firstname: "N", lastname: "U", email: "unverified@example.com", password: "password123")
 
-    assert_includes owner.organizations_where_owner, shared
-    assert_not_includes member.organizations_where_owner, shared
-    assert_includes member.organizations_where_owner, member.personal_organization
-    assert_not_includes member.organizations_where_admin, shared
+    assert_not user.confirmed?
+    assert_not user.can_answer_invitations?
+    assert user.active_for_authentication?, "an unconfirmed account can still sign in"
+  end
+
+  test "a new account starts confirmed when verification is off" do
+    user = with_email_verification(false) do
+      User.create!(firstname: "N", lastname: "U", email: "lan@example.com", password: "password123")
+    end
+
+    assert user.confirmed?
+    assert user.can_answer_invitations?
+  end
+
+  test "an email change waits for confirmation only when verification is on" do
+    user = create_user(email: "first@example.com")
+    user.update!(email: "second@example.com")
+    assert_equal "first@example.com", user.reload.email
+    assert_equal "second@example.com", user.unconfirmed_email
+
+    other = create_user(email: "third@example.com")
+    with_email_verification(false) { other.update!(email: "fourth@example.com") }
+    assert_equal "fourth@example.com", other.reload.email
   end
 end

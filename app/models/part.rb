@@ -57,9 +57,12 @@ class Part < ApplicationRecord
   validates :min_stock_threshold, numericality: { greater_than_or_equal_to: 0, less_than_or_equal_to: MAX_INTEGER }
   validates :target_stock, numericality: { greater_than: 0, less_than_or_equal_to: MAX_INTEGER }, allow_nil: true
   validates :lead_time_days, numericality: { greater_than_or_equal_to: 0, less_than_or_equal_to: MAX_INTEGER }, allow_nil: true
-  # Hotlinked supplier image (e.g. Mouser, whose CDN blocks server-side download);
-  # rendered directly in an <img>, so only allow http(s) URLs.
-  validates :image_source_url, format: { with: %r{\Ahttps?://[^\s]+\z}i }, allow_blank: true
+  # Hotlinked supplier image (e.g. Mouser, whose CDN blocks server-side download),
+  # rendered directly in every member's browser: only https URLs on a supplier
+  # image host (Makerstorage::SUPPLIER_IMAGE_HOSTS). Checked on change only, so a
+  # part saved before the restriction stays editable (its image is just no
+  # longer shown, see #hotlinked_image_url).
+  validate :image_source_url_must_be_supplier_image, if: :image_source_url_changed?
   validate :category_must_belong_to_same_organization
   validate :footprint_must_belong_to_same_organization
 
@@ -68,11 +71,6 @@ class Part < ApplicationRecord
   scope :discontinued, -> { where(status: "discontinued") }
   scope :obsolete, -> { where(status: "obsolete") }
   scope :rohs_compliant, -> { where(rohs_compliant: true) }
-
-  scope :by_category, ->(category_id) { where(category_id: category_id) }
-  scope :by_footprint, ->(footprint_id) { where(footprint_id: footprint_id) }
-  scope :by_manufacturer, ->(manufacturer) { where(manufacturer: manufacturer) }
-  scope :by_value, ->(value) { where(value: value) }
 
   # Low stock: total quantity < minimum threshold. Left join so a part that has
   # never been stocked (no part_storages row) counts as 0 — an inner join would
@@ -113,6 +111,27 @@ class Part < ApplicationRecord
   scope :alphabetical, -> { order(:name) }
   scope :recent, -> { order(created_at: :desc) }
 
+  # Methods - Images
+  # +url+ when it points at a supplier image host (http is upgraded to https),
+  # else nil. Controllers pass catalog lookup results through this, so an
+  # unexpected host drops the image rather than refusing the part.
+  def self.supplier_image_url(url)
+    uri = URI.parse(url.to_s.strip)
+    return nil unless uri.is_a?(URI::HTTP) && uri.host.present? && uri.userinfo.nil?
+
+    host = uri.host.downcase
+    return nil unless Makerstorage::SUPPLIER_IMAGE_HOSTS.any? { |allowed| host == allowed || host.end_with?(".#{allowed}") }
+
+    URI::HTTPS.build(host: host, path: uri.path.presence || "/", query: uri.query).to_s
+  rescue URI::InvalidURIError
+    nil
+  end
+
+  # The hotlinked image to show, if it is (still) an allowed supplier image.
+  def hotlinked_image_url
+    self.class.supplier_image_url(image_source_url) if image_source_url.present?
+  end
+
   # Methods - Stock
   # Total stock across every storage location. When part_storages has already
   # been preloaded (via `includes`), sum the in-memory collection so callers on
@@ -125,6 +144,15 @@ class Part < ApplicationRecord
     else
       part_storages.sum(:quantity)
     end
+  end
+
+  # Where stock with no explicit target zone lands (e.g. an order line received
+  # without a storage split): the first zone the part was ever stocked in. An
+  # unordered `storage_locations.first` would let the database pick a different
+  # zone from one receipt to the next. Uses preloaded part_storages when present.
+  def fallback_storage_location
+    storages = part_storages.loaded? ? part_storages.to_a : part_storages.includes(:storage_location)
+    storages.min_by(&:id)&.storage_location
   end
 
   def low_stock?
@@ -141,22 +169,6 @@ class Part < ApplicationRecord
     :sufficient
   end
 
-  def quantity_to_order
-    return 0 if target_stock.nil?
-    [ target_stock - total_quantity, 0 ].max
-  end
-
-  def stock_status_badge
-    case stock_status
-    when :out_of_stock
-      { label: "Out of stock", color: "red" }
-    when :low_stock
-      { label: "Low stock", color: "orange" }
-    else
-      { label: "OK", color: "green" }
-    end
-  end
-
   # Methods - Status
   def active?
     status == "active"
@@ -170,31 +182,12 @@ class Part < ApplicationRecord
     status == "obsolete"
   end
 
-  def status_badge
-    case status
-    when "active"
-      { label: "Active", color: "green" }
-    when "discontinued"
-      { label: "Discontinued", color: "orange" }
-    when "obsolete"
-      { label: "Obsolete", color: "red" }
-    end
-  end
-
   # Methods - References
   # Human-facing short reference used across scans, movements, alerts, etc.:
   # prefer the manufacturer part number, then the internal SKU, falling back to
   # the name so there is always something to display.
   def reference
     mpn.presence || sku.presence || name
-  end
-
-  def full_reference
-    refs = []
-    refs << "SKU: #{sku}" if sku.present?
-    refs << "MPN: #{mpn}" if mpn.present?
-    refs << "Barcode: #{barcode}" if barcode.present?
-    refs.join(" | ")
   end
 
   # Methods - Suppliers
@@ -222,26 +215,6 @@ class Part < ApplicationRecord
     return if price.nil? || unit_price == price
 
     update_column(:unit_price, price)
-  end
-
-  # Methods - Technical specs
-  def technical_specs
-    specs = {}
-    specs[:value] = value if value.present?
-    specs[:tolerance] = tolerance if tolerance.present?
-    specs[:power_rating] = power_rating if power_rating.present?
-    specs[:voltage_rating] = voltage_rating if voltage_rating.present?
-    specs[:package_type] = package_type if package_type.present?
-    specs
-  end
-
-  # Methods - Attachments
-  def has_datasheet?
-    datasheet.attached?
-  end
-
-  def has_images?
-    images.attached?
   end
 
   private
@@ -291,6 +264,12 @@ class Part < ApplicationRecord
       self.ipn = candidate
       organization.update_column(:ipn_next_sequence, sequence + 1)
     end
+  end
+
+  def image_source_url_must_be_supplier_image
+    return if image_source_url.blank? || image_source_url == self.class.supplier_image_url(image_source_url)
+
+    errors.add(:image_source_url, "must be an https image from a supplier catalog (#{Makerstorage::SUPPLIER_IMAGE_HOSTS.to_sentence})")
   end
 
   def category_must_belong_to_same_organization

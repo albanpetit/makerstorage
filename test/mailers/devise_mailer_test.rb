@@ -57,4 +57,14 @@ class DeviseMailerTest < ActionMailer::TestCase
     changed = Devise::Mailer.email_changed(@user)
     assert_includes changed.html_part.body.to_s, @user.email
   end
+
+  test "confirmation_instructions links to the app's confirm route with the token" do
+    mail = Devise::Mailer.confirmation_instructions(@user, "sometoken")
+
+    assert_equal [ @user.email ], mail.to
+    [ mail.html_part.body.to_s, mail.text_part.body.to_s ].each do |body|
+      assert_includes body, "/confirm-email?confirmation_token=sometoken"
+    end
+    assert_includes mail.html_part.body.to_s, "Confirm email"
+  end
 end

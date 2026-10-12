@@ -30,6 +30,33 @@ class InvitationsControllerTest < ActionDispatch::IntegrationTest
     assert_equal 1, inertia_props.dig("auth", "pending_invitations_count")
   end
 
+  test "an unconfirmed account can't answer an invitation addressed to its email" do
+    # Someone who signed up with the invitee's address but never proved they own it.
+    @invitee.update_columns(confirmed_at: nil)
+    sign_in @invitee
+
+    post accept_invitation_path(@invitation)
+    assert_redirected_to profile_path
+    assert_match(/confirm your email/i, flash[:alert])
+    assert_not @invitation.reload.accepted?
+    assert_not @invitee.member_of_organization?(@org.id)
+
+    delete decline_invitation_path(@invitation)
+    assert OrganizationMembership.exists?(@invitation.id), "nor decline it on the owner's behalf"
+  end
+
+  test "an expired invitation is no longer listed or answerable" do
+    @invitation.update!(invitation_sent_at: OrganizationMembership::INVITATION_VALIDITY.ago - 1.minute)
+    sign_in @invitee
+
+    get profile_path
+    assert_empty inertia_props["invitations"]
+
+    post accept_invitation_path(@invitation)
+    assert_response :not_found
+    assert_not @invitation.reload.accepted?
+  end
+
   test "accepting joins the organization and switches to it" do
     sign_in @invitee
     post accept_invitation_path(@invitation)

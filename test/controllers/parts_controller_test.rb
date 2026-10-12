@@ -181,13 +181,92 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
     assert flash[:alert].present?
   end
 
-  test "index passes through the search query param as initial_query" do
+  test "index echoes the list filters it applied" do
     user = create_user
     sign_in user
 
-    get parts_path(search: "resistor")
+    get parts_path(search: "resistor", status: [ "low", "bogus" ], sort: "qtyAsc")
     assert_response :success
-    assert_equal "resistor", inertia_props["initial_query"]
+    filters = inertia_props["filters"]
+    assert_equal "resistor", filters["search"]
+    assert_equal [ "low" ], filters["status"]
+    assert_equal "qtyAsc", filters["sort"]
+  end
+
+  test "index sends one page of parts plus the ids and counts for every match" do
+    user = create_user
+    org = user.organizations.first
+    category = create_category(organization: org, name: "Resistors")
+    ids = Array.new(PartsIndexQuery::PAGE_SIZE + 2) { |i| create_part(organization: org, category: category, name: format("R%03d", i)).id }
+    other = create_organization
+    create_part(organization: other, name: "Foreign part")
+
+    sign_in user
+    get parts_path(page: 2)
+    assert_response :success
+
+    props = inertia_props
+    assert_equal ids.last(2), props["parts"].map { |p| p["id"] }
+    assert_equal ids, props["matching_ids"]
+    assert_equal ids.size, props["total_count"]
+    assert_equal({ "page" => 2, "page_count" => 2, "page_size" => PartsIndexQuery::PAGE_SIZE, "total" => ids.size }, props["pagination"])
+    assert_equal [ { "id" => category.id, "name" => "Resistors", "count" => ids.size } ], props["facets"]["categories"]
+    assert_nil props["part_identifiers"], "import identifiers are only sent on request"
+  end
+
+  test "index filters the parts it sends" do
+    user = create_user
+    org = user.organizations.first
+    match = create_part(organization: org, name: "Ceramic cap", package_type: "0603")
+    create_part(organization: org, name: "Ceramic cap big", package_type: "1206")
+
+    sign_in user
+    get parts_path(search: "ceramic", package: [ "0603" ])
+
+    assert_equal [ match.id ], inertia_props["parts"].map { |p| p["id"] }
+    assert_equal [ match.id ], inertia_props["matching_ids"]
+  end
+
+  test "rows returns full list rows for the given ids, scoped to the organization" do
+    user = create_user
+    org = user.organizations.first
+    mine = create_part(organization: org, name: "Mine", mpn: "M-1")
+    foreign = create_part(organization: create_organization, name: "Foreign")
+
+    sign_in user
+    post rows_parts_path, params: { part_ids: [ mine.id, foreign.id ] }, as: :json
+    assert_response :success
+
+    parts = response.parsed_body["parts"]
+    assert_equal [ mine.id ], parts.map { |p| p["id"] }
+    assert_equal "M-1", parts.first["mpn"]
+  end
+
+  test "rows returns every part matching the list filters" do
+    user = create_user
+    org = user.organizations.first
+    a = create_part(organization: org, name: "Alpha widget")
+    b = create_part(organization: org, name: "Beta widget")
+    create_part(organization: org, name: "Gamma")
+
+    sign_in user
+    post rows_parts_path, params: { filters: { search: "widget" } }, as: :json
+
+    assert_equal [ a.id, b.id ], response.parsed_body["parts"].map { |p| p["id"] }
+  end
+
+  test "a bulk action returns to the filtered list it was started from" do
+    user = create_user
+    org = user.organizations.first
+    part = create_part(organization: org)
+    category = create_category(organization: org)
+
+    sign_in user
+    list = parts_path(search: "part", page: 2)
+    post bulk_update_category_parts_path, params: { part_ids: [ part.id ], category_id: category.id },
+      headers: { "HTTP_REFERER" => "http://www.example.com#{list}" }
+
+    assert_redirected_to "http://www.example.com#{list}"
   end
 
   test "index provides categories and storage_locations for the add-part modal" do
@@ -807,6 +886,48 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
     assert_nil org.parts.find_by(mpn: "P-3")
   end
 
+  test "import looks storage zones up once, however many rows" do
+    user = create_user
+    org = user.organizations.first
+    create_category(organization: org, name: "Resistors")
+    create_storage_location(organization: org, name: "Shelf")
+    sign_in user
+
+    zone_lookups = lambda do |rows|
+      csv = "Name,Category,MPN,Location,Quantity\n" +
+        rows.times.map { |i| "Part #{i},Resistors,Q-#{SecureRandom.hex(4)},Shelf,#{i + 1}\n" }.join
+      count = 0
+      counter = ->(*, payload) { count += 1 if payload[:sql] =~ /\ASELECT.*FROM "storage_locations"/m && !payload[:cached] }
+      ActiveSupport::Notifications.subscribed(counter, "sql.active_record") do
+        post import_parts_path, params: { file: csv_upload(csv) }
+      end
+      count
+    end
+
+    assert_equal zone_lookups.call(1), zone_lookups.call(5)
+  end
+
+  test "import recreates a zone whose creating row was rolled back" do
+    user = create_user
+    org = user.organizations.first
+
+    # The first row creates "New Bin", then its quantity is refused, rolling the
+    # zone back with it; the next row must not reuse that discarded zone.
+    csv = <<~CSV
+      Name,Category,MPN,Location,Quantity
+      Too many,Resistors,BIG-1,New Bin,99999999999
+      Fine,Resistors,OK-1,New Bin,3
+    CSV
+
+    sign_in user
+    post import_parts_path, params: { file: csv_upload(csv) }
+
+    assert_match(/1 created, 0 updated, 1 skipped/, flash[:notice])
+    bins = org.storage_locations.where(name: "New Bin")
+    assert_equal 1, bins.count
+    assert_equal 3, PartStorage.find_by(part: org.parts.find_by!(mpn: "OK-1"), storage_location: bins.first).quantity
+  end
+
   test "import without a location column leaves stock untouched" do
     user = create_user
     org = user.organizations.first
@@ -933,6 +1054,33 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
     assert part.datasheet.attached?
     refute part.images.attached?, "supplier image is hotlinked, not downloaded"
     assert_equal "https://www.mouser.com/img.png", part.image_source_url
+  end
+
+  test "create drops a lookup image that isn't hosted by a supplier catalog" do
+    user = create_user
+    org = user.organizations.first
+    category = create_category(organization: org)
+
+    sign_in user
+    post parts_path, params: {
+      part: { name: "Resistor 10k", category_id: category.id },
+      image_url: "https://tracker.example/pixel.png"
+    }
+
+    part = org.parts.find_by!(name: "Resistor 10k")
+    assert_nil part.image_source_url
+  end
+
+  test "a hotlinked image from a host that is no longer allowed gets no thumbnail" do
+    user = create_user
+    org = user.organizations.first
+    part = create_part(organization: org, category: create_category(organization: org), name: "Legacy")
+    part.update_column(:image_source_url, "https://tracker.example/pixel.png")
+
+    sign_in user
+    get parts_path
+
+    assert_nil inertia_props["parts"].find { |p| p["id"] == part.id }["thumbnail_url"]
   end
 
   test "create exposes the hotlinked image as the thumbnail immediately" do

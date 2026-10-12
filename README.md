@@ -106,10 +106,18 @@ The app is then served at `http://localhost:3000`.
 
 ### Email (SMTP)
 
-Makerstorage sends transactional email (password resets and account-security
-notices). Point it at any SMTP provider with the environment variables below.
-Without `SMTP_ADDRESS` the app still runs, but password-reset emails aren't
-delivered — mail is simply skipped.
+Makerstorage sends transactional email (password resets, email confirmations
+and account-security notices). Point it at any SMTP provider with the
+environment variables below. Without `SMTP_ADDRESS` the app still runs, but
+password-reset emails aren't delivered — mail is simply skipped.
+
+With SMTP configured, email addresses are verified: a new account signs in
+straight away but must confirm its address (from the mailed link, or by
+resetting its password) before it sees or answers organization invitations,
+and a changed sign-in email only applies once confirmed. Without SMTP there is
+no way to confirm, so accounts start out confirmed and email changes apply at
+once. Accounts that existed before verification was introduced count as
+confirmed.
 
 | Variable              | Default                                | Description                                                              |
 | --------------------- | -------------------------------------- | ------------------------------------------------------------------------ |
@@ -124,6 +132,7 @@ delivered — mail is simply skipped.
 | `APP_HOST`            | `localhost`                            | Public hostname used to build links in emails (e.g. `parts.example.org`). |
 | `APP_PROTOCOL`        | `https` with `FORCE_SSL`, else `http`  | Protocol of links in emails. Set to `https` when a proxy serves HTTPS without `FORCE_SSL`. |
 | `FORCE_SSL`           | —                                      | Set to `true` behind a TLS-terminating proxy: redirects to HTTPS, sends HSTS, and marks the session cookie `Secure`. Leave unset for plain-HTTP LAN installs. |
+| `CSP_ENFORCE`         | —                                      | Set to `true` to enforce the Content-Security-Policy. By default it is report-only: violations are logged as `[CSP] …` but nothing is blocked. Check those logs before turning it on. |
 
 ```bash
 docker run -d --name makerstorage \
