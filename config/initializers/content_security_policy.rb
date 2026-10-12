@@ -3,9 +3,10 @@
 # Application-wide content security policy.
 # See https://guides.rubyonrails.org/security.html#content-security-policy-header
 #
-# Shipped in REPORT-ONLY mode: browsers log violations to the console but block
-# nothing. Once a release has run without unexpected violations, set
-# `content_security_policy_report_only = false` below to enforce it.
+# Shipped in REPORT-ONLY mode: browsers report violations (logged as [CSP] by
+# CspReportsController) but block nothing. Once an install has run without
+# unexpected violations, CSP_ENFORCE=true enforces the same policy; reports
+# keep coming either way.
 Rails.application.configure do
   config.content_security_policy do |policy|
     policy.default_src :self
@@ -44,5 +45,5 @@ Rails.application.configure do
   config.content_security_policy_nonce_generator = ->(request) { SecureRandom.base64(16) }
   config.content_security_policy_nonce_directives = %w[script-src]
 
-  config.content_security_policy_report_only = true
+  config.content_security_policy_report_only = !Makerstorage.csp_enforced_from_env?
 end

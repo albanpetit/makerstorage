@@ -59,6 +59,13 @@ module Makerstorage
     %w[1 true yes].include?(ENV["FORCE_SSL"].to_s.strip.downcase)
   end
 
+  # The Content-Security-Policy ships report-only; CSP_ENFORCE=true makes
+  # browsers block violations instead, once the [CSP] report logs show the
+  # policy fits the install.
+  def self.csp_enforced_from_env?
+    %w[1 true yes].include?(ENV["CSP_ENFORCE"].to_s.strip.downcase)
+  end
+
   # Absolute links in emails (e.g. password reset) point at APP_HOST. They use
   # APP_PROTOCOL when set (e.g. "https" behind a TLS proxy that doesn't set
   # FORCE_SSL), else https only with FORCE_SSL — plain-HTTP LAN installs would

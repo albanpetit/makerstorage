@@ -18,6 +18,27 @@ class ContentSecurityPolicyTest < ActionDispatch::IntegrationTest
     assert_not_includes img_src, "http:"
   end
 
+  test "CSP_ENFORCE turns the same policy into an enforced one" do
+    env_config = Rails.application.env_config
+    original = env_config["action_dispatch.content_security_policy_report_only"]
+    env_config["action_dispatch.content_security_policy_report_only"] = false
+    sign_in create_user
+    get root_path
+
+    assert_nil response.headers["Content-Security-Policy-Report-Only"]
+    assert_match(/default-src 'self'/, response.headers["Content-Security-Policy"])
+    assert_match(%r{report-uri /csp-violations}, response.headers["Content-Security-Policy"])
+  ensure
+    env_config["action_dispatch.content_security_policy_report_only"] = original
+  end
+
+  test "CSP_ENFORCE is opt-in" do
+    with_env("CSP_ENFORCE" => nil) { assert_not Makerstorage.csp_enforced_from_env? }
+    with_env("CSP_ENFORCE" => "false") { assert_not Makerstorage.csp_enforced_from_env? }
+    with_env("CSP_ENFORCE" => " TRUE ") { assert Makerstorage.csp_enforced_from_env? }
+    with_env("CSP_ENFORCE" => "1") { assert Makerstorage.csp_enforced_from_env? }
+  end
+
   test "the layout's inline theme script carries the nonce the policy allows" do
     sign_in create_user
     get root_path
@@ -68,6 +89,14 @@ class ContentSecurityPolicyTest < ActionDispatch::IntegrationTest
   end
 
   private
+
+  def with_env(vars)
+    saved = vars.keys.index_with { |key| ENV[key] }
+    vars.each { |key, value| ENV[key] = value }
+    yield
+  ensure
+    saved.each { |key, value| ENV[key] = value }
+  end
 
   def capture_log
     io = StringIO.new
