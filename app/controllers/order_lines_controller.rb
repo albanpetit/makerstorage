@@ -180,7 +180,7 @@ class OrderLinesController < ApplicationController
 
     part = current_organization.parts.build(attrs)
     part.category = category
-    part.image_source_url = params[:image_url].presence
+    part.image_source_url = Part.supplier_image_url(params[:image_url])
     part
   end
 

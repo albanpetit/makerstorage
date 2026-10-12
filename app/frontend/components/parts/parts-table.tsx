@@ -14,9 +14,7 @@ import {
 } from '@/components/ui/table'
 
 import { LIFECYCLE_META, STOCK_STATUS_META, locationLabel, stockStatusKey } from './part-meta'
-import type { Part } from './types'
-
-const PAGE_SIZE = 20
+import type { Part, PartListPagination } from './types'
 
 // Small square thumbnail for a part row. The URL may be a hotlinked supplier
 // image (e.g. Mouser) that the browser can't load — fall back to the icon on
@@ -42,14 +40,16 @@ function PartThumbnail({ url }: { url: string | null }) {
 }
 
 interface PartsTableProps {
-  // Every part of the organization (only used to tell "no parts yet" from
-  // "nothing matches the filters").
+  // The current page of matching parts, already sorted by the server.
   parts: Part[]
-  filtered: Part[]
-  sorted: Part[]
+  // How many parts the organization has (tells "no parts yet" from "nothing
+  // matches the filters").
+  totalCount: number
+  // Every part matching the filters, across pages.
+  matchingIds: number[]
+  pagination: PartListPagination
   selected: number[]
   onSelectedChange: (ids: number[]) => void
-  page: number
   onPageChange: (page: number) => void
   onAddPart: () => void
   onShowPart: (id: number) => void
@@ -58,19 +58,15 @@ interface PartsTableProps {
 
 // The paginated parts table with row/page selection, or an empty state.
 export function PartsTable({
-  parts, filtered, sorted, selected, onSelectedChange,
-  page, onPageChange, onAddPart, onShowPart, onEditPart,
+  parts, totalCount, matchingIds, pagination, selected, onSelectedChange,
+  onPageChange, onAddPart, onShowPart, onEditPart,
 }: PartsTableProps) {
   const { canWrite } = usePermissions()
 
-  const pageCount = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE))
-  const clampedPage = Math.min(page, pageCount - 1)
-  const pageSlice = sorted.slice(clampedPage * PAGE_SIZE, clampedPage * PAGE_SIZE + PAGE_SIZE)
+  const { page, page_count: pageCount, page_size: pageSize, total } = pagination
+  const allFilteredSelected = matchingIds.length > 0 && matchingIds.every((id) => selected.includes(id))
 
-  const allIds = sorted.map((p) => p.id)
-  const allFilteredSelected = allIds.length > 0 && allIds.every((id) => selected.includes(id))
-
-  const pageIds = pageSlice.map((p) => p.id)
+  const pageIds = parts.map((p) => p.id)
   const pageAllSelected = pageIds.length > 0 && pageIds.every((id) => selected.includes(id))
   const pageSomeSelected = pageIds.some((id) => selected.includes(id))
 
@@ -89,11 +85,11 @@ export function PartsTable({
     )
   }
 
-  const selectAllMatching = () => onSelectedChange(allIds)
+  const selectAllMatching = () => onSelectedChange(Array.from(new Set([ ...selected, ...matchingIds ])))
 
   return (
     <div className="min-h-0 flex-1 overflow-auto bg-muted/40">
-    {parts.length === 0 ? (
+    {totalCount === 0 ? (
       <div className="flex flex-col items-center justify-center p-16">
         <Package className="size-12 text-muted-foreground" />
         <h3 className="mt-4 text-lg font-semibold">No parts yet</h3>
@@ -107,7 +103,7 @@ export function PartsTable({
           </Button>
         )}
       </div>
-    ) : filtered.length === 0 ? (
+    ) : total === 0 ? (
       <div className="flex flex-col items-center justify-center p-16 text-center">
         <h3 className="text-lg font-semibold">No results found</h3>
         <p className="mt-2 text-sm text-muted-foreground">
@@ -138,7 +134,7 @@ export function PartsTable({
               <TableHead className="py-2 text-right">Stock Value</TableHead>
               <TableHead className="w-[60px] py-2">Actions</TableHead>
             </TableRow>
-            {pageAllSelected && !allFilteredSelected && sorted.length > pageIds.length && (
+            {pageAllSelected && !allFilteredSelected && total > pageIds.length && (
               <TableRow className="bg-muted hover:bg-muted">
                 <TableHead colSpan={12} className="py-1.5 text-center text-xs font-normal text-muted-foreground">
                   All {pageIds.length} parts on this page are selected.{' '}
@@ -148,14 +144,14 @@ export function PartsTable({
                     onClick={selectAllMatching}
                     className="h-auto p-0 underline underline-offset-2 hover:no-underline"
                   >
-                    Select all {sorted.length} parts matching filters
+                    Select all {total} parts matching filters
                   </Button>
                 </TableHead>
               </TableRow>
             )}
           </TableHeader>
           <TableBody>
-            {pageSlice.map((part) => {
+            {parts.map((part) => {
               const stockKey = stockStatusKey(part.total_quantity, part.min_stock_threshold)
               const stockValue = part.unit_price != null ? part.unit_price * part.total_quantity : null
               return (
@@ -248,14 +244,14 @@ export function PartsTable({
         {pageCount > 1 && (
           <div className="sticky bottom-0 flex items-center justify-between border-t bg-background px-5 py-2.5 text-sm text-muted-foreground">
             <span>
-              {clampedPage * PAGE_SIZE + 1}–{Math.min(clampedPage * PAGE_SIZE + PAGE_SIZE, filtered.length)} of {filtered.length} · Page {clampedPage + 1}/{pageCount}
+              {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, total)} of {total} · Page {page}/{pageCount}
             </span>
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" disabled={clampedPage === 0} onClick={() => onPageChange(Math.max(0, clampedPage - 1))}>
+              <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => onPageChange(page - 1)}>
                 <ChevronLeft className="size-4" />
                 Previous
               </Button>
-              <Button variant="outline" size="sm" disabled={clampedPage >= pageCount - 1} onClick={() => onPageChange(Math.min(pageCount - 1, clampedPage + 1))}>
+              <Button variant="outline" size="sm" disabled={page >= pageCount} onClick={() => onPageChange(page + 1)}>
                 Next
                 <ChevronRight className="size-4" />
               </Button>

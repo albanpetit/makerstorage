@@ -1,5 +1,5 @@
 import { Head } from '@inertiajs/react'
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { Plus, Search, Download, Upload } from 'lucide-react'
 
 import { AppLayout } from '@/layouts/app-layout'
@@ -13,19 +13,24 @@ import { AddPartDialog } from '@/components/add-part-dialog'
 import { EditPartDialog } from '@/components/edit-part-dialog'
 import { PartDetailSheet } from '@/components/part-detail-sheet'
 import { BulkActions } from '@/components/parts/bulk-actions'
-import { exportCsv } from '@/components/parts/csv'
+import { exportCsv, fetchPartRows } from '@/components/parts/csv'
+import { toast } from 'sonner'
 import { ImportPartsDialog } from '@/components/parts/import-parts-dialog'
 import { PartsFilterBar } from '@/components/parts/parts-filter-bar'
 import { PartsTable } from '@/components/parts/parts-table'
-import type { PartsIndexProps } from '@/components/parts/types'
+import type { Part, PartsIndexProps } from '@/components/parts/types'
 import { usePartFilters } from '@/components/parts/use-part-filters'
 
-export default function PartsIndex({ parts, initial_query, categories, footprints, suppliers, tags, storage_locations, supplier_lookup_enabled, ipn_manual_entry, open_add }: PartsIndexProps) {
+export default function PartsIndex({
+  parts, filters: listFilters, pagination, facets, total_count, total_units, matching_ids, part_identifiers,
+  categories, footprints, suppliers, tags, storage_locations, supplier_lookup_enabled, ipn_manual_entry, open_add,
+}: PartsIndexProps) {
   const { canWrite } = usePermissions()
-  const filters = usePartFilters(parts, initial_query)
-  const { query, setQuery, filtered, sorted } = filters
+  const filters = usePartFilters(listFilters, facets)
+  const { query, setQuery, goToPage } = filters
+  // Selection survives page and filter changes, so it can hold parts that are
+  // not on the current page.
   const [selected, setSelected] = useState<number[]>([])
-  const [page, setPage] = useState(0)
 
   const [importOpen, setImportOpen] = useState(false)
 
@@ -35,14 +40,30 @@ export default function PartsIndex({ parts, initial_query, categories, footprint
   const [editPartId, setEditPartId] = useState<number | null>(null)
   const [detailPartId, setDetailPartId] = useState<number | null>(null)
 
-  const totalUnits = useMemo(() => filtered.reduce((sum, part) => sum + part.total_quantity, 0), [filtered])
+  // Every part seen on a page so far, so bulk labels/export only fetch the
+  // selected parts that were never displayed.
+  const knownParts = useRef(new Map<number, Part>())
+  parts.forEach((part) => knownParts.current.set(part.id, part))
 
   const hiddenSelectedCount = useMemo(() => {
-    const visible = new Set(sorted.map((p) => p.id))
+    const visible = new Set(matching_ids)
     return selected.filter((id) => !visible.has(id)).length
-  }, [sorted, selected])
+  }, [matching_ids, selected])
 
-  const selectedParts = useMemo(() => parts.filter((p) => selected.includes(p.id)), [parts, selected])
+  const loadSelectedParts = async () => {
+    const missing = selected.filter((id) => !knownParts.current.has(id))
+    if (missing.length > 0) {
+      const fetched = await fetchPartRows({ part_ids: missing })
+      fetched.forEach((part) => knownParts.current.set(part.id, part))
+    }
+    return selected.flatMap((id) => knownParts.current.get(id) ?? [])
+  }
+
+  const exportMatching = () => {
+    fetchPartRows({ filters: listFilters })
+      .then(exportCsv)
+      .catch(() => toast.error('Could not export the parts.'))
+  }
 
   return (
     <AppLayout>
@@ -55,7 +76,7 @@ export default function PartsIndex({ parts, initial_query, categories, footprint
           <div>
             <h1 className="text-base font-semibold tracking-tight">Inventory</h1>
             <p className="text-xs text-muted-foreground">
-              {filtered.length} reference{filtered.length !== 1 ? 's' : ''} · {totalUnits.toLocaleString()} units in stock
+              {pagination.total} reference{pagination.total !== 1 ? 's' : ''} · {total_units.toLocaleString()} units in stock
             </p>
           </div>
           <div className="flex-1" />
@@ -65,7 +86,7 @@ export default function PartsIndex({ parts, initial_query, categories, footprint
               placeholder="Reference, value, location…"
               className="pl-9"
               value={query}
-              onChange={(e) => { setQuery(e.target.value); setPage(0) }}
+              onChange={(e) => setQuery(e.target.value)}
             />
           </div>
           <ReadOnlyBadge />
@@ -75,7 +96,7 @@ export default function PartsIndex({ parts, initial_query, categories, footprint
               Import CSV
             </Button>
           )}
-          <Button variant="outline" size="sm" onClick={() => exportCsv(sorted)}>
+          <Button variant="outline" size="sm" onClick={exportMatching}>
             <Download className="size-4" />
             Export CSV
           </Button>
@@ -91,11 +112,11 @@ export default function PartsIndex({ parts, initial_query, categories, footprint
           <FlashMessages />
         </div>
 
-        <PartsFilterBar filters={filters} totalCount={parts.length} onFilterChange={() => setPage(0)} />
+        <PartsFilterBar filters={filters} totalCount={total_count} />
 
         <BulkActions
           selected={selected}
-          selectedParts={selectedParts}
+          loadSelectedParts={loadSelectedParts}
           hiddenSelectedCount={hiddenSelectedCount}
           onClearSelection={() => setSelected([])}
           categories={categories}
@@ -106,12 +127,12 @@ export default function PartsIndex({ parts, initial_query, categories, footprint
 
         <PartsTable
           parts={parts}
-          filtered={filtered}
-          sorted={sorted}
+          totalCount={total_count}
+          matchingIds={matching_ids}
+          pagination={pagination}
           selected={selected}
           onSelectedChange={setSelected}
-          page={page}
-          onPageChange={setPage}
+          onPageChange={goToPage}
           onAddPart={openAddDialog}
           onShowPart={setDetailPartId}
           onEditPart={setEditPartId}
@@ -151,7 +172,7 @@ export default function PartsIndex({ parts, initial_query, categories, footprint
         onOpenChange={(open) => !open && setDetailPartId(null)}
       />
 
-      <ImportPartsDialog open={importOpen} onOpenChange={setImportOpen} parts={parts} />
+      <ImportPartsDialog open={importOpen} onOpenChange={setImportOpen} identifiers={part_identifiers} />
     </AppLayout>
   )
 }

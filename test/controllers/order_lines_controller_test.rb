@@ -103,6 +103,21 @@ class OrderLinesControllerTest < ActionDispatch::IntegrationTest
     assert part.part_suppliers.exists?(supplier: @supplier)
   end
 
+  test "catalog keeps a supplier image and drops one from any other host" do
+    sign_in @user
+    post catalog_order_order_lines_path(@order), params: {
+      category_id: @category.id, order_line: { quantity: 1 },
+      part: { name: "From Mouser", mpn: "MPN-MOUSER" }, image_url: "http://www.mouser.com/images/a.jpg"
+    }
+    post catalog_order_order_lines_path(@order), params: {
+      category_id: @category.id, order_line: { quantity: 1 },
+      part: { name: "From elsewhere", mpn: "MPN-OTHER" }, image_url: "https://tracker.example/pixel.png"
+    }
+
+    assert_equal "https://www.mouser.com/images/a.jpg", Part.find_by!(mpn: "MPN-MOUSER").image_source_url
+    assert_nil Part.find_by!(mpn: "MPN-OTHER").image_source_url
+  end
+
   test "catalog leaves no new part behind when the line is rejected" do
     sign_in @user
     assert_no_difference [ "Part.count", "PartSupplier.count", "OrderLine.count" ] do

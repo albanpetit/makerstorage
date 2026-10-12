@@ -98,9 +98,13 @@ function renderLabel(zxing: ZxingLibrary, item: LabelItem, format: LabelFormat) 
 }
 
 // ZXing (already used by the scanner) is loaded on demand so pages that only
-// offer printing don't ship the encoder up front.
-export async function printLabels(items: LabelItem[], formatId: LabelFormatId) {
-  if (items.length === 0) return
+// offer printing don't ship the encoder up front. Because of that await, the
+// caller opens the print window (+target+) inside its click handler.
+export async function printLabels(items: LabelItem[], formatId: LabelFormatId, target: Window | null) {
+  if (items.length === 0) {
+    target?.close()
+    return
+  }
   const zxing = await import('@zxing/library')
   const format: LabelFormat = LABEL_FORMATS[formatId]
   const labels = items.map((item) => renderLabel(zxing, item, format))
@@ -122,5 +126,5 @@ export async function printLabels(items: LabelItem[], formatId: LabelFormatId) {
     ${layout}
   </style>`
 
-  printDocument('Labels', html`<div class="sheet">${labels}</div>`, '', head)
+  printDocument('Labels', html`<div class="sheet">${labels}</div>`, '', target, head)
 }

@@ -1,5 +1,6 @@
 import { ReactNode, useState } from 'react'
 import { Printer } from 'lucide-react'
+import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
@@ -41,7 +42,10 @@ function storedFormat(): LabelFormatId {
 interface PrintLabelsDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  items: LabelItem[]
+  count: number
+  // Resolves the labels to print; may fetch (e.g. parts selected beyond the
+  // loaded page).
+  loadItems: () => Promise<LabelItem[]>
   title: string
   description?: string
   // Extra options shown above the format picker (e.g. "include sub-zones").
@@ -50,7 +54,7 @@ interface PrintLabelsDialogProps {
 
 // Picks a label format (remembered per browser) and prints QR labels for
 // +items+ through the browser's print dialog.
-export function PrintLabelsDialog({ open, onOpenChange, items, title, description, children }: PrintLabelsDialogProps) {
+export function PrintLabelsDialog({ open, onOpenChange, count, loadItems, title, description, children }: PrintLabelsDialogProps) {
   const [format, setFormat] = useState<LabelFormatId>(storedFormat)
 
   const chooseFormat = (value: string) => {
@@ -64,11 +68,17 @@ export function PrintLabelsDialog({ open, onOpenChange, items, title, descriptio
   }
 
   const print = () => {
-    void printLabels(items, format)
+    // Open the print window while still in the click handler: popup blockers
+    // refuse window.open once the labels have been loaded asynchronously.
+    const target = window.open('', '_blank')
+    loadItems()
+      .then((items) => printLabels(items, format, target))
+      .catch(() => {
+        target?.close()
+        toast.error('Could not prepare the labels.')
+      })
     onOpenChange(false)
   }
-
-  const count = items.length
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

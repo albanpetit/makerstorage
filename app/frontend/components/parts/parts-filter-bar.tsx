@@ -9,7 +9,8 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 
-import { SORT_OPTIONS, type SortKey } from './part-meta'
+import { SORT_OPTIONS } from './part-meta'
+import type { SortKey } from './types'
 import type { PartFilters } from './use-part-filters'
 
 interface FacetGroupProps {
@@ -40,31 +41,17 @@ function FacetGroup({ label, options, active, onToggle }: FacetGroupProps) {
   )
 }
 
-const countedOptions = (entries: [string, number][]) =>
-  entries.map(([value, count]) => ({ value, label: value, count }))
-
 interface PartsFilterBarProps {
   filters: PartFilters
   totalCount: number
-  // Called whenever a chip or facet changes the result set, so the table can
-  // go back to its first page.
-  onFilterChange: () => void
 }
 
 // Category chips, sort select, facet groups and active-filter pills above the
-// parts table.
-export function PartsFilterBar({ filters, totalCount, onFilterChange }: PartsFilterBarProps) {
-  const {
-    categoryChips, categoryId, setCategoryId, sortKey, setSortKey,
-    statusOptions, packageOptions, footprintOptions, supplierOptions,
-    fStatus, setFStatus, fPackage, setFPackage, fFootprint, setFFootprint, fSupplier, setFSupplier,
-    toggleFacet, activePills, clearAllFilters,
-  } = filters
-
-  const facet = (list: string[], setList: (v: string[]) => void) => (value: string) => {
-    toggleFacet(list, setList, value)
-    onFilterChange()
-  }
+// parts table. Counts come from the server (PartsIndexQuery#facets).
+export function PartsFilterBar({ filters, totalCount }: PartsFilterBarProps) {
+  const { filters: current, facets, setCategory, setSort, toggleFacet, activePills, clearAllFilters } = filters
+  const categoryChips = facets.categories
+  const categoryId = current.category
 
   return (
     <div className="flex shrink-0 flex-col gap-2 border-b bg-background px-5 py-3">
@@ -74,10 +61,10 @@ export function PartsFilterBar({ filters, totalCount, onFilterChange }: PartsFil
           {categoryChips.length > 0 && (
             <>
               <Button
-                variant={categoryId === 'all' ? 'default' : 'outline'}
+                variant={categoryId == null ? 'default' : 'outline'}
                 size="sm"
-                onClick={() => { setCategoryId('all'); onFilterChange() }}
-                className={`h-8 gap-1.5 rounded-full border px-3 shadow-none ${categoryId === 'all' ? 'border-primary' : ''}`}
+                onClick={() => setCategory(null)}
+                className={`h-8 gap-1.5 rounded-full border px-3 shadow-none ${categoryId == null ? 'border-primary' : ''}`}
               >
                 All
                 <span className="text-xs opacity-75">{totalCount}</span>
@@ -87,7 +74,7 @@ export function PartsFilterBar({ filters, totalCount, onFilterChange }: PartsFil
                   key={chip.id}
                   variant={categoryId === chip.id ? 'default' : 'outline'}
                   size="sm"
-                  onClick={() => { setCategoryId(chip.id); onFilterChange() }}
+                  onClick={() => setCategory(chip.id)}
                   className={`h-8 gap-1.5 rounded-full border px-3 shadow-none ${categoryId === chip.id ? 'border-primary' : ''}`}
                 >
                   {chip.name}
@@ -97,7 +84,7 @@ export function PartsFilterBar({ filters, totalCount, onFilterChange }: PartsFil
             </>
           )}
         </div>
-        <Select value={sortKey} onValueChange={(value) => setSortKey(value as SortKey)}>
+        <Select value={current.sort} onValueChange={(value) => setSort(value as SortKey)}>
           <SelectTrigger className="h-8 w-[190px] text-xs" size="sm">
             <SelectValue />
           </SelectTrigger>
@@ -111,10 +98,10 @@ export function PartsFilterBar({ filters, totalCount, onFilterChange }: PartsFil
 
       {/* Facet groups */}
       <div className="flex flex-col gap-2">
-        <FacetGroup label="Status" options={statusOptions} active={fStatus} onToggle={facet(fStatus, setFStatus)} />
-        <FacetGroup label="Package" options={countedOptions(packageOptions)} active={fPackage} onToggle={facet(fPackage, setFPackage)} />
-        <FacetGroup label="Footprint" options={countedOptions(footprintOptions)} active={fFootprint} onToggle={facet(fFootprint, setFFootprint)} />
-        <FacetGroup label="Supplier" options={countedOptions(supplierOptions)} active={fSupplier} onToggle={facet(fSupplier, setFSupplier)} />
+        <FacetGroup label="Status" options={facets.status} active={current.status} onToggle={(v) => toggleFacet('status', v)} />
+        <FacetGroup label="Package" options={facets.package} active={current.package} onToggle={(v) => toggleFacet('package', v)} />
+        <FacetGroup label="Footprint" options={facets.footprint} active={current.footprint} onToggle={(v) => toggleFacet('footprint', v)} />
+        <FacetGroup label="Supplier" options={facets.supplier} active={current.supplier} onToggle={(v) => toggleFacet('supplier', v)} />
       </div>
 
       {/* Active filter pills */}

@@ -1,6 +1,6 @@
 import { toast } from 'sonner'
 
-import type { Part } from './types'
+import type { Part, PartListFilters } from './types'
 
 // Text starting with = + - @ (or a tab/CR) is run as a formula by Excel and
 // friends, so user-entered fields get a leading quote. Plain numbers (e.g. a
@@ -56,6 +56,19 @@ export function exportCsv(parts: Part[]) {
 
 export function csrfToken(): string {
   return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+}
+
+// Fully serialized parts beyond the current page (PartsController#rows): either
+// the given ids, or every part matching the list filters.
+export async function fetchPartRows(body: { part_ids: number[] } | { filters: PartListFilters }): Promise<Part[]> {
+  const response = await fetch('/parts/rows', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-CSRF-Token': csrfToken() },
+    body: JSON.stringify(body),
+  })
+  if (!response.ok) throw new Error(`HTTP ${response.status}`)
+  const data: { parts: Part[] } = await response.json()
+  return data.parts
 }
 
 export interface ParsedImportRow {

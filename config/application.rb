@@ -48,9 +48,22 @@ module Makerstorage
     settings
   end
 
+  # Hosts (and their subdomains) whose part images may be hotlinked: the
+  # supplier catalogs' image CDNs. Part#image_source_url only accepts these and
+  # the Content-Security-Policy's img-src lists them, so a part can't make every
+  # member's browser load an image from an arbitrary server.
+  SUPPLIER_IMAGE_HOSTS = %w[mouser.com digikey.com].freeze
+
   # HTTPS is opt-in (FORCE_SSL): LAN installs often serve plain HTTP.
   def self.force_ssl_from_env?
     %w[1 true yes].include?(ENV["FORCE_SSL"].to_s.strip.downcase)
+  end
+
+  # The Content-Security-Policy ships report-only; CSP_ENFORCE=true makes
+  # browsers block violations instead, once the [CSP] report logs show the
+  # policy fits the install.
+  def self.csp_enforced_from_env?
+    %w[1 true yes].include?(ENV["CSP_ENFORCE"].to_s.strip.downcase)
   end
 
   # Absolute links in emails (e.g. password reset) point at APP_HOST. They use

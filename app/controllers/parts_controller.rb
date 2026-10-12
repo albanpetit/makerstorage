@@ -35,14 +35,21 @@ class PartsController < ApplicationController
   }.freeze
 
   def index
-    parts = current_organization.parts
-      .includes(:category, :footprint, :tags, :part_storages, :storage_locations, part_suppliers: :supplier)
-      .with_attached_images
-      .alphabetical
+    query = PartsIndexQuery.new(current_organization, params)
 
     render inertia: "parts/index", props: {
-      parts: parts.map { |part| serialize_part(part) },
-      initial_query: params[:search].to_s,
+      parts: serialize_parts_in_order(query.page_ids),
+      filters: query.filters,
+      pagination: query.pagination,
+      facets: query.facets,
+      total_count: query.total_count,
+      total_units: query.total_units,
+      # Every matching id, so "select all matching" and the "hidden by filters"
+      # count work across pages without loading the parts themselves.
+      matching_ids: query.matching_ids,
+      # Only loaded when the CSV import dialog asks for it (to preview which
+      # rows are new and which update an existing part).
+      part_identifiers: InertiaRails.optional { part_identifiers },
       categories: serialize_categories,
       footprints: serialize_footprints,
       suppliers: serialize_suppliers,
@@ -52,6 +59,19 @@ class PartsController < ApplicationController
       ipn_manual_entry: current_organization.ipn_generation_mode == "manual",
       open_add: params[:new].present?
     }
+  end
+
+  # Full list rows for the parts a CSV export or label print needs, which may
+  # sit on other pages than the one displayed: either explicit +part_ids+
+  # (the selection) or every part matching the list's +filters+.
+  def rows
+    ids = if params.key?(:part_ids)
+      current_organization.parts.where(id: Array(params[:part_ids])).alphabetical.pluck(:id)
+    else
+      PartsIndexQuery.new(current_organization, params.fetch(:filters, {})).matching_ids
+    end
+
+    render json: { parts: serialize_parts_in_order(ids) }
   end
 
   def show
@@ -105,7 +125,7 @@ class PartsController < ApplicationController
 
   def create
     part = current_organization.parts.build(part_params)
-    part.image_source_url = params[:image_url].presence
+    part.image_source_url = Part.supplier_image_url(params[:image_url])
 
     # The part and its opening stock land together: a refused stock movement
     # must not leave the part created behind an error.
@@ -154,7 +174,7 @@ class PartsController < ApplicationController
       @part.assign_attributes(part_params)
       # Only from a fresh catalog lookup; a plain edit doesn't send it, so an
       # existing hotlinked image is preserved.
-      @part.image_source_url = params[:image_url].presence if params[:image_url].present?
+      @part.image_source_url = Part.supplier_image_url(params[:image_url]) if params[:image_url].present?
       @part.save || raise(ActiveRecord::Rollback)
     end
 
@@ -190,7 +210,7 @@ class PartsController < ApplicationController
 
     moved = parts.count { |part| relocate_part_stock(part, destination) }
 
-    redirect_to parts_path, notice: "Relocated stock for #{moved} #{'part'.pluralize(moved)} to #{destination.name}."
+    redirect_back_or_to parts_path, notice: "Relocated stock for #{moved} #{'part'.pluralize(moved)} to #{destination.name}."
   end
 
   def bulk_destroy
@@ -203,7 +223,7 @@ class PartsController < ApplicationController
     notice = "#{destroyed.size} #{'part'.pluralize(destroyed.size)} deleted successfully."
     notice += " #{skipped} #{'part'.pluralize(skipped)} could not be deleted because #{skipped == 1 ? 'it has' : 'they have'} stock history or purchase orders." if skipped.positive?
 
-    redirect_to parts_path, notice: notice
+    redirect_back_or_to parts_path, notice: notice
   end
 
   def bulk_update_category
@@ -214,7 +234,7 @@ class PartsController < ApplicationController
     return bulk_error("Choose a category.") unless category
 
     updated = parts.update_all(category_id: category.id)
-    redirect_to parts_path, notice: "Set category to #{category.name} for #{updated} #{'part'.pluralize(updated)}."
+    redirect_back_or_to parts_path, notice: "Set category to #{category.name} for #{updated} #{'part'.pluralize(updated)}."
   end
 
   def bulk_update_status
@@ -225,7 +245,7 @@ class PartsController < ApplicationController
     return bulk_error("Choose a valid status.") unless Part::STATUSES.include?(status)
 
     updated = parts.update_all(status: status)
-    redirect_to parts_path, notice: "Set status to #{status} for #{updated} #{'part'.pluralize(updated)}."
+    redirect_back_or_to parts_path, notice: "Set status to #{status} for #{updated} #{'part'.pluralize(updated)}."
   end
 
   # Adds or removes the given tags on every selected part. Tags already present
@@ -241,7 +261,7 @@ class PartsController < ApplicationController
 
     if params[:mode] == "remove"
       PartTag.where(part_id: part_ids, tag_id: tag_ids).delete_all
-      redirect_to parts_path, notice: "Removed #{tag_ids.size} #{'tag'.pluralize(tag_ids.size)} from #{part_ids.size} #{'part'.pluralize(part_ids.size)}."
+      redirect_back_or_to parts_path, notice: "Removed #{tag_ids.size} #{'tag'.pluralize(tag_ids.size)} from #{part_ids.size} #{'part'.pluralize(part_ids.size)}."
     else
       # Single query for existing links instead of a per-part tag_ids lookup,
       # then a single bulk insert for whatever's missing.
@@ -251,7 +271,7 @@ class PartsController < ApplicationController
           .map { |tag_id| { part_id: part_id, tag_id: tag_id } }
       end
       PartTag.insert_all(rows) if rows.any?
-      redirect_to parts_path, notice: "Added #{tag_ids.size} #{'tag'.pluralize(tag_ids.size)} to #{part_ids.size} #{'part'.pluralize(part_ids.size)}."
+      redirect_back_or_to parts_path, notice: "Added #{tag_ids.size} #{'tag'.pluralize(tag_ids.size)} to #{part_ids.size} #{'part'.pluralize(part_ids.size)}."
     end
   end
 
@@ -273,7 +293,7 @@ class PartsController < ApplicationController
       end
     end
 
-    redirect_to parts_path, notice: "Assigned #{supplier.name} as preferred supplier for #{parts.size} #{'part'.pluralize(parts.size)}."
+    redirect_back_or_to parts_path, notice: "Assigned #{supplier.name} as preferred supplier for #{parts.size} #{'part'.pluralize(parts.size)}."
   rescue ActiveRecord::RecordInvalid => e
     bulk_error("No supplier was assigned: #{e.record.errors.full_messages.to_sentence}.")
   end
@@ -351,7 +371,7 @@ class PartsController < ApplicationController
   # response is a redirect either way), closing the dialog and clearing the
   # selection before the user can read why it failed.
   def bulk_error(message)
-    redirect_to parts_path, alert: message, inertia: { errors: { base: message } }
+    redirect_back_or_to parts_path, alert: message, inertia: { errors: { base: message } }
   end
 
   # Moves every positive-stock location of +part+ into +destination+, recording
@@ -563,8 +583,23 @@ class PartsController < ApplicationController
     if part.images.attached? && part.images.first.content_type.to_s.start_with?("image/")
       stored_file_path_for(part.images.first)
     else
-      part.image_source_url.presence
+      part.hotlinked_image_url
     end
+  end
+
+  # Serializes the parts with +ids+ (already scoped to the organization) in
+  # the order given, with the associations serialize_part reads preloaded.
+  def serialize_parts_in_order(ids)
+    parts = current_organization.parts.where(id: ids)
+      .includes(:category, :footprint, :tags, :part_storages, :storage_locations, part_suppliers: :supplier)
+      .with_attached_images
+      .index_by(&:id)
+    ids.filter_map { |id| parts[id] }.map { |part| serialize_part(part) }
+  end
+
+  def part_identifiers
+    rows = current_organization.parts.pluck(:mpn, :sku)
+    { mpns: rows.filter_map { |mpn, _| mpn.presence }.uniq, skus: rows.filter_map { |_, sku| sku.presence }.uniq }
   end
 
   def serialize_part(part)

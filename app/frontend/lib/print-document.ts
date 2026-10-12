@@ -41,11 +41,14 @@ export function html(strings: TemplateStringsArray, ...values: unknown[]): SafeH
 
 // Opens a new window holding +body+ (plus optional +head+ markup, e.g. a
 // <style> with @page rules) and triggers the browser's print dialog.
-export function printDocument(title: string, body: SafeHtml, bodyStyle = '', head: SafeHtml = html``) {
+// A caller that must fetch data first opens the window itself while still in
+// the click handler (popup blockers refuse window.open after an await) and
+// passes it as +target+.
+export function printDocument(title: string, body: SafeHtml, bodyStyle = '', target?: Window | null, head: SafeHtml = html``) {
   const doc = html`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${title}</title>${head}</head>
     <body style="${bodyStyle}">${body}</body></html>`
 
-  const printWindow = window.open('', '_blank')
+  const printWindow = target === undefined ? window.open('', '_blank') : target
   if (!printWindow) return
 
   printWindow.document.write(doc.value)

@@ -598,7 +598,8 @@ export default function StorageLocationsIndex({ storage_locations, part_storages
       <PrintLabelsDialog
         open={labelsOpen}
         onOpenChange={setLabelsOpen}
-        items={zoneLabels}
+        count={zoneLabels.length}
+        loadItems={() => Promise.resolve(zoneLabels)}
         title={`Print labels for ${effectiveSelected?.name ?? 'zone'}`}
         description="Scanning a zone label opens the scanner on that zone and lists what it holds."
       >

@@ -57,9 +57,12 @@ class Part < ApplicationRecord
   validates :min_stock_threshold, numericality: { greater_than_or_equal_to: 0, less_than_or_equal_to: MAX_INTEGER }
   validates :target_stock, numericality: { greater_than: 0, less_than_or_equal_to: MAX_INTEGER }, allow_nil: true
   validates :lead_time_days, numericality: { greater_than_or_equal_to: 0, less_than_or_equal_to: MAX_INTEGER }, allow_nil: true
-  # Hotlinked supplier image (e.g. Mouser, whose CDN blocks server-side download);
-  # rendered directly in an <img>, so only allow http(s) URLs.
-  validates :image_source_url, format: { with: %r{\Ahttps?://[^\s]+\z}i }, allow_blank: true
+  # Hotlinked supplier image (e.g. Mouser, whose CDN blocks server-side download),
+  # rendered directly in every member's browser: only https URLs on a supplier
+  # image host (Makerstorage::SUPPLIER_IMAGE_HOSTS). Checked on change only, so a
+  # part saved before the restriction stays editable (its image is just no
+  # longer shown, see #hotlinked_image_url).
+  validate :image_source_url_must_be_supplier_image, if: :image_source_url_changed?
   validate :category_must_belong_to_same_organization
   validate :footprint_must_belong_to_same_organization
 
@@ -107,6 +110,27 @@ class Part < ApplicationRecord
 
   scope :alphabetical, -> { order(:name) }
   scope :recent, -> { order(created_at: :desc) }
+
+  # Methods - Images
+  # +url+ when it points at a supplier image host (http is upgraded to https),
+  # else nil. Controllers pass catalog lookup results through this, so an
+  # unexpected host drops the image rather than refusing the part.
+  def self.supplier_image_url(url)
+    uri = URI.parse(url.to_s.strip)
+    return nil unless uri.is_a?(URI::HTTP) && uri.host.present? && uri.userinfo.nil?
+
+    host = uri.host.downcase
+    return nil unless Makerstorage::SUPPLIER_IMAGE_HOSTS.any? { |allowed| host == allowed || host.end_with?(".#{allowed}") }
+
+    URI::HTTPS.build(host: host, path: uri.path.presence || "/", query: uri.query).to_s
+  rescue URI::InvalidURIError
+    nil
+  end
+
+  # The hotlinked image to show, if it is (still) an allowed supplier image.
+  def hotlinked_image_url
+    self.class.supplier_image_url(image_source_url) if image_source_url.present?
+  end
 
   # Methods - Stock
   # Total stock across every storage location. When part_storages has already
@@ -240,6 +264,12 @@ class Part < ApplicationRecord
       self.ipn = candidate
       organization.update_column(:ipn_next_sequence, sequence + 1)
     end
+  end
+
+  def image_source_url_must_be_supplier_image
+    return if image_source_url.blank? || image_source_url == self.class.supplier_image_url(image_source_url)
+
+    errors.add(:image_source_url, "must be an https image from a supplier catalog (#{Makerstorage::SUPPLIER_IMAGE_HOSTS.to_sentence})")
   end
 
   def category_must_belong_to_same_organization

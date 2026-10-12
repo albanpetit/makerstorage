@@ -58,9 +58,51 @@ export interface StorageLocationOption {
   name: string
 }
 
+export type SortKey = 'ref' | 'crit' | 'qtyDesc' | 'qtyAsc' | 'priceDesc'
+
+// The list filters, as PartsIndexQuery applied them.
+export interface PartListFilters {
+  search: string
+  category: number | null
+  status: string[]
+  package: string[]
+  footprint: string[]
+  supplier: string[]
+  sort: SortKey
+}
+
+export interface FacetOption {
+  value: string
+  label: string
+  count: number
+}
+
+export interface PartListFacets {
+  categories: { id: number; name: string; count: number }[]
+  status: FacetOption[]
+  package: FacetOption[]
+  footprint: FacetOption[]
+  supplier: FacetOption[]
+}
+
+export interface PartListPagination {
+  page: number
+  page_count: number
+  page_size: number
+  total: number
+}
+
 export interface PartsIndexProps {
+  // Only the current page of matching parts.
   parts: Part[]
-  initial_query: string
+  filters: PartListFilters
+  pagination: PartListPagination
+  facets: PartListFacets
+  total_count: number
+  total_units: number
+  matching_ids: number[]
+  // Loaded on demand by the CSV import dialog.
+  part_identifiers?: { mpns: string[]; skus: string[] }
   categories: Category[]
   footprints: Footprint[]
   suppliers: Supplier[]
