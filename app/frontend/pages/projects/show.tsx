@@ -1,6 +1,6 @@
 import { Head, Link, router } from '@inertiajs/react'
 import { useMemo, useState } from 'react'
-import { ArrowLeft, CheckCircle2, AlertTriangle, XCircle, FileText, Hammer } from 'lucide-react'
+import { ArrowLeft, CheckCircle2, AlertTriangle, XCircle, FileText, Hammer, Lock, LockOpen } from 'lucide-react'
 
 import { AppLayout } from '@/layouts/app-layout'
 import { usePermissions } from '@/hooks/use-permissions'
@@ -46,6 +46,7 @@ interface ProjectLine {
   quantity: number
   match_type: 'mpn' | 'sku' | 'supplier_sku' | 'value_footprint' | 'name' | 'manual' | 'none'
   in_stock: number
+  reserved_elsewhere: number
   shortfall: number
   available: boolean
   part: LinePart | null
@@ -56,6 +57,9 @@ interface Project {
   name: string
   reference: string | null
   status: 'draft' | 'confirmed'
+  reservations_enabled: boolean
+  reserved: boolean
+  reserved_at: string | null
   buildable: boolean
   short_count: number
   unmatched_count: number
@@ -134,6 +138,16 @@ export default function ProjectShow({ project, parts }: ProjectShowProps) {
                   Confirm matches
                 </Button>
               )}
+              {project.status === 'confirmed' && project.reservations_enabled && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => router.post(`/projects/${project.id}/${project.reserved ? 'release' : 'reserve'}`, {}, { preserveScroll: true })}
+                >
+                  {project.reserved ? <LockOpen className="size-4" /> : <Lock className="size-4" />}
+                  {project.reserved ? 'Release stock' : 'Reserve stock'}
+                </Button>
+              )}
               <Button
                 size="sm"
                 variant="outline"
@@ -191,8 +205,13 @@ export default function ProjectShow({ project, parts }: ProjectShowProps) {
                 </p>
               </>
             )}
+            {project.reserved && project.reserved_at && (
+              <Badge variant="outline" className="ml-auto">
+                <Lock className="size-3.5" /> Stock reserved since {new Date(project.reserved_at).toLocaleDateString()}
+              </Badge>
+            )}
             {project.builds_count > 0 && project.last_built_at && (
-              <p className="ml-auto text-xs text-muted-foreground">
+              <p className={`${project.reserved ? '' : 'ml-auto '}text-xs text-muted-foreground`}>
                 Built {project.builds_count} time{project.builds_count !== 1 ? 's' : ''} · last on {new Date(project.last_built_at).toLocaleDateString()}
               </p>
             )}
@@ -208,6 +227,9 @@ export default function ProjectShow({ project, parts }: ProjectShowProps) {
                 <TableHead>Matched part</TableHead>
                 <TableHead className="text-right">Required</TableHead>
                 <TableHead className="text-right">In stock</TableHead>
+                {project.reservations_enabled && (
+                  <TableHead className="text-right" title="Held by projects reserved before this one">Reserved elsewhere</TableHead>
+                )}
                 <TableHead>Status</TableHead>
               </TableRow>
             </TableHeader>
@@ -263,6 +285,11 @@ export default function ProjectShow({ project, parts }: ProjectShowProps) {
                     )}
                   </TableCell>
                   <TableCell className="text-right font-mono">{line.part ? line.in_stock : '—'}</TableCell>
+                  {project.reservations_enabled && (
+                    <TableCell className="text-right font-mono text-muted-foreground">
+                      {line.part && line.reserved_elsewhere > 0 ? line.reserved_elsewhere : '—'}
+                    </TableCell>
+                  )}
                   <TableCell>
                     {!line.part ? (
                       <Badge variant="outline" className="bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400">
@@ -292,6 +319,7 @@ export default function ProjectShow({ project, parts }: ProjectShowProps) {
             <AlertDialogTitle>Build this kit?</AlertDialogTitle>
             <AlertDialogDescription>
               This deducts the required quantity of every matched part from stock, recording an outgoing movement for each. This can't be undone automatically.
+              {project.reserved && ' The project\'s stock reservation is released once the kit is built.'}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

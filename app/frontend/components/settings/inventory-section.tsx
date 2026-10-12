@@ -45,7 +45,7 @@ export function InventorySection({ form }: { form: InventoryForm }) {
               })}
             />
           </div>
-          <div className="flex items-center justify-between gap-4 py-3 last:pb-0">
+          <div className="flex items-center justify-between gap-4 py-3">
             <div>
               <div className="text-sm font-medium">Allow negative stock</div>
               <div className="text-xs text-muted-foreground">Permit stock movements that exceed the available quantity.</div>
@@ -53,6 +53,16 @@ export function InventorySection({ form }: { form: InventoryForm }) {
             <Switch
               checked={form.data.organization.allow_negative_stock}
               onCheckedChange={(checked) => form.setData('organization', { ...form.data.organization, allow_negative_stock: checked })}
+            />
+          </div>
+          <div className="flex items-center justify-between gap-4 py-3 last:pb-0">
+            <div>
+              <div className="text-sm font-medium">Reserve stock for projects</div>
+              <div className="text-xs text-muted-foreground">Confirmed projects hold their BOM quantities until built, so other projects only count what's left.</div>
+            </div>
+            <Switch
+              checked={form.data.organization.stock_reservations_enabled}
+              onCheckedChange={(checked) => form.setData('organization', { ...form.data.organization, stock_reservations_enabled: checked })}
             />
           </div>
         </CardContent>

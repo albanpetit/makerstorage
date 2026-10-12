@@ -72,6 +72,7 @@ export default function SettingsIndex({
     organization: {
       default_low_stock_threshold: organization.default_low_stock_threshold,
       allow_negative_stock: organization.allow_negative_stock,
+      stock_reservations_enabled: organization.stock_reservations_enabled,
     },
   })
 

@@ -33,6 +33,7 @@ export interface OrganizationSettings {
   notify_low_stock: boolean
   notify_late_orders: boolean
   notification_frequency: NotificationFrequency
+  stock_reservations_enabled: boolean
   mouser_api_key_present: boolean
   mouser_order_api_key_present: boolean
   digikey_configured: boolean
@@ -89,6 +90,7 @@ export interface InventoryFormData {
   organization: {
     default_low_stock_threshold: number
     allow_negative_stock: boolean
+    stock_reservations_enabled: boolean
   }
 }
 

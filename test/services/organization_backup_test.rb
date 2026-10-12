@@ -4,7 +4,8 @@ class OrganizationBackupTest < ActiveSupport::TestCase
   setup do
     @owner = create_user
     @org = create_organization(name: "Fablab Amiens", currency: "USD", ipn_prefix: "FA", ipn_next_sequence: 42,
-                               allow_negative_stock: false, mouser_api_key: "secret-mouser-key",
+                               allow_negative_stock: false, stock_reservations_enabled: false,
+                               mouser_api_key: "secret-mouser-key",
                                notify_late_orders: false, notification_frequency: "weekly", notifications_sent_on: Date.current)
     @org.organization_memberships.create!(user: @owner, role: "owner")
     @org.logo.attach(io: file_fixture("logo.png").open, filename: "logo.png", content_type: "image/png")
@@ -36,7 +37,8 @@ class OrganizationBackupTest < ActiveSupport::TestCase
     line = @order.order_lines.create!(part: @part, quantity: 50, unit_price: "0.03")
     line.allocations.create!(storage_location: @drawer, quantity: 50)
 
-    @project = create_project(organization: @org, name: "Badge", reference: "PRJ-1")
+    @project = create_project(organization: @org, name: "Badge", reference: "PRJ-1", status: "confirmed",
+                              reserved_at: 1.hour.ago)
     @project.project_lines.create!(part: @part, raw_reference: "RC0603-10K", quantity: 4, match_type: "mpn")
     @project.project_lines.create!(raw_reference: "UNKNOWN", quantity: 1, match_type: "none")
 
@@ -57,6 +59,7 @@ class OrganizationBackupTest < ActiveSupport::TestCase
     assert @importer.owner_of?(org)
     assert_equal 1, org.organization_memberships.count
     assert_equal "USD", org.currency
+    assert_equal false, org.stock_reservations_enabled
     assert_equal @org.reload.ipn_next_sequence, org.ipn_next_sequence
     assert_nil org.mouser_api_key, "secrets are not part of a backup"
     assert org.notify_low_stock
@@ -87,6 +90,7 @@ class OrganizationBackupTest < ActiveSupport::TestCase
 
     project = org.projects.find_by!(reference: "PRJ-1")
     assert_equal [ part.id, nil ], project.project_lines.order(:id).pluck(:part_id)
+    assert_equal @project.reserved_at.to_i, project.reserved_at.to_i
 
     assert_equal 1, org.suppliers.where(catalog_provider: "mouser").count
     assert_equal "Account 1234", org.suppliers.find_by!(catalog_provider: "mouser").notes
