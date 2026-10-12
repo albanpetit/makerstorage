@@ -2,13 +2,17 @@
 
 require "csv"
 
-# Parses a CSV bill-of-materials / parts export into normalized rows and
-# resolves each row against an organization's existing inventory.
+# Parses a bill-of-materials / parts export into normalized rows and resolves
+# each row against an organization's existing inventory.
 #
 #   rows = BomParser.parse(file.path)
-#   # => [ { designation:, mpn:, sku:, value:, package:, quantity:, ... }, ... ]
+#   # => [ { designation:, mpn:, sku:, value:, footprint:, designators:, quantity: }, ... ]
 #
-#   part, match_type = BomParser.match(organization, row)
+#   matcher = BomParser::Matcher.new(organization)
+#   part, match_type = matcher.match(row)
+#
+# Besides spreadsheet CSVs, parse reads KiCad and EasyEDA exports (netlist XML
+# and BOM CSVs, see BomParser::Kicad).
 #
 # Column-name handling (French/English/common BOM-export synonyms) and the
 # separator sniff live here so both the parts importer and the project BOM
@@ -53,10 +57,13 @@ module BomParser
   # unparseable input, which callers rescue to report a friendly error.
   def each_row(path)
     content = read_as_utf8(path)
-    separator = content.each_line.first.to_s.include?(";") ? ";" : ","
-    CSV.parse(content, headers: true, header_converters: :symbol, col_sep: separator) do |row|
+    CSV.parse(content, headers: true, header_converters: :symbol, col_sep: separator(content)) do |row|
       yield row
     end
+  end
+
+  def separator(content)
+    content.each_line.first.to_s.include?(";") ? ";" : ","
   end
 
   # The file's text as UTF-8. Excel on a French Windows saves "CSV (point-virgule)"
@@ -79,12 +86,23 @@ module BomParser
     nil
   end
 
-  # Parses +path+ into an array of normalized BOM line hashes. Rows with neither
-  # a designation nor any reference are dropped as blank. Quantity defaults to 1
+  # Parses +path+ into an array of normalized BOM line hashes. KiCad / EasyEDA
+  # exports are recognised by their content (XML, or a designator + footprint
+  # header) and read by BomParser::Kicad. Other CSVs: rows with neither a
+  # designation nor any reference are dropped as blank; quantity defaults to 1
   # (a BOM line implicitly needs at least one) and is floored at 1.
+  #
+  # Raises CSV::MalformedCSVError, Nokogiri::XML::SyntaxError or
+  # Kicad::NotANetlist (XML that isn't a KiCad export) on unreadable input.
   def parse(path)
+    content = read_as_utf8(path)
+    return Kicad.parse_xml(content) if Kicad.xml?(content)
+
+    kicad_csv = Kicad.csv_from_header(content)
+    return Kicad.parse_csv(kicad_csv) if kicad_csv
+
     lines = []
-    each_row(path) do |row|
+    CSV.parse(content, headers: true, header_converters: :symbol, col_sep: separator(content)) do |row|
       designation = value(row, :name)
       mpn = value(row, :mpn)
       sku = value(row, :sku)
@@ -97,25 +115,18 @@ module BomParser
         designation: designation,
         mpn: mpn,
         sku: sku,
+        value: value(row, :value),
+        footprint: value(row, :package) || row[:footprint].to_s.strip.presence,
+        designators: nil,
         quantity: quantity
       }
     end
     lines
   end
 
-  # Resolves a parsed BOM line against +organization+'s parts, trying MPN, then
-  # SKU, then name — each an exact, case-insensitive match (MPN and SKU are
-  # unique per organization regardless of case, and BOM exports often change
-  # it). Returns [part_or_nil, match_type] where match_type is
-  # "mpn"/"sku"/"name"/"none".
+  # Resolves one parsed BOM line; see BomParser::Matcher (build one per import
+  # to resolve many lines).
   def match(organization, line)
-    { mpn: :mpn, sku: :sku, name: :designation }.each do |column, key|
-      next if line[key].blank?
-
-      part = organization.parts.where(Part.arel_table[column].lower.eq(line[key].downcase)).first
-      return [ part, column.to_s ] if part
-    end
-
-    [ nil, "none" ]
+    Matcher.new(organization).match(line)
   end
 end

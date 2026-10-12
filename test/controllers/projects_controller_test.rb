@@ -59,13 +59,50 @@ class ProjectsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "none", by_designation["Mystery IC"].match_type
   end
 
+  test "create imports a KiCad netlist XML, matching by value + footprint and supplier part number" do
+    cap = create_part(organization: @org, category: @category, name: "MLCC 100nF", value: "100n", package_type: "0603")
+    resistor = create_part(organization: @org, category: @category, name: "Resistor 4.7k")
+    PartSupplier.create!(part: resistor, supplier: create_supplier(organization: @org), supplier_sku: "C23162")
+    # Same value + footprint in another organization: never offered.
+    create_part(organization: create_organization, value: "BME280", package_type: "Bosch_LGA-8_2.5x2.5mm_P0.65mm_ClockwisePinNumbering")
+
+    sign_in @user
+    assert_difference -> { ProjectLine.count } => 3 do
+      post projects_path, params: { file: Rack::Test::UploadedFile.new(file_fixture("kicad/sensor_board.xml"), "application/xml") }
+    end
+
+    project = Project.order(:created_at).last
+    assert_equal "sensor_board", project.name
+    by_value = project.project_lines.index_by(&:value)
+
+    caps = by_value["100nF"]
+    assert_equal [ cap, "value_footprint", 2, "C1, C2" ], [ caps.part, caps.match_type, caps.quantity, caps.designators ]
+    assert_equal "Capacitor_SMD:C_0603_1608Metric", caps.footprint
+    assert_equal [ resistor, "supplier_sku" ], [ by_value["4k7"].part, by_value["4k7"].match_type ]
+    assert_equal "C23162", by_value["4k7"].raw_reference
+    assert_nil by_value["BME280"].part
+    assert_equal "BME280", by_value["BME280"].raw_reference
+  end
+
+  test "create reports XML that isn't a KiCad BOM" do
+    file = Tempfile.new([ "bom", ".xml" ])
+    file.write("<?xml version=\"1.0\"?><bom/>")
+    file.rewind
+
+    sign_in @user
+    assert_no_difference -> { Project.count } do
+      post projects_path, params: { file: Rack::Test::UploadedFile.new(file.path, "application/xml") }
+    end
+    assert_match(/KiCad/, flash[:alert])
+  end
+
   test "create without a file re-prompts" do
     sign_in @user
     assert_no_difference -> { Project.count } do
       post projects_path, params: { name: "Nope" }
     end
     assert_redirected_to projects_path
-    assert_match(/choose a csv/i, flash[:alert])
+    assert_match(/choose a BOM file/i, flash[:alert])
   end
 
   test "show serializes availability and a part pick-list" do

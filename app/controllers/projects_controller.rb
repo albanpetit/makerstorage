@@ -29,7 +29,7 @@ class ProjectsController < ApplicationController
 
   def create
     file = params[:file]
-    return redirect_to(projects_path, alert: "Please choose a CSV file to import.") unless file
+    return redirect_to(projects_path, alert: "Please choose a BOM file to import.") unless file
     return redirect_to(projects_path, alert: BomParser.too_large_message) if BomParser.too_large?(file)
 
     name = params[:name].presence || File.basename(file.original_filename.to_s, ".*").presence || "Untitled project"
@@ -38,6 +38,8 @@ class ProjectsController < ApplicationController
       lines = BomParser.parse(file.path)
     rescue CSV::MalformedCSVError
       return redirect_to(projects_path, alert: "Could not parse that file as CSV.")
+    rescue Nokogiri::XML::SyntaxError, BomParser::Kicad::NotANetlist
+      return redirect_to(projects_path, alert: "Could not read that file as a KiCad BOM (XML).")
     end
 
     if lines.empty?
@@ -45,14 +47,18 @@ class ProjectsController < ApplicationController
     end
 
     project = current_organization.projects.new(name: name, status: "draft")
+    matcher = BomParser::Matcher.new(current_organization)
 
     lines.each do |line|
-      part, match_type = BomParser.match(current_organization, line)
+      part, match_type = matcher.match(line)
       project.project_lines.build(
         part: part,
         match_type: match_type,
         raw_reference: line[:mpn].presence || line[:sku],
         designation: line[:designation],
+        value: line[:value],
+        footprint: line[:footprint],
+        designators: line[:designators],
         quantity: line[:quantity]
       )
     end
@@ -231,6 +237,9 @@ class ProjectsController < ApplicationController
       id: line.id,
       raw_reference: line.raw_reference,
       designation: line.designation,
+      value: line.value,
+      footprint: line.footprint,
+      designators: line.designators,
       quantity: line.quantity,
       match_type: line.match_type,
       in_stock: line.in_stock,

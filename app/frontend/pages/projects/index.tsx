@@ -117,7 +117,7 @@ export default function ProjectsIndex({ projects }: ProjectsPageProps) {
               </div>
               <p className="font-semibold">No projects yet</p>
               <p className="max-w-sm text-sm text-muted-foreground">
-                Upload a bill of materials (CSV) to match each component against your inventory and see what you can build.
+                Upload a bill of materials (CSV, or a KiCad / EasyEDA export) to match each component against your inventory and see what you can build.
               </p>
             </CardContent>
           </Card>
@@ -191,7 +191,7 @@ export default function ProjectsIndex({ projects }: ProjectsPageProps) {
             <DialogHeader>
               <DialogTitle>New project</DialogTitle>
               <DialogDescription>
-                Upload a BOM CSV. Columns are auto-detected (designation, MPN, SKU/reference, quantity). We'll match each row against your inventory for you to review.
+                Upload a BOM CSV, or a KiCad export (BOM CSV or the netlist XML) or an EasyEDA BOM. Columns are auto-detected (designation, MPN, SKU, value, footprint, quantity); KiCad lines are matched by MPN, supplier part number, then value + footprint. Review the matches before building.
               </DialogDescription>
             </DialogHeader>
 
@@ -209,12 +209,12 @@ export default function ProjectsIndex({ projects }: ProjectsPageProps) {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="project-file">BOM file (CSV)</Label>
+                <Label htmlFor="project-file">BOM file (CSV or KiCad XML)</Label>
                 <Input
                   ref={fileInput}
                   id="project-file"
                   type="file"
-                  accept=".csv,text/csv"
+                  accept=".csv,text/csv,.xml,application/xml,text/xml"
                   onChange={(e) => setFileName(e.target.value.split(/[\\/]/).pop() ?? '')}
                   required
                 />
