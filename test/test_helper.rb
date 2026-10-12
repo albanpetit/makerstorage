@@ -50,6 +50,16 @@ module ActiveSupport
       Rails.configuration.x.email_verification = original
     end
 
+    # Runs the block with the email digest (config.x.email_notifications) on or
+    # off, as an instance with or without SMTP would.
+    def with_email_notifications(enabled)
+      original = Rails.configuration.x.email_notifications
+      Rails.configuration.x.email_notifications = enabled
+      yield
+    ensure
+      Rails.configuration.x.email_notifications = original
+    end
+
     def create_organization(name: "Test Org #{SecureRandom.hex(4)}", **attrs)
       Organization.create!(name: name, **attrs)
     end

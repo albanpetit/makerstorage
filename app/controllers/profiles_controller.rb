@@ -23,8 +23,27 @@ class ProfilesController < ApplicationController
           invited_by: inviter && ("#{inviter.firstname} #{inviter.lastname}".strip.presence || inviter.email),
           sent_at: invitation.invitation_sent_at.iso8601
         }
-      end
+      end,
+      email_notifications_available: NotificationDigest.available?,
+      notification_memberships: current_user.active_organization_memberships.includes(:organization)
+        .sort_by { |membership| membership.organization.name.downcase }
+        .map do |membership|
+          {
+            id: membership.id,
+            organization_name: membership.organization.name,
+            email_notifications: membership.email_notifications
+          }
+        end
     }
+  end
+
+  # Per-organization opt-out of the email digest (NotificationDigestJob).
+  def update_notifications
+    membership = current_user.active_organization_memberships.find(params[:id])
+    enabled = ActiveModel::Type::Boolean.new.cast(params[:email_notifications])
+    membership.update!(email_notifications: enabled)
+
+    redirect_to profile_path, notice: "Email notifications #{enabled ? 'on' : 'off'} for #{membership.organization.name}."
   end
 
   def update

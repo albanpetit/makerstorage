@@ -213,4 +213,45 @@ class ProfilesControllerTest < ActionDispatch::IntegrationTest
   def inertia_props
     JSON.parse(@response.body[/data-page="app" type="application\/json"[^>]*>(.*?)<\/script>/m, 1])["props"]
   end
+
+  test "show lists the user's organizations with their email notification choice" do
+    user = create_user
+    other = create_organization(name: "Aardvark Lab")
+    other.organization_memberships.create!(user: user, role: "member", email_notifications: false)
+
+    sign_in user
+    get profile_path
+
+    assert_equal true, inertia_props["email_notifications_available"]
+    memberships = inertia_props["notification_memberships"]
+    assert_equal [ "Aardvark Lab", user.organizations.find_by(personal: true).name ].sort_by(&:downcase),
+                 memberships.map { |m| m["organization_name"] }
+    assert_equal false, memberships.find { |m| m["organization_name"] == "Aardvark Lab" }["email_notifications"]
+  end
+
+  test "update_notifications opts the user out of one organization's digest" do
+    user = create_user
+    membership = user.active_organization_memberships.first
+
+    sign_in user
+    patch profile_notifications_path(membership), params: { email_notifications: false }
+
+    assert_redirected_to profile_path
+    assert_not membership.reload.email_notifications
+
+    patch profile_notifications_path(membership), params: { email_notifications: true }
+    assert membership.reload.email_notifications
+  end
+
+  test "update_notifications can't touch another user's membership" do
+    user = create_user
+    stranger = create_user
+    membership = stranger.active_organization_memberships.first
+
+    sign_in user
+    patch profile_notifications_path(membership), params: { email_notifications: false }
+
+    assert_response :not_found
+    assert membership.reload.email_notifications
+  end
 end

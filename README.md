@@ -107,9 +107,11 @@ The app is then served at `http://localhost:3000`.
 ### Email (SMTP)
 
 Makerstorage sends transactional email (password resets, email confirmations
-and account-security notices). Point it at any SMTP provider with the
+and account-security notices) and a daily or weekly digest of low-stock parts
+and late purchase orders (chosen in Settings → Notifications; each member can
+turn it off from their profile). Point it at any SMTP provider with the
 environment variables below. Without `SMTP_ADDRESS` the app still runs, but
-password-reset emails aren't delivered — mail is simply skipped.
+no email is delivered — mail is simply skipped and the digest is off.
 
 With SMTP configured, email addresses are verified: a new account signs in
 straight away but must confirm its address (from the mailed link, or by

@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
 import { Field, FieldContent, FieldError, FieldLabel } from '@/components/ui/field'
 
 interface ProfileUser {
@@ -30,12 +31,22 @@ interface Invitation {
   sent_at: string
 }
 
+interface NotificationMembership {
+  id: number
+  organization_name: string
+  email_notifications: boolean
+}
+
 interface PageProps {
   user: ProfileUser
   invitations: Invitation[]
+  email_notifications_available: boolean
+  notification_memberships: NotificationMembership[]
 }
 
-export default function Profile({ user, invitations }: PageProps) {
+export default function Profile({
+  user, invitations, email_notifications_available, notification_memberships,
+}: PageProps) {
   const detailsForm = useForm({
     user: {
       firstname: user.firstname,
@@ -224,6 +235,36 @@ export default function Profile({ user, invitations }: PageProps) {
             </CardFooter>
           </Card>
         </form>
+
+        {/* Email notifications: a per-organization opt-out of the alert digest */}
+        {email_notifications_available && notification_memberships.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Email notifications</CardTitle>
+              <CardDescription>
+                Low-stock and late-order digests, as each organization's admins set them up.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="divide-y">
+              {notification_memberships.map((membership) => (
+                <div key={membership.id} className="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0">
+                  <Label htmlFor={`notifications_${membership.id}`} className="min-w-0 truncate">
+                    {membership.organization_name}
+                  </Label>
+                  <Switch
+                    id={`notifications_${membership.id}`}
+                    checked={membership.email_notifications}
+                    onCheckedChange={(checked) => router.patch(
+                      `/profile/notifications/${membership.id}`,
+                      { email_notifications: checked },
+                      { preserveScroll: true },
+                    )}
+                  />
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Password */}
         <form onSubmit={submitPassword}>

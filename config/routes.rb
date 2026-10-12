@@ -131,6 +131,7 @@ Rails.application.routes.draw do
   post "backup/import", to: "backups#import", as: :import_backup
 
   resource :profile, only: %i[show update]
+  patch "profile/notifications/:id", to: "profiles#update_notifications", as: :profile_notifications
 
   # Organization invitations addressed to the signed-in user.
   resources :invitations, only: [] do

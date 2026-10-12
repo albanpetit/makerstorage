@@ -1,6 +1,6 @@
 import { Head, useForm } from '@inertiajs/react'
 import { useMemo, useState } from 'react'
-import { Building2, DatabaseBackup, Hash, Package, ShieldAlert, Plug } from 'lucide-react'
+import { Bell, Building2, DatabaseBackup, Hash, Package, ShieldAlert, Plug } from 'lucide-react'
 
 import { AppLayout } from '@/layouts/app-layout'
 import { PageHeader } from '@/components/page-header'
@@ -13,14 +13,16 @@ import { GeneralSection } from '@/components/settings/general-section'
 import { IntegrationsSection } from '@/components/settings/integrations-section'
 import { InventorySection } from '@/components/settings/inventory-section'
 import { IpnSection } from '@/components/settings/ipn-section'
+import { NotificationsSection } from '@/components/settings/notifications-section'
 import type {
-  GeneralFormData, IntegrationsFormData, InventoryFormData, IpnFormData, SettingsPageProps,
+  GeneralFormData, IntegrationsFormData, InventoryFormData, IpnFormData, NotificationsFormData, SettingsPageProps,
 } from '@/components/settings/types'
 
 const SECTIONS = [
   { key: 'general', label: 'General', icon: Building2 },
   { key: 'ipn', label: 'Numbering (IPN)', icon: Hash },
   { key: 'inventory', label: 'Inventory', icon: Package },
+  { key: 'notifications', label: 'Notifications', icon: Bell },
   { key: 'integrations', label: 'Integrations', icon: Plug },
   { key: 'backup', label: 'Backup', icon: DatabaseBackup },
   { key: 'danger', label: 'Danger zone', icon: ShieldAlert },
@@ -28,7 +30,9 @@ const SECTIONS = [
 
 type SectionKey = (typeof SECTIONS)[number]['key']
 
-export default function SettingsIndex({ organization, currencies, ipn_separators, timezones }: SettingsPageProps) {
+export default function SettingsIndex({
+  organization, currencies, ipn_separators, timezones, email_notifications_available,
+}: SettingsPageProps) {
   const { isOwner } = usePermissions()
   const [section, setSection] = useState<SectionKey>('general')
 
@@ -68,6 +72,14 @@ export default function SettingsIndex({ organization, currencies, ipn_separators
     organization: {
       default_low_stock_threshold: organization.default_low_stock_threshold,
       allow_negative_stock: organization.allow_negative_stock,
+    },
+  })
+
+  const notificationsForm = useForm<NotificationsFormData>({
+    organization: {
+      notify_low_stock: organization.notify_low_stock,
+      notify_late_orders: organization.notify_late_orders,
+      notification_frequency: organization.notification_frequency,
     },
   })
 
@@ -126,6 +138,10 @@ export default function SettingsIndex({ organization, currencies, ipn_separators
             )}
 
             {section === 'inventory' && <InventorySection form={inventoryForm} />}
+
+            {section === 'notifications' && (
+              <NotificationsSection form={notificationsForm} available={email_notifications_available} />
+            )}
 
             {section === 'integrations' && <IntegrationsSection form={integrationsForm} organization={organization} />}
 

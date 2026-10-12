@@ -16,3 +16,7 @@ production:
   purge_unattached_blobs:
     class: PurgeUnattachedBlobsJob
     schedule: every day at 4am
+  # Hourly so each organization gets its digest at 8am in its own time zone.
+  send_notification_digests:
+    class: NotificationDigestJob
+    schedule: every hour at minute 5

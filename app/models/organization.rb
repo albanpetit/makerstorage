@@ -47,6 +47,10 @@ class Organization < ApplicationRecord
   CURRENCIES = %w[EUR USD GBP CHF].freeze
   # The zones Settings offers (IANA names behind Rails' friendly zone names).
   TIMEZONES = ActiveSupport::TimeZone::MAPPING.values.uniq.sort.freeze
+  # How often the email digest goes out: every morning, or Monday mornings.
+  NOTIFICATION_FREQUENCIES = %w[daily weekly].freeze
+  # Local hour (in the org's time zone) from which the day's digest is sent.
+  NOTIFICATION_HOUR = 8
 
   # Validations
   validates :name, presence: true, length: { minimum: 2, maximum: 100 }
@@ -61,6 +65,7 @@ class Organization < ApplicationRecord
   validates :currency, presence: true, inclusion: { in: CURRENCIES }
   validates :timezone, inclusion: { in: TIMEZONES }
   validates :default_low_stock_threshold, numericality: { only_integer: true, greater_than_or_equal_to: 0, less_than_or_equal_to: MAX_INTEGER }
+  validates :notification_frequency, inclusion: { in: NOTIFICATION_FREQUENCIES }
 
   # Callbacks
   validate :must_have_at_least_one_owner, on: :update
@@ -202,6 +207,38 @@ class Organization < ApplicationRecord
   # durable half — the access token expires within the hour.
   def digikey_account_connected?
     digikey_refresh_token.present?
+  end
+
+  # Methods - Email notifications (see NotificationDigestJob)
+  #
+  # Whether any alert type is switched on for this organization.
+  def email_notifications_enabled?
+    notify_low_stock || notify_late_orders
+  end
+
+  # Whether this period's digest is still to be sent at `now`: from 8am local
+  # time, once a day (daily) or on Mondays (weekly).
+  def notification_digest_due?(now = Time.current)
+    return false unless email_notifications_enabled?
+
+    local = now.in_time_zone(timezone)
+    return false if local.hour < NOTIFICATION_HOUR
+    return false if notification_frequency == "weekly" && !local.monday?
+
+    notifications_sent_on.nil? || notifications_sent_on < local.to_date
+  end
+
+  # Today's date in the organization's time zone.
+  def local_date(now = Time.current)
+    now.in_time_zone(timezone).to_date
+  end
+
+  # Members who get the digest: active and accepted, not opted out, with an
+  # address they've confirmed (when this install verifies addresses).
+  def notification_recipients
+    users = User.where(id: organization_memberships.granting_access.where(email_notifications: true).select(:user_id))
+    users = users.where.not(confirmed_at: nil) if User.email_verification?
+    users
   end
 
   # Methods - Stats
