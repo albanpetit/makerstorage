@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_12_120000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_12_140000) do
   create_table "active_storage_attachments", force: :cascade do |t|
     t.bigint "blob_id", null: false
     t.datetime "created_at", null: false
@@ -224,6 +224,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_12_120000) do
     t.string "voltage_rating"
     t.string "image_source_url"
     t.string "ipn"
+    t.integer "bag_id"
+    t.datetime "bag_assigned_at"
+    t.index ["bag_id"], name: "index_parts_on_bag_id", unique: true, where: "bag_id IS NOT NULL"
     t.index ["category_id"], name: "index_parts_on_category_id"
     t.index ["footprint_id"], name: "index_parts_on_footprint_id"
     t.index ["manufacturer"], name: "index_parts_on_manufacturer"
@@ -292,6 +295,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_12_120000) do
     t.integer "organization_id", null: false
     t.integer "parent_id"
     t.datetime "updated_at", null: false
+    t.integer "position"
     t.index ["code"], name: "index_storage_locations_on_code"
     t.index ["location_type"], name: "index_storage_locations_on_location_type"
     t.index ["organization_id", "name"], name: "index_storage_locations_on_organization_id_and_name"
@@ -376,6 +380,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_12_120000) do
   add_foreign_key "parts", "categories"
   add_foreign_key "parts", "footprints"
   add_foreign_key "parts", "organizations"
+  add_foreign_key "parts", "storage_locations", column: "bag_id"
   add_foreign_key "project_lines", "parts"
   add_foreign_key "project_lines", "projects"
   add_foreign_key "projects", "organizations"

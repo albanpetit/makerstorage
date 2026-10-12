@@ -42,7 +42,7 @@ class Organization < ApplicationRecord
 
   # Constants
   IPN_SEPARATORS = %w[- . _ /].freeze
-  IPN_GENERATION_MODES = %w[incremental random category_sequence manual].freeze
+  IPN_GENERATION_MODES = %w[incremental random category_sequence manual box_bag].freeze
   IPN_CHARSETS = %w[numeric alphanumeric].freeze
   CURRENCIES = %w[EUR USD GBP CHF].freeze
   # The zones Settings offers (IANA names behind Rails' friendly zone names).
@@ -66,6 +66,7 @@ class Organization < ApplicationRecord
   validate :must_have_at_least_one_owner, on: :update
   before_save :unlink_digikey_account, if: :digikey_app_replaced?
   after_create :seed_catalog_suppliers
+  after_update :refresh_bag_codes!, if: -> { ipn_generation_mode == "box_bag" && saved_change_to_ipn_separator? }
 
   # Scopes
   scope :alphabetical, -> { order(:name) }
@@ -79,6 +80,8 @@ class Organization < ApplicationRecord
   #                       counter is conceptually per-category (preview starts at 1)
   #   random            — a random draw from the configured charset (unpredictable)
   #   manual            — operator types the reference; this yields the suggested value
+  #   box_bag           — the reference is the bag holding the part (A-3), see
+  #                       #free_bags and Part#claim_bag; not generated here
   # `sequence` seeds the numeric/random body so previews are stable and reproducible.
   def next_ipn(category_code: nil, sequence: ipn_next_sequence)
     include_category = ipn_generation_mode == "category_sequence" || (ipn_use_category_code && category_code.present?)
@@ -101,6 +104,7 @@ class Organization < ApplicationRecord
   # way Part#assign_ipn does (skipping any already taken, e.g. random collisions).
   def reassign_ipns!
     return 0 if ipn_generation_mode == "manual"
+    return reassign_bag_ipns! if ipn_generation_mode == "box_bag"
 
     with_lock do
       parts.update_all(ipn: nil)
@@ -126,6 +130,11 @@ class Organization < ApplicationRecord
   end
 
   def ipn_preview(category_code: nil, example_count: 3)
+    if ipn_generation_mode == "box_bag"
+      codes = free_bags.limit(example_count + 1).pluck(:code)
+      return { next: codes.first, examples: codes.drop(1) }
+    end
+
     start = ipn_generation_mode == "category_sequence" ? 1 : ipn_next_sequence
     effective_category = ipn_generation_mode == "category_sequence" ? (category_code.presence || "RES") : category_code
 
@@ -133,6 +142,42 @@ class Organization < ApplicationRecord
       next: next_ipn(category_code: effective_category, sequence: start),
       examples: (1..example_count).map { |i| next_ipn(category_code: effective_category, sequence: start + i) }
     }
+  end
+
+  # Methods - Box & bag storage
+  #
+  # The bags (storage zones of type "bag", numbered inside a coded box) a new
+  # part can take, in box then bag order: those no part holds, and those whose
+  # part has been emptied out of them since it took the bag (stock back to 0
+  # after at least one movement there). A part that took a bag but hasn't been
+  # stocked yet keeps it.
+  def free_bags
+    held = parts.where.not(bag_id: nil).where(<<~SQL.squish)
+      EXISTS (SELECT 1 FROM part_storages ps
+              WHERE ps.part_id = parts.id AND ps.storage_location_id = parts.bag_id AND ps.quantity > 0)
+      OR NOT EXISTS (SELECT 1 FROM stock_movements sm
+                     WHERE sm.part_id = parts.id AND sm.storage_location_id = parts.bag_id
+                       AND sm.created_at >= parts.bag_assigned_at)
+    SQL
+
+    storage_locations.bags
+      .joins("INNER JOIN storage_locations boxes ON boxes.id = storage_locations.parent_id")
+      .where.not(id: held.select(:bag_id))
+      .order(Arel.sql("LOWER(boxes.code), storage_locations.position, storage_locations.id"))
+  end
+
+  # Rebuilds every bag's code from its box code, number and the current IPN
+  # separator, and gives the parts holding them the new codes.
+  def refresh_bag_codes!
+    storage_locations.bags.includes(:parent, :bag_occupant).find_each do |bag|
+      next unless bag.parent&.box?
+
+      code = StorageLocation.bag_code(bag.parent.code, bag.position, ipn_separator)
+      next if bag.code == code
+
+      bag.update_column(:code, code)
+      bag.bag_occupant&.update_column(:ipn, code)
+    end
   end
 
   # Methods - Supplier catalog integration
@@ -219,6 +264,30 @@ class Organization < ApplicationRecord
     self.digikey_access_token = nil
     self.digikey_refresh_token = nil
     self.digikey_token_expires_at = nil
+  end
+
+  # Box & bag flavor of #reassign_ipns!: gives each part holding a bag that bag's code, lets a part
+  # without a bag but with stock in a bag nobody holds take it, and clears the
+  # other parts' IPNs. Returns the number of parts left with an IPN.
+  def reassign_bag_ipns!
+    with_lock do
+      refresh_bag_codes!
+      parts.update_all(ipn: nil)
+      held = parts.where.not(bag_id: nil).pluck(:bag_id).to_set
+
+      parts.where(bag_id: nil).order(:created_at, :id).includes(part_storages: :storage_location).each do |part|
+        storage = part.part_storages.find do |ps|
+          ps.quantity.positive? && ps.storage_location.bag? && held.exclude?(ps.storage_location_id)
+        end
+        next unless storage
+
+        part.update_columns(bag_id: storage.storage_location_id, bag_assigned_at: Time.current)
+        held << storage.storage_location_id
+      end
+
+      parts.where.not(bag_id: nil).includes(:bag).find_each { |part| part.update_column(:ipn, part.bag.code) }
+      parts.where.not(ipn: nil).count
+    end
   end
 
   def random_ipn_body(seed)
