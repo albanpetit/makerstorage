@@ -33,7 +33,7 @@ module OrganizationBackup
     name email phone website address_line1 address_line2 city postcode country
     currency timezone
     ipn_generation_mode ipn_charset ipn_prefix ipn_separator ipn_digits ipn_use_category_code ipn_next_sequence
-    default_low_stock_threshold allow_negative_stock
+    default_low_stock_threshold allow_negative_stock stock_reservations_enabled
   ].freeze
 
   Table = Data.define(:name, :model, :scope, :references, :excluded, :enums) do

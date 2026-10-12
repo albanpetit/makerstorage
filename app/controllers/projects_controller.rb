@@ -4,8 +4,8 @@ class ProjectsController < ApplicationController
   include Auth
 
   before_action :verify_organization_access
-  before_action :verify_organization_writer, only: %i[create confirm create_purchase_orders build destroy]
-  before_action :set_project, only: %i[show confirm create_purchase_orders build destroy]
+  before_action :verify_organization_writer, only: %i[create confirm reserve release create_purchase_orders build destroy]
+  before_action :set_project, only: %i[show confirm reserve release create_purchase_orders build destroy]
 
   def index
     projects = current_organization.projects
@@ -69,9 +69,26 @@ class ProjectsController < ApplicationController
     redirect_to projects_path, alert: project.errors.full_messages.to_sentence.presence || "Could not import that BOM."
   end
 
+  # Confirming also reserves the BOM when the organization uses reservations.
   def confirm
-    @project.update!(status: "confirmed", checked_at: Time.current)
-    redirect_to project_path(@project), notice: "Matches confirmed."
+    reserve = current_organization.stock_reservations_enabled
+    @project.update!(status: "confirmed", checked_at: Time.current, reserved_at: (Time.current if reserve))
+    redirect_to project_path(@project), notice: reserve ? "Matches confirmed and stock reserved." : "Matches confirmed."
+  end
+
+  def reserve
+    unless current_organization.stock_reservations_enabled && @project.confirmed?
+      redirect_to project_path(@project), alert: "Only a confirmed project can reserve stock, with reservations turned on in Settings."
+      return
+    end
+
+    @project.reserve!
+    redirect_to project_path(@project), notice: "Stock reserved for this project."
+  end
+
+  def release
+    @project.release_reservation!
+    redirect_to project_path(@project), notice: "Reservation released."
   end
 
   # Orders each short part's missing quantity (summed across its BOM lines),
@@ -152,6 +169,8 @@ class ProjectsController < ApplicationController
       raise ActiveRecord::Rollback if claimed.zero?
 
       required.each { |part, quantity| deduct_part_stock(part, quantity) }
+      # The build consumed what was reserved; reserve again for another kit.
+      @project.release_reservation!
       true
     end
 
@@ -202,6 +221,7 @@ class ProjectsController < ApplicationController
       name: project.name,
       reference: project.reference,
       status: project.status,
+      reserved: project.reserving?,
       line_count: project.project_lines.size,
       buildable: project.buildable?,
       short_count: project.short_lines.size,
@@ -218,20 +238,23 @@ class ProjectsController < ApplicationController
       name: project.name,
       reference: project.reference,
       status: project.status,
+      reservations_enabled: current_organization.stock_reservations_enabled,
+      reserved: project.reserving?,
+      reserved_at: project.reserved_at&.iso8601,
       buildable: project.buildable?,
       short_count: project.short_lines.size,
       unmatched_count: project.unmatched_lines.size,
       checked_at: project.checked_at&.iso8601,
       builds_count: project.builds_count,
       last_built_at: project.last_built_at&.iso8601,
-      lines: project.project_lines.map { |line| serialize_line(line, shortfalls) }
+      lines: project.project_lines.map { |line| serialize_line(project, line, shortfalls) }
     }
   end
 
   # Shortfall and availability come from the project-wide per-part totals, so a
   # part listed on two lines isn't shown as available on each when its stock
   # only covers one.
-  def serialize_line(line, shortfalls)
+  def serialize_line(project, line, shortfalls)
     shortfall = line.part ? shortfalls.fetch(line.part, 0) : 0
     {
       id: line.id,
@@ -243,6 +266,7 @@ class ProjectsController < ApplicationController
       quantity: line.quantity,
       match_type: line.match_type,
       in_stock: line.in_stock,
+      reserved_elsewhere: line.part ? project.reserved_elsewhere.fetch(line.part.id, 0) : 0,
       shortfall: shortfall,
       available: line.part.present? && shortfall.zero?,
       part: line.part && {

@@ -66,7 +66,7 @@ class SettingsController < ApplicationController
       :currency, :timezone,
       :ipn_generation_mode, :ipn_charset,
       :ipn_prefix, :ipn_separator, :ipn_digits, :ipn_use_category_code, :ipn_next_sequence,
-      :default_low_stock_threshold, :allow_negative_stock,
+      :default_low_stock_threshold, :allow_negative_stock, :stock_reservations_enabled,
       :mouser_api_key, :remove_mouser_api_key,
       :mouser_order_api_key, :remove_mouser_order_api_key,
       :digikey_client_id, :digikey_client_secret, :remove_digikey
@@ -137,6 +137,7 @@ class SettingsController < ApplicationController
       ipn_prefix: org.ipn_prefix, ipn_separator: org.ipn_separator, ipn_digits: org.ipn_digits,
       ipn_use_category_code: org.ipn_use_category_code, ipn_next_sequence: org.ipn_next_sequence,
       default_low_stock_threshold: org.default_low_stock_threshold, allow_negative_stock: org.allow_negative_stock,
+      stock_reservations_enabled: org.stock_reservations_enabled,
       mouser_api_key_present: org.mouser_api_key.present?,
       mouser_order_api_key_present: org.mouser_order_api_key.present?,
       digikey_configured: org.digikey_configured?,

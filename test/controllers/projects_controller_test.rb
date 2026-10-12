@@ -165,6 +165,101 @@ class ProjectsControllerTest < ActionDispatch::IntegrationTest
     assert_not_nil project.checked_at
   end
 
+  test "confirm reserves the project's stock when reservations are on" do
+    project = build_project([ @cap, 4, "sku" ])
+    sign_in @user
+    post confirm_project_path(project)
+
+    assert project.reload.reserving?
+    assert_match(/reserved/i, flash[:notice])
+  end
+
+  test "confirm reserves nothing when the organization turned reservations off" do
+    @org.update!(stock_reservations_enabled: false)
+    project = build_project([ @cap, 4, "sku" ])
+    sign_in @user
+    post confirm_project_path(project)
+
+    assert_equal "confirmed", project.reload.status
+    assert_nil project.reserved_at
+  end
+
+  test "reserve and release toggle a confirmed project's reservation" do
+    project = build_project([ @cap, 4, "sku" ])
+    project.update!(status: "confirmed")
+    sign_in @user
+
+    post reserve_project_path(project)
+    assert_not_nil project.reload.reserved_at
+
+    post release_project_path(project)
+    assert_nil project.reload.reserved_at
+  end
+
+  test "reserve refuses a draft project or an organization without reservations" do
+    project = build_project([ @cap, 4, "sku" ])
+    sign_in @user
+
+    post reserve_project_path(project)
+    assert_nil project.reload.reserved_at
+    assert_match(/confirmed/i, flash[:alert])
+
+    project.update!(status: "confirmed")
+    @org.update!(stock_reservations_enabled: false)
+    post reserve_project_path(project)
+    assert_nil project.reload.reserved_at
+  end
+
+  test "viewers cannot reserve or release stock" do
+    project = build_project([ @cap, 4, "sku" ])
+    project.update!(status: "confirmed", reserved_at: Time.current)
+    viewer = create_user
+    OrganizationMembership.create!(organization: @org, user: viewer, role: "viewer")
+    sign_in viewer
+    post release_project_path(project)
+
+    assert_not_nil project.reload.reserved_at
+  end
+
+  test "reserving another organization's project is not found" do
+    other_org = create_organization
+    foreign = create_project(organization: other_org, status: "confirmed")
+    sign_in @user
+
+    post reserve_project_path(foreign)
+    assert_response :not_found
+    assert_nil foreign.reload.reserved_at
+  end
+
+  test "show subtracts earlier reservations from what the project can use" do
+    earlier = build_project([ @cap, 80, "sku" ]) # stock 100
+    earlier.update!(status: "confirmed", reserved_at: 1.hour.ago)
+    project = build_project([ @cap, 30, "sku" ])
+
+    sign_in @user
+    get project_path(project)
+
+    props = inertia_props["project"]
+    assert props["reservations_enabled"]
+    assert_not props["reserved"]
+    line = props["lines"].first
+    assert_equal 100, line["in_stock"]
+    assert_equal 80, line["reserved_elsewhere"]
+    assert_equal 10, line["shortfall"]
+    assert_not props["buildable"]
+  end
+
+  test "build releases the project's reservation" do
+    project = build_project([ @cap, 30, "sku" ])
+    project.update!(status: "confirmed", reserved_at: Time.current)
+
+    sign_in @user
+    post build_project_path(project), params: { builds_count: 0 }
+
+    assert_equal 70, PartStorage.find_by(part: @cap, storage_location: @location).quantity
+    assert_nil project.reload.reserved_at
+  end
+
   test "create_purchase_orders raises POs for short lines grouped by preferred supplier" do
     supplier = create_supplier(organization: @org)
     PartSupplier.create!(part: @resistor, supplier: supplier, is_preferred: true, unit_price: 0.10)

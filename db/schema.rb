@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_12_150000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_12_180000) do
   create_table "active_storage_attachments", force: :cascade do |t|
     t.bigint "blob_id", null: false
     t.datetime "created_at", null: false
@@ -155,6 +155,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_12_150000) do
     t.text "digikey_access_token"
     t.text "digikey_refresh_token"
     t.datetime "digikey_token_expires_at"
+    t.boolean "stock_reservations_enabled", default: true, null: false
     t.index ["email"], name: "index_organizations_on_email"
     t.index ["name"], name: "index_organizations_on_name"
   end
@@ -267,6 +268,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_12_150000) do
     t.datetime "updated_at", null: false
     t.integer "builds_count", default: 0, null: false
     t.datetime "last_built_at"
+    t.datetime "reserved_at"
     t.index ["organization_id", "reference"], name: "index_projects_on_organization_id_and_reference", unique: true, where: "reference IS NOT NULL AND reference != ''"
     t.index ["organization_id"], name: "index_projects_on_organization_id"
   end

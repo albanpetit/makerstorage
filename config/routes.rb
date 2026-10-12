@@ -108,6 +108,8 @@ Rails.application.routes.draw do
   resources :projects, only: %i[index show create destroy] do
     member do
       post :confirm
+      post :reserve
+      post :release
       post :create_purchase_orders
       post :build
     end

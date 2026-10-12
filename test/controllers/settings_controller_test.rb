@@ -130,13 +130,14 @@ class SettingsControllerTest < ActionDispatch::IntegrationTest
 
     sign_in user
     patch settings_path, params: { organization: {
-      default_low_stock_threshold: 75, allow_negative_stock: true
+      default_low_stock_threshold: 75, allow_negative_stock: true, stock_reservations_enabled: false
     } }
 
     assert_redirected_to settings_path
     org.reload
     assert_equal 75, org.default_low_stock_threshold
     assert_equal true, org.allow_negative_stock
+    assert_equal false, org.stock_reservations_enabled
   end
 
   test "update attaches an uploaded logo" do

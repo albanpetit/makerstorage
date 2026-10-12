@@ -120,6 +120,29 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
     assert props["storage_locations"].any? { |l| l["name"].include?("Shelf B2") }
   end
 
+  test "show lists the projects reserving the part, oldest reservation first" do
+    user = create_user
+    org = user.organizations.first
+    part = create_part(organization: org, category: create_category(organization: org))
+    later = create_project(organization: org, name: "Later kit", status: "confirmed", reserved_at: 1.hour.ago)
+    later.project_lines.create!(part: part, quantity: 2, match_type: "manual")
+    first = create_project(organization: org, name: "First kit", reference: "PRJ-1", status: "confirmed", reserved_at: 2.hours.ago)
+    first.project_lines.create!(part: part, quantity: 3, match_type: "manual")
+    first.project_lines.create!(part: part, quantity: 1, match_type: "manual")
+    create_project(organization: org, name: "Draft kit").project_lines.create!(part: part, quantity: 9, match_type: "manual")
+
+    sign_in user
+    get part_path(part), headers: { "Accept" => "application/json" }
+    reservations = JSON.parse(response.body)["reservations"]
+
+    assert_equal [ [ "First kit", "PRJ-1", 4 ], [ "Later kit", nil, 2 ] ],
+                 reservations.map { |r| [ r["name"], r["reference"], r["quantity"] ] }
+
+    org.update!(stock_reservations_enabled: false)
+    get part_path(part), headers: { "Accept" => "application/json" }
+    assert_empty JSON.parse(response.body)["reservations"]
+  end
+
   test "show redirects a direct HTML visit to the inventory list" do
     user = create_user
     org = user.organizations.first

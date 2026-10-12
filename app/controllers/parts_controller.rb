@@ -90,6 +90,7 @@ class PartsController < ApplicationController
           part: serialize_part_full(@part),
           storages: @part.part_storages.includes(:storage_location).map { |ps| serialize_part_storage(ps, location_paths) },
           movements: movements.map { |movement| serialize_part_movement(movement) },
+          reservations: serialize_part_reservations(@part),
           storage_locations: serialize_storage_locations,
           categories: serialize_categories,
           footprints: serialize_footprints,
@@ -679,6 +680,18 @@ class PartsController < ApplicationController
       category: part.category ? { id: part.category.id, name: part.category.name, color: part.category.color } : nil,
       footprint: part.footprint ? { id: part.footprint.id, name: part.footprint.name } : nil
     }
+  end
+
+  # Confirmed projects holding this part (empty when reservations are off).
+  def serialize_part_reservations(part)
+    return [] unless current_organization.stock_reservations_enabled
+
+    current_organization.projects.reserving
+      .joins(:project_lines).where(project_lines: { part_id: part.id })
+      .group("projects.id", "projects.reference", "projects.name")
+      .order("projects.reserved_at", "projects.id")
+      .sum("project_lines.quantity")
+      .map { |(id, reference, name), quantity| { project_id: id, reference: reference, name: name, quantity: quantity } }
   end
 
   def serialize_part_full(part)
