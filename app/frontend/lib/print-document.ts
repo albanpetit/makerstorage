@@ -39,9 +39,10 @@ export function html(strings: TemplateStringsArray, ...values: unknown[]): SafeH
   return new SafeHtml(out)
 }
 
-// Opens a new window holding +body+ and triggers the browser's print dialog.
-export function printDocument(title: string, body: SafeHtml, bodyStyle = '') {
-  const doc = html`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${title}</title></head>
+// Opens a new window holding +body+ (plus optional +head+ markup, e.g. a
+// <style> with @page rules) and triggers the browser's print dialog.
+export function printDocument(title: string, body: SafeHtml, bodyStyle = '', head: SafeHtml = html``) {
+  const doc = html`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${title}</title>${head}</head>
     <body style="${bodyStyle}">${body}</body></html>`
 
   const printWindow = window.open('', '_blank')

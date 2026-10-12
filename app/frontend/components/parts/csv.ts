@@ -1,8 +1,5 @@
 import { toast } from 'sonner'
 
-import { html, printDocument } from '@/lib/print-document'
-
-import { locationLabel } from './part-meta'
 import type { Part } from './types'
 
 // Text starting with = + - @ (or a tab/CR) is run as a formula by Excel and
@@ -55,23 +52,6 @@ export function exportCsv(parts: Part[]) {
   toast.success(`${parts.length} part${parts.length !== 1 ? 's' : ''} exported`, {
     description: link.download,
   })
-}
-
-export function printLabels(parts: Part[]) {
-  if (parts.length === 0) return
-
-  const labels = parts.map((part) => html`
-    <div style="width:189px;height:95px;border:1px dashed #999;border-radius:4px;padding:8px 10px;box-sizing:border-box;page-break-inside:avoid;">
-      <div style="font-family:monospace;font-weight:700;font-size:13px;">${part.mpn || part.sku || part.name}</div>
-      <div style="font-size:9.5px;color:#555;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${part.name}</div>
-      <div style="font-family:monospace;font-size:10px;margin-top:6px;">${locationLabel(part.location_names)}</div>
-    </div>`)
-
-  printDocument(
-    'Labels',
-    html`<div style="display:flex;flex-wrap:wrap;gap:10px;">${labels}</div>`,
-    'font-family:Arial,sans-serif;padding:24px;background:#fff;',
-  )
 }
 
 export function csrfToken(): string {

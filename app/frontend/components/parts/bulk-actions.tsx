@@ -8,6 +8,8 @@ import { usePermissions } from '@/hooks/use-permissions'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { TagPicker } from '@/components/tag-picker'
+import { PrintLabelsDialog } from '@/components/print-labels-dialog'
+import { labelCodeForPart, type LabelItem } from '@/lib/labels'
 import {
   Dialog,
   DialogContent,
@@ -34,8 +36,8 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 
-import { exportCsv, printLabels } from './csv'
-import { LIFECYCLE_META } from './part-meta'
+import { exportCsv } from './csv'
+import { LIFECYCLE_META, locationLabel } from './part-meta'
 import type { Category, Part, StorageLocationOption, Supplier, Tag } from './types'
 
 interface BulkActionsProps {
@@ -49,6 +51,19 @@ interface BulkActionsProps {
   storageLocations: StorageLocationOption[]
 }
 
+function partLabel(part: Part): LabelItem {
+  const title = part.ipn || part.mpn || part.sku || part.name
+  return {
+    code: labelCodeForPart(part),
+    title,
+    lines: [
+      part.name !== title ? part.name : '',
+      part.mpn && part.mpn !== title ? part.mpn : '',
+      locationLabel(part.location_names),
+    ],
+  }
+}
+
 // The dark bar shown while parts are selected, plus the edit + confirmation
 // dialogs behind each of its bulk actions (PartsController#bulk_*).
 export function BulkActions({
@@ -58,6 +73,7 @@ export function BulkActions({
   const { canWrite, canAdminister } = usePermissions()
 
   const [moveOpen, setMoveOpen] = useState(false)
+  const [labelsOpen, setLabelsOpen] = useState(false)
   const [moveLocationId, setMoveLocationId] = useState('')
   const [moveConfirmOpen, setMoveConfirmOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
@@ -179,7 +195,7 @@ export function BulkActions({
     { label: 'Status', icon: CircleDot, action: openStatus },
     { label: 'Tags', icon: Tags, action: openTags },
     { label: 'Supplier', icon: Truck, action: openSupplier },
-    { label: 'Labels', icon: TagIcon, action: () => printLabels(selectedParts) },
+    { label: 'Labels', icon: TagIcon, action: () => setLabelsOpen(true) },
     { label: 'Export', icon: Download, action: () => exportCsv(selectedParts) },
     // Bulk delete is admin-gated server-side (PartsController#bulk_destroy) —
     // hidden here too so members/viewers don't hit a dead-end confirmation
@@ -224,6 +240,13 @@ export function BulkActions({
           </Button>
         </div>
       )}
+
+    <PrintLabelsDialog
+      open={labelsOpen}
+      onOpenChange={setLabelsOpen}
+      items={selectedParts.map(partLabel)}
+      title={`Print labels for ${selectedParts.length} part${selectedParts.length !== 1 ? 's' : ''}`}
+    />
 
     {/* Bulk move modal */}
     <Dialog open={moveOpen} onOpenChange={setMoveOpen}>
