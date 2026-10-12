@@ -42,6 +42,23 @@ class StorageLocationsControllerTest < ActionDispatch::IntegrationTest
     assert_not_includes names, "Someone else's shelf"
   end
 
+  test "opens the zone named by the zone param, only within the organization" do
+    user = create_user
+    org = user.organizations.first
+    drawer = create_storage_location(organization: org, name: "Drawer 3")
+    foreign = create_storage_location(organization: create_organization)
+
+    sign_in user
+    get storage_locations_path, params: { zone: drawer.id }
+    assert_equal drawer.id, inertia_props["selected_zone_id"]
+
+    get storage_locations_path, params: { zone: foreign.id }
+    assert_nil inertia_props["selected_zone_id"]
+
+    get storage_locations_path
+    assert_nil inertia_props["selected_zone_id"]
+  end
+
   test "create builds a zone under a parent" do
     user = create_user
     org = user.organizations.first
