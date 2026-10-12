@@ -125,7 +125,7 @@ class PartsController < ApplicationController
 
   def create
     part = current_organization.parts.build(part_params)
-    part.image_source_url = params[:image_url].presence
+    part.image_source_url = Part.supplier_image_url(params[:image_url])
 
     # The part and its opening stock land together: a refused stock movement
     # must not leave the part created behind an error.
@@ -174,7 +174,7 @@ class PartsController < ApplicationController
       @part.assign_attributes(part_params)
       # Only from a fresh catalog lookup; a plain edit doesn't send it, so an
       # existing hotlinked image is preserved.
-      @part.image_source_url = params[:image_url].presence if params[:image_url].present?
+      @part.image_source_url = Part.supplier_image_url(params[:image_url]) if params[:image_url].present?
       @part.save || raise(ActiveRecord::Rollback)
     end
 
@@ -583,7 +583,7 @@ class PartsController < ApplicationController
     if part.images.attached? && part.images.first.content_type.to_s.start_with?("image/")
       stored_file_path_for(part.images.first)
     else
-      part.image_source_url.presence
+      part.hotlinked_image_url
     end
   end
 

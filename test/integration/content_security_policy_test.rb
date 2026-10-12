@@ -10,9 +10,12 @@ class ContentSecurityPolicyTest < ActionDispatch::IntegrationTest
     assert_match(/default-src 'self'/, policy)
     assert_match(/object-src 'none'/, policy)
     assert_match(/frame-ancestors 'none'/, policy)
-    # Part#image_source_url accepts http and https hotlinks; both must load.
-    assert_match(/img-src [^;]*https:/, policy)
-    assert_match(/img-src [^;]*http:(?!\/)/, policy)
+    # Hotlinked part images may only come from the supplier image hosts.
+    img_src = policy[/img-src ([^;]*)/, 1].split
+    assert_includes img_src, "https://*.mouser.com"
+    assert_includes img_src, "https://*.digikey.com"
+    assert_not_includes img_src, "https:"
+    assert_not_includes img_src, "http:"
   end
 
   test "the layout's inline theme script carries the nonce the policy allows" do

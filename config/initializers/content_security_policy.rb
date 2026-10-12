@@ -19,10 +19,11 @@ Rails.application.configure do
     # Radix/shadcn set inline style attributes; fonts come from Google Fonts.
     policy.style_src   :self, :unsafe_inline, "https://fonts.googleapis.com"
     policy.font_src    :self, :data, "https://fonts.gstatic.com"
-    # Supplier catalog images are hotlinked from their CDNs (any host — Part
-    # accepts http and https image URLs, so the policy must too); uploads are
-    # served same-origin; previews use blob:/data: URLs.
-    policy.img_src     :self, :https, :http, :data, :blob
+    # Supplier catalog images are hotlinked from their CDNs, limited to the
+    # supplier image hosts Part#image_source_url accepts; uploads are served
+    # same-origin; previews use blob:/data: URLs.
+    supplier_images = Makerstorage::SUPPLIER_IMAGE_HOSTS.flat_map { |host| [ "https://#{host}", "https://*.#{host}" ] }
+    policy.img_src     :self, :data, :blob, *supplier_images
     # The scanner reads the camera stream into a blob-backed <video>.
     policy.media_src   :self, :blob
     policy.connect_src :self

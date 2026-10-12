@@ -1056,6 +1056,33 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "https://www.mouser.com/img.png", part.image_source_url
   end
 
+  test "create drops a lookup image that isn't hosted by a supplier catalog" do
+    user = create_user
+    org = user.organizations.first
+    category = create_category(organization: org)
+
+    sign_in user
+    post parts_path, params: {
+      part: { name: "Resistor 10k", category_id: category.id },
+      image_url: "https://tracker.example/pixel.png"
+    }
+
+    part = org.parts.find_by!(name: "Resistor 10k")
+    assert_nil part.image_source_url
+  end
+
+  test "a hotlinked image from a host that is no longer allowed gets no thumbnail" do
+    user = create_user
+    org = user.organizations.first
+    part = create_part(organization: org, category: create_category(organization: org), name: "Legacy")
+    part.update_column(:image_source_url, "https://tracker.example/pixel.png")
+
+    sign_in user
+    get parts_path
+
+    assert_nil inertia_props["parts"].find { |p| p["id"] == part.id }["thumbnail_url"]
+  end
+
   test "create exposes the hotlinked image as the thumbnail immediately" do
     user = create_user
     org = user.organizations.first
