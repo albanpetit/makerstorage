@@ -140,6 +140,48 @@ class SettingsControllerTest < ActionDispatch::IntegrationTest
     assert_equal false, org.stock_reservations_enabled
   end
 
+  test "update saves the email notification settings" do
+    user = create_user
+    org = user.organizations.first
+
+    sign_in user
+    patch settings_path, params: { organization: {
+      notify_low_stock: false, notify_late_orders: true, notification_frequency: "weekly"
+    } }
+
+    assert_redirected_to settings_path
+    org.reload
+    assert_not org.notify_low_stock
+    assert org.notify_late_orders
+    assert_equal "weekly", org.notification_frequency
+  end
+
+  test "update rejects an unknown notification frequency" do
+    user = create_user
+    org = user.organizations.first
+
+    sign_in user
+    patch settings_path, params: { organization: { notification_frequency: "hourly" } }
+
+    assert_redirected_to settings_path
+    assert_equal "daily", org.reload.notification_frequency
+  end
+
+  test "show says whether email notifications can be sent" do
+    user = create_user
+
+    sign_in user
+    get settings_path
+    assert_equal true, inertia_props["email_notifications_available"]
+    assert_equal true, inertia_props["organization"]["notify_low_stock"]
+    assert_equal "daily", inertia_props["organization"]["notification_frequency"]
+
+    with_email_notifications(false) do
+      get settings_path
+      assert_equal false, inertia_props["email_notifications_available"]
+    end
+  end
+
   test "update attaches an uploaded logo" do
     user = create_user
     org = user.organizations.first

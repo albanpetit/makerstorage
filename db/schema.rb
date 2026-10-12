@@ -116,6 +116,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_12_180000) do
     t.string "role", default: "member", null: false
     t.datetime "updated_at", null: false
     t.integer "user_id", null: false
+    t.boolean "email_notifications", default: true, null: false
     t.index ["active"], name: "index_organization_memberships_on_active"
     t.index ["invitation_token"], name: "index_organization_memberships_on_invitation_token", unique: true
     t.index ["invited_by_id"], name: "index_organization_memberships_on_invited_by_id"
@@ -155,6 +156,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_12_180000) do
     t.text "digikey_access_token"
     t.text "digikey_refresh_token"
     t.datetime "digikey_token_expires_at"
+    t.boolean "notify_low_stock", default: true, null: false
+    t.boolean "notify_late_orders", default: true, null: false
+    t.string "notification_frequency", default: "daily", null: false
+    t.date "notifications_sent_on"
     t.boolean "stock_reservations_enabled", default: true, null: false
     t.index ["email"], name: "index_organizations_on_email"
     t.index ["name"], name: "index_organizations_on_name"

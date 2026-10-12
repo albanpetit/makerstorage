@@ -287,4 +287,57 @@ class OrganizationTest < ActiveSupport::TestCase
 
     assert org.reload.digikey_account_connected?
   end
+
+  test "notification frequency must be daily or weekly" do
+    org = create_organization
+    org.notification_frequency = "hourly"
+    assert_not org.valid?
+    assert org.errors.key?(:notification_frequency)
+  end
+
+  test "the daily digest is due from 8am local time, once per local day" do
+    org = create_organization(timezone: "Europe/Paris")
+    # 06:30 UTC = 08:30 in Paris (summer time).
+    morning = Time.utc(2026, 7, 1, 6, 30)
+
+    assert_not org.notification_digest_due?(morning - 1.hour), "7:30 in Paris is too early"
+    assert org.notification_digest_due?(morning)
+
+    org.update_columns(notifications_sent_on: Date.new(2026, 7, 1))
+    assert_not org.notification_digest_due?(morning + 3.hours)
+    assert org.notification_digest_due?(morning + 1.day)
+  end
+
+  test "the weekly digest is only due on Mondays" do
+    org = create_organization(timezone: "Etc/UTC", notification_frequency: "weekly")
+    monday = Time.utc(2026, 10, 12, 9)
+
+    assert org.notification_digest_due?(monday)
+    assert_not org.notification_digest_due?(monday + 1.day)
+  end
+
+  test "no digest is due when every alert type is off" do
+    org = create_organization(timezone: "Etc/UTC", notify_low_stock: false, notify_late_orders: false)
+    assert_not org.notification_digest_due?(Time.utc(2026, 10, 12, 9))
+  end
+
+  test "notification recipients are active, confirmed members who haven't opted out" do
+    org = create_organization
+    included = create_user
+    org.organization_memberships.create!(user: included, role: "viewer")
+    opted_out = create_user
+    org.organization_memberships.create!(user: opted_out, role: "admin", email_notifications: false)
+    inactive = create_user
+    org.organization_memberships.create!(user: inactive, role: "member", active: false)
+    invited = create_user
+    org.organization_memberships.create!(user: invited, role: "member", invitation_sent_at: Time.current)
+    unconfirmed = create_user(confirmed_at: nil)
+    org.organization_memberships.create!(user: unconfirmed, role: "member")
+
+    assert_equal [ included ], org.notification_recipients.to_a
+
+    with_email_verification(false) do
+      assert_equal [ included, unconfirmed ].sort_by(&:id), org.notification_recipients.order(:id).to_a
+    end
+  end
 end

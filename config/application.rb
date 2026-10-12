@@ -100,5 +100,10 @@ module Makerstorage
     # a new sign-in email only applies once confirmed. Production turns it off
     # when no SMTP server is configured, since no confirmation mail could arrive.
     config.x.email_verification = true
+
+    # Email notifications (low-stock and late-order digests, see
+    # NotificationDigestJob). Production turns them off without SMTP, and the
+    # settings that control them then say mail isn't set up.
+    config.x.email_notifications = true
   end
 end

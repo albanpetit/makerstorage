@@ -30,6 +30,9 @@ export interface OrganizationSettings {
   ipn_next_sequence: number
   default_low_stock_threshold: number
   allow_negative_stock: boolean
+  notify_low_stock: boolean
+  notify_late_orders: boolean
+  notification_frequency: NotificationFrequency
   stock_reservations_enabled: boolean
   mouser_api_key_present: boolean
   mouser_order_api_key_present: boolean
@@ -46,7 +49,10 @@ export interface SettingsPageProps {
   currencies: string[]
   ipn_separators: string[]
   timezones: string[]
+  email_notifications_available: boolean
 }
+
+export type NotificationFrequency = 'daily' | 'weekly'
 
 export type IpnMode = 'incremental' | 'random' | 'category_sequence' | 'manual' | 'box_bag'
 
@@ -88,6 +94,14 @@ export interface InventoryFormData {
   }
 }
 
+export interface NotificationsFormData {
+  organization: {
+    notify_low_stock: boolean
+    notify_late_orders: boolean
+    notification_frequency: NotificationFrequency
+  }
+}
+
 export interface IntegrationsFormData {
   organization: {
     mouser_api_key: string
@@ -103,4 +117,5 @@ export interface IntegrationsFormData {
 export type GeneralForm = InertiaFormProps<GeneralFormData>
 export type IpnForm = InertiaFormProps<IpnFormData>
 export type InventoryForm = InertiaFormProps<InventoryFormData>
+export type NotificationsForm = InertiaFormProps<NotificationsFormData>
 export type IntegrationsForm = InertiaFormProps<IntegrationsFormData>

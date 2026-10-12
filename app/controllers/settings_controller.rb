@@ -11,7 +11,8 @@ class SettingsController < ApplicationController
       organization: serialize_organization_settings,
       currencies: Organization::CURRENCIES,
       ipn_separators: Organization::IPN_SEPARATORS,
-      timezones: Organization::TIMEZONES
+      timezones: Organization::TIMEZONES,
+      email_notifications_available: NotificationDigest.available?
     }
   end
 
@@ -67,6 +68,7 @@ class SettingsController < ApplicationController
       :ipn_generation_mode, :ipn_charset,
       :ipn_prefix, :ipn_separator, :ipn_digits, :ipn_use_category_code, :ipn_next_sequence,
       :default_low_stock_threshold, :allow_negative_stock, :stock_reservations_enabled,
+      :notify_low_stock, :notify_late_orders, :notification_frequency,
       :mouser_api_key, :remove_mouser_api_key,
       :mouser_order_api_key, :remove_mouser_order_api_key,
       :digikey_client_id, :digikey_client_secret, :remove_digikey
@@ -138,6 +140,8 @@ class SettingsController < ApplicationController
       ipn_use_category_code: org.ipn_use_category_code, ipn_next_sequence: org.ipn_next_sequence,
       default_low_stock_threshold: org.default_low_stock_threshold, allow_negative_stock: org.allow_negative_stock,
       stock_reservations_enabled: org.stock_reservations_enabled,
+      notify_low_stock: org.notify_low_stock, notify_late_orders: org.notify_late_orders,
+      notification_frequency: org.notification_frequency,
       mouser_api_key_present: org.mouser_api_key.present?,
       mouser_order_api_key_present: org.mouser_order_api_key.present?,
       digikey_configured: org.digikey_configured?,

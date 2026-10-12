@@ -5,5 +5,9 @@ Makerstorage
 
 --
 Makerstorage · Electronics-parts inventory for makerspaces.
+<% if content_for?(:mailer_footer) -%>
+<%= yield :mailer_footer -%>
+<% else -%>
 You received this email because an account action was requested.
 If it wasn't you, you can safely ignore this message.
+<% end -%>

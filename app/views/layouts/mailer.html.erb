@@ -39,7 +39,11 @@
             <tr>
               <td style="padding: 24px 8px 8px 8px; font-size: 12px; line-height: 1.6; color: #a1a1aa;">
                 <p style="margin: 0 0 4px 0;">Makerstorage &middot; Electronics-parts inventory for makerspaces.</p>
-                <p style="margin: 0;">You received this email because an account action was requested. If it wasn&#39;t you, you can safely ignore this message.</p>
+                <% if content_for?(:mailer_footer) %>
+                  <p style="margin: 0;"><%= yield :mailer_footer %></p>
+                <% else %>
+                  <p style="margin: 0;">You received this email because an account action was requested. If it wasn&#39;t you, you can safely ignore this message.</p>
+                <% end %>
               </td>
             </tr>
 

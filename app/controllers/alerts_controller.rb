@@ -3,6 +3,7 @@
 class AlertsController < ApplicationController
   include Auth
 
+  before_action :switch_to_linked_organization, only: :index
   before_action :verify_organization_access
   before_action :verify_organization_writer, only: %i[create_purchase_orders advance_order]
 
@@ -89,6 +90,17 @@ class AlertsController < ApplicationController
   end
 
   private
+
+  # The email digest links here with its organization, so a member of several
+  # lands on the alerts they were mailed about. Ignored for an organization the
+  # user doesn't belong to.
+  def switch_to_linked_organization
+    organization = current_user.organizations.find_by(id: params[:organization_id]) if params[:organization_id].present?
+    return unless organization
+
+    session[:current_organization_id] = organization.id
+    @current_organization = organization
+  end
 
   def compute_alerts
     parts = current_organization.parts.low_stock

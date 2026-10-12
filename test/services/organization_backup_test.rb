@@ -5,7 +5,8 @@ class OrganizationBackupTest < ActiveSupport::TestCase
     @owner = create_user
     @org = create_organization(name: "Fablab Amiens", currency: "USD", ipn_prefix: "FA", ipn_next_sequence: 42,
                                allow_negative_stock: false, stock_reservations_enabled: false,
-                               mouser_api_key: "secret-mouser-key")
+                               mouser_api_key: "secret-mouser-key",
+                               notify_late_orders: false, notification_frequency: "weekly", notifications_sent_on: Date.current)
     @org.organization_memberships.create!(user: @owner, role: "owner")
     @org.logo.attach(io: file_fixture("logo.png").open, filename: "logo.png", content_type: "image/png")
 
@@ -61,6 +62,10 @@ class OrganizationBackupTest < ActiveSupport::TestCase
     assert_equal false, org.stock_reservations_enabled
     assert_equal @org.reload.ipn_next_sequence, org.ipn_next_sequence
     assert_nil org.mouser_api_key, "secrets are not part of a backup"
+    assert org.notify_low_stock
+    assert_not org.notify_late_orders
+    assert_equal "weekly", org.notification_frequency
+    assert_nil org.notifications_sent_on, "the digest bookkeeping starts afresh"
 
     resistors = org.categories.find_by!(name: "Resistors")
     assert_equal "Passives", resistors.parent.name

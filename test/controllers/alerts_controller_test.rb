@@ -299,4 +299,31 @@ class AlertsControllerTest < ActionDispatch::IntegrationTest
   def inertia_props
     JSON.parse(@response.body[/data-page="app" type="application\/json"[^>]*>(.*?)<\/script>/m, 1])["props"]
   end
+
+  test "index switches to the organization the digest email links to" do
+    user = create_user
+    other = create_organization(name: "Second Lab")
+    other.organization_memberships.create!(user: user, role: "member")
+    part = create_part(organization: other, mpn: "OTHER-LOW", min_stock_threshold: 10)
+
+    sign_in user
+    get alerts_path(organization_id: other.id)
+
+    assert_response :success
+    assert_includes inertia_props["alerts"].map { |a| a["id"] }, part.id
+    get alerts_path
+    assert_includes inertia_props["alerts"].map { |a| a["id"] }, part.id, "the switch sticks for the session"
+  end
+
+  test "index ignores a linked organization the user doesn't belong to" do
+    user = create_user
+    foreign = create_organization(name: "Foreign Lab")
+    part = create_part(organization: foreign, mpn: "FOREIGN-LOW", min_stock_threshold: 10)
+
+    sign_in user
+    get alerts_path(organization_id: foreign.id)
+
+    assert_response :success
+    assert_not_includes inertia_props["alerts"].map { |a| a["id"] }, part.id
+  end
 end
