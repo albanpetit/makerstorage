@@ -4,6 +4,9 @@ class OrganizationMembership < ApplicationRecord
   belongs_to :invited_by, class_name: "User", optional: true
 
   ROLES = %w[owner admin member viewer].freeze
+  # An unanswered invitation stops being offered after this long; inviting the
+  # same email again renews it.
+  INVITATION_VALIDITY = 30.days
 
   validates :role, presence: true, inclusion: { in: ROLES }
   validates :user_id, uniqueness: { scope: :organization_id }
@@ -19,6 +22,7 @@ class OrganizationMembership < ApplicationRecord
   scope :active, -> { where(active: true) }
   scope :inactive, -> { where(active: false) }
   scope :pending_invitation, -> { where.not(invitation_sent_at: nil).where(invitation_accepted_at: nil) }
+  scope :unexpired_invitation, -> { where(invitation_sent_at: INVITATION_VALIDITY.ago..) }
   scope :accepted, -> { where.not(invitation_accepted_at: nil) }
   # Memberships that give access: active and not an invitation still awaiting
   # the invitee's answer (memberships created directly carry no invitation).
@@ -48,6 +52,10 @@ class OrganizationMembership < ApplicationRecord
 
   def pending_invitation?
     invitation_sent_at.present? && invitation_accepted_at.nil?
+  end
+
+  def invitation_expired?
+    pending_invitation? && invitation_sent_at < INVITATION_VALIDITY.ago
   end
 
   def accepted?

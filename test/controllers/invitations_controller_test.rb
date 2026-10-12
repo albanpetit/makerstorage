@@ -45,6 +45,18 @@ class InvitationsControllerTest < ActionDispatch::IntegrationTest
     assert OrganizationMembership.exists?(@invitation.id), "nor decline it on the owner's behalf"
   end
 
+  test "an expired invitation is no longer listed or answerable" do
+    @invitation.update!(invitation_sent_at: OrganizationMembership::INVITATION_VALIDITY.ago - 1.minute)
+    sign_in @invitee
+
+    get profile_path
+    assert_empty inertia_props["invitations"]
+
+    post accept_invitation_path(@invitation)
+    assert_response :not_found
+    assert_not @invitation.reload.accepted?
+  end
+
   test "accepting joins the organization and switches to it" do
     sign_in @invitee
     post accept_invitation_path(@invitation)

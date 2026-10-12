@@ -61,6 +61,23 @@ class OrganizationMembershipTest < ActiveSupport::TestCase
     assert_not_nil invited.invitation_token
   end
 
+  test "an invitation expires after INVITATION_VALIDITY and leaves the invitee's pending list" do
+    invited_user = create_user
+    membership = OrganizationMembership.create!(
+      organization: @org, user: invited_user, role: "member", invitation_sent_at: Time.current
+    )
+    assert_not membership.invitation_expired?
+    assert_includes invited_user.pending_invitations, membership
+
+    travel OrganizationMembership::INVITATION_VALIDITY + 1.minute do
+      assert membership.invitation_expired?
+      assert_not_includes invited_user.pending_invitations.reload, membership
+    end
+
+    membership.accept_invitation!
+    assert_not membership.invitation_expired?, "an accepted membership never expires"
+  end
+
   test "pending_invitation? and accept_invitation!" do
     invited_user = User.create!(firstname: "I", lastname: "N", email: "invited2@example.com", password: "password123")
     membership = OrganizationMembership.create!(
