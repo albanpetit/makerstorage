@@ -29,18 +29,42 @@ class PartTest < ActiveSupport::TestCase
     end
   end
 
-  test "image_source_url accepts blank and http(s) URLs but rejects other schemes" do
+  test "image_source_url only accepts https images from a supplier image host" do
     part = Part.new(organization: @org, category: @category, name: "Widget")
 
     part.image_source_url = ""
     assert part.valid?, "blank image_source_url should be allowed"
 
-    part.image_source_url = "https://www.mouser.com/img.png"
-    assert part.valid?, "https URL should be allowed"
+    [ "https://www.mouser.com/img.png", "https://mm.digikey.com/Volume0/x.jpg", "https://digikey.com/x.jpg" ].each do |url|
+      part.image_source_url = url
+      assert part.valid?, "#{url} should be allowed"
+    end
 
-    part.image_source_url = "javascript:alert(1)"
-    assert_not part.valid?
-    assert_includes part.errors[:image_source_url], "is invalid"
+    [ "javascript:alert(1)", "http://www.mouser.com/img.png", "https://evil.example/img.png",
+      "https://mouser.com.evil.example/img.png", "https://notmouser.com/img.png" ].each do |url|
+      part.image_source_url = url
+      assert_not part.valid?, "#{url} should be refused"
+      assert part.errors[:image_source_url].any? { |message| message.start_with?("must be an https image from a supplier catalog") }
+    end
+  end
+
+  test "a part saved with an image from another host stays editable, but its image is not shown" do
+    part = create_part(organization: @org, category: @category, name: "Legacy")
+    part.update_column(:image_source_url, "https://evil.example/img.png")
+
+    part.reload.name = "Legacy renamed"
+    assert part.valid?, "an unchanged legacy image_source_url must not block other edits"
+    assert_nil part.hotlinked_image_url
+  end
+
+  test "supplier_image_url keeps supplier hosts, upgrades http and drops everything else" do
+    assert_equal "https://www.mouser.com/images/x.jpg?v=1", Part.supplier_image_url("http://www.mouser.com/images/x.jpg?v=1")
+    assert_equal "https://mm.digikey.com/a.jpg", Part.supplier_image_url("https://MM.DigiKey.com/a.jpg")
+    assert_nil Part.supplier_image_url("https://evilmouser.com/a.jpg")
+    assert_nil Part.supplier_image_url("https://user:pass@www.mouser.com/a.jpg")
+    assert_nil Part.supplier_image_url("ftp://www.mouser.com/a.jpg")
+    assert_nil Part.supplier_image_url("not a url")
+    assert_nil Part.supplier_image_url(nil)
   end
 
   test "category must belong to the same organization" do

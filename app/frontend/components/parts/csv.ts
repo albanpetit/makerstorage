@@ -3,7 +3,7 @@ import { toast } from 'sonner'
 import { html, printDocument } from '@/lib/print-document'
 
 import { locationLabel } from './part-meta'
-import type { Part } from './types'
+import type { Part, PartListFilters } from './types'
 
 // Text starting with = + - @ (or a tab/CR) is run as a formula by Excel and
 // friends, so user-entered fields get a leading quote. Plain numbers (e.g. a
@@ -57,8 +57,11 @@ export function exportCsv(parts: Part[]) {
   })
 }
 
-export function printLabels(parts: Part[]) {
-  if (parts.length === 0) return
+export function printLabels(parts: Part[], target?: Window | null) {
+  if (parts.length === 0) {
+    target?.close()
+    return
+  }
 
   const labels = parts.map((part) => html`
     <div style="width:189px;height:95px;border:1px dashed #999;border-radius:4px;padding:8px 10px;box-sizing:border-box;page-break-inside:avoid;">
@@ -71,11 +74,25 @@ export function printLabels(parts: Part[]) {
     'Labels',
     html`<div style="display:flex;flex-wrap:wrap;gap:10px;">${labels}</div>`,
     'font-family:Arial,sans-serif;padding:24px;background:#fff;',
+    target,
   )
 }
 
 export function csrfToken(): string {
   return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+}
+
+// Fully serialized parts beyond the current page (PartsController#rows): either
+// the given ids, or every part matching the list filters.
+export async function fetchPartRows(body: { part_ids: number[] } | { filters: PartListFilters }): Promise<Part[]> {
+  const response = await fetch('/parts/rows', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-CSRF-Token': csrfToken() },
+    body: JSON.stringify(body),
+  })
+  if (!response.ok) throw new Error(`HTTP ${response.status}`)
+  const data: { parts: Part[] } = await response.json()
+  return data.parts
 }
 
 export interface ParsedImportRow {

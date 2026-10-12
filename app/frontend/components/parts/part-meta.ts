@@ -1,6 +1,4 @@
-import type { Part } from './types'
-
-export type SortKey = 'ref' | 'crit' | 'qtyDesc' | 'qtyAsc' | 'priceDesc'
+import type { Part, SortKey } from './types'
 
 export const SORT_OPTIONS: { value: SortKey; label: string }[] = [
   { value: 'ref', label: 'Reference (A→Z)' },
@@ -9,18 +7,6 @@ export const SORT_OPTIONS: { value: SortKey; label: string }[] = [
   { value: 'qtyAsc', label: 'Stock (low→high)' },
   { value: 'priceDesc', label: 'Unit price (high→low)' },
 ]
-
-export function partRef(part: Part): string {
-  return part.mpn || part.sku || part.name
-}
-
-export const SORT_FNS: Record<SortKey, (a: Part, b: Part) => number> = {
-  ref: (a, b) => partRef(a).localeCompare(partRef(b)),
-  crit: (a, b) => a.total_quantity / Math.max(a.min_stock_threshold, 1) - b.total_quantity / Math.max(b.min_stock_threshold, 1),
-  qtyDesc: (a, b) => b.total_quantity - a.total_quantity,
-  qtyAsc: (a, b) => a.total_quantity - b.total_quantity,
-  priceDesc: (a, b) => (b.unit_price ?? 0) - (a.unit_price ?? 0),
-}
 
 export const STOCK_STATUS_META = {
   out: { label: 'Out of stock', className: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400' },
