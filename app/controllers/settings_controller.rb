@@ -142,7 +142,10 @@ class SettingsController < ApplicationController
       digikey_configured: org.digikey_configured?,
       digikey_account_connected: org.digikey_account_connected?,
       parts_count: org.total_parts_count,
-      ipn_preview: org.ipn_preview(category_code: org.ipn_use_category_code ? "RES" : nil)
+      ipn_preview: org.ipn_preview(category_code: org.ipn_use_category_code ? "RES" : nil),
+      # Box & bag numbering: how many bags are free, and the first few codes.
+      free_bags_count: org.free_bags.count,
+      free_bag_codes: org.free_bags.limit(4).pluck(:code)
     }
   end
 end

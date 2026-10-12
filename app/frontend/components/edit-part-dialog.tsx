@@ -20,6 +20,7 @@ import {
   Category,
   EMPTY_PART,
   Footprint,
+  BagOption,
   FullPart,
   lookupResultPatch,
   Supplier,
@@ -79,6 +80,9 @@ export function EditPartDialog({
     return () => URL.revokeObjectURL(imagePreview as string)
   }, [imageFile, imagePreview])
 
+  // Box & bag numbering: the bags this part can move to (null in other modes).
+  const [bagOptions, setBagOptions] = useState<BagOption[] | null>(null)
+
   const form = useForm({ part: { ...EMPTY_PART } })
   const { data, setData } = form
 
@@ -93,9 +97,10 @@ export function EditPartDialog({
         if (!res.ok) throw new Error('Failed to load part')
         return res.json()
       })
-      .then((body: { part: FullPart }) => {
+      .then((body: { part: FullPart; bag_options?: BagOption[] | null }) => {
         if (cancelled) return
         const part = body.part
+        setBagOptions(body.bag_options ?? null)
         setData('part', toFormPart(part))
         setCurrentImageUrl(part.thumbnail_url)
         suppliersController.seedFromPartSuppliers(part.part_suppliers)
@@ -197,6 +202,7 @@ export function EditPartDialog({
               footprints={footprints}
               tags={tags}
               ipnManualEntry={ipnManualEntry}
+              bagOptions={bagOptions}
               supplierLookupEnabled={supplierLookupEnabled}
               onApplyLookup={applyResult}
               attach={attach}

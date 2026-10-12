@@ -15,6 +15,7 @@ import {
 import { PartFormBody } from '@/components/part-form/part-form-body'
 import { usePartSuppliers } from '@/components/part-form/use-part-suppliers'
 import {
+  BagOption,
   Category,
   EMPTY_PART,
   Footprint,
@@ -36,6 +37,8 @@ interface AddPartDialogProps {
   // Manual IPN mode: the operator types the reference instead of it being
   // generated on save, so the field is shown and editable.
   ipnManualEntry?: boolean
+  // Box & bag numbering: the free bags (null in the other modes).
+  bagOptions?: BagOption[] | null
 }
 
 export function AddPartDialog({
@@ -48,6 +51,7 @@ export function AddPartDialog({
   storageLocations,
   supplierLookupEnabled = false,
   ipnManualEntry = false,
+  bagOptions = null,
 }: AddPartDialogProps) {
   const [detailsOpen, setDetailsOpen] = useState(false)
   const [suppliersOpen, setSuppliersOpen] = useState(false)
@@ -149,6 +153,7 @@ export function AddPartDialog({
             footprints={footprints}
             tags={tags}
             ipnManualEntry={ipnManualEntry}
+            bagOptions={bagOptions}
             supplierLookupEnabled={supplierLookupEnabled}
             onApplyLookup={applyResult}
             attach={attach}

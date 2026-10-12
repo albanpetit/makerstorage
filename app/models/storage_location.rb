@@ -11,9 +11,19 @@ class StorageLocation < ApplicationRecord
   # zone would break their split (allocations must sum to the line quantity),
   # so it's blocked until the order is re-targeted.
   has_many :order_line_allocations, dependent: :restrict_with_error
+  # Box & bag numbering: the part whose IPN is this bag's code (see
+  # #release_bag_occupant, which also clears that IPN when the bag goes away).
+  has_one :bag_occupant, class_name: "Part", foreign_key: :bag_id, inverse_of: :bag, dependent: :nullify
 
   # Constants
-  LOCATION_TYPES = %w[room cabinet shelf bench drawer box].freeze
+  LOCATION_TYPES = %w[room cabinet shelf bench drawer box bag].freeze
+
+  # Callbacks
+  before_validation :number_bag, if: :bag?
+  # Ahead of the dependent: :nullify above, while the occupant is still linked.
+  before_destroy :release_bag_occupant, prepend: true, if: :bag?
+  after_update :renumber_bags, if: -> { box? && saved_change_to_code? }
+  after_update :sync_occupant_ipn, if: -> { bag? && saved_change_to_code? }
 
   # Validations
   validates :name, presence: true, length: { minimum: 1, maximum: 100 }
@@ -23,6 +33,9 @@ class StorageLocation < ApplicationRecord
   # index: existing installs may already hold duplicates, which would fail the
   # migration; they get flagged the next time either zone is edited.
   validates :code, uniqueness: { scope: :organization_id, case_sensitive: false }, allow_blank: true
+  validates :position, numericality: { only_integer: true, greater_than: 0, less_than_or_equal_to: MAX_INTEGER }, allow_nil: true
+  validate :bag_must_sit_in_a_coded_box, if: :bag?
+  validate :box_with_bags_keeps_its_code, if: -> { box? && persisted? }
   validate :cannot_be_its_own_parent
   validate :parent_is_not_a_descendant
   validate :parent_must_belong_to_same_organization
@@ -31,6 +44,7 @@ class StorageLocation < ApplicationRecord
   scope :root_locations, -> { where(parent_id: nil) }
   scope :alphabetical, -> { order(:name) }
   scope :of_type, ->(type) { where(location_type: type) }
+  scope :bags, -> { where(location_type: "bag") }
 
   # Methods
 
@@ -39,6 +53,29 @@ class StorageLocation < ApplicationRecord
   # loop resolves every zone's ancestry in memory instead of one query per level.
   def self.full_path_cache(scope = all)
     scope.select(:id, :name, :parent_id).index_by(&:id)
+  end
+
+  # A bag's code: its box's code and its number, joined with the org's IPN
+  # separator ("A-3").
+  def self.bag_code(box_code, position, separator)
+    "#{box_code}#{separator}#{position}"
+  end
+
+  def bag?
+    location_type == "bag"
+  end
+
+  def box?
+    location_type == "box"
+  end
+
+  # Adds +count+ bags to this box, numbered after its last one.
+  def add_bags!(count)
+    raise ArgumentError, "only a box holds bags" unless box?
+
+    transaction do
+      Array.new(count) { organization.storage_locations.create!(parent: self, location_type: "bag") }
+    end
   end
 
   def root?
@@ -83,6 +120,44 @@ class StorageLocation < ApplicationRecord
   end
 
   private
+
+  # Numbers a new bag after the last one in its box and derives its code (and,
+  # when left blank, its name) from that number. The code always follows the
+  # box, so it's recomputed on every save.
+  def number_bag
+    return unless parent&.box?
+
+    self.position ||= (parent.children.bags.where.not(id: id).maximum(:position) || 0) + 1
+    self.code = self.class.bag_code(parent.code, position, organization&.ipn_separator)
+    self.name = "Bag #{code}" if name.blank?
+  end
+
+  def bag_must_sit_in_a_coded_box
+    if parent.nil? || !parent.box?
+      errors.add(:parent, "must be a box: a bag sits inside a box")
+    elsif parent.code.blank?
+      errors.add(:parent, "needs a code (A, B, C…) before it can hold bags")
+    end
+  end
+
+  def box_with_bags_keeps_its_code
+    if code.blank? && children.bags.exists?
+      errors.add(:code, "can't be blank while the box holds bags")
+    end
+  end
+
+  # A renamed box renames its bags (and so the IPNs of the parts in them).
+  def renumber_bags
+    children.bags.each(&:save!)
+  end
+
+  def sync_occupant_ipn
+    bag_occupant&.update_column(:ipn, code)
+  end
+
+  def release_bag_occupant
+    bag_occupant&.release_bag!
+  end
 
   def cannot_be_its_own_parent
     if id.present? && parent_id == id

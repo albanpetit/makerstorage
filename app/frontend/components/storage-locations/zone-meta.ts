@@ -5,12 +5,13 @@ import {
   Wrench,
   ArchiveRestore,
   Package,
+  ShoppingBag,
   type LucideIcon,
 } from 'lucide-react'
 
 import type { RecentMovement } from './types'
 
-export const LOCATION_TYPES = ['room', 'cabinet', 'shelf', 'bench', 'drawer', 'box'] as const
+export const LOCATION_TYPES = ['room', 'cabinet', 'shelf', 'bench', 'drawer', 'box', 'bag'] as const
 
 export const TYPE_META: Record<string, { label: string; icon: LucideIcon; className: string }> = {
   room: { label: 'Room', icon: DoorOpen, className: 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400' },
@@ -19,6 +20,7 @@ export const TYPE_META: Record<string, { label: string; icon: LucideIcon; classN
   bench: { label: 'Bench', icon: Wrench, className: 'bg-pink-100 text-pink-700 dark:bg-pink-950 dark:text-pink-400' },
   drawer: { label: 'Drawer', icon: ArchiveRestore, className: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400' },
   box: { label: 'Box', icon: Package, className: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400' },
+  bag: { label: 'Bag', icon: ShoppingBag, className: 'bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-400' },
 }
 
 export const MOVEMENT_META: Record<RecentMovement['movement_type'], { label: string; className: string }> = {

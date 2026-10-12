@@ -1,3 +1,5 @@
+import type { BagOption } from '@/components/part-form/types'
+
 // Prop shapes for the Parts inventory page (PartsController#index), shared by
 // the page and its pieces in this folder.
 
@@ -110,5 +112,6 @@ export interface PartsIndexProps {
   storage_locations: StorageLocationOption[]
   supplier_lookup_enabled: boolean
   ipn_manual_entry: boolean
+  bag_options: BagOption[] | null
   open_add: boolean
 }

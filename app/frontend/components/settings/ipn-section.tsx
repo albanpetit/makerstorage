@@ -1,6 +1,6 @@
 import { FormEvent, useMemo, useState } from 'react'
 import { router } from '@inertiajs/react'
-import { Hash, Info, TrendingUp, Shuffle, Boxes, Pencil, Check, TriangleAlert } from 'lucide-react'
+import { Hash, Info, TrendingUp, Shuffle, Boxes, Pencil, Check, TriangleAlert, PackageOpen } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card'
@@ -42,6 +42,7 @@ const IPN_MODES = [
   { value: 'random', label: 'Random', icon: Shuffle, description: 'Unique non-sequential draw. Avoids revealing how many parts exist.' },
   { value: 'category_sequence', label: 'Category + sequence', icon: Boxes, description: 'An independent counter per category (RES-00001, CAP-00001…).' },
   { value: 'manual', label: 'Manual', icon: Pencil, description: 'Free entry by the operator, with a suggested value.' },
+  { value: 'box_bag', label: 'Box & bag', icon: PackageOpen, description: 'The reference is the bag holding the part (A-3). New parts take the first free bag; an emptied bag is reused.' },
 ] as const satisfies ReadonlyArray<{ value: IpnMode; label: string; icon: typeof Hash; description: string }>
 
 const CHARSET_OPTIONS = [
@@ -86,6 +87,7 @@ function buildIpn(cfg: IpnConfig, sequence: number, categoryCode = 'RES') {
 }
 
 function buildIpnPattern(cfg: IpnConfig) {
+  if (cfg.mode === 'box_bag') return ['BOX', 'N'].join(cfg.separator)
   const bodyChar = cfg.mode === 'random' && cfg.charset === 'alphanumeric' ? 'X' : 'N'
   const segments = [ cfg.prefix, includesCategory(cfg) ? 'CAT' : '', bodyChar.repeat(cfg.digits) ]
   return segments.filter(Boolean).join(cfg.separator)
@@ -155,6 +157,14 @@ export function IpnSection({ form, organization, separators }: IpnSectionProps) 
       digits: Number(o.ipn_digits) || 1,
       charset: o.ipn_charset,
     }
+    // Box & bag: the next free bags (codes follow the saved separator), or
+    // sample codes when no bag is free yet.
+    if (cfg.mode === 'box_bag') {
+      const codes = cfg.separator === organization.ipn_separator && organization.free_bag_codes.length > 0
+        ? organization.free_bag_codes
+        : ['A', 'A', 'A', 'B'].map((box, i) => [box, box === 'A' ? i + 1 : 1].join(cfg.separator))
+      return { next: codes[0], examples: codes.slice(1), pattern: buildIpnPattern(cfg) }
+    }
     // A category+sequence counter is conceptually per-category, so it starts at 1.
     const start = cfg.mode === 'category_sequence' ? 1 : Number(o.ipn_next_sequence) || 1
     return {
@@ -162,7 +172,7 @@ export function IpnSection({ form, organization, separators }: IpnSectionProps) 
       examples: [1, 2, 3].map((i) => buildIpn(cfg, start + i)),
       pattern: buildIpnPattern(cfg),
     }
-  }, [form.data.organization])
+  }, [form.data.organization, organization.ipn_separator, organization.free_bag_codes])
 
   return (
     <form onSubmit={submitIpn} className="space-y-4">
@@ -178,7 +188,9 @@ export function IpnSection({ form, organization, separators }: IpnSectionProps) 
         <div className="mb-3 text-xs font-semibold tracking-wide text-zinc-400 uppercase">Live preview</div>
         <div className="flex flex-wrap items-end gap-5">
           <div>
-            <div className="mb-1 text-xs text-zinc-400">Next reference generated</div>
+            <div className="mb-1 text-xs text-zinc-400">
+              {ipnMode === 'box_bag' ? 'Next free bag' : 'Next reference generated'}
+            </div>
             <div className="font-mono text-3xl font-semibold text-primary">{livePreview.next}</div>
           </div>
           <div className="min-w-[180px] flex-1">
@@ -231,6 +243,19 @@ export function IpnSection({ form, organization, separators }: IpnSectionProps) 
           <CardDescription>The segments that make up each reference.</CardDescription>
         </CardHeader>
         <CardContent className="divide-y">
+          {ipnMode === 'box_bag' && (
+            <div className="flex items-start gap-2 py-3 text-xs text-muted-foreground first:pt-0">
+              <PackageOpen className="mt-0.5 size-3.5 shrink-0" />
+              <span>
+                Each box is a storage zone of type Box with a code (A, B, C…); add numbered bags to it from
+                Storage zones. A bag is free when no part holds it, or once its part has been emptied out of it.{' '}
+                {organization.free_bags_count === 0
+                  ? 'No bag is free right now.'
+                  : `${organization.free_bags_count} ${organization.free_bags_count === 1 ? 'bag is' : 'bags are'} free.`}
+              </span>
+            </div>
+          )}
+          {ipnMode !== 'box_bag' && (<>
           <div className="flex items-center justify-between gap-4 py-3 first:pt-0">
             <div>
               <div className="text-sm font-medium">Prefix</div>
@@ -261,10 +286,13 @@ export function IpnSection({ form, organization, separators }: IpnSectionProps) 
               onCheckedChange={(checked) => form.setData('organization', { ...form.data.organization, ipn_use_category_code: checked })}
             />
           </div>
+          </>)}
           <div className="flex items-center justify-between gap-4 py-3">
             <div>
               <div className="text-sm font-medium">Separator</div>
-              <div className="text-xs text-muted-foreground">Character between segments.</div>
+              <div className="text-xs text-muted-foreground">
+                {ipnMode === 'box_bag' ? 'Character between the box and the bag number.' : 'Character between segments.'}
+              </div>
             </div>
             <div className="flex gap-1.5">
               {orderSeparators(separators).map((sep) => {
@@ -286,6 +314,7 @@ export function IpnSection({ form, organization, separators }: IpnSectionProps) 
               })}
             </div>
           </div>
+          {ipnMode !== 'box_bag' && (
           <div className="flex items-center justify-between gap-4 py-3">
             <div>
               <div className="text-sm font-medium">Number length</div>
@@ -305,6 +334,7 @@ export function IpnSection({ form, organization, separators }: IpnSectionProps) 
               </SelectContent>
             </Select>
           </div>
+          )}
           {(ipnMode === 'incremental' || ipnMode === 'category_sequence') && (
             <div className="flex items-center justify-between gap-4 py-3 last:pb-0">
               <div>
@@ -380,9 +410,12 @@ export function IpnSection({ form, organization, separators }: IpnSectionProps) 
           <CardHeader>
             <CardTitle>Reassign existing references</CardTitle>
             <CardDescription>
-              Renumber every part with the current saved format. A format change only affects new
-              parts — use this to bring the {organization.parts_count} existing{' '}
-              {organization.parts_count === 1 ? 'part' : 'parts'} in line with it.
+              {organization.ipn_generation_mode === 'box_bag'
+                ? <>Give every part the code of its bag. A part without a bag takes the bag its stock sits in, if
+                  no other part holds it; the others lose their reference.</>
+                : <>Renumber every part with the current saved format. A format change only affects new
+                  parts — use this to bring the {organization.parts_count} existing{' '}
+                  {organization.parts_count === 1 ? 'part' : 'parts'} in line with it.</>}
             </CardDescription>
           </CardHeader>
           <CardFooter className="flex-wrap justify-between gap-2 border-t">

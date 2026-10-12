@@ -30,6 +30,7 @@ import {
 
 import { PartSuppliersController } from './use-part-suppliers'
 import {
+  BagOption,
   Category,
   fieldLabel,
   Footprint,
@@ -83,6 +84,8 @@ export interface PartFormBodyProps {
   tags: Tag[]
 
   ipnManualEntry: boolean
+  // Box & bag numbering: the bags to choose from (null in the other modes).
+  bagOptions?: BagOption[] | null
 
   // Supplier catalog lookup
   supplierLookupEnabled: boolean
@@ -124,6 +127,7 @@ export function PartFormBody({
   footprints,
   tags,
   ipnManualEntry,
+  bagOptions = null,
   supplierLookupEnabled,
   onApplyLookup,
   attach,
@@ -297,6 +301,43 @@ export function PartFormBody({
             />
           </FieldContent>
         </Field>
+        {/* Box & bag numbering: the IPN is the code of the bag the part
+            sits in, so the operator picks the bag instead. */}
+        {bagOptions && (
+          <Field>
+            <FieldLabel>
+              <Label>Bag</Label>
+            </FieldLabel>
+            <FieldContent>
+              <Select
+                value={part.bag_id || 'none'}
+                onValueChange={(value) => setPart({ bag_id: value === 'none' ? '' : value })}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">
+                    {mode === 'add'
+                      ? bagOptions.length > 0 ? `First free bag (${bagOptions[0].code})` : 'No free bag'
+                      : 'No bag'}
+                  </SelectItem>
+                  {bagOptions.map((bag) => (
+                    <SelectItem key={bag.id} value={bag.id.toString()}>{bag.code}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </FieldContent>
+            <p className="text-xs text-muted-foreground">
+              {mode === 'add'
+                ? bagOptions.length > 0
+                  ? 'The bag’s code becomes this part’s IPN.'
+                  : 'Every bag is taken: add bags to a box in Storage zones, or the part is saved without an IPN.'
+                : 'The bag’s code is this part’s IPN. Moving to another bag takes the stock along.'}
+            </p>
+            {errors['part.bag'] && <FieldError>{errors['part.bag']}</FieldError>}
+          </Field>
+        )}
         {mode === 'add' && storageLocations && (
           <>
             <Field>
@@ -312,7 +353,7 @@ export function PartFormBody({
                     <SelectValue placeholder="No location" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">No location</SelectItem>
+                    <SelectItem value="none">{bagOptions ? 'In its bag' : 'No location'}</SelectItem>
                     {storageLocations.map((location) => (
                       <SelectItem key={location.id} value={location.id.toString()}>{location.name}</SelectItem>
                     ))}
@@ -416,7 +457,7 @@ export function PartFormBody({
           {/* IPN: in add mode it only appears when the org uses manual numbering
               (auto modes stamp it on save); in edit mode it's always shown but
               read-only unless manual. */}
-          {(mode === 'edit' || ipnManualEntry) && (
+          {!bagOptions && (mode === 'edit' || ipnManualEntry) && (
             <Field>
               <FieldLabel>
                 <Label>Internal part number (IPN)</Label>

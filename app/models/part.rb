@@ -3,6 +3,9 @@ class Part < ApplicationRecord
   belongs_to :organization
   belongs_to :category
   belongs_to :footprint, optional: true
+  # Box & bag numbering: the bag (a "bag" storage zone) this part occupies; its
+  # code is the part's IPN. See #claim_bag.
+  belongs_to :bag, class_name: "StorageLocation", optional: true, inverse_of: :bag_occupant
 
   has_many :part_storages, dependent: :destroy
   has_many :storage_locations, through: :part_storages
@@ -41,6 +44,9 @@ class Part < ApplicationRecord
   # Assign the internal part number from the org's IPN config once the part is
   # actually being persisted (see #assign_ipn).
   before_create :assign_ipn
+  # Box & bag mode: take the requested bag, or the first free one for a new
+  # part, and stamp its code as the IPN. Before save so it also covers edits.
+  before_save :claim_bag
   # Declared after the restrict_with_error associations above, so it only runs
   # once the part is actually allowed to go.
   before_destroy :unmatch_project_lines
@@ -65,6 +71,7 @@ class Part < ApplicationRecord
   validate :image_source_url_must_be_supplier_image, if: :image_source_url_changed?
   validate :category_must_belong_to_same_organization
   validate :footprint_must_belong_to_same_organization
+  validate :bag_must_be_free, if: -> { bag_id.present? && will_save_change_to_bag_id? }
 
   # Scopes
   scope :active, -> { where(status: "active") }
@@ -217,6 +224,15 @@ class Part < ApplicationRecord
     update_column(:unit_price, price)
   end
 
+  # Gives the part's bag back (box & bag numbering): the part keeps its stock
+  # records but loses the bag and the IPN that was the bag's code. Leaves any
+  # IPN that isn't the bag's (typed by hand, or from another mode) alone.
+  def release_bag!
+    return if bag.nil?
+
+    update_columns(bag_id: nil, bag_assigned_at: nil, ipn: ipn.to_s.casecmp?(bag.code.to_s) ? nil : ipn)
+  end
+
   private
 
   def unmatch_project_lines
@@ -248,7 +264,7 @@ class Part < ApplicationRecord
   # transaction so a failed insert rolls the counter advance back too.
   def assign_ipn
     return if ipn.present? || organization.nil?
-    return if organization.ipn_generation_mode == "manual"
+    return if %w[manual box_bag].include?(organization.ipn_generation_mode)
 
     organization.with_lock do
       sequence = organization.ipn_next_sequence
@@ -263,6 +279,52 @@ class Part < ApplicationRecord
 
       self.ipn = candidate
       organization.update_column(:ipn_next_sequence, sequence + 1)
+    end
+  end
+
+  # In box & bag mode a new part with no IPN of its own takes the first free
+  # bag (none free: the part is created without one). Whenever the bag
+  # changes, the IPN follows its code, and a previous occupant that emptied the
+  # bag gives it up (its leftover empty stock row in the bag is dropped).
+  #
+  # Runs under the organization's row lock so two parts created at once can't
+  # draw the same free bag.
+  def claim_bag
+    return if organization.nil?
+
+    auto = new_record? && bag_id.nil? && ipn.blank? && organization.ipn_generation_mode == "box_bag"
+    return unless auto || will_save_change_to_bag_id?
+
+    organization.with_lock do
+      if auto
+        taken_ipns = organization.parts.where.not(ipn: nil).pluck(:ipn).map(&:downcase).to_set
+        self.bag = organization.free_bags.find { |candidate| taken_ipns.exclude?(candidate.code.to_s.downcase) || candidate.bag_occupant }
+      end
+      next unless will_save_change_to_bag_id?
+
+      if bag
+        previous = organization.parts.where(bag_id: bag_id).where.not(id: id).first
+        if previous
+          PartStorage.where(part: previous, storage_location: bag, quantity: 0).delete_all
+          previous.release_bag!
+        end
+        self.ipn = bag.code
+        self.bag_assigned_at = Time.current
+      else
+        old_code = StorageLocation.where(id: bag_id_in_database).pick(:code)
+        self.ipn = nil if old_code && ipn.to_s.casecmp?(old_code)
+        self.bag_assigned_at = nil
+      end
+    end
+  end
+
+  def bag_must_be_free
+    if bag.nil? || bag.organization_id != organization_id || !bag.bag?
+      errors.add(:bag, "must be a bag of this organization")
+    elsif organization && !organization.free_bags.exists?(id: bag.id)
+      errors.add(:bag, "#{bag.code} is already holding another part")
+    elsif organization.parts.where("LOWER(ipn) = ?", bag.code.to_s.downcase).where.not(id: id).where.not(bag_id: bag.id).exists?
+      errors.add(:bag, "#{bag.code} is already another part's IPN")
     end
   end
 

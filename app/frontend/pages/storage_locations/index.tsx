@@ -8,6 +8,7 @@ import {
   Archive,
   Pencil,
   Printer,
+  ShoppingBag,
   Trash2,
 } from 'lucide-react'
 
@@ -51,10 +52,11 @@ import type {
 import { useZoneTree } from '@/components/storage-locations/use-zone-tree'
 import { ZoneComponentsTable } from '@/components/storage-locations/zone-components-table'
 import { ZoneFormDialog } from '@/components/storage-locations/zone-form-dialog'
+import { AddBagsDialog } from '@/components/storage-locations/add-bags-dialog'
 import { ZoneHistory } from '@/components/storage-locations/zone-history'
 import { typeMeta } from '@/components/storage-locations/zone-meta'
 
-export default function StorageLocationsIndex({ storage_locations, part_storages, recent_movements, selected_zone_id }: StorageLocationsPageProps) {
+export default function StorageLocationsIndex({ storage_locations, part_storages, recent_movements, selected_zone_id, bag_separator }: StorageLocationsPageProps) {
   const { canWrite } = usePermissions()
   const [query, setQuery] = useState('')
   const [selectedId, setSelectedId] = useState<number | null>(selected_zone_id ?? null)
@@ -66,6 +68,7 @@ export default function StorageLocationsIndex({ storage_locations, part_storages
   const [editOpen, setEditOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [labelsOpen, setLabelsOpen] = useState(false)
+  const [addBagsOpen, setAddBagsOpen] = useState(false)
   const [labelSubZones, setLabelSubZones] = useState(false)
 
   // Drag-and-drop re-parenting state
@@ -512,6 +515,12 @@ export default function StorageLocationsIndex({ storage_locations, part_storages
                       <Printer className="size-4" />
                       Label
                     </Button>
+                    {canWrite && effectiveSelected.location_type === 'box' && (
+                      <Button variant="outline" size="sm" onClick={() => setAddBagsOpen(true)}>
+                        <ShoppingBag className="size-4" />
+                        Add bags
+                      </Button>
+                    )}
                     {canWrite && (
                       <Button variant="outline" size="sm" onClick={openEditDialog}>
                         <Pencil className="size-4" />
@@ -594,6 +603,19 @@ export default function StorageLocationsIndex({ storage_locations, part_storages
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {effectiveSelected?.location_type === 'box' && (
+        <AddBagsDialog
+          key={effectiveSelected.id}
+          box={effectiveSelected}
+          bagCount={Math.max(0, ...storage_locations
+            .filter((zone) => zone.parent_id === effectiveSelected.id && zone.location_type === 'bag')
+            .map((zone) => zone.position ?? 0))}
+          separator={bag_separator}
+          open={addBagsOpen}
+          onOpenChange={setAddBagsOpen}
+        />
+      )}
 
       <PrintLabelsDialog
         open={labelsOpen}
