@@ -57,6 +57,7 @@ class PartsController < ApplicationController
       storage_locations: serialize_storage_locations,
       supplier_lookup_enabled: current_organization.supplier_lookup_configured?,
       ipn_manual_entry: current_organization.ipn_generation_mode == "manual",
+      bag_options: bag_options,
       open_add: params[:new].present?
     }
   end
@@ -95,7 +96,8 @@ class PartsController < ApplicationController
           suppliers: serialize_suppliers,
           tags: serialize_tags,
           supplier_lookup_enabled: current_organization.supplier_lookup_configured?,
-          ipn_manual_entry: current_organization.ipn_generation_mode == "manual"
+          ipn_manual_entry: current_organization.ipn_generation_mode == "manual",
+          bag_options: bag_options(@part)
         }
       end
       # There's no standalone detail page anymore; send a direct visit or stale
@@ -172,10 +174,16 @@ class PartsController < ApplicationController
     # whole edit in one transaction so a rejected edit doesn't keep them.
     saved = ActiveRecord::Base.transaction do
       @part.assign_attributes(part_params)
+      previous_bag = @part.bag_id_changed? ? current_organization.storage_locations.find_by(id: @part.bag_id_in_database) : nil
       # Only from a fresh catalog lookup; a plain edit doesn't send it, so an
       # existing hotlinked image is preserved.
       @part.image_source_url = Part.supplier_image_url(params[:image_url]) if params[:image_url].present?
       @part.save || raise(ActiveRecord::Rollback)
+      move_stock_to_new_bag(@part, previous_bag) if previous_bag && @part.bag
+      true
+    rescue ActiveRecord::RecordInvalid => e
+      @part.errors.add(:bag, e.record.errors.full_messages.to_sentence)
+      raise ActiveRecord::Rollback
     end
 
     if saved
@@ -511,12 +519,18 @@ class PartsController < ApplicationController
     end
   end
 
+  # The opening stock goes to the chosen zone, else (box & bag numbering) into
+  # the bag the part just took.
   def assign_initial_stock(part)
     quantity = params[:initial_quantity].to_i
-    return if params[:initial_location_id].blank? || quantity <= 0
+    return if quantity <= 0
     raise InitialStockError, "Quantity is too large" if quantity > ApplicationRecord::MAX_INTEGER
 
-    location = current_organization.storage_locations.find_by(id: params[:initial_location_id])
+    location = if params[:initial_location_id].present?
+      current_organization.storage_locations.find_by(id: params[:initial_location_id])
+    else
+      part.bag
+    end
     return unless location
 
     StockMovement.create!(
@@ -549,9 +563,39 @@ class PartsController < ApplicationController
     @part = current_organization.parts.find(params[:id])
   end
 
+  # Box & bag numbering: a part moved to another bag takes the stock it held in
+  # its old one along, through the ledger.
+  def move_stock_to_new_bag(part, previous_bag)
+    quantity = PartStorage.find_by(part: part, storage_location: previous_bag)&.quantity.to_i
+    return unless quantity.positive?
+
+    current_organization.stock_movements.create!(
+      part: part, storage_location: previous_bag, user: current_user,
+      movement_type: "out", quantity_delta: -quantity, reason: "Moved to bag #{part.bag.code}"
+    )
+    current_organization.stock_movements.create!(
+      part: part, storage_location: part.bag, user: current_user,
+      movement_type: "in", quantity_delta: quantity, reason: "Moved from bag #{previous_bag.code}"
+    )
+  end
+
+  def box_bag_mode?
+    current_organization.ipn_generation_mode == "box_bag"
+  end
+
+  # Box & bag numbering: the bags the part form offers (the free ones, plus the
+  # part's own), or nil when the organization numbers parts another way.
+  def bag_options(part = nil)
+    return unless box_bag_mode?
+
+    bags = current_organization.free_bags.select(:id, :code).to_a
+    bags.unshift(part.bag) if part&.bag && bags.none? { |bag| bag.id == part.bag_id }
+    bags.map { |bag| { id: bag.id, code: bag.code } }
+  end
+
   def part_params
     permitted = params.require(:part).permit(
-      :name, :mpn, :sku, :barcode, :ipn, :manufacturer, :description,
+      :name, :mpn, :sku, :barcode, :ipn, :bag_id, :manufacturer, :description,
       :value, :tolerance, :voltage_rating, :power_rating, :package_type,
       :category_id, :footprint_id,
       :unit_price, :min_stock_threshold, :target_stock,
@@ -567,6 +611,14 @@ class PartsController < ApplicationController
     # foreign tag then fails PartTag's validation as an exception (a 500). Keep
     # only this organization's tags.
     permitted[:tag_ids] = current_organization.tags.where(id: permitted[:tag_ids]).pluck(:id) if permitted.key?(:tag_ids)
+    # In box & bag mode the IPN is the bag's code: pick the bag, not the IPN.
+    # Other modes don't use bags at all.
+    if box_bag_mode?
+      permitted.delete(:ipn)
+      permitted[:bag_id] = permitted[:bag_id].presence if permitted.key?(:bag_id)
+    else
+      permitted.delete(:bag_id)
+    end
     permitted
   end
 
@@ -642,6 +694,7 @@ class PartsController < ApplicationController
       storage_notes: part.storage_notes,
       category_id: part.category_id,
       footprint_id: part.footprint_id,
+      bag_id: part.bag_id,
       tag_ids: part.tag_ids,
       tags: part.tags.map { |tag| { id: tag.id, name: tag.name, color: tag.color } },
       part_suppliers: part.part_suppliers.includes(:supplier).map { |ps| serialize_part_supplier(ps) }

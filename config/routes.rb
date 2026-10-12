@@ -68,6 +68,7 @@ Rails.application.routes.draw do
 
   resources :storage_locations, only: %i[index create update destroy] do
     post :move_stock, on: :collection
+    post :add_bags, on: :member
   end
 
   resources :stock_movements, only: %i[index create] do
