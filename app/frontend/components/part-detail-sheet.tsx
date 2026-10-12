@@ -99,6 +99,13 @@ interface MovementEntry {
   user_name: string | null
 }
 
+interface ReservationEntry {
+  project_id: number
+  reference: string | null
+  name: string
+  quantity: number
+}
+
 interface LocationOption {
   id: number
   name: string
@@ -133,6 +140,7 @@ interface PartShowPayload {
   part: PartDetail
   storages: StorageEntry[]
   movements: MovementEntry[]
+  reservations: ReservationEntry[]
   storage_locations: LocationOption[]
   categories: Category[]
   footprints: Footprint[]
@@ -279,6 +287,7 @@ export function PartDetailSheet({
     : 'ok'
   const stockMeta = STOCK_STATUS_META[stockKey]
 
+  const reservedTotal = payload?.reservations.reduce((sum, r) => sum + r.quantity, 0) ?? 0
   const gaugeMax = part ? Math.max(part.target_stock ?? 0, part.min_stock_threshold * 2, part.total_quantity, 1) : 1
   const fillPct = part ? Math.min(100, (part.total_quantity / gaugeMax) * 100) : 0
   const thresholdPct = part ? Math.min(100, (part.min_stock_threshold / gaugeMax) * 100) : 0
@@ -432,6 +441,29 @@ export function PartDetailSheet({
                     </div>
                   )}
                 </div>
+
+                {/* Project reservations */}
+                {payload.reservations.length > 0 && (
+                  <div>
+                    <div className="mb-2 flex items-center justify-between">
+                      <h3 className="text-sm font-semibold">Reserved by projects</h3>
+                      <span className="font-mono text-xs text-muted-foreground">
+                        {Math.max(part.total_quantity - reservedTotal, 0).toLocaleString()} available
+                      </span>
+                    </div>
+                    <div className="space-y-2.5 rounded-lg border p-3">
+                      {payload.reservations.map((reservation) => (
+                        <div key={reservation.project_id} className="flex items-center justify-between gap-2 text-sm">
+                          <Link href={`/projects/${reservation.project_id}`} className="min-w-0 truncate hover:underline">
+                            {reservation.reference && <span className="mr-1.5 font-mono text-xs text-muted-foreground">{reservation.reference}</span>}
+                            {reservation.name}
+                          </Link>
+                          <span className="shrink-0 font-mono text-sm font-semibold">{reservation.quantity}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Location */}
                 <div>

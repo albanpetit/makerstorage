@@ -95,4 +95,86 @@ class ProjectTest < ActiveSupport::TestCase
     assert_equal "PRJ-FREE", project.reload.reference
     assert_equal 1, project.project_lines.count
   end
+
+  # Stock reservations
+
+  test "reserved_quantities sums the lines of confirmed, reserved projects only" do
+    part = create_part(organization: @org)
+    reserved = reserving_project({ part => 4 })
+    reserved.project_lines.create!(part: part, quantity: 2, match_type: "manual")
+    reserving_project({ part => 10 }).update!(status: "draft")
+    reserving_project({ part => 7 }).update!(reserved_at: nil)
+    other_org = create_organization
+    foreign = create_project(organization: other_org, status: "confirmed", reserved_at: Time.current)
+    foreign.project_lines.create!(part: create_part(organization: other_org), quantity: 9, match_type: "manual")
+
+    assert_equal({ part.id => 6 }, Project.reserved_quantities(@org))
+  end
+
+  test "reserved_quantities is empty when the organization turns reservations off" do
+    part = create_part(organization: @org)
+    reserving_project({ part => 4 })
+    @org.update_column(:stock_reservations_enabled, false)
+
+    assert_equal({}, Project.reserved_quantities(@org))
+  end
+
+  test "a project counts reservations made before its own, not after" do
+    part = create_part(organization: @org)
+    stock(part, 5)
+    first = reserving_project({ part => 10 }, reserved_at: 2.hours.ago)
+    second = reserving_project({ part => 3 }, reserved_at: 1.hour.ago)
+    unreserved = create_project(organization: @org, status: "confirmed")
+    unreserved.project_lines.create!(part: part, quantity: 1, match_type: "manual")
+
+    assert_equal({}, first.reserved_elsewhere)
+    assert_equal({ part.id => 10 }, second.reserved_elsewhere)
+    assert_equal({ part.id => 13 }, unreserved.reserved_elsewhere)
+
+    # Stock never counts below zero, so the two shortfalls add up to what is
+    # really missing (13 needed - 5 in stock) instead of ordering it twice.
+    assert_equal 5, first.shortfall_by_part[part]
+    assert_equal 3, second.shortfall_by_part[part]
+  end
+
+  test "another project's reservation can make a project unbuildable" do
+    part = create_part(organization: @org)
+    stock(part, 10)
+    reserving_project({ part => 8 })
+    project = create_project(organization: @org, status: "confirmed")
+    project.project_lines.create!(part: part, quantity: 5, match_type: "manual")
+
+    assert_equal({ part => 3 }, project.shortfall_by_part)
+    assert_not project.buildable?
+
+    @org.update_column(:stock_reservations_enabled, false)
+    assert project.reload.buildable?
+  end
+
+  test "reserve! only applies to confirmed projects and release_reservation! clears it" do
+    draft = create_project(organization: @org)
+    draft.reserve!
+    assert_nil draft.reserved_at
+
+    project = create_project(organization: @org, status: "confirmed")
+    project.reserve!
+    assert project.reserving?
+
+    project.release_reservation!
+    assert_nil project.reserved_at
+    assert_not project.reserving?
+  end
+
+  private
+
+  def reserving_project(quantities, reserved_at: Time.current)
+    project = create_project(organization: @org, status: "confirmed", reserved_at: reserved_at)
+    quantities.each { |part, quantity| project.project_lines.create!(part: part, quantity: quantity, match_type: "manual") }
+    project
+  end
+
+  def stock(part, quantity)
+    StockMovement.create!(organization: @org, part: part, storage_location: create_storage_location(organization: @org),
+                          movement_type: "in", quantity_delta: quantity)
+  end
 end

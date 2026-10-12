@@ -1,6 +1,6 @@
 import { Head, Link, router } from '@inertiajs/react'
 import { FormEvent, useRef, useState } from 'react'
-import { ClipboardList, Plus, Upload, Trash2, CheckCircle2, AlertTriangle } from 'lucide-react'
+import { ClipboardList, Plus, Upload, Trash2, CheckCircle2, AlertTriangle, Lock } from 'lucide-react'
 
 import { AppLayout } from '@/layouts/app-layout'
 import { usePermissions } from '@/hooks/use-permissions'
@@ -44,6 +44,7 @@ interface ProjectSummary {
   name: string
   reference: string | null
   status: 'draft' | 'confirmed'
+  reserved: boolean
   line_count: number
   buildable: boolean
   short_count: number
@@ -145,7 +146,14 @@ export default function ProjectsIndex({ projects }: ProjectsPageProps) {
                     </TableCell>
                     <TableCell className="font-mono text-xs text-muted-foreground">{project.reference}</TableCell>
                     <TableCell>
-                      <Badge variant="outline" className="capitalize">{project.status}</Badge>
+                      <div className="flex items-center gap-1.5">
+                        <Badge variant="outline" className="capitalize">{project.status}</Badge>
+                        {project.reserved && (
+                          <Badge variant="outline" title="Stock reserved for this project">
+                            <Lock className="size-3.5" /> Reserved
+                          </Badge>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell>
                       {project.buildable ? (
