@@ -26,7 +26,8 @@ export function useZoneTree(storage_locations: StorageLocationRecord[], part_sto
       if (!map.has(key)) map.set(key, [])
       map.get(key)!.push(z)
     })
-    map.forEach((list) => list.sort((a, b) => a.name.localeCompare(b.name)))
+    // Numeric collation so numbered bags read A-1, A-2, …, A-10.
+    map.forEach((list) => list.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true })))
     return map
   }, [storage_locations])
 

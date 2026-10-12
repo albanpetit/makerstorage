@@ -6,6 +6,8 @@ export interface StorageLocationRecord {
   location_type: string
   code: string | null
   parent_id: number | null
+  // A bag's number inside its box (null for other zones).
+  position: number | null
 }
 
 export interface PartStorageEntry {
@@ -34,6 +36,7 @@ export interface StorageLocationsPageProps {
   recent_movements: RecentMovement[]
   // Zone to open on load (`?zone=ID`), already scoped to the organization.
   selected_zone_id: number | null
+  bag_separator: string
 }
 
 export interface ZoneFormData {

@@ -4,8 +4,10 @@ class StorageLocationsController < ApplicationController
   include Auth
 
   before_action :verify_organization_access
-  before_action :verify_organization_writer, only: %i[create update destroy move_stock]
-  before_action :set_storage_location, only: %i[update destroy]
+  before_action :verify_organization_writer, only: %i[create update destroy move_stock add_bags]
+  before_action :set_storage_location, only: %i[update destroy add_bags]
+
+  MAX_BAGS_PER_REQUEST = 200
 
   def index
     locations = current_organization.storage_locations.alphabetical
@@ -14,6 +16,8 @@ class StorageLocationsController < ApplicationController
       storage_locations: locations.map { |location| serialize_location(location) },
       part_storages: serialize_part_storages,
       recent_movements: serialize_recent_movements,
+      # Joins a box code and bag number into the bag's code (box & bag storage).
+      bag_separator: current_organization.ipn_separator,
       # `?zone=ID` (the "Open zone" link of a scanned label) opens that zone.
       selected_zone_id: current_organization.storage_locations.find_by(id: params[:zone])&.id
     }
@@ -48,6 +52,23 @@ class StorageLocationsController < ApplicationController
     else
       redirect_to storage_locations_path, alert: @storage_location.errors.full_messages.to_sentence
     end
+  end
+
+  # Box & bag storage: appends +count+ numbered bags to a box (A-1, A-2, …).
+  def add_bags
+    count = params[:count].to_i
+    unless @storage_location.box?
+      return redirect_to storage_locations_path(zone: @storage_location.id), alert: "Only a box can hold bags."
+    end
+    unless count.between?(1, MAX_BAGS_PER_REQUEST)
+      return redirect_to storage_locations_path(zone: @storage_location.id), alert: "Add between 1 and #{MAX_BAGS_PER_REQUEST} bags at a time."
+    end
+
+    bags = @storage_location.add_bags!(count)
+    redirect_to storage_locations_path(zone: @storage_location.id),
+      notice: "Added #{count} #{'bag'.pluralize(count)} (#{[ bags.first.code, bags.last.code ].uniq.join(' to ')})."
+  rescue ActiveRecord::RecordInvalid => e
+    redirect_to storage_locations_path(zone: @storage_location.id), alert: e.record.errors.full_messages.to_sentence
   end
 
   # Relocates part stock from one zone to another. Each move is recorded through
@@ -127,7 +148,8 @@ class StorageLocationsController < ApplicationController
       name: location.name,
       location_type: location.location_type,
       code: location.code,
-      parent_id: location.parent_id
+      parent_id: location.parent_id,
+      position: location.position
     }
   end
 
