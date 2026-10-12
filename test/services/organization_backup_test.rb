@@ -97,6 +97,32 @@ class OrganizationBackupTest < ActiveSupport::TestCase
     assert_equal 1, @other.parts.count
   end
 
+  test "box & bag numbering comes back with each part in its own bag" do
+    @org.update!(ipn_generation_mode: "box_bag")
+    box = create_storage_location(organization: @org, name: "Box A", location_type: "box", code: "A")
+    bag = box.add_bags!(1).first
+    bagged = create_part(organization: @org, category: @category, name: "Bagged part")
+    assert_equal bag, bagged.reload.bag
+
+    org = restore(export_zip(@org)).organization
+
+    assert_equal "box_bag", org.ipn_generation_mode
+    restored = org.parts.find_by!(name: "Bagged part")
+    assert_equal "A-1", restored.ipn
+    assert_equal org.storage_locations.find_by!(code: "A-1"), restored.bag
+    assert_equal 1, restored.bag.position
+    assert_equal "Box A", restored.bag.parent.name
+  end
+
+  # A reference left out of TABLES would be copied with the source
+  # organization's id, pointing a restored record at another tenant's data.
+  test "every foreign key column of a backed-up table is remapped" do
+    OrganizationBackup::TABLES.each do |table|
+      unmapped = table.columns.select { |column| column.end_with?("_id") } - table.references.keys
+      assert_empty unmapped, "#{table.name} has foreign keys missing from OrganizationBackup::TABLES"
+    end
+  end
+
   test "the archive leaves out other organizations, members and secrets" do
     Zip::File.open_buffer(export_zip(@org)) do |zip|
       data = JSON.parse(zip.read("data.json"))

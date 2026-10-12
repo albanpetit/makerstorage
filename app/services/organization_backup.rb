@@ -64,7 +64,7 @@ module OrganizationBackup
     table("storage_locations", StorageLocation, ->(org) { org.storage_locations },
           references: { "parent_id" => "storage_locations" }, enums: { "location_type" => StorageLocation::LOCATION_TYPES }),
     table("parts", Part, ->(org) { org.parts },
-          references: { "category_id" => "categories", "footprint_id" => "footprints" },
+          references: { "category_id" => "categories", "footprint_id" => "footprints", "bag_id" => "storage_locations" },
           enums: { "status" => Part::STATUSES, "unit" => Part::UNITS }),
     table("part_tags", PartTag, ->(org) { PartTag.where(part_id: org.parts.select(:id)) },
           references: { "part_id" => "parts", "tag_id" => "tags" }),
