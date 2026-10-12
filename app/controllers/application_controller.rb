@@ -16,8 +16,11 @@ class ApplicationController < ActionController::Base
           firstname: current_user.firstname,
           lastname: current_user.lastname
         },
-        current_organization: current_organization ? serialize_organization(current_organization) : nil,
-        organizations: current_user.organizations.order(:name).map { |org| serialize_organization(org) },
+        current_organization: current_organization ? serialize_organization(current_organization).merge(member_count: current_organization.organization_memberships.granting_access.count) : nil,
+        # Shared by every page: logos preloaded, and no per-organization member
+        # count (only the current one shows it), so it costs the same whatever
+        # the number of organizations.
+        organizations: current_user.organizations.with_attached_logo.order(:name).map { |org| serialize_organization(org) },
         alerts_count: current_organization&.low_stock_parts_count || 0,
         is_organization_admin: current_organization ? current_user.admin_of?(current_organization) : false,
         is_organization_writer: current_organization ? current_user.writer_of?(current_organization) : false,
@@ -73,7 +76,6 @@ class ApplicationController < ActionController::Base
     {
       id: org.id,
       name: org.name,
-      member_count: org.organization_memberships.granting_access.count,
       logo_url: org.logo.attached? ? stored_file_path_for(org.logo) : nil
     }
   end

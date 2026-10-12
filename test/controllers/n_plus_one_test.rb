@@ -75,6 +75,20 @@ class NPlusOneTest < ActionDispatch::IntegrationTest
       "parts index query count grew by #{growth} (#{baseline} → #{grown}) after nesting #{ROWS_ADDED} categories"
   end
 
+  test "every page's organization switcher costs the same however many organizations" do
+    join = -> { OrganizationMembership.create!(organization: create_organization, user: @user, role: "member") }
+    2.times { join.call }
+    baseline = count_queries { get tags_path }
+    assert_response :success
+
+    ROWS_ADDED.times { join.call }
+    grown = count_queries { get tags_path }
+
+    growth = grown - baseline
+    assert growth <= QUERY_NOISE_TOLERANCE,
+      "shared page props grew by #{growth} queries (#{baseline} → #{grown}) after joining #{ROWS_ADDED} organizations"
+  end
+
   test "part detail resolves its zones' paths without a query per level" do
     part = create_part(organization: @org, category: @category)
     zone = @location

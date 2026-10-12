@@ -114,6 +114,9 @@ interface Organization {
   id: number
   name: string
   logo_url?: string | null
+}
+
+interface CurrentOrganization extends Organization {
   member_count: number
 }
 
@@ -127,7 +130,7 @@ interface PageProps {
   [key: string]: unknown
   auth?: {
     user?: UserInfo
-    current_organization?: Organization
+    current_organization?: CurrentOrganization
     organizations?: Organization[]
     alerts_count?: number
     is_organization_admin?: boolean
