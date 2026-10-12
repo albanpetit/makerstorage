@@ -125,6 +125,11 @@ Rails.application.routes.draw do
     post :reassign_ipns
   end
 
+  # Organization backup: download the current organization, or restore an
+  # archive into a new one.
+  get "backup/export", to: "backups#export", as: :export_backup
+  post "backup/import", to: "backups#import", as: :import_backup
+
   resource :profile, only: %i[show update]
 
   # Organization invitations addressed to the signed-in user.

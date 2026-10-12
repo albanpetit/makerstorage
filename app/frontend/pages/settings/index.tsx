@@ -1,12 +1,13 @@
 import { Head, useForm } from '@inertiajs/react'
 import { useMemo, useState } from 'react'
-import { Building2, Hash, Package, ShieldAlert, Plug } from 'lucide-react'
+import { Building2, DatabaseBackup, Hash, Package, ShieldAlert, Plug } from 'lucide-react'
 
 import { AppLayout } from '@/layouts/app-layout'
 import { PageHeader } from '@/components/page-header'
 import { FlashMessages } from '@/components/flash-messages'
 import { usePermissions } from '@/hooks/use-permissions'
 import { Button } from '@/components/ui/button'
+import { BackupSection } from '@/components/settings/backup-section'
 import { DangerSection } from '@/components/settings/danger-section'
 import { GeneralSection } from '@/components/settings/general-section'
 import { IntegrationsSection } from '@/components/settings/integrations-section'
@@ -21,6 +22,7 @@ const SECTIONS = [
   { key: 'ipn', label: 'Numbering (IPN)', icon: Hash },
   { key: 'inventory', label: 'Inventory', icon: Package },
   { key: 'integrations', label: 'Integrations', icon: Plug },
+  { key: 'backup', label: 'Backup', icon: DatabaseBackup },
   { key: 'danger', label: 'Danger zone', icon: ShieldAlert },
 ] as const
 
@@ -126,6 +128,8 @@ export default function SettingsIndex({ organization, currencies, ipn_separators
             {section === 'inventory' && <InventorySection form={inventoryForm} />}
 
             {section === 'integrations' && <IntegrationsSection form={integrationsForm} organization={organization} />}
+
+            {section === 'backup' && <BackupSection organization={organization} />}
 
             {section === 'danger' && isOwner && <DangerSection organization={organization} />}
           </div>

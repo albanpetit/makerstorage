@@ -12,8 +12,16 @@ module AttachmentValidation
   LOGO_TYPES = (IMAGE_TYPES + %w[image/svg+xml]).freeze
   PDF_TYPES = %w[application/pdf].freeze
 
+  included do
+    # name => { content_types:, max_size: }, for code that attaches files
+    # without going through the record's validation (organization backups).
+    class_attribute :attachment_limits, instance_writer: false, default: {}.freeze
+  end
+
   class_methods do
     def validates_attachment(name, content_types:, max_size:)
+      self.attachment_limits = attachment_limits.merge(name.to_s => { content_types: content_types, max_size: max_size }).freeze
+
       validate do
         attached = public_send(name)
         next unless attached.attached?
