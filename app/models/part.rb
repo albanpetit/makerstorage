@@ -127,6 +127,15 @@ class Part < ApplicationRecord
     end
   end
 
+  # Where stock with no explicit target zone lands (e.g. an order line received
+  # without a storage split): the first zone the part was ever stocked in. An
+  # unordered `storage_locations.first` would let the database pick a different
+  # zone from one receipt to the next. Uses preloaded part_storages when present.
+  def fallback_storage_location
+    storages = part_storages.loaded? ? part_storages.to_a : part_storages.includes(:storage_location)
+    storages.min_by(&:id)&.storage_location
+  end
+
   def low_stock?
     total_quantity < min_stock_threshold
   end

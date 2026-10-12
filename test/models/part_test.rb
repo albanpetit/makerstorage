@@ -258,6 +258,19 @@ class PartTest < ActiveSupport::TestCase
     assert_equal 1, org.low_stock_parts_count
   end
 
+  test "fallback_storage_location is the first zone the part was stocked in" do
+    part = create_part(organization: @org, category: @category)
+    assert_nil part.fallback_storage_location
+
+    later_zone = create_storage_location(organization: @org)
+    first_zone = create_storage_location(organization: @org)
+    part.part_storages.create!(storage_location: first_zone, quantity: 0)
+    part.part_storages.create!(storage_location: later_zone, quantity: 5)
+
+    assert_equal first_zone, part.reload.fallback_storage_location
+    assert_equal first_zone, Part.includes(part_storages: :storage_location).find(part.id).fallback_storage_location
+  end
+
   test "images must be web images under 10 MB" do
     part = create_part(organization: create_organization)
 
