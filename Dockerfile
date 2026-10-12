@@ -36,7 +36,7 @@ RUN apt-get update -qq && \
     rm -rf /var/lib/apt/lists /var/cache/apt/archives
 
 # Install Node.js — required to build the Vite frontend during assets:precompile.
-# Keep this in sync with the Node version used in CI (.github/workflows).
+# Keep this in sync with .node-version (read by CI) and package.json "engines".
 ARG NODE_VERSION=24
 RUN curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION}.x | bash - && \
     apt-get install --no-install-recommends -y nodejs && \
