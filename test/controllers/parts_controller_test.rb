@@ -807,6 +807,48 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
     assert_nil org.parts.find_by(mpn: "P-3")
   end
 
+  test "import looks storage zones up once, however many rows" do
+    user = create_user
+    org = user.organizations.first
+    create_category(organization: org, name: "Resistors")
+    create_storage_location(organization: org, name: "Shelf")
+    sign_in user
+
+    zone_lookups = lambda do |rows|
+      csv = "Name,Category,MPN,Location,Quantity\n" +
+        rows.times.map { |i| "Part #{i},Resistors,Q-#{SecureRandom.hex(4)},Shelf,#{i + 1}\n" }.join
+      count = 0
+      counter = ->(*, payload) { count += 1 if payload[:sql] =~ /\ASELECT.*FROM "storage_locations"/m && !payload[:cached] }
+      ActiveSupport::Notifications.subscribed(counter, "sql.active_record") do
+        post import_parts_path, params: { file: csv_upload(csv) }
+      end
+      count
+    end
+
+    assert_equal zone_lookups.call(1), zone_lookups.call(5)
+  end
+
+  test "import recreates a zone whose creating row was rolled back" do
+    user = create_user
+    org = user.organizations.first
+
+    # The first row creates "New Bin", then its quantity is refused, rolling the
+    # zone back with it; the next row must not reuse that discarded zone.
+    csv = <<~CSV
+      Name,Category,MPN,Location,Quantity
+      Too many,Resistors,BIG-1,New Bin,99999999999
+      Fine,Resistors,OK-1,New Bin,3
+    CSV
+
+    sign_in user
+    post import_parts_path, params: { file: csv_upload(csv) }
+
+    assert_match(/1 created, 0 updated, 1 skipped/, flash[:notice])
+    bins = org.storage_locations.where(name: "New Bin")
+    assert_equal 1, bins.count
+    assert_equal 3, PartStorage.find_by(part: org.parts.find_by!(mpn: "OK-1"), storage_location: bins.first).quantity
+  end
+
   test "import without a location column leaves stock untouched" do
     user = create_user
     org = user.organizations.first
