@@ -72,16 +72,4 @@ class UserTest < ActiveSupport::TestCase
     assert_nil member.role_in(org)
     assert_not_includes member.organizations, org
   end
-
-  test "organizations_where_owner only lists organizations the user owns" do
-    owner = create_user
-    member = create_user
-    shared = owner.organizations.first
-    OrganizationMembership.create!(organization: shared, user: member, role: "member")
-
-    assert_includes owner.organizations_where_owner, shared
-    assert_not_includes member.organizations_where_owner, shared
-    assert_includes member.organizations_where_owner, member.personal_organization
-    assert_not_includes member.organizations_where_admin, shared
-  end
 end

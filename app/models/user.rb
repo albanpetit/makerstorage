@@ -27,21 +27,6 @@ class User < ApplicationRecord
     organizations.first
   end
 
-  # Get all organizations where the user is an owner
-  def organizations_where_owner
-    organizations.where(organization_memberships: { role: "owner" })
-  end
-
-  # Get all organizations where the user is an admin or owner
-  def organizations_where_admin
-    organizations.where(organization_memberships: { role: %w[owner admin] })
-  end
-
-  # Check if the user is a member of an organization
-  def member_of?(organization)
-    organizations.include?(organization)
-  end
-
   # Check if the user is a member of an organization by ID (more efficient)
   def member_of_organization?(organization_id)
     active_organization_memberships.exists?(organization_id: organization_id)

@@ -109,20 +109,6 @@ class PartTest < ActiveSupport::TestCase
     assert_equal :sufficient, part.stock_status
   end
 
-  test "quantity_to_order accounts for current stock against target_stock" do
-    part = create_part(organization: @org, category: @category, target_stock: 100)
-    location = create_storage_location(organization: @org)
-    PartStorage.create!(part: part, storage_location: location, quantity: 30)
-    part.reload
-
-    assert_equal 70, part.quantity_to_order
-  end
-
-  test "quantity_to_order is zero without a target_stock" do
-    part = create_part(organization: @org, category: @category, target_stock: nil)
-    assert_equal 0, part.quantity_to_order
-  end
-
   test "search matches across name, mpn, sku, manufacturer, value, and barcode, case-insensitively" do
     resistor = create_part(organization: @org, category: @category, name: "Resistor 10k", mpn: "RES-10K-0603")
     capacitor = create_part(organization: @org, category: @category, name: "Capacitor 100nF", mpn: "CAP-100N")

@@ -69,11 +69,6 @@ class Part < ApplicationRecord
   scope :obsolete, -> { where(status: "obsolete") }
   scope :rohs_compliant, -> { where(rohs_compliant: true) }
 
-  scope :by_category, ->(category_id) { where(category_id: category_id) }
-  scope :by_footprint, ->(footprint_id) { where(footprint_id: footprint_id) }
-  scope :by_manufacturer, ->(manufacturer) { where(manufacturer: manufacturer) }
-  scope :by_value, ->(value) { where(value: value) }
-
   # Low stock: total quantity < minimum threshold. Left join so a part that has
   # never been stocked (no part_storages row) counts as 0 — an inner join would
   # drop it, hiding it from alerts even though #low_stock? is true for it.
@@ -150,22 +145,6 @@ class Part < ApplicationRecord
     :sufficient
   end
 
-  def quantity_to_order
-    return 0 if target_stock.nil?
-    [ target_stock - total_quantity, 0 ].max
-  end
-
-  def stock_status_badge
-    case stock_status
-    when :out_of_stock
-      { label: "Out of stock", color: "red" }
-    when :low_stock
-      { label: "Low stock", color: "orange" }
-    else
-      { label: "OK", color: "green" }
-    end
-  end
-
   # Methods - Status
   def active?
     status == "active"
@@ -179,31 +158,12 @@ class Part < ApplicationRecord
     status == "obsolete"
   end
 
-  def status_badge
-    case status
-    when "active"
-      { label: "Active", color: "green" }
-    when "discontinued"
-      { label: "Discontinued", color: "orange" }
-    when "obsolete"
-      { label: "Obsolete", color: "red" }
-    end
-  end
-
   # Methods - References
   # Human-facing short reference used across scans, movements, alerts, etc.:
   # prefer the manufacturer part number, then the internal SKU, falling back to
   # the name so there is always something to display.
   def reference
     mpn.presence || sku.presence || name
-  end
-
-  def full_reference
-    refs = []
-    refs << "SKU: #{sku}" if sku.present?
-    refs << "MPN: #{mpn}" if mpn.present?
-    refs << "Barcode: #{barcode}" if barcode.present?
-    refs.join(" | ")
   end
 
   # Methods - Suppliers
@@ -231,26 +191,6 @@ class Part < ApplicationRecord
     return if price.nil? || unit_price == price
 
     update_column(:unit_price, price)
-  end
-
-  # Methods - Technical specs
-  def technical_specs
-    specs = {}
-    specs[:value] = value if value.present?
-    specs[:tolerance] = tolerance if tolerance.present?
-    specs[:power_rating] = power_rating if power_rating.present?
-    specs[:voltage_rating] = voltage_rating if voltage_rating.present?
-    specs[:package_type] = package_type if package_type.present?
-    specs
-  end
-
-  # Methods - Attachments
-  def has_datasheet?
-    datasheet.attached?
-  end
-
-  def has_images?
-    images.attached?
   end
 
   private
