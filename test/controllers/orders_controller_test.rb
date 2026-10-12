@@ -278,6 +278,28 @@ class OrdersControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to order_path(order)
   end
 
+  test "import_supplier_order matches a supplier sku only at that supplier" do
+    @org.update!(mouser_order_api_key: "order-key")
+    other_supplier = create_supplier(organization: @org, name: "Farnell")
+    unrelated = create_part(organization: @org, category: create_category(organization: @org))
+    unrelated.part_suppliers.create!(supplier: other_supplier, supplier_sku: "603-shared")
+    sign_in @user
+
+    result = SupplierCatalog::OrderResult.new(
+      order_number: "9990", status: "Shipped", placed_at: "2026-07-01", total: "1.0", currency: "EUR",
+      lines: [ SupplierCatalog::OrderLineResult.new(supplier_sku: "603-shared", description: "Mouser diode", quantity: 2, unit_price: "0.50") ]
+    )
+    fake = FakeOrderClient.new(order: result)
+
+    assert_difference -> { Part.count } => 1 do
+      stub_singleton(SupplierCatalog, :mouser_order_client, ->(_org) { fake }) do
+        post import_supplier_order_orders_path, params: { order_number: "9990" }
+      end
+    end
+
+    assert_not_equal unrelated, Order.find_by!(reference: "9990").order_lines.first.part
+  end
+
   test "import_supplier_order files new parts under an existing uncategorized category whatever its case" do
     @org.update!(mouser_order_api_key: "order-key")
     existing = create_category(organization: @org, name: "uncategorized")
