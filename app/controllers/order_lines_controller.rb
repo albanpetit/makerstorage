@@ -109,11 +109,15 @@ class OrderLinesController < ApplicationController
 
   # Normalized allocation rows from the request, or nil when the key is absent
   # (so a price-only edit leaves allocations untouched). Blank-zone rows dropped.
+  # Accepts a list or an index-keyed hash ({ "0" => {...} }, as plain form
+  # encoding sends it), which Array() would wrap as one row and so wipe the split.
   def allocation_params
     raw = params.dig(:order_line, :allocations)
     return nil if raw.nil?
 
-    Array(raw)
+    rows = raw.respond_to?(:values) ? raw.values : Array(raw)
+    rows
+      .select { |a| a.respond_to?(:key?) }
       .map { |a| { storage_location_id: a[:storage_location_id], quantity: a[:quantity].to_i } }
       .reject { |a| a[:storage_location_id].blank? }
   end

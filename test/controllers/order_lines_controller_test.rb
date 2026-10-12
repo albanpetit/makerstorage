@@ -158,6 +158,31 @@ class OrderLinesControllerTest < ActionDispatch::IntegrationTest
     assert line.fully_allocated?
   end
 
+  test "update reads a storage split sent as an index-keyed hash" do
+    line = @order.order_lines.create!(part: @part, quantity: 10)
+    a = create_storage_location(organization: @org)
+    b = create_storage_location(organization: @org)
+    sign_in @user
+
+    patch order_order_line_path(@order, line), params: {
+      order_line: { allocations: { "0" => { storage_location_id: a.id, quantity: 6 }, "1" => { storage_location_id: b.id, quantity: 4 } } }
+    }
+
+    assert_equal [ 6, 4 ], line.reload.allocations.order(:id).pluck(:quantity)
+  end
+
+  test "update ignores malformed storage split rows instead of failing" do
+    line = @order.order_lines.create!(part: @part, quantity: 10)
+    a = create_storage_location(organization: @org)
+    line.allocations.create!(storage_location: a, quantity: 10)
+    sign_in @user
+
+    patch order_order_line_path(@order, line), params: { order_line: { allocations: [ "junk" ] } }
+
+    assert_redirected_to order_path(@order)
+    assert_empty line.reload.allocations
+  end
+
   test "update rejects an unbalanced storage split" do
     line = @order.order_lines.create!(part: @part, quantity: 10)
     a = create_storage_location(organization: @org)
