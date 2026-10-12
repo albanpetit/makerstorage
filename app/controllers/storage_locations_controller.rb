@@ -16,6 +16,8 @@ class StorageLocationsController < ApplicationController
       storage_locations: locations.map { |location| serialize_location(location) },
       part_storages: serialize_part_storages,
       recent_movements: serialize_recent_movements,
+      # Joins a box code and bag number into the bag's code (box & bag storage).
+      bag_separator: current_organization.ipn_separator,
       # `?zone=ID` (the "Open zone" link of a scanned label) opens that zone.
       selected_zone_id: current_organization.storage_locations.find_by(id: params[:zone])&.id
     }

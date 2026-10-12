@@ -109,7 +109,7 @@ class BoxBagStorageControllerTest < ActionDispatch::IntegrationTest
     get parts_path
     assert_equal [ { "id" => bag2.id, "code" => "A-2" } ], inertia_props["bag_options"]
 
-    get part_path(part, format: :json)
+    get edit_part_path(part, format: :json)
     assert_equal [ bag1.id, bag2.id ], response.parsed_body["bag_options"].map { |bag| bag["id"] }
     assert_equal bag1.id, response.parsed_body["part"]["bag_id"]
   end

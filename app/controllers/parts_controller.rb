@@ -96,8 +96,7 @@ class PartsController < ApplicationController
           suppliers: serialize_suppliers,
           tags: serialize_tags,
           supplier_lookup_enabled: current_organization.supplier_lookup_configured?,
-          ipn_manual_entry: current_organization.ipn_generation_mode == "manual",
-          bag_options: bag_options(@part)
+          ipn_manual_entry: current_organization.ipn_generation_mode == "manual"
         }
       end
       # There's no standalone detail page anymore; send a direct visit or stale
@@ -110,7 +109,7 @@ class PartsController < ApplicationController
     # JSON: the edit-part modal (opened from the list/detail pages) fetches the
     # full part on demand. HTML: the standalone edit page, kept as a fallback.
     respond_to do |format|
-      format.json { render json: { part: serialize_part_full(@part) } }
+      format.json { render json: { part: serialize_part_full(@part), bag_options: bag_options(@part) } }
       format.html do
         render inertia: "parts/edit", props: {
           part: serialize_part_full(@part),

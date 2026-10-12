@@ -67,6 +67,9 @@ export interface PartFormData {
   sku: string
   barcode: string
   ipn: string
+  // Box & bag numbering: the chosen bag's id ('' = first free bag on add, no
+  // bag on edit). Ignored by the server in the other numbering modes.
+  bag_id: string
   manufacturer: string
   description: string
   value: string
@@ -93,6 +96,7 @@ export interface FullPart {
   sku: string | null
   barcode: string | null
   ipn: string | null
+  bag_id: number | null
   manufacturer: string | null
   description: string | null
   value: string | null
@@ -129,6 +133,7 @@ export const EMPTY_PART: PartFormData = {
   sku: '',
   barcode: '',
   ipn: '',
+  bag_id: '',
   manufacturer: '',
   description: '',
   value: '',
@@ -155,6 +160,7 @@ export function toFormPart(part: FullPart): PartFormData {
     sku: part.sku || '',
     barcode: part.barcode || '',
     ipn: part.ipn || '',
+    bag_id: part.bag_id?.toString() || '',
     manufacturer: part.manufacturer || '',
     description: part.description || '',
     value: part.value || '',
@@ -201,4 +207,12 @@ export function lookupResultPatch(result: LookupResult, part: PartFormData): Par
     unit_price: result.unit_price || part.unit_price,
     rohs_compliant: result.rohs_compliant || part.rohs_compliant,
   }
+}
+
+// Box & bag numbering: a bag the part form can put the part in (the free ones,
+// plus the part's own). The server sends null when the org numbers parts
+// another way.
+export interface BagOption {
+  id: number
+  code: string
 }

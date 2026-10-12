@@ -36,6 +36,8 @@ export interface OrganizationSettings {
   digikey_account_connected: boolean
   parts_count: number
   ipn_preview: IpnPreview
+  free_bags_count: number
+  free_bag_codes: string[]
 }
 
 export interface SettingsPageProps {
@@ -45,7 +47,7 @@ export interface SettingsPageProps {
   timezones: string[]
 }
 
-export type IpnMode = 'incremental' | 'random' | 'category_sequence' | 'manual'
+export type IpnMode = 'incremental' | 'random' | 'category_sequence' | 'manual' | 'box_bag'
 
 export interface GeneralFormData {
   organization: {

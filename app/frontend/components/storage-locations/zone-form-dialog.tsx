@@ -110,11 +110,17 @@ export function ZoneFormDialog({ mode, open, onOpenChange, form, onSubmit, paren
             </FieldLabel>
             <FieldContent>
               <Input
-                placeholder={isNew ? 'e.g. B2-T06' : undefined}
-                value={data.code}
+                placeholder={data.location_type === 'bag' ? 'From the box code and bag number' : isNew ? 'e.g. B2-T06' : undefined}
+                value={data.location_type === 'bag' ? '' : data.code}
+                disabled={data.location_type === 'bag'}
                 onChange={(e) => set({ code: e.target.value })}
               />
             </FieldContent>
+            {data.location_type === 'bag' && (
+              <p className="text-xs text-muted-foreground">
+                A bag goes inside a box with a code, and is numbered after the box’s last bag (A-1, A-2…).
+              </p>
+            )}
             {form.errors['storage_location.code'] && <FieldError>{form.errors['storage_location.code']}</FieldError>}
           </Field>
           <DialogFooter>

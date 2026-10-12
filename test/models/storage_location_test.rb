@@ -17,8 +17,10 @@ class StorageLocationTest < ActiveSupport::TestCase
   end
 
   test "accepts every declared location type" do
+    box = create_storage_location(organization: @org, location_type: "box", code: "A")
     StorageLocation::LOCATION_TYPES.each do |type|
-      location = StorageLocation.new(organization: @org, name: "X", location_type: type)
+      # A bag only exists inside a coded box.
+      location = StorageLocation.new(organization: @org, name: "X", location_type: type, parent: (box if type == "bag"))
       assert location.valid?, "expected location_type #{type} to be valid"
     end
   end
