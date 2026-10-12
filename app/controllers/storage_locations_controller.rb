@@ -13,7 +13,9 @@ class StorageLocationsController < ApplicationController
     render inertia: "storage_locations/index", props: {
       storage_locations: locations.map { |location| serialize_location(location) },
       part_storages: serialize_part_storages,
-      recent_movements: serialize_recent_movements
+      recent_movements: serialize_recent_movements,
+      # `?zone=ID` (the "Open zone" link of a scanned label) opens that zone.
+      selected_zone_id: current_organization.storage_locations.find_by(id: params[:zone])&.id
     }
   end
 

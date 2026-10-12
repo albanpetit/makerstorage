@@ -90,6 +90,108 @@ class ScansControllerTest < ActionDispatch::IntegrationTest
     assert_equal 1, result["location"]["children_count"]
   end
 
+  test "index finds a part by IPN before a part whose MPN matches it" do
+    user = create_user
+    org = user.organizations.first
+    create_part(organization: org, name: "Decoy", mpn: "MS-00042")
+    part = create_part(organization: org, name: "Labelled", ipn: "MS-00042")
+
+    sign_in user
+    get scan_path, params: { code: "ms-00042" }
+
+    assert_equal "part", inertia_props["result"]["kind"]
+    assert_equal part.id, inertia_props["result"]["part"]["id"]
+  end
+
+  test "index resolves label fallback codes for parts and zones" do
+    user = create_user
+    org = user.organizations.first
+    part = create_part(organization: org, name: "No identifiers")
+    zone = create_storage_location(organization: org, name: "Drawer 7")
+
+    sign_in user
+    get scan_path, params: { code: "part:#{part.id}" }
+    assert_equal part.id, inertia_props["result"]["part"]["id"]
+
+    get scan_path, params: { code: "ZONE:#{zone.id}" }
+    assert_equal "location", inertia_props["result"]["kind"]
+    assert_equal zone.id, inertia_props["result"]["location"]["id"]
+  end
+
+  test "index keeps only the code of a scanned label link, whatever its host" do
+    user = create_user
+    org = user.organizations.first
+    zone = create_storage_location(organization: org, code: "Z-A1")
+
+    sign_in user
+    get scan_path, params: { code: "http://192.168.1.20:3000/scan?code=Z-A1" }
+    assert_equal "Z-A1", inertia_props["code"]
+    assert_equal zone.id, inertia_props["result"]["location"]["id"]
+
+    get scan_path, params: { code: "https://example.test/scan/?code=zone%3A#{zone.id}" }
+    assert_equal zone.id, inertia_props["result"]["location"]["id"]
+  end
+
+  test "index treats other links as plain codes" do
+    user = create_user
+
+    sign_in user
+    get scan_path, params: { code: "https://example.test/parts?code=Z-A1" }
+    assert_equal "https://example.test/parts?code=Z-A1", inertia_props["code"]
+    assert_equal "unknown", inertia_props["result"]["kind"]
+  end
+
+  test "index does not resolve another organization's records by fallback code" do
+    user = create_user
+    other_org = create_organization
+    part = create_part(organization: other_org)
+    zone = create_storage_location(organization: other_org)
+
+    sign_in user
+    get scan_path, params: { code: "part:#{part.id}" }
+    assert_equal "unknown", inertia_props["result"]["kind"]
+
+    get scan_path, params: { code: "zone:#{zone.id}" }
+    assert_equal "unknown", inertia_props["result"]["kind"]
+
+    get scan_path, params: { code: "part:#{part.id}", zone: zone.id }
+    assert_nil inertia_props["preferred_location_id"]
+  end
+
+  test "index lists a scanned zone's stocked parts, largest first" do
+    user = create_user
+    org = user.organizations.first
+    drawer = create_storage_location(organization: org, code: "D-1")
+    few = create_part(organization: org, name: "Few", mpn: "FEW-1")
+    many = create_part(organization: org, name: "Many", mpn: "MANY-1")
+    empty = create_part(organization: org, name: "Empty")
+    PartStorage.create!(part: few, storage_location: drawer, quantity: 3)
+    PartStorage.create!(part: many, storage_location: drawer, quantity: 90)
+    PartStorage.create!(part: empty, storage_location: drawer, quantity: 0)
+
+    sign_in user
+    get scan_path, params: { code: "D-1" }
+
+    contents = inertia_props["result"]["location"]["contents"]
+    assert_equal [ many.id, few.id ], contents.map { |c| c["id"] }
+    assert_equal [ "MANY-1", "FEW-1" ], contents.map { |c| c["reference"] }
+    assert_equal [ 90, 3 ], contents.map { |c| c["quantity"] }
+  end
+
+  test "index passes the zone a part was opened from" do
+    user = create_user
+    org = user.organizations.first
+    part = create_part(organization: org)
+    zone = create_storage_location(organization: org)
+
+    sign_in user
+    get scan_path, params: { code: "part:#{part.id}", zone: zone.id }
+    assert_equal zone.id, inertia_props["preferred_location_id"]
+
+    get scan_path, params: { code: "part:#{part.id}" }
+    assert_nil inertia_props["preferred_location_id"]
+  end
+
   test "index returns unknown for a code that matches nothing" do
     user = create_user
 

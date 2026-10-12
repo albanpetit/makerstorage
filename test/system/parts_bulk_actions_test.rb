@@ -51,12 +51,33 @@ class PartsBulkActionsTest < ApplicationSystemTestCase
     assert_selector "table", wait: 10
     find("button[aria-label='Select #{payload}']").click
 
-    label_window = window_opened_by { click_on "Labels" }
+    click_on "Labels"
+    label_window = window_opened_by { within("[role='dialog']") { click_on "Print 1 label" } }
     within_window(label_window) do
       assert_text payload
       assert_no_selector "img"
     end
 
     assert_not page.evaluate_script("window.__xss === true")
+  end
+
+  test "part labels carry a QR code linking the scanner to the part's IPN" do
+    @part_a.update!(ipn: "MS-00042")
+
+    visit parts_path
+    assert_selector "table", wait: 10
+    find("button[aria-label='Select #{@part_a.name}']").click
+
+    click_on "Labels"
+    find("#label-format").click
+    find("[role='option']", text: "Brother DK-11209").click
+
+    label_window = window_opened_by { within("[role='dialog']") { click_on "Print 1 label" } }
+    within_window(label_window) do
+      assert_text "MS-00042"
+      assert_text @part_a.name
+      assert_selector ".label svg path"
+      assert_includes page.html, "size:62mm 29mm"
+    end
   end
 end

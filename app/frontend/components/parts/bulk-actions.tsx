@@ -9,6 +9,8 @@ import { usePermissions } from '@/hooks/use-permissions'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { TagPicker } from '@/components/tag-picker'
+import { PrintLabelsDialog } from '@/components/print-labels-dialog'
+import { labelCodeForPart, type LabelItem } from '@/lib/labels'
 import {
   Dialog,
   DialogContent,
@@ -35,16 +37,14 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 
-import { exportCsv, printLabels } from './csv'
-import { LIFECYCLE_META } from './part-meta'
+import { exportCsv } from './csv'
+import { LIFECYCLE_META, locationLabel } from './part-meta'
 import type { Category, Part, StorageLocationOption, Supplier, Tag } from './types'
 
 interface BulkActionsProps {
   selected: number[]
   // Resolves the selected parts, fetching any not on the current page.
   loadSelectedParts: () => Promise<Part[]>
-  // Whether every selected part is already loaded (no fetch needed).
-  selectionLoaded: boolean
   hiddenSelectedCount: number
   onClearSelection: () => void
   categories: Category[]
@@ -53,15 +53,29 @@ interface BulkActionsProps {
   storageLocations: StorageLocationOption[]
 }
 
+function partLabel(part: Part): LabelItem {
+  const title = part.ipn || part.mpn || part.sku || part.name
+  return {
+    code: labelCodeForPart(part),
+    title,
+    lines: [
+      part.name !== title ? part.name : '',
+      part.mpn && part.mpn !== title ? part.mpn : '',
+      locationLabel(part.location_names),
+    ],
+  }
+}
+
 // The dark bar shown while parts are selected, plus the edit + confirmation
 // dialogs behind each of its bulk actions (PartsController#bulk_*).
 export function BulkActions({
-  selected, loadSelectedParts, selectionLoaded, hiddenSelectedCount, onClearSelection,
+  selected, loadSelectedParts, hiddenSelectedCount, onClearSelection,
   categories, suppliers, tags, storageLocations,
 }: BulkActionsProps) {
   const { canWrite, canAdminister } = usePermissions()
 
   const [moveOpen, setMoveOpen] = useState(false)
+  const [labelsOpen, setLabelsOpen] = useState(false)
   const [moveLocationId, setMoveLocationId] = useState('')
   const [moveConfirmOpen, setMoveConfirmOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
@@ -177,15 +191,6 @@ export function BulkActions({
       bulkVisitOptions(() => { setSupplierConfirmOpen(false); setSupplierOpen(false) }, () => setSupplierConfirmOpen(false)))
   }
 
-  const printSelectedLabels = () => {
-    // The print window must open inside the click handler; when parts still
-    // have to be fetched, open it now and fill it once they arrive.
-    const target = selectionLoaded ? undefined : window.open('', '_blank')
-    loadSelectedParts()
-      .then((parts) => printLabels(parts, target))
-      .catch(() => { target?.close(); toast.error('Could not load the selected parts.') })
-  }
-
   const exportSelected = () => {
     loadSelectedParts()
       .then(exportCsv)
@@ -198,7 +203,7 @@ export function BulkActions({
     { label: 'Status', icon: CircleDot, action: openStatus },
     { label: 'Tags', icon: Tags, action: openTags },
     { label: 'Supplier', icon: Truck, action: openSupplier },
-    { label: 'Labels', icon: TagIcon, action: printSelectedLabels },
+    { label: 'Labels', icon: TagIcon, action: () => setLabelsOpen(true) },
     { label: 'Export', icon: Download, action: exportSelected },
     // Bulk delete is admin-gated server-side (PartsController#bulk_destroy) —
     // hidden here too so members/viewers don't hit a dead-end confirmation
@@ -243,6 +248,14 @@ export function BulkActions({
           </Button>
         </div>
       )}
+
+    <PrintLabelsDialog
+      open={labelsOpen}
+      onOpenChange={setLabelsOpen}
+      count={selectedCount}
+      loadItems={() => loadSelectedParts().then((parts) => parts.map(partLabel))}
+      title={`Print labels for ${selectedCount} part${plural}`}
+    />
 
     {/* Bulk move modal */}
     <Dialog open={moveOpen} onOpenChange={setMoveOpen}>

@@ -32,6 +32,8 @@ export interface StorageLocationsPageProps {
   storage_locations: StorageLocationRecord[]
   part_storages: PartStorageEntry[]
   recent_movements: RecentMovement[]
+  // Zone to open on load (`?zone=ID`), already scoped to the organization.
+  selected_zone_id: number | null
 }
 
 export interface ZoneFormData {

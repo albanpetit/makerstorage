@@ -1,6 +1,6 @@
 import { Head, Link, router } from '@inertiajs/react'
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
-import { Box, Camera, CameraOff, Check, Cpu, ExternalLink, MapPin, ScanLine } from 'lucide-react'
+import { Box, Camera, CameraOff, Check, ChevronRight, Cpu, ExternalLink, MapPin, ScanLine } from 'lucide-react'
 import type { IScannerControls } from '@zxing/browser'
 
 import { AppLayout } from '@/layouts/app-layout'
@@ -44,6 +44,8 @@ interface ScannedZone {
   parts_count: number
   total_quantity: number
   children_count: number
+  // Stocked parts held directly in the zone, largest quantity first (capped).
+  contents: Array<{ id: number; reference: string; name: string; quantity: number }>
 }
 
 type ScanResult =
@@ -66,6 +68,7 @@ interface ScanPageProps {
   recent_scans: RecentScan[]
   today_count: number
   allow_negative_stock: boolean
+  preferred_location_id: number | null
   errors?: Record<string, string | string[]>
 }
 
@@ -146,7 +149,7 @@ function ResultCardHeader({ tone, label, code }: { tone: 'success' | 'error'; la
   )
 }
 
-export default function ScansIndex({ code, result, recent_scans, today_count, allow_negative_stock, errors }: ScanPageProps) {
+export default function ScansIndex({ code, result, recent_scans, today_count, allow_negative_stock, preferred_location_id, errors }: ScanPageProps) {
   const { canWrite } = usePermissions()
   const [codeInput, setCodeInput] = useState('')
   const [delta, setDelta] = useState(0)
@@ -271,8 +274,11 @@ export default function ScansIndex({ code, result, recent_scans, today_count, al
   const part = result?.kind === 'part' ? result.part : null
   const selectedLocation = useMemo(() => {
     if (!part) return null
-    return part.locations.find((location) => String(location.id) === locationId) ?? part.locations[0] ?? null
-  }, [part, locationId])
+    return part.locations.find((location) => String(location.id) === locationId)
+      ?? part.locations.find((location) => location.id === preferred_location_id)
+      ?? part.locations[0]
+      ?? null
+  }, [part, locationId, preferred_location_id])
 
   const projected = (selectedLocation?.quantity ?? 0) + delta
 
@@ -385,7 +391,7 @@ export default function ScansIndex({ code, result, recent_scans, today_count, al
               <Input
                 value={codeInput}
                 onChange={(e) => setCodeInput(e.target.value)}
-                placeholder="Barcode, SKU, MPN, or zone code…"
+                placeholder="IPN, barcode, SKU, MPN, or zone code…"
                 className="h-11 border-zinc-800 bg-zinc-900 text-zinc-50 placeholder:text-zinc-500"
               />
               <Button type="submit" variant="outline" className="h-11 w-full border-zinc-700 bg-zinc-900 text-zinc-50 hover:bg-zinc-800 hover:text-zinc-50">
@@ -556,10 +562,37 @@ export default function ScansIndex({ code, result, recent_scans, today_count, al
                       <div className="font-mono text-xl font-bold">{result.location.total_quantity.toLocaleString()}</div>
                     </div>
                   </div>
+                  {result.location.contents.length > 0 && (
+                    <div className="mt-4 overflow-hidden rounded-xl border">
+                      <div className="border-b bg-muted/50 px-3 py-2 text-xs font-medium text-muted-foreground">
+                        Contents{result.location.parts_count > result.location.contents.length
+                          ? ` · top ${result.location.contents.length} of ${result.location.parts_count}`
+                          : ''}
+                      </div>
+                      <div className="max-h-80 divide-y overflow-y-auto">
+                        {result.location.contents.map((item) => (
+                          <Button
+                            key={item.id}
+                            type="button"
+                            variant="ghost"
+                            className="flex h-auto w-full items-center justify-start gap-3 rounded-none px-3 py-2 text-left font-normal"
+                            onClick={() => router.get('/scan', { code: `part:${item.id}`, zone: result.location.id }, { preserveScroll: true })}
+                          >
+                            <span className="min-w-0 flex-1">
+                              <span className="block truncate font-mono text-sm font-semibold">{item.reference}</span>
+                              <span className="block truncate text-xs text-muted-foreground">{item.name}</span>
+                            </span>
+                            <span className="shrink-0 font-mono text-sm font-semibold">{item.quantity.toLocaleString()}</span>
+                            <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   <Button variant="outline" className="mt-4 w-full" asChild>
-                    <Link href="/storage_locations">
+                    <Link href={`/storage_locations?zone=${result.location.id}`}>
                       <Box className="size-4" />
-                      Open storage zones
+                      Open zone
                     </Link>
                   </Button>
                 </CardContent>
@@ -570,7 +603,7 @@ export default function ScansIndex({ code, result, recent_scans, today_count, al
               <Card className="gap-0 overflow-hidden py-0">
                 <ResultCardHeader tone="error" label="✗ Unknown code" code={code} />
                 <CardContent className="px-4 py-5 text-sm text-muted-foreground">
-                  No part or storage zone matches this code. Codes are matched against part barcodes, SKUs, MPNs, and zone codes.
+                  No part or storage zone matches this code. Codes are matched against part IPNs, barcodes, SKUs, MPNs, and zone codes.
                 </CardContent>
               </Card>
             )}

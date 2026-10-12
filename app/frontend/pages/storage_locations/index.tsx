@@ -7,6 +7,7 @@ import {
   ChevronLeft,
   Archive,
   Pencil,
+  Printer,
   Trash2,
 } from 'lucide-react'
 
@@ -19,6 +20,10 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
+import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
+import { PrintLabelsDialog } from '@/components/print-labels-dialog'
+import { labelCodeForZone } from '@/lib/labels'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -49,17 +54,19 @@ import { ZoneFormDialog } from '@/components/storage-locations/zone-form-dialog'
 import { ZoneHistory } from '@/components/storage-locations/zone-history'
 import { typeMeta } from '@/components/storage-locations/zone-meta'
 
-export default function StorageLocationsIndex({ storage_locations, part_storages, recent_movements }: StorageLocationsPageProps) {
+export default function StorageLocationsIndex({ storage_locations, part_storages, recent_movements, selected_zone_id }: StorageLocationsPageProps) {
   const { canWrite } = usePermissions()
   const [query, setQuery] = useState('')
-  const [selectedId, setSelectedId] = useState<number | null>(null)
+  const [selectedId, setSelectedId] = useState<number | null>(selected_zone_id ?? null)
   // On phones the tree and detail can't sit side-by-side, so we swap between
   // them: false shows the tree, true shows the selected zone's detail. Ignored
   // at lg+ where both panels are always visible.
-  const [mobileDetail, setMobileDetail] = useState(false)
+  const [mobileDetail, setMobileDetail] = useState(selected_zone_id != null)
   const [newOpen, setNewOpen] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const [labelsOpen, setLabelsOpen] = useState(false)
+  const [labelSubZones, setLabelSubZones] = useState(false)
 
   // Drag-and-drop re-parenting state
   const [dragId, setDragId] = useState<number | null>(null)
@@ -288,6 +295,20 @@ export default function StorageLocationsIndex({ storage_locations, part_storages
   const selAgg = effectiveSelected ? aggCounts(effectiveSelected.id) : { refs: 0, units: 0 }
   const path = effectiveSelected ? pathOf(effectiveSelected.id) : []
   const parent = effectiveSelected?.parent_id != null ? byId.get(effectiveSelected.parent_id) : undefined
+
+  const labelZoneIds = effectiveSelected
+    ? (labelSubZones ? subtreeIds(effectiveSelected.id) : [ effectiveSelected.id ])
+    : []
+  const zoneLabels = labelZoneIds.flatMap((id) => {
+    const zone = byId.get(id)
+    if (!zone) return []
+    const zonePath = pathOf(id).map((z) => z.name)
+    return [ {
+      code: labelCodeForZone(zone),
+      title: zone.name,
+      lines: [ zonePath.length > 1 ? zonePath.slice(0, -1).join(' › ') : '', typeMeta(zone.location_type).label ],
+    } ]
+  })
   const zoneHistory = effectiveSelected
     ? (() => {
         const ids = new Set(subtreeIds(effectiveSelected.id))
@@ -487,6 +508,10 @@ export default function StorageLocationsIndex({ storage_locations, part_storages
                     </div>
                   </div>
                   <div className="flex shrink-0 gap-2 empty:hidden">
+                    <Button variant="outline" size="sm" onClick={() => setLabelsOpen(true)}>
+                      <Printer className="size-4" />
+                      Label
+                    </Button>
                     {canWrite && (
                       <Button variant="outline" size="sm" onClick={openEditDialog}>
                         <Pencil className="size-4" />
@@ -569,6 +594,22 @@ export default function StorageLocationsIndex({ storage_locations, part_storages
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <PrintLabelsDialog
+        open={labelsOpen}
+        onOpenChange={setLabelsOpen}
+        count={zoneLabels.length}
+        loadItems={() => Promise.resolve(zoneLabels)}
+        title={`Print labels for ${effectiveSelected?.name ?? 'zone'}`}
+        description="Scanning a zone label opens the scanner on that zone and lists what it holds."
+      >
+        {effectiveSelected && (childrenByParent.get(effectiveSelected.id) || []).length > 0 && (
+          <div className="flex items-center justify-between gap-3">
+            <Label htmlFor="label-sub-zones">Include all sub-zones</Label>
+            <Switch id="label-sub-zones" checked={labelSubZones} onCheckedChange={setLabelSubZones} />
+          </div>
+        )}
+      </PrintLabelsDialog>
 
       <MoveStockDialog
         moveDialog={moveDialog}

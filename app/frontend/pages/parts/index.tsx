@@ -50,8 +50,6 @@ export default function PartsIndex({
     return selected.filter((id) => !visible.has(id)).length
   }, [matching_ids, selected])
 
-  const selectionLoaded = selected.every((id) => knownParts.current.has(id))
-
   const loadSelectedParts = async () => {
     const missing = selected.filter((id) => !knownParts.current.has(id))
     if (missing.length > 0) {
@@ -119,7 +117,6 @@ export default function PartsIndex({
         <BulkActions
           selected={selected}
           loadSelectedParts={loadSelectedParts}
-          selectionLoaded={selectionLoaded}
           hiddenSelectedCount={hiddenSelectedCount}
           onClearSelection={() => setSelected([])}
           categories={categories}
