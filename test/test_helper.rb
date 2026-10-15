@@ -104,6 +104,26 @@ module ActiveSupport
       Order.create!(organization: organization, supplier: supplier, **attrs)
     end
 
+    def create_oauth_client(name: "Claude", redirect_uris: [ "https://claude.ai/api/mcp/auth_callback" ])
+      OauthClient.create!(name: name, redirect_uris: redirect_uris)
+    end
+
+    # A PKCE verifier and its S256 challenge.
+    def pkce_pair
+      verifier = SecureRandom.urlsafe_base64(48)
+      [ verifier, Base64.urlsafe_encode64(::Digest::SHA256.digest(verifier), padding: false) ]
+    end
+
+    # Runs the whole OAuth grant for +user+ on +organization+ and returns the
+    # token hash (access_token, refresh_token…) an MCP client would receive.
+    def connect_mcp_client(user:, organization:, client: create_oauth_client)
+      verifier, challenge = pkce_pair
+      redirect_uri = client.redirect_uris.first
+      code = OauthAuthorization.grant!(client: client, user: user, organization: organization,
+                                       redirect_uri: redirect_uri, code_challenge: challenge)
+      OauthAuthorization.exchange_code!(client: client, code: code, redirect_uri: redirect_uri, code_verifier: verifier)
+    end
+
     # Counts the real SQL queries a block fires, ignoring cached hits, schema
     # introspection, and transaction control. Used to pin N+1 fixes shut: run
     # the same request against a small and a larger dataset and assert the count
