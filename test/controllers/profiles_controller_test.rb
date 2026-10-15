@@ -254,4 +254,37 @@ class ProfilesControllerTest < ActionDispatch::IntegrationTest
     assert_response :not_found
     assert membership.reload.email_notifications
   end
+
+  test "show lists the MCP URL and the apps connected to the inventory" do
+    user = create_user
+    org = user.organizations.first
+    connect_mcp_client(user: user, organization: org, client: create_oauth_client(name: "Claude Code", redirect_uris: [ "http://localhost/callback" ]))
+    # A consent nobody exchanged for tokens isn't a connected app.
+    _verifier, challenge = pkce_pair
+    client = create_oauth_client
+    OauthAuthorization.grant!(client: client, user: user, organization: org, redirect_uri: client.redirect_uris.first, code_challenge: challenge)
+
+    sign_in user
+    get profile_path
+
+    assert_equal "http://www.example.com/mcp", inertia_props["mcp_url"]
+    app = inertia_props["connected_apps"].sole
+    assert_equal [ "Claude Code", org.name ], [ app["name"], app["organization_name"] ]
+  end
+
+  test "revoke_connected_app disconnects an app, only for its own user" do
+    user = create_user
+    tokens = connect_mcp_client(user: user, organization: user.organizations.first)
+    authorization = user.oauth_authorizations.sole
+
+    sign_in create_user
+    delete profile_connected_app_path(authorization)
+    assert_response :not_found
+    assert OauthAuthorization.authenticate(tokens[:access_token])
+
+    sign_in user
+    delete profile_connected_app_path(authorization)
+    assert_redirected_to profile_path
+    assert_nil OauthAuthorization.authenticate(tokens[:access_token])
+  end
 end

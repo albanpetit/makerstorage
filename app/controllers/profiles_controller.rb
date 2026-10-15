@@ -2,6 +2,7 @@
 
 class ProfilesController < ApplicationController
   include Auth
+  include OauthUrls
 
   def show
     render inertia: "profile/index", props: {
@@ -33,8 +34,27 @@ class ProfilesController < ApplicationController
             organization_name: membership.organization.name,
             email_notifications: membership.email_notifications
           }
+        end,
+      mcp_url: mcp_resource_url,
+      connected_apps: current_user.oauth_authorizations.connected.includes(:oauth_client, :organization)
+        .order(created_at: :desc).map do |authorization|
+          {
+            id: authorization.id,
+            name: authorization.oauth_client.name,
+            organization_name: authorization.organization.name,
+            connected_at: authorization.created_at.iso8601,
+            last_used_at: authorization.last_used_at&.iso8601
+          }
         end
     }
+  end
+
+  # Disconnects an MCP client (Claude…): its tokens stop working at once.
+  def revoke_connected_app
+    authorization = current_user.oauth_authorizations.find(params[:id])
+    authorization.destroy!
+
+    redirect_to profile_path, notice: "#{authorization.oauth_client.name} disconnected."
   end
 
   # Per-organization opt-out of the email digest (NotificationDigestJob).

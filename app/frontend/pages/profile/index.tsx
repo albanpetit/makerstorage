@@ -1,10 +1,10 @@
 import { Head, router, useForm } from '@inertiajs/react'
-import { FormEvent } from 'react'
+import { FormEvent, useState } from 'react'
 
 import { AppLayout } from '@/layouts/app-layout'
 import { PageHeader } from '@/components/page-header'
 import { FlashMessages } from '@/components/flash-messages'
-import { MailWarning } from 'lucide-react'
+import { Check, Copy, MailWarning } from 'lucide-react'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -37,16 +37,35 @@ interface NotificationMembership {
   email_notifications: boolean
 }
 
+// An MCP client (Claude…) the user granted read-only access to an organization.
+interface ConnectedApp {
+  id: number
+  name: string
+  organization_name: string
+  connected_at: string
+  last_used_at: string | null
+}
+
 interface PageProps {
   user: ProfileUser
   invitations: Invitation[]
   email_notifications_available: boolean
   notification_memberships: NotificationMembership[]
+  mcp_url: string
+  connected_apps: ConnectedApp[]
 }
 
 export default function Profile({
-  user, invitations, email_notifications_available, notification_memberships,
+  user, invitations, email_notifications_available, notification_memberships, mcp_url, connected_apps,
 }: PageProps) {
+  const [copied, setCopied] = useState(false)
+  const copyMcpUrl = () => {
+    navigator.clipboard?.writeText(mcp_url).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }
+
   const detailsForm = useForm({
     user: {
       firstname: user.firstname,
@@ -265,6 +284,51 @@ export default function Profile({
             </CardContent>
           </Card>
         )}
+
+        {/* MCP server: connect Claude (or another MCP client) to the inventory */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Claude &amp; AI assistants</CardTitle>
+            <CardDescription>
+              Add this URL as a custom connector in Claude (or any MCP client) to ask about parts, stock and
+              projects. You'll pick an organization and allow read-only access.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex gap-2">
+              <Input readOnly value={mcp_url} className="font-mono" aria-label="MCP server URL" onFocus={(e) => e.target.select()} />
+              <Button variant="outline" size="icon" onClick={copyMcpUrl} aria-label="Copy MCP server URL">
+                {copied ? <Check /> : <Copy />}
+              </Button>
+            </div>
+
+            {connected_apps.length > 0 && (
+              <div className="divide-y border-t">
+                {connected_apps.map((app) => (
+                  <div key={app.id} className="flex flex-wrap items-center gap-3 py-3 last:pb-0">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 font-semibold">
+                        <span className="truncate">{app.name}</span>
+                        <Badge variant="outline">{app.organization_name}</Badge>
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        Connected on {new Date(app.connected_at).toLocaleDateString()}
+                        {app.last_used_at && ` · last used ${new Date(app.last_used_at).toLocaleString()}`}
+                      </div>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => router.delete(`/profile/connected_apps/${app.id}`, { preserveScroll: true })}
+                    >
+                      Disconnect
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Password */}
         <form onSubmit={submitPassword}>
