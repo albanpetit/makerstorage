@@ -74,6 +74,7 @@ class Organization < ApplicationRecord
   before_save :unlink_digikey_account, if: :digikey_app_replaced?
   after_create :seed_catalog_suppliers
   after_update :refresh_bag_codes!, if: -> { ipn_generation_mode == "box_bag" && saved_change_to_ipn_separator? }
+  validate :bag_codes_stay_unique, if: -> { ipn_generation_mode == "box_bag" && will_save_change_to_ipn_separator? }
 
   # Scopes
   scope :alphabetical, -> { order(:name) }
@@ -176,6 +177,25 @@ class Organization < ApplicationRecord
       .order(Arel.sql("LOWER(boxes.code), storage_locations.position, storage_locations.id"))
   end
 
+  # The codes in +renames+ (bag => new code) that would clash once written: with
+  # each other, another zone's code, or the IPN of a part other than the bag's
+  # own occupant (which takes the new code as its IPN), ignoring case. Checked
+  # before a box rename or a separator change, which write the codes directly.
+  def bag_code_clashes(renames)
+    return [] if renames.empty?
+
+    ids = renames.keys.map(&:id)
+    codes = renames.values.map { |code| code.to_s.downcase }
+    occupied_codes = renames.select { |bag, _| bag.bag_occupant }.values.map { |code| code.to_s.downcase }
+
+    clashes = codes.tally.select { |_, count| count > 1 }.keys
+    clashes += storage_locations.where.not(id: ids).where("LOWER(code) IN (?)", codes).pluck(:code)
+    if occupied_codes.any?
+      clashes += parts.where("LOWER(ipn) IN (?)", occupied_codes).where("bag_id IS NULL OR bag_id NOT IN (?)", ids).pluck(:ipn)
+    end
+    clashes.map(&:upcase).uniq.sort
+  end
+
   # Rebuilds every bag's code from its box code, number and the current IPN
   # separator, and gives the parts holding them the new codes.
   def refresh_bag_codes!
@@ -275,7 +295,15 @@ class Organization < ApplicationRecord
     end
   end
 
+
   private
+
+  def bag_codes_stay_unique
+    renames = storage_locations.bags.includes(:parent, :bag_occupant).select { |bag| bag.parent&.box? }
+      .to_h { |bag| [ bag, StorageLocation.bag_code(bag.parent.code, bag.position, ipn_separator) ] }
+    clashes = bag_code_clashes(renames)
+    errors.add(:ipn_separator, "would give bags codes already in use: #{clashes.to_sentence}") if clashes.any?
+  end
 
   # Counts the rows of a grouped/HAVING scope (e.g. `low_stock`, which groups by
   # part and filters on summed quantity) without loading the matched Part records

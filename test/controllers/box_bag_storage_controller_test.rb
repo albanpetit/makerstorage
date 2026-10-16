@@ -173,6 +173,29 @@ class BoxBagStorageControllerTest < ActionDispatch::IntegrationTest
     assert_equal bag1.id, response.parsed_body["part"]["bag_id"]
   end
 
+  test "renaming a box onto an IPN in use is an error, not a crash" do
+    @box.add_bags!(1)
+    create_part(organization: @org, category: @category)
+    create_part(organization: @org, category: @category, ipn: "B-1")
+
+    patch storage_location_path(@box), params: { storage_location: { name: @box.name, location_type: "box", code: "B" } }
+
+    assert_redirected_to storage_locations_path
+    assert_match(/B-1/, flash[:alert])
+    assert_equal "A", @box.reload.code
+  end
+
+  test "changing the separator onto an IPN in use is an error, not a crash" do
+    @box.add_bags!(1)
+    create_part(organization: @org, category: @category)
+    create_part(organization: @org, category: @category, ipn: "A.1")
+
+    patch settings_path, params: { organization: { ipn_separator: "." } }
+
+    assert_redirected_to settings_path
+    assert_equal "-", @org.reload.ipn_separator
+  end
+
   test "settings show the free bags" do
     @box.add_bags!(2)
 
