@@ -157,8 +157,10 @@ class Organization < ApplicationRecord
   # part can take, in box then bag order: those no part holds, and those whose
   # part has been emptied out of them since it took the bag (stock back to 0
   # after at least one movement there). A part that took a bag but hasn't been
-  # stocked yet keeps it.
-  def free_bags
+  # stocked yet keeps it. A bag still holding another part's stock is never
+  # free, whoever holds it: `for_part` is the part asking, whose own stock
+  # already sitting in a bag doesn't stop it from taking that bag.
+  def free_bags(for_part: nil)
     held = parts.where.not(bag_id: nil).where(<<~SQL.squish)
       EXISTS (SELECT 1 FROM part_storages ps
               WHERE ps.part_id = parts.id AND ps.storage_location_id = parts.bag_id AND ps.quantity > 0)
@@ -170,6 +172,7 @@ class Organization < ApplicationRecord
     storage_locations.bags
       .joins("INNER JOIN storage_locations boxes ON boxes.id = storage_locations.parent_id")
       .where.not(id: held.select(:bag_id))
+      .where.not(id: PartStorage.where("part_storages.quantity > 0").where.not(part_id: for_part&.id).select(:storage_location_id))
       .order(Arel.sql("LOWER(boxes.code), storage_locations.position, storage_locations.id"))
   end
 

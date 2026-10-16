@@ -106,6 +106,35 @@ class BoxBagStorageTest < ActiveSupport::TestCase
     assert_empty @org.free_bags
   end
 
+  test "a bag still holding another part's stock is never free" do
+    bag1, bag2 = @box_a.add_bags!(2)
+    first = create_part(organization: @org)
+    second = create_part(organization: @org)
+    stock(first, bag1, 5)
+    # The first part's stock lands in the second's bag before the second gives it up.
+    second.update!(bag: nil)
+    @org.update!(ipn_generation_mode: "incremental")
+    stock(first, bag2, 5)
+    @org.update!(ipn_generation_mode: "box_bag")
+
+    assert_empty @org.free_bags
+    assert_nil create_part(organization: @org).bag
+    # The part whose stock is there can still take it.
+    assert_includes @org.free_bags(for_part: first).to_a, bag2
+  end
+
+  test "stock can't go into a bag another part holds" do
+    bag1, bag2 = @box_a.add_bags!(2)
+    first = create_part(organization: @org)
+    create_part(organization: @org)
+
+    movement = @org.stock_movements.build(part: first, storage_location: bag2, movement_type: "in", quantity_delta: 3)
+    assert_not movement.valid?
+    assert_includes movement.errors[:storage_location].join, "A-2"
+
+    assert @org.stock_movements.build(part: first, storage_location: bag1, movement_type: "in", quantity_delta: 3).valid?
+  end
+
   test "picking an occupied bag is refused" do
     bag = @box_a.add_bags!(1).first
     create_part(organization: @org)

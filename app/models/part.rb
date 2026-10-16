@@ -321,7 +321,7 @@ class Part < ApplicationRecord
   def bag_must_be_free
     if bag.nil? || bag.organization_id != organization_id || !bag.bag?
       errors.add(:bag, "must be a bag of this organization")
-    elsif organization && !organization.free_bags.exists?(id: bag.id)
+    elsif organization && !organization.free_bags(for_part: self).exists?(id: bag.id)
       errors.add(:bag, "#{bag.code} is already holding another part")
     elsif organization.parts.where("LOWER(ipn) = ?", bag.code.to_s.downcase).where.not(id: id).where.not(bag_id: bag.id).exists?
       errors.add(:bag, "#{bag.code} is already another part's IPN")
