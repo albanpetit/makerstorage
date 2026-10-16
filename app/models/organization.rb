@@ -57,7 +57,7 @@ class Organization < ApplicationRecord
   # Validations
   validates :name, presence: true, length: { minimum: 2, maximum: 100 }
   validates :email, format: { with: URI::MailTo::EMAIL_REGEXP }, allow_blank: true
-  validates :website, format: { with: URI::DEFAULT_PARSER.make_regexp(%w[http https]) }, allow_blank: true
+  validates :website, format: { with: HTTP_URL_FORMAT }, allow_blank: true
   validates :ipn_prefix, presence: true, length: { maximum: 6 }
   validates :ipn_separator, inclusion: { in: IPN_SEPARATORS }, allow_blank: true
   validates :ipn_generation_mode, inclusion: { in: IPN_GENERATION_MODES }
