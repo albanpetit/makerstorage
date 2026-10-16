@@ -10,6 +10,8 @@ class Organization < ApplicationRecord
   # Associations - Memberships
   has_many :organization_memberships, dependent: :destroy, inverse_of: :organization
   has_many :users, through: :organization_memberships
+  # Access granted to MCP clients (Claude…) on this organization's data.
+  has_many :oauth_authorizations, dependent: :delete_all
 
   # Associations - Data
   #

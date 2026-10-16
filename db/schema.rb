@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_12_180000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_15_100000) do
   create_table "active_storage_attachments", force: :cascade do |t|
     t.bigint "blob_id", null: false
     t.datetime "created_at", null: false
@@ -65,6 +65,39 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_12_180000) do
     t.index ["mounting_type"], name: "index_footprints_on_mounting_type"
     t.index ["organization_id", "name"], name: "index_footprints_on_organization_id_and_name", unique: true
     t.index ["organization_id"], name: "index_footprints_on_organization_id"
+  end
+
+  create_table "oauth_authorizations", force: :cascade do |t|
+    t.integer "oauth_client_id", null: false
+    t.integer "user_id", null: false
+    t.integer "organization_id", null: false
+    t.string "scope", default: "mcp:read", null: false
+    t.string "code_digest"
+    t.string "code_challenge"
+    t.string "redirect_uri"
+    t.datetime "code_expires_at"
+    t.string "access_token_digest"
+    t.datetime "access_token_expires_at"
+    t.string "refresh_token_digest"
+    t.datetime "refresh_token_expires_at"
+    t.datetime "last_used_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["access_token_digest"], name: "index_oauth_authorizations_on_access_token_digest", unique: true
+    t.index ["code_digest"], name: "index_oauth_authorizations_on_code_digest", unique: true
+    t.index ["oauth_client_id"], name: "index_oauth_authorizations_on_oauth_client_id"
+    t.index ["organization_id"], name: "index_oauth_authorizations_on_organization_id"
+    t.index ["refresh_token_digest"], name: "index_oauth_authorizations_on_refresh_token_digest", unique: true
+    t.index ["user_id"], name: "index_oauth_authorizations_on_user_id"
+  end
+
+  create_table "oauth_clients", force: :cascade do |t|
+    t.string "uid", null: false
+    t.string "name", null: false
+    t.text "redirect_uris", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["uid"], name: "index_oauth_clients_on_uid", unique: true
   end
 
   create_table "order_line_allocations", force: :cascade do |t|
@@ -372,6 +405,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_12_180000) do
   add_foreign_key "categories", "categories", column: "parent_id"
   add_foreign_key "categories", "organizations"
   add_foreign_key "footprints", "organizations"
+  add_foreign_key "oauth_authorizations", "oauth_clients"
+  add_foreign_key "oauth_authorizations", "organizations"
+  add_foreign_key "oauth_authorizations", "users"
   add_foreign_key "order_line_allocations", "order_lines"
   add_foreign_key "order_line_allocations", "storage_locations"
   add_foreign_key "order_lines", "orders"

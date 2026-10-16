@@ -25,6 +25,7 @@ A multi-tenant inventory manager for makerspaces and fablabs, purpose-built for 
 - **Dashboard**: at-a-glance stock value, low-stock counts, and category breakdowns
 - **Multi-tenant**: every organization has isolated data, its own members invited with roles (owner / admin / member / viewer), and a configurable internal part-number (IPN) scheme
 - **CSV import**: bulk-load parts (UTF-8 or Excel's Windows-1252), auto-creating categories and locations as needed
+- **Claude & MCP**: a built-in, read-only MCP server so Claude (or any MCP client) can check stock, storage locations, project buildability and BOMs against your inventory
 
 ## Tech stack
 
@@ -164,6 +165,31 @@ sending domain as instructed by your mail provider.
 > Setting up a **development** environment instead? See
 > [CONTRIBUTING.md](CONTRIBUTING.md#development-setup). To test real delivery
 > locally, put the same `SMTP_*` variables in a gitignored `.env`.
+
+### Claude and other MCP clients
+
+Makerstorage serves a [Model Context Protocol](https://modelcontextprotocol.io)
+server at `/mcp`, so you can ask Claude things like "do I have what I need to
+build this BOM?" or "where are my 0603 10k resistors?". Its tools are
+read-only: search parts (with value and package filters to find substitutes),
+part details (stock per zone, suppliers, open orders, reservations), checking
+a BOM or a list of components against stock, projects and their shortfalls,
+storage zones, and an inventory overview.
+
+Access goes through OAuth: when you add the connector, Claude opens a
+Makerstorage page where you sign in, pick one of your organizations, and allow
+read-only access. Your profile shows the server URL and the connected apps,
+each of which you can disconnect. A member who loses access to the
+organization loses API access with it.
+
+- **Claude (web, desktop, mobile)**: Settings → Connectors → *Add custom
+  connector*, URL `https://parts.example.org/mcp`, no client ID or secret.
+  Claude connects from Anthropic's servers, so the instance must be reachable
+  from the internet over HTTPS (set `FORCE_SSL=true` behind your TLS proxy so
+  the URLs it advertises are `https`).
+- **Claude Code**: `claude mcp add --transport http makerstorage https://parts.example.org/mcp`,
+  then `/mcp` in a session to sign in. Claude Code runs on your computer, so a
+  LAN install (`http://192.168.1.10:3000/mcp`) works too.
 
 ## Contributing
 

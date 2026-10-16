@@ -80,6 +80,18 @@ Rails.application.routes.draw do
 
   get "search", to: "search#index", as: :search
 
+  # MCP server for Claude (claude.ai, Claude Desktop, Claude Code): read-only
+  # inventory tools behind OAuth 2.1 (dynamic client registration + PKCE).
+  post "mcp", to: "mcp#create", as: :mcp, format: false
+  match "mcp", to: "mcp#method_not_allowed", via: %i[get delete], format: false
+  get ".well-known/oauth-protected-resource(/*resource)", to: "oauth/metadata#protected_resource", format: false
+  get ".well-known/oauth-authorization-server", to: "oauth/metadata#authorization_server", format: false
+  post "oauth/register", to: "oauth/registrations#create", as: :oauth_register
+  get "oauth/authorize", to: "oauth/authorizations#new", as: :oauth_authorize
+  post "oauth/authorize", to: "oauth/authorizations#create"
+  post "oauth/token", to: "oauth/tokens#create", as: :oauth_token
+  post "oauth/revoke", to: "oauth/tokens#revoke", as: :oauth_revoke
+
   # DigiKey account connection (3-legged OAuth) for the user-scoped Order API.
   get "oauth/digikey/authorize", to: "oauth/digikey#authorize", as: :oauth_digikey_authorize
   get "oauth/digikey/callback", to: "oauth/digikey#callback", as: :oauth_digikey_callback
@@ -134,6 +146,7 @@ Rails.application.routes.draw do
 
   resource :profile, only: %i[show update]
   patch "profile/notifications/:id", to: "profiles#update_notifications", as: :profile_notifications
+  delete "profile/connected_apps/:id", to: "profiles#revoke_connected_app", as: :profile_connected_app
 
   # Organization invitations addressed to the signed-in user.
   resources :invitations, only: [] do

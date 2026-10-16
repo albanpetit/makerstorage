@@ -22,6 +22,8 @@ class User < ApplicationRecord
   # Invitations still open to answer (expired ones are left for an admin to renew).
   has_many :pending_invitations, -> { active.pending_invitation.unexpired_invitation }, class_name: "OrganizationMembership"
   has_many :organizations, through: :active_organization_memberships
+  # Access the user granted MCP clients (Claude…), see OauthAuthorization.
+  has_many :oauth_authorizations, dependent: :delete_all
   # Rows that merely reference the user as an author keep existing (the ledger
   # and memberships outlive the account) with the reference cleared.
   has_many :stock_movements, dependent: :nullify
