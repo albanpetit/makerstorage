@@ -57,7 +57,7 @@ class Organization < ApplicationRecord
   # Validations
   validates :name, presence: true, length: { minimum: 2, maximum: 100 }
   validates :email, format: { with: URI::MailTo::EMAIL_REGEXP }, allow_blank: true
-  validates :website, format: { with: URI::DEFAULT_PARSER.make_regexp(%w[http https]) }, allow_blank: true
+  validates :website, format: { with: HTTP_URL_FORMAT }, allow_blank: true
   validates :ipn_prefix, presence: true, length: { maximum: 6 }
   validates :ipn_separator, inclusion: { in: IPN_SEPARATORS }, allow_blank: true
   validates :ipn_generation_mode, inclusion: { in: IPN_GENERATION_MODES }
@@ -74,6 +74,7 @@ class Organization < ApplicationRecord
   before_save :unlink_digikey_account, if: :digikey_app_replaced?
   after_create :seed_catalog_suppliers
   after_update :refresh_bag_codes!, if: -> { ipn_generation_mode == "box_bag" && saved_change_to_ipn_separator? }
+  validate :bag_codes_stay_unique, if: -> { ipn_generation_mode == "box_bag" && will_save_change_to_ipn_separator? }
 
   # Scopes
   scope :alphabetical, -> { order(:name) }
@@ -157,8 +158,10 @@ class Organization < ApplicationRecord
   # part can take, in box then bag order: those no part holds, and those whose
   # part has been emptied out of them since it took the bag (stock back to 0
   # after at least one movement there). A part that took a bag but hasn't been
-  # stocked yet keeps it.
-  def free_bags
+  # stocked yet keeps it. A bag still holding another part's stock is never
+  # free, whoever holds it: `for_part` is the part asking, whose own stock
+  # already sitting in a bag doesn't stop it from taking that bag.
+  def free_bags(for_part: nil)
     held = parts.where.not(bag_id: nil).where(<<~SQL.squish)
       EXISTS (SELECT 1 FROM part_storages ps
               WHERE ps.part_id = parts.id AND ps.storage_location_id = parts.bag_id AND ps.quantity > 0)
@@ -170,7 +173,27 @@ class Organization < ApplicationRecord
     storage_locations.bags
       .joins("INNER JOIN storage_locations boxes ON boxes.id = storage_locations.parent_id")
       .where.not(id: held.select(:bag_id))
+      .where.not(id: PartStorage.where("part_storages.quantity > 0").where.not(part_id: for_part&.id).select(:storage_location_id))
       .order(Arel.sql("LOWER(boxes.code), storage_locations.position, storage_locations.id"))
+  end
+
+  # The codes in +renames+ (bag => new code) that would clash once written: with
+  # each other, another zone's code, or the IPN of a part other than the bag's
+  # own occupant (which takes the new code as its IPN), ignoring case. Checked
+  # before a box rename or a separator change, which write the codes directly.
+  def bag_code_clashes(renames)
+    return [] if renames.empty?
+
+    ids = renames.keys.map(&:id)
+    codes = renames.values.map { |code| code.to_s.downcase }
+    occupied_codes = renames.select { |bag, _| bag.bag_occupant }.values.map { |code| code.to_s.downcase }
+
+    clashes = codes.tally.select { |_, count| count > 1 }.keys
+    clashes += storage_locations.where.not(id: ids).where("LOWER(code) IN (?)", codes).pluck(:code)
+    if occupied_codes.any?
+      clashes += parts.where("LOWER(ipn) IN (?)", occupied_codes).where("bag_id IS NULL OR bag_id NOT IN (?)", ids).pluck(:ipn)
+    end
+    clashes.map(&:upcase).uniq.sort
   end
 
   # Rebuilds every bag's code from its box code, number and the current IPN
@@ -272,7 +295,15 @@ class Organization < ApplicationRecord
     end
   end
 
+
   private
+
+  def bag_codes_stay_unique
+    renames = storage_locations.bags.includes(:parent, :bag_occupant).select { |bag| bag.parent&.box? }
+      .to_h { |bag| [ bag, StorageLocation.bag_code(bag.parent.code, bag.position, ipn_separator) ] }
+    clashes = bag_code_clashes(renames)
+    errors.add(:ipn_separator, "would give bags codes already in use: #{clashes.to_sentence}") if clashes.any?
+  end
 
   # Counts the rows of a grouped/HAVING scope (e.g. `low_stock`, which groups by
   # part and filters on summed quantity) without loading the matched Part records

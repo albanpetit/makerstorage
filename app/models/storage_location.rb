@@ -36,6 +36,7 @@ class StorageLocation < ApplicationRecord
   validates :position, numericality: { only_integer: true, greater_than: 0, less_than_or_equal_to: MAX_INTEGER }, allow_nil: true
   validate :bag_must_sit_in_a_coded_box, if: :bag?
   validate :box_with_bags_keeps_its_code, if: -> { box? && persisted? }
+  validate :bag_codes_stay_unique, if: -> { box? && persisted? && code.present? && will_save_change_to_code? }
   validate :cannot_be_its_own_parent
   validate :parent_is_not_a_descendant
   validate :parent_must_belong_to_same_organization
@@ -144,6 +145,14 @@ class StorageLocation < ApplicationRecord
     if code.blank? && children.bags.exists?
       errors.add(:code, "can't be blank while the box holds bags")
     end
+  end
+
+  # A renamed box recodes its bags (and their parts' IPNs) directly: refuse a
+  # code that would give one of them a code or IPN already in use.
+  def bag_codes_stay_unique
+    renames = children.bags.includes(:bag_occupant).to_h { |bag| [ bag, self.class.bag_code(code, bag.position, organization.ipn_separator) ] }
+    clashes = organization.bag_code_clashes(renames)
+    errors.add(:code, "would give bags codes already in use: #{clashes.to_sentence}") if clashes.any?
   end
 
   # A renamed box renames its bags (and so the IPNs of the parts in them).

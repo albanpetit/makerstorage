@@ -15,6 +15,7 @@ class StockMovement < ApplicationRecord
   validate :storage_location_must_belong_to_same_organization
   validate :part_must_belong_to_same_organization
   validate :resulting_quantity_cannot_be_negative
+  validate :bag_must_not_hold_another_part, if: -> { quantity_delta.to_i.positive? }
 
   # Scopes
   scope :recent, -> { order(created_at: :desc) }
@@ -60,6 +61,18 @@ class StockMovement < ApplicationRecord
   def part_must_belong_to_same_organization
     if part.present? && part.organization_id != organization_id
       errors.add(:part, "must belong to the same organization")
+    end
+  end
+
+  # Box & bag numbering keeps one component per bag: stock can't go into a bag
+  # that another part holds (its IPN is that bag's code), or the bag would hold
+  # two components and its label would open the wrong one.
+  def bag_must_not_hold_another_part
+    return unless storage_location&.bag? && organization&.ipn_generation_mode == "box_bag"
+
+    occupant = storage_location.bag_occupant
+    if occupant && occupant.id != part_id
+      errors.add(:storage_location, "#{storage_location.code} is #{occupant.name}'s bag: pick another bag")
     end
   end
 

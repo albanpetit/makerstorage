@@ -63,6 +63,65 @@ class BoxBagStorageControllerTest < ActionDispatch::IntegrationTest
     assert_equal 12, PartStorage.find_by!(part: part, storage_location: bag).quantity
   end
 
+  test "create with opening stock on a shelf leaves the bags free" do
+    bag = @box.add_bags!(1).first
+    shelf = create_storage_location(organization: @org, name: "Shelf", location_type: "shelf")
+
+    post parts_path, params: { part: { name: "Resistor 10k", category_id: @category.id }, initial_quantity: "12", initial_location_id: shelf.id }
+
+    part = Part.find_by!(name: "Resistor 10k")
+    assert_nil part.bag
+    assert_nil part.ipn
+    assert_equal [ bag ], @org.free_bags.to_a
+  end
+
+  test "create with opening stock in a bag takes that bag" do
+    _first, second = @box.add_bags!(2)
+
+    post parts_path, params: { part: { name: "Resistor 10k", category_id: @category.id }, initial_quantity: "12", initial_location_id: second.id }
+
+    part = Part.find_by!(name: "Resistor 10k")
+    assert_equal second, part.bag
+    assert_equal "A-2", part.ipn
+    assert_equal 12, PartStorage.find_by!(part: part, storage_location: second).quantity
+  end
+
+  test "import doesn't hand out bags to rows stocked elsewhere, and takes a bag the row names" do
+    bag1, bag2 = @box.add_bags!(2)
+    create_storage_location(organization: @org, name: "Shelf", location_type: "shelf")
+    csv = <<~CSV
+      Name,Category,Location,Quantity
+      Resistor 10k,#{@category.name},Shelf,40
+      Cap 100n,#{@category.name},A-2,10
+      Diode,#{@category.name},,
+    CSV
+
+    post import_parts_path, params: { file: csv_upload(csv) }
+
+    assert_nil Part.find_by!(name: "Resistor 10k").bag
+    assert_nil Part.find_by!(name: "Diode").bag
+    cap = Part.find_by!(name: "Cap 100n")
+    assert_equal bag2, cap.bag
+    assert_equal "A-2", cap.ipn
+    assert_equal 10, PartStorage.find_by!(part: cap, storage_location: bag2).quantity
+    assert_equal [ bag1 ], @org.free_bags.to_a
+  end
+
+  test "import skips a row whose stock would land in another part's bag" do
+    bag = @box.add_bags!(1).first
+    holder = create_part(organization: @org, category: @category)
+    csv = <<~CSV
+      Name,Category,Location,Quantity
+      Cap 100n,#{@category.name},A-1,10
+    CSV
+
+    post import_parts_path, params: { file: csv_upload(csv) }
+
+    assert_nil Part.find_by(name: "Cap 100n")
+    assert_equal bag, holder.reload.bag
+    assert_not PartStorage.where(storage_location: bag).where("quantity > 0").exists?
+  end
+
   test "create takes the chosen bag and ignores a typed IPN" do
     _first, second = @box.add_bags!(2)
 
@@ -114,6 +173,29 @@ class BoxBagStorageControllerTest < ActionDispatch::IntegrationTest
     assert_equal bag1.id, response.parsed_body["part"]["bag_id"]
   end
 
+  test "renaming a box onto an IPN in use is an error, not a crash" do
+    @box.add_bags!(1)
+    create_part(organization: @org, category: @category)
+    create_part(organization: @org, category: @category, ipn: "B-1")
+
+    patch storage_location_path(@box), params: { storage_location: { name: @box.name, location_type: "box", code: "B" } }
+
+    assert_redirected_to storage_locations_path
+    assert_match(/B-1/, flash[:alert])
+    assert_equal "A", @box.reload.code
+  end
+
+  test "changing the separator onto an IPN in use is an error, not a crash" do
+    @box.add_bags!(1)
+    create_part(organization: @org, category: @category)
+    create_part(organization: @org, category: @category, ipn: "A.1")
+
+    patch settings_path, params: { organization: { ipn_separator: "." } }
+
+    assert_redirected_to settings_path
+    assert_equal "-", @org.reload.ipn_separator
+  end
+
   test "settings show the free bags" do
     @box.add_bags!(2)
 
@@ -140,5 +222,12 @@ class BoxBagStorageControllerTest < ActionDispatch::IntegrationTest
 
   def inertia_props
     JSON.parse(@response.body[/data-page="app" type="application\/json"[^>]*>(.*?)<\/script>/m, 1])["props"]
+  end
+
+  def csv_upload(content)
+    file = Tempfile.new([ "import", ".csv" ], binmode: true)
+    file.write(content)
+    file.rewind
+    Rack::Test::UploadedFile.new(file.path, "text/csv")
   end
 end

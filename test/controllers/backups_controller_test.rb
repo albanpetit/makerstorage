@@ -31,6 +31,16 @@ class BackupsControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "export streams the archive from a temporary file it removes afterwards" do
+    sign_in @owner
+    get export_backup_path
+
+    assert_response :success
+    assert_equal response.body.bytesize, response.headers["Content-Length"].to_i
+    assert_nil response.headers["ETag"]
+    assert_empty Dir.glob(Rails.root.join("tmp/backups/*.zip"))
+  end
+
   test "export is admin-only" do
     member = create_user
     OrganizationMembership.create!(organization: @org, user: member, role: "member")
@@ -83,6 +93,29 @@ class BackupsControllerTest < ActionDispatch::IntegrationTest
 
     assert_redirected_to settings_path
     assert_match "Could not restore the backup", flash[:alert]
+  end
+
+  test "import needs a confirmed address when addresses are verified" do
+    unconfirmed = create_user(confirmed_at: nil)
+    sign_in unconfirmed
+
+    assert_no_difference -> { Organization.count } do
+      post import_backup_path, params: { file: upload("not a zip") }
+    end
+
+    assert_redirected_to settings_path
+    assert_match "Confirm your email address", flash[:alert]
+  end
+
+  test "import is rate limited per user" do
+    sign_in @owner
+
+    BackupsController::IMPORT_RATE_LIMIT.times { post import_backup_path, params: { file: upload("not a zip") } }
+    assert_match "Could not restore the backup", flash[:alert]
+
+    post import_backup_path, params: { file: upload("not a zip") }
+    assert_redirected_to settings_path
+    assert_equal "Too many restores. Please try again later.", flash[:alert]
   end
 
   private

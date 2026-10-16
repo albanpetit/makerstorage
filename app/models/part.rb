@@ -39,6 +39,11 @@ class Part < ApplicationRecord
   STATUSES = %w[active discontinued obsolete].freeze
   UNITS = %w[piece meter roll lot].freeze
 
+  # Box & bag mode: set when a new part's stock goes somewhere other than a bag
+  # (an import row, an opening stock on a shelf), so it doesn't take a free bag
+  # it would never fill. See #claim_bag.
+  attr_accessor :skip_bag_claim
+
   # Callbacks - convert empty strings to nil for unique indexed fields
   before_validation :normalize_blank_values
   # Assign the internal part number from the org's IPN config once the part is
@@ -292,7 +297,7 @@ class Part < ApplicationRecord
   def claim_bag
     return if organization.nil?
 
-    auto = new_record? && bag_id.nil? && ipn.blank? && organization.ipn_generation_mode == "box_bag"
+    auto = new_record? && !skip_bag_claim && bag_id.nil? && ipn.blank? && organization.ipn_generation_mode == "box_bag"
     return unless auto || will_save_change_to_bag_id?
 
     organization.with_lock do
@@ -321,7 +326,7 @@ class Part < ApplicationRecord
   def bag_must_be_free
     if bag.nil? || bag.organization_id != organization_id || !bag.bag?
       errors.add(:bag, "must be a bag of this organization")
-    elsif organization && !organization.free_bags.exists?(id: bag.id)
+    elsif organization && !organization.free_bags(for_part: self).exists?(id: bag.id)
       errors.add(:bag, "#{bag.code} is already holding another part")
     elsif organization.parts.where("LOWER(ipn) = ?", bag.code.to_s.downcase).where.not(id: id).where.not(bag_id: bag.id).exists?
       errors.add(:bag, "#{bag.code} is already another part's IPN")

@@ -24,7 +24,7 @@ class Supplier < ApplicationRecord
   # Validations
   validates :name, presence: true, length: { minimum: 2, maximum: 100 }
   validates :email, format: { with: URI::MailTo::EMAIL_REGEXP }, allow_blank: true
-  validates :website, format: { with: URI::DEFAULT_PARSER.make_regexp(%w[http https]) }, allow_blank: true
+  validates :website, format: { with: HTTP_URL_FORMAT }, allow_blank: true
   validates :catalog_provider, inclusion: { in: CATALOG_PROVIDERS }, allow_nil: true
   validates :catalog_provider, uniqueness: { scope: :organization_id }, allow_nil: true
 

@@ -106,6 +106,35 @@ class BoxBagStorageTest < ActiveSupport::TestCase
     assert_empty @org.free_bags
   end
 
+  test "a bag still holding another part's stock is never free" do
+    bag1, bag2 = @box_a.add_bags!(2)
+    first = create_part(organization: @org)
+    second = create_part(organization: @org)
+    stock(first, bag1, 5)
+    # The first part's stock lands in the second's bag before the second gives it up.
+    second.update!(bag: nil)
+    @org.update!(ipn_generation_mode: "incremental")
+    stock(first, bag2, 5)
+    @org.update!(ipn_generation_mode: "box_bag")
+
+    assert_empty @org.free_bags
+    assert_nil create_part(organization: @org).bag
+    # The part whose stock is there can still take it.
+    assert_includes @org.free_bags(for_part: first).to_a, bag2
+  end
+
+  test "stock can't go into a bag another part holds" do
+    bag1, bag2 = @box_a.add_bags!(2)
+    first = create_part(organization: @org)
+    create_part(organization: @org)
+
+    movement = @org.stock_movements.build(part: first, storage_location: bag2, movement_type: "in", quantity_delta: 3)
+    assert_not movement.valid?
+    assert_includes movement.errors[:storage_location].join, "A-2"
+
+    assert @org.stock_movements.build(part: first, storage_location: bag1, movement_type: "in", quantity_delta: 3).valid?
+  end
+
   test "picking an occupied bag is refused" do
     bag = @box_a.add_bags!(1).first
     create_part(organization: @org)
@@ -175,6 +204,36 @@ class BoxBagStorageTest < ActiveSupport::TestCase
 
     assert_equal "A.1", bag.reload.code
     assert_equal "A.1", part.reload.ipn
+  end
+
+  test "renaming a box onto codes another part already has as IPN is refused" do
+    bag = @box_a.add_bags!(1).first
+    occupant = create_part(organization: @org)
+    other = create_part(organization: @org, ipn: "b-1")
+
+    assert_not @box_a.update(code: "B")
+    assert_includes @box_a.errors[:code].join, "B-1"
+    assert_equal "A-1", bag.reload.code
+    assert_equal "A-1", occupant.reload.ipn
+    assert_equal "b-1", other.reload.ipn
+  end
+
+  test "renaming a box onto another zone's codes is refused" do
+    @box_a.add_bags!(1)
+    create_storage_location(organization: @org, name: "Drawer", location_type: "drawer", code: "C-1")
+
+    assert_not @box_a.update(code: "C")
+    assert_includes @box_a.errors[:code].join, "C-1"
+  end
+
+  test "changing the separator onto codes already in use is refused" do
+    @box_a.add_bags!(1)
+    create_part(organization: @org)
+    create_storage_location(organization: @org, name: "Drawer", location_type: "drawer", code: "A.1")
+
+    assert_not @org.update(ipn_separator: ".")
+    assert_includes @org.errors[:ipn_separator].join, "A.1"
+    assert_equal "A-1", @box_a.children.bags.first.code
   end
 
   test "reassigning IPNs gives stocked parts the bags they sit in" do
