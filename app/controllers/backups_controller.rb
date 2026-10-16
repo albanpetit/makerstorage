@@ -15,11 +15,23 @@ class BackupsController < ApplicationController
   rate_limit to: IMPORT_RATE_LIMIT = 5, within: 1.hour, only: :import, by: -> { current_user.id }, store: AUTH_RATE_LIMIT_STORE,
              with: -> { redirect_back_or_to settings_path, alert: "Too many restores. Please try again later." }
 
+  # The archive is built in a temporary file and streamed from disk (the file
+  # is deleted once the response is sent), so a large organization doesn't
+  # have to fit in memory.
   def export
-    send_data OrganizationBackup::Exporter.new(current_organization).to_zip,
-              filename: OrganizationBackup.filename_for(current_organization),
-              type: "application/zip",
-              disposition: "attachment"
+    path = Rails.root.join("tmp", "backups", "#{SecureRandom.uuid}.zip")
+    FileUtils.mkdir_p(path.dirname)
+    OrganizationBackup::Exporter.new(current_organization).write_to(path.to_s)
+
+    response.headers["Content-Type"] = "application/zip"
+    response.headers["Content-Disposition"] = ActionDispatch::Http::ContentDisposition.format(
+      disposition: "attachment", filename: OrganizationBackup.filename_for(current_organization)
+    )
+    response.headers["Content-Length"] = File.size(path).to_s
+    self.response_body = TemporaryFileBody.new(path.to_s)
+  rescue StandardError
+    FileUtils.rm_f(path) if path
+    raise
   end
 
   def import
@@ -40,6 +52,30 @@ class BackupsController < ApplicationController
   end
 
   private
+
+  # A Rack body served from a file (by path, so the server can stream it) that
+  # deletes the file once the response is done.
+  class TemporaryFileBody
+    CHUNK_SIZE = 64.kilobytes
+
+    attr_reader :to_path
+
+    def initialize(path)
+      @to_path = path
+    end
+
+    def each
+      File.open(to_path, "rb") do |file|
+        while (chunk = file.read(CHUNK_SIZE))
+          yield chunk
+        end
+      end
+    end
+
+    def close
+      FileUtils.rm_f(to_path)
+    end
+  end
 
   def verify_confirmed_email
     return if !User.email_verification? || current_user.confirmed?

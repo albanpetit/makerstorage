@@ -3,37 +3,47 @@ require "csv"
 module OrganizationBackup
   # Builds the backup archive of one organization (see OrganizationBackup).
   #
-  #   OrganizationBackup::Exporter.new(organization).to_zip # => binary String
+  #   OrganizationBackup::Exporter.new(organization).write_to(path) # writes the archive to a file
+  #   OrganizationBackup::Exporter.new(organization).to_zip         # => binary String
+  #
+  # Attached files can weigh hundreds of MB in all, so the download goes
+  # through #write_to: each file is streamed into the archive on disk, chunk by
+  # chunk, instead of the whole archive being held in memory.
   class Exporter
     def initialize(organization)
       @organization = organization
     end
 
+    def write_to(path)
+      Zip::OutputStream.open(path) { |zip| write_entries(zip) }
+      path
+    end
+
     def to_zip
-      tables = TABLES.to_h { |table| [ table.name, rows_for(table) ] }
-      attachments = attachment_entries
-
-      buffer = Zip::OutputStream.write_buffer do |zip|
-        zip.put_next_entry(DATA_ENTRY)
-        zip.write(JSON.generate(data(tables, attachments)))
-
-        TABLES.each do |table|
-          zip.put_next_entry("csv/#{table.name}.csv")
-          zip.write(csv_for(table, tables[table.name]))
-        end
-
-        attachments.each do |entry|
-          zip.put_next_entry(entry[:path])
-          zip.write(entry[:attachment].blob.download)
-        end
-      end
-
-      buffer.string
+      Zip::OutputStream.write_buffer { |zip| write_entries(zip) }.string
     end
 
     private
 
     attr_reader :organization
+
+    def write_entries(zip)
+      tables = TABLES.to_h { |table| [ table.name, rows_for(table) ] }
+      attachments = attachment_entries
+
+      zip.put_next_entry(DATA_ENTRY)
+      zip.write(JSON.generate(data(tables, attachments)))
+
+      TABLES.each do |table|
+        zip.put_next_entry("csv/#{table.name}.csv")
+        zip.write(csv_for(table, tables[table.name]))
+      end
+
+      attachments.each do |entry|
+        zip.put_next_entry(entry[:path])
+        entry[:attachment].blob.download { |chunk| zip.write(chunk) }
+      end
+    end
 
     def data(tables, attachments)
       {

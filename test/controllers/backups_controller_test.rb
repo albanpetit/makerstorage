@@ -31,6 +31,16 @@ class BackupsControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "export streams the archive from a temporary file it removes afterwards" do
+    sign_in @owner
+    get export_backup_path
+
+    assert_response :success
+    assert_equal response.body.bytesize, response.headers["Content-Length"].to_i
+    assert_nil response.headers["ETag"]
+    assert_empty Dir.glob(Rails.root.join("tmp/backups/*.zip"))
+  end
+
   test "export is admin-only" do
     member = create_user
     OrganizationMembership.create!(organization: @org, user: member, role: "member")
