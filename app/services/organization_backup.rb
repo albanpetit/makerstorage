@@ -23,7 +23,9 @@ module OrganizationBackup
   DATA_ENTRY = "data.json"
 
   MAX_ARCHIVE_SIZE = 1.gigabyte
-  MAX_DATA_SIZE = 200.megabytes
+  # data.json is parsed in memory during the request: a few tens of MB already
+  # hold tens of thousands of parts with their movements.
+  MAX_DATA_SIZE = 50.megabytes
   MAX_ENTRIES = 100_000
 
   class Error < StandardError; end

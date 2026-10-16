@@ -8,6 +8,12 @@ class BackupsController < ApplicationController
 
   before_action :verify_organization_access, only: :export
   before_action :verify_organization_admin, only: :export
+  # A restore is heavy (the whole archive is read and parsed in the request) and
+  # open to any account, so it's limited per user and needs a confirmed address
+  # when addresses are verified.
+  before_action :verify_confirmed_email, only: :import
+  rate_limit to: IMPORT_RATE_LIMIT = 5, within: 1.hour, only: :import, by: -> { current_user.id }, store: AUTH_RATE_LIMIT_STORE,
+             with: -> { redirect_back_or_to settings_path, alert: "Too many restores. Please try again later." }
 
   def export
     send_data OrganizationBackup::Exporter.new(current_organization).to_zip,
@@ -31,5 +37,13 @@ class BackupsController < ApplicationController
     redirect_to settings_path, notice: notice
   rescue OrganizationBackup::Error => e
     redirect_back_or_to settings_path, alert: "Could not restore the backup. #{e.message}"
+  end
+
+  private
+
+  def verify_confirmed_email
+    return if !User.email_verification? || current_user.confirmed?
+
+    redirect_back_or_to settings_path, alert: "Confirm your email address before restoring a backup."
   end
 end
