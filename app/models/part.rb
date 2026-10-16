@@ -39,6 +39,11 @@ class Part < ApplicationRecord
   STATUSES = %w[active discontinued obsolete].freeze
   UNITS = %w[piece meter roll lot].freeze
 
+  # Box & bag mode: set when a new part's stock goes somewhere other than a bag
+  # (an import row, an opening stock on a shelf), so it doesn't take a free bag
+  # it would never fill. See #claim_bag.
+  attr_accessor :skip_bag_claim
+
   # Callbacks - convert empty strings to nil for unique indexed fields
   before_validation :normalize_blank_values
   # Assign the internal part number from the org's IPN config once the part is
@@ -292,7 +297,7 @@ class Part < ApplicationRecord
   def claim_bag
     return if organization.nil?
 
-    auto = new_record? && bag_id.nil? && ipn.blank? && organization.ipn_generation_mode == "box_bag"
+    auto = new_record? && !skip_bag_claim && bag_id.nil? && ipn.blank? && organization.ipn_generation_mode == "box_bag"
     return unless auto || will_save_change_to_bag_id?
 
     organization.with_lock do

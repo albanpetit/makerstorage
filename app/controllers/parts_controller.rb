@@ -128,6 +128,7 @@ class PartsController < ApplicationController
   def create
     part = current_organization.parts.build(part_params)
     part.image_source_url = Part.supplier_image_url(params[:image_url])
+    place_in_initial_bag(part)
 
     # The part and its opening stock land together: a refused stock movement
     # must not leave the part created behind an error.
@@ -332,7 +333,7 @@ class PartsController < ApplicationController
         # part, location, or a stock level the ledger refuses) is skipped as a
         # whole instead of leaving a half-imported part or aborting the file.
         imported = ActiveRecord::Base.transaction do
-          part ||= current_organization.parts.build(min_stock_threshold: 0, status: "active")
+          part ||= current_organization.parts.build(min_stock_threshold: 0, status: "active", skip_bag_claim: true)
           part.assign_attributes(name: name, category: import_category(category_name))
           # Only what the sheet actually states: a column the file doesn't have,
           # or a blank cell, leaves an existing part's value alone instead of
@@ -345,6 +346,7 @@ class PartsController < ApplicationController
             part.assign_attributes(attribute => value)
           end
           part.save!
+          claim_import_bag(part, row)
           assign_stock(part, row)
           true
         rescue ActiveRecord::RecordInvalid, ActiveRecord::RecordNotSaved, AmbiguousLocationError, InvalidQuantityError
@@ -521,6 +523,32 @@ class PartsController < ApplicationController
 
   # The opening stock goes to the chosen zone, else (box & bag numbering) into
   # the bag the part just took.
+  # Box & bag mode: a new part whose opening stock goes into a chosen zone takes
+  # that zone's bag when it is one, and no bag at all when the stock goes
+  # elsewhere, instead of claiming a free bag it would leave empty.
+  def place_in_initial_bag(part)
+    return if params[:initial_location_id].blank? || params[:initial_quantity].to_i <= 0 || part.bag_id.present?
+
+    location = current_organization.storage_locations.find_by(id: params[:initial_location_id])
+    if location&.bag? && current_organization.ipn_generation_mode == "box_bag"
+      part.bag = location
+    else
+      part.skip_bag_claim = true
+    end
+  end
+
+  # Import: a new part takes the bag its row's location names, when that's a
+  # free bag, and no other one (see Part#skip_bag_claim).
+  def claim_import_bag(part, row)
+    return unless current_organization.ipn_generation_mode == "box_bag" && part.bag_id.nil?
+
+    location_name = import_value(row, :location)
+    return if location_name.blank?
+
+    location = import_location(location_name)
+    part.update!(bag: location) if location.bag? && current_organization.free_bags(for_part: part).exists?(id: location.id)
+  end
+
   def assign_initial_stock(part)
     quantity = params[:initial_quantity].to_i
     return if quantity <= 0
