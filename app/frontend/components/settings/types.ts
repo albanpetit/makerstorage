@@ -44,8 +44,14 @@ export interface OrganizationSettings {
   free_bag_codes: string[]
 }
 
+export interface MergeTarget {
+  id: number
+  name: string
+}
+
 export interface SettingsPageProps {
   organization: OrganizationSettings
+  merge_targets: MergeTarget[]
   currencies: string[]
   ipn_separators: string[]
   timezones: string[]
