@@ -55,10 +55,9 @@ export interface Tag {
   color: string | null
 }
 
-export interface StorageLocationOption {
-  id: number
-  name: string
-}
+// Shape of OptionListSerializers#serialize_storage_locations.
+import type { StorageLocationOption } from '@/components/storage-location-select'
+export type { StorageLocationOption }
 
 export type SortKey = 'ref' | 'crit' | 'qtyDesc' | 'qtyAsc' | 'priceDesc'
 

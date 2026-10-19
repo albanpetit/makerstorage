@@ -68,6 +68,20 @@ class ScansControllerTest < ActionDispatch::IntegrationTest
     assert_equal [ 0, 0 ], locations.map { |l| l["quantity"] }
   end
 
+  test "index gives each zone of the scanned part its code and type for the zone picker" do
+    user = create_user
+    org = user.organizations.first
+    part = create_part(organization: org, barcode: "STORED")
+    box = create_storage_location(organization: org, name: "Box A", location_type: "box", code: "BA")
+    PartStorage.create!(part: part, storage_location: box, quantity: 7)
+
+    sign_in user
+    get scan_path, params: { code: "STORED" }
+
+    location = inertia_props["result"]["part"]["locations"].sole
+    assert_equal({ "id" => box.id, "name" => "Box A", "code" => "BA", "location_type" => "box", "quantity" => 7 }, location)
+  end
+
   test "index finds a storage zone by code with its stock summary" do
     user = create_user
     org = user.organizations.first

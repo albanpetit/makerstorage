@@ -48,6 +48,6 @@ class QrLabelsTest < ApplicationSystemTestCase
 
     assert_text "NE555 timer", wait: 10
     # The count targets the scanned drawer, not the part's larger Bench stock.
-    assert_selector "[role='combobox']", text: "Cabinet 1 > Drawer 3"
+    assert_selector "[data-slot='combobox-trigger']", text: "Cabinet 1 > Drawer 3"
   end
 end

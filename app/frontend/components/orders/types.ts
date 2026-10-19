@@ -1,4 +1,4 @@
-import type { ZoneNode } from '@/components/storage-zone-tree-picker'
+import type { StorageLocationOption } from '@/components/storage-location-select'
 import { ORDER_STATUS_META } from '@/pages/orders/helpers'
 
 // Prop shapes for the order page (OrdersController#show).
@@ -66,5 +66,5 @@ export interface OrderShowProps {
   catalog_enabled: boolean
   projects: ProjectOption[]
   mouser_cart_enabled: boolean
-  storage_locations: ZoneNode[]
+  storage_locations: StorageLocationOption[]
 }

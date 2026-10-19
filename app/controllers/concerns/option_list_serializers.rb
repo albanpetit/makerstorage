@@ -53,11 +53,26 @@ module OptionListSerializers
     end
   end
 
+  # Sorted by full path like categories, for the storage zone picker. `name`
+  # is the full path ("Lab > Cabinet A > Box 3"), `short_name` the zone's own
+  # name.
   def serialize_storage_locations
-    locations = current_organization.storage_locations.alphabetical
-    cache = StorageLocation.full_path_cache(current_organization.storage_locations)
-    locations.map do |location|
-      { id: location.id, name: location.full_path(cache: cache) }
-    end
+    locations = current_organization.storage_locations.to_a
+    cache = locations.index_by(&:id)
+    locations
+      .map { |location| [ location, location.path_names(cache: cache) ] }
+      .sort_by { |_location, path| path.map(&:downcase) }
+      .map { |location, path| serialize_storage_location_option(location, path) }
+  end
+
+  def serialize_storage_location_option(location, path = location.path_names)
+    {
+      id: location.id,
+      name: path.join(" > "),
+      short_name: location.name,
+      parent_id: location.parent_id,
+      location_type: location.location_type,
+      code: location.code
+    }
   end
 end

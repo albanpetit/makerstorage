@@ -2,6 +2,7 @@
 
 class StorageLocationsController < ApplicationController
   include Auth
+  include OptionListSerializers
 
   before_action :verify_organization_access
   before_action :verify_organization_writer, only: %i[create update destroy move_stock add_bags]
@@ -23,13 +24,27 @@ class StorageLocationsController < ApplicationController
     }
   end
 
+  # Also used by the storage zone picker to create a zone from any form: it
+  # posts JSON and gets the new zone back to select it.
   def create
     location = current_organization.storage_locations.build(storage_location_params)
+    saved = location.save
 
-    if location.save
-      redirect_to storage_locations_path, notice: "Storage zone created successfully."
-    else
-      redirect_to storage_locations_path, alert: location.errors.full_messages.to_sentence, inertia: { errors: inertia_errors(location, as: :storage_location) }
+    respond_to do |format|
+      format.json do
+        if saved
+          render json: { storage_location: serialize_storage_location_option(location) }, status: :created
+        else
+          render json: { errors: location.errors.to_hash(true).transform_values(&:first) }, status: :unprocessable_content
+        end
+      end
+      format.html do
+        if saved
+          redirect_to storage_locations_path, notice: "Storage zone created successfully."
+        else
+          redirect_to storage_locations_path, alert: location.errors.full_messages.to_sentence, inertia: { errors: inertia_errors(location, as: :storage_location) }
+        end
+      end
     end
   end
 

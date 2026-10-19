@@ -1,5 +1,5 @@
 import { Link, router, useForm } from '@inertiajs/react'
-import { FormEvent, useCallback, useEffect, useState } from 'react'
+import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
 import {
   ArrowDown, ArrowUp, ArrowLeftRight, Cpu, MapPin,
   Pencil, Trash2, ExternalLink, Loader2, CircleAlert,
@@ -37,13 +37,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+import { StorageLocationSelect, type StorageLocationOption } from '@/components/storage-location-select'
 
 interface PartSupplierEntry {
   id: number
@@ -106,11 +100,6 @@ interface ReservationEntry {
   quantity: number
 }
 
-interface LocationOption {
-  id: number
-  name: string
-}
-
 interface Category {
   id: number
   name: string
@@ -141,7 +130,7 @@ interface PartShowPayload {
   storages: StorageEntry[]
   movements: MovementEntry[]
   reservations: ReservationEntry[]
-  storage_locations: LocationOption[]
+  storage_locations: StorageLocationOption[]
   categories: Category[]
   footprints: Footprint[]
   suppliers: Supplier[]
@@ -243,6 +232,14 @@ export function PartDetailSheet({
       reason: '',
     },
   })
+
+  // Zones already holding this part show their quantity in the picker.
+  const movementLocations = useMemo(() => {
+    const stored = new Map((payload?.storages ?? []).map((s) => [s.location_id, s.quantity]))
+    return (payload?.storage_locations ?? []).map((location) =>
+      stored.has(location.id) ? { ...location, hint: `${stored.get(location.id)!.toLocaleString()} in stock` } : location
+    )
+  }, [payload])
 
   const openMovement = (type: 'in' | 'out') => {
     if (!payload) return
@@ -614,17 +611,13 @@ export function PartDetailSheet({
             <Field>
               <FieldLabel><Label>Location</Label></FieldLabel>
               <FieldContent>
-                <Select
+                <StorageLocationSelect
+                  locations={movementLocations}
                   value={mvtForm.data.stock_movement.storage_location_id}
                   onValueChange={(value) => mvtForm.setData('stock_movement', { ...mvtForm.data.stock_movement, storage_location_id: value })}
-                >
-                  <SelectTrigger className="w-full"><SelectValue placeholder="Select a location" /></SelectTrigger>
-                  <SelectContent>
-                    {(payload?.storage_locations ?? []).map((location) => (
-                      <SelectItem key={location.id} value={location.id.toString()}>{location.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  placeholder="Select a location"
+                  allowCreate
+                />
               </FieldContent>
               {mvtForm.errors['stock_movement.storage_location_id'] && (
                 <FieldError>{mvtForm.errors['stock_movement.storage_location_id']}</FieldError>

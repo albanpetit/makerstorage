@@ -10,7 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { StorageZoneTreePicker, type ZoneNode } from '@/components/storage-zone-tree-picker'
+import { StorageLocationSelect, type StorageLocationOption } from '@/components/storage-location-select'
 
 import type { Order } from './types'
 
@@ -18,7 +18,7 @@ interface BulkZoneDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   order: Order
-  storageLocations: ZoneNode[]
+  storageLocations: StorageLocationOption[]
 }
 
 // Send every line's full quantity to one zone (OrdersController#assign_storage).
@@ -51,11 +51,12 @@ export function BulkZoneDialog({ open, onOpenChange, order, storageLocations }: 
           </DialogDescription>
         </DialogHeader>
         <div className="py-4">
-          <StorageZoneTreePicker
+          <StorageLocationSelect
             locations={storageLocations}
-            value={bulkZone}
-            onChange={setBulkZone}
-            className="w-full"
+            value={bulkZone != null ? String(bulkZone) : ''}
+            onValueChange={(value) => setBulkZone(value ? Number(value) : null)}
+            placeholder="Select a zone"
+            allowCreate
           />
         </div>
         <DialogFooter>

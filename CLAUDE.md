@@ -12,6 +12,7 @@ Electronics-parts inventory manager for makerspaces/fablabs: components, categor
 - The entire frontend is built on **shadcn/ui**. Use the existing components in [app/frontend/components/ui/](app/frontend/components/ui/) as-is wherever possible.
 - Avoid modifying shadcn component internals or hand-rolling custom one-off components when an equivalent shadcn/Radix primitive already exists — compose existing components instead. Don't add new raw `<button>`/`<input>`/`<select>` elements in pages; use the `ui/` equivalents.
 - Only add a new component (via shadcn or from scratch) when nothing in the current library covers the need.
+- Pick a storage zone with `StorageLocationSelect` (`components/storage-location-select.tsx`: searchable tree over path and code, optional inline create) and a category with `CategorySelect`, never a flat `Select` of zones.
 - UI language is **English-first**. (There is a French-language design prototype in `design-makerstorage/` — treat it as a layout/behavior reference only, not a copy/language source.)
 
 ## Backend conventions

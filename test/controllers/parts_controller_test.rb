@@ -307,6 +307,25 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
     assert_includes props["storage_locations"].map { |l| l["id"] }, location.id
   end
 
+  test "index lists storage zones as a tree sorted by full path" do
+    user = create_user
+    org = user.organizations.first
+    lab = create_storage_location(organization: org, name: "Lab", location_type: "room")
+    box = create_storage_location(organization: org, name: "Box 3", location_type: "box", parent: lab, code: "B3")
+    attic = create_storage_location(organization: org, name: "attic", location_type: "room")
+
+    sign_in user
+    get parts_path
+
+    locations = inertia_props["storage_locations"]
+    assert_equal [ attic.id, lab.id, box.id ], locations.map { |l| l["id"] }
+    assert_equal(
+      { "id" => box.id, "name" => "Lab > Box 3", "short_name" => "Box 3", "parent_id" => lab.id,
+        "location_type" => "box", "code" => "B3" },
+      locations.find { |l| l["id"] == box.id }
+    )
+  end
+
   test "index lists categories as a tree sorted by full path" do
     user = create_user
     org = user.organizations.first

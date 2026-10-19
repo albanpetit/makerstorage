@@ -5,13 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Field, FieldContent, FieldLabel } from '@/components/ui/field'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+import { StorageLocationSelect, type StorageLocationOption } from '@/components/storage-location-select'
 import {
   Dialog,
   DialogContent,
@@ -25,7 +19,7 @@ import type { MoveDialogState } from './types'
 interface MoveStockDialogProps {
   moveDialog: MoveDialogState | null
   setMoveDialog: Dispatch<SetStateAction<MoveDialogState | null>>
-  zoneOptions: { id: number; label: string }[]
+  zones: StorageLocationOption[]
   zoneName: (id: number) => string | undefined
   valid: boolean
   onSubmit: () => void
@@ -33,7 +27,7 @@ interface MoveStockDialogProps {
 
 // Quantities to move per component, and the destination (fixed after a drop,
 // picked from a list for the bulk "Move to…" button).
-export function MoveStockDialog({ moveDialog, setMoveDialog, zoneOptions, zoneName, valid, onSubmit }: MoveStockDialogProps) {
+export function MoveStockDialog({ moveDialog, setMoveDialog, zones, zoneName, valid, onSubmit }: MoveStockDialogProps) {
   function setMoveRowQuantity(partId: number, quantity: number) {
     setMoveDialog((prev) => (prev
       ? { ...prev, rows: prev.rows.map((r) => (r.partId === partId ? { ...r, quantity } : r)) }
@@ -56,21 +50,13 @@ export function MoveStockDialog({ moveDialog, setMoveDialog, zoneOptions, zoneNa
               </FieldLabel>
               <FieldContent>
                 {moveDialog.mode === 'select' ? (
-                  <Select
+                  <StorageLocationSelect
+                    locations={zones}
                     value={moveDialog.toId != null ? String(moveDialog.toId) : ''}
                     onValueChange={(value) => setMoveDialog((prev) => prev && { ...prev, toId: Number(value) })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Choose a zone…" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {zoneOptions
-                        .filter((o) => o.id !== moveDialog.fromId)
-                        .map((o) => (
-                          <SelectItem key={o.id} value={String(o.id)}>{o.label}</SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
+                    placeholder="Choose a zone…"
+                    exclude={[moveDialog.fromId]}
+                  />
                 ) : (
                   <div className="rounded-md border bg-muted px-3 py-2 text-sm font-medium">
                     {moveDialog.toId != null ? zoneName(moveDialog.toId) : ''}

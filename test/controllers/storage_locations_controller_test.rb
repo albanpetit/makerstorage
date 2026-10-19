@@ -87,6 +87,51 @@ class StorageLocationsControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to storage_locations_path
   end
 
+  test "create as JSON returns the new zone for the storage zone picker" do
+    user = create_user
+    org = user.organizations.first
+    room = create_storage_location(organization: org, name: "Lab", location_type: "room")
+
+    sign_in user
+    post storage_locations_path, params: { storage_location: { name: "Box 3", location_type: "box", parent_id: room.id, code: "B3" } }, as: :json
+
+    assert_response :created
+    box = org.storage_locations.find_by!(name: "Box 3")
+    assert_equal(
+      { "id" => box.id, "name" => "Lab > Box 3", "short_name" => "Box 3", "parent_id" => room.id,
+        "location_type" => "box", "code" => "B3" },
+      response.parsed_body["storage_location"]
+    )
+  end
+
+  test "create as JSON returns validation errors" do
+    user = create_user
+    org = user.organizations.first
+    create_storage_location(organization: org, name: "Box A", code: "BA")
+
+    sign_in user
+    assert_no_difference -> { org.storage_locations.count } do
+      post storage_locations_path, params: { storage_location: { name: "Box B", location_type: "box", code: "ba" } }, as: :json
+    end
+
+    assert_response :unprocessable_content
+    assert_match(/already been taken/, response.parsed_body["errors"]["code"])
+  end
+
+  test "create as JSON is forbidden for a viewer" do
+    owner = create_user
+    org = owner.organizations.first
+    viewer = create_user(email: "viewer@example.com")
+    OrganizationMembership.create!(organization: org, user: viewer, role: "viewer")
+
+    sign_in viewer
+    post switch_organization_path(org)
+    assert_no_difference -> { org.storage_locations.count } do
+      post storage_locations_path, params: { storage_location: { name: "Sneaky", location_type: "box" } }, as: :json
+    end
+    assert_response :forbidden
+  end
+
   test "update renames and reparents a zone" do
     user = create_user
     org = user.organizations.first

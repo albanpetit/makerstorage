@@ -7,6 +7,7 @@ import { AppLayout } from '@/layouts/app-layout'
 import { usePermissions } from '@/hooks/use-permissions'
 import { PageHeader } from '@/components/page-header'
 import { FlashMessages } from '@/components/flash-messages'
+import { StorageLocationSelect, type StorageLocationOption } from '@/components/storage-location-select'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Field, FieldContent, FieldError, FieldLabel } from '@/components/ui/field'
@@ -75,11 +76,6 @@ interface Movement {
 interface PartOption {
   id: number
   reference: string
-  name: string
-}
-
-interface StorageLocationOption {
-  id: number
   name: string
 }
 
@@ -382,19 +378,13 @@ export default function StockMovementsIndex({ movements, pagination, filter, sta
                 <Label>Location</Label>
               </FieldLabel>
               <FieldContent>
-                <Select
+                <StorageLocationSelect
+                  locations={storage_locations}
                   value={newForm.data.stock_movement.storage_location_id}
                   onValueChange={(value) => newForm.setData('stock_movement', { ...newForm.data.stock_movement, storage_location_id: value })}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select a location" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {storage_locations.map((location) => (
-                      <SelectItem key={location.id} value={location.id.toString()}>{location.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  placeholder="Select a location"
+                  allowCreate
+                />
               </FieldContent>
               {newForm.errors['stock_movement.storage_location_id'] && <FieldError>{newForm.errors['stock_movement.storage_location_id']}</FieldError>}
             </Field>

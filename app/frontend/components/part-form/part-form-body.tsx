@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Badge } from '@/components/ui/badge'
 import { CategorySelect } from '@/components/category-select'
+import { StorageLocationSelect } from '@/components/storage-location-select'
 import { TagPicker } from '@/components/tag-picker'
 import { SupplierLookup, LookupResult } from '@/components/supplier-lookup'
 import { Field, FieldContent, FieldError, FieldLabel } from '@/components/ui/field'
@@ -374,20 +375,14 @@ export function PartFormBody({
                 <Label>Initial location</Label>
               </FieldLabel>
               <FieldContent>
-                <Select
-                  value={initialLocationId || 'none'}
-                  onValueChange={(value) => onInitialLocationChange?.(value === 'none' ? '' : value)}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="No location" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">{bagOptions ? 'In its bag' : 'No location'}</SelectItem>
-                    {storageLocations.map((location) => (
-                      <SelectItem key={location.id} value={location.id.toString()}>{location.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <StorageLocationSelect
+                  id="part-initial-location"
+                  locations={storageLocations}
+                  value={initialLocationId ?? ''}
+                  onValueChange={(value) => onInitialLocationChange?.(value)}
+                  noneLabel={bagOptions ? 'In its bag' : 'No location'}
+                  allowCreate
+                />
               </FieldContent>
             </Field>
             <Field>
