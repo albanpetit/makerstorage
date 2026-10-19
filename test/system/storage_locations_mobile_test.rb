@@ -14,6 +14,12 @@ class StorageLocationsMobileTest < ApplicationSystemTestCase
     assert_selector "h1", text: "Dashboard", wait: 20
   end
 
+  # The browser window outlives the test: put back the desktop size so the
+  # next test doesn't start with the sidebar collapsed.
+  teardown do
+    current_window.resize_to(1400, 1400)
+  end
+
   test "empty state exposes the sidebar toggle on a phone" do
     current_window.resize_to(*PHONE)
     visit storage_locations_path
