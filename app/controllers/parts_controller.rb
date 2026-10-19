@@ -88,7 +88,11 @@ class PartsController < ApplicationController
 
         render json: {
           part: serialize_part_full(@part),
-          storages: @part.part_storages.includes(:storage_location).map { |ps| serialize_part_storage(ps, location_paths) },
+          # The part's own bag, then the fullest zone, first: the stock form
+          # preselects the first one, never a bag another part holds.
+          storages: @part.part_storages.includes(:storage_location)
+            .sort_by { |ps| [ ps.storage_location_id == @part.bag_id ? 0 : 1, -ps.quantity, ps.id ] }
+            .map { |ps| serialize_part_storage(ps, location_paths) },
           movements: movements.map { |movement| serialize_part_movement(movement) },
           reservations: serialize_part_reservations(@part),
           storage_locations: serialize_storage_locations,

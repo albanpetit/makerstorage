@@ -178,6 +178,20 @@ class BoxBagStorageControllerTest < ActionDispatch::IntegrationTest
     assert_includes rows, [ bag2.id, stray.id ]
   end
 
+  test "the part detail lists the part's own bag first" do
+    bag1, bag2 = @box.add_bags!(2)
+    holder = create_part(organization: @org, category: @category)
+    stray = create_part(organization: @org, category: @category, skip_bag_claim: true)
+    @org.stock_movements.create!(part: holder, storage_location: bag1, movement_type: "in", quantity_delta: 5)
+    PartStorage.create!(part: stray, storage_location: bag1, quantity: 0)
+    stray.update!(bag: bag2)
+    @org.stock_movements.create!(part: stray, storage_location: bag2, movement_type: "in", quantity_delta: 3)
+
+    get part_path(stray, format: :json)
+
+    assert_equal bag2.id, response.parsed_body["storages"].first["location_id"]
+  end
+
   test "a part can take the bag only its own stock sits in" do
     bag1, = @box.add_bags!(1)
     part = create_part(organization: @org, category: @category, skip_bag_claim: true)
