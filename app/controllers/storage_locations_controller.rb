@@ -153,8 +153,16 @@ class StorageLocationsController < ApplicationController
     }
   end
 
+  # An emptied row stays listed under its zone, except in a bag another part
+  # holds: that one was stray stock moved out, and the bag holds one component.
   def serialize_part_storages
-    current_organization.storage_locations.includes(part_storages: :part).flat_map(&:part_storages).map do |part_storage|
+    bag_holders = current_organization.parts.where.not(bag_id: nil).pluck(:bag_id, :id).to_h
+    part_storages = current_organization.storage_locations.includes(part_storages: :part).flat_map(&:part_storages)
+    part_storages.reject! do |part_storage|
+      holder = bag_holders[part_storage.storage_location_id]
+      part_storage.quantity.zero? && holder && holder != part_storage.part_id
+    end
+    part_storages.map do |part_storage|
       part = part_storage.part
       {
         location_id: part_storage.storage_location_id,

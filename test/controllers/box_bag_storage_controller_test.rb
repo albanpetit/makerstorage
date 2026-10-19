@@ -162,6 +162,22 @@ class BoxBagStorageControllerTest < ActionDispatch::IntegrationTest
     assert_equal bag1, holder.reload.bag
   end
 
+  test "the zones page drops an emptied row of a part that isn't the bag's holder" do
+    bag1, bag2 = @box.add_bags!(2)
+    holder = create_part(organization: @org, category: @category)
+    stray = create_part(organization: @org, category: @category, skip_bag_claim: true)
+    @org.stock_movements.create!(part: holder, storage_location: bag1, movement_type: "in", quantity_delta: 5)
+    PartStorage.create!(part: stray, storage_location: bag1, quantity: 0)
+    PartStorage.create!(part: stray, storage_location: bag2, quantity: 0)
+
+    get storage_locations_path
+
+    rows = inertia_props["part_storages"].map { |row| [ row["location_id"], row["part"]["id"] ] }
+    assert_includes rows, [ bag1.id, holder.id ]
+    assert_not_includes rows, [ bag1.id, stray.id ]
+    assert_includes rows, [ bag2.id, stray.id ]
+  end
+
   test "a part can take the bag only its own stock sits in" do
     bag1, = @box.add_bags!(1)
     part = create_part(organization: @org, category: @category, skip_bag_claim: true)
