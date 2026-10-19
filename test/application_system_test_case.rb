@@ -20,4 +20,10 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
   else
     driven_by :selenium, using: :headless_chrome, screen_size: [ 1400, 1400 ]
   end
+
+  # A test that shrinks the window (phone layouts) would otherwise leave the
+  # next test in the same browser session at phone width, hiding the sidebar.
+  setup do
+    current_window.resize_to(1400, 1400)
+  end
 end
