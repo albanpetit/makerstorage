@@ -173,6 +173,76 @@ class BoxBagStorageControllerTest < ActionDispatch::IntegrationTest
     assert_equal bag1.id, response.parsed_body["part"]["bag_id"]
   end
 
+  test "the part form offers a new bag in each coded box, with its code" do
+    @box.add_bags!(2)
+    box_b = create_storage_location(organization: @org, name: "Box B", location_type: "box", code: "B")
+    create_storage_location(organization: @org, name: "Uncoded box", location_type: "box")
+    create_storage_location(organization: create_organization, name: "Foreign box", location_type: "box", code: "C")
+    part = create_part(organization: @org, category: @category)
+
+    get parts_path
+    assert_equal [
+      { "id" => @box.id, "name" => "Box A", "next_code" => "A-3" },
+      { "id" => box_b.id, "name" => "Box B", "next_code" => "B-1" }
+    ], inertia_props["bag_boxes"]
+
+    get edit_part_path(part, format: :json)
+    assert_equal [ @box.id, box_b.id ], response.parsed_body["bag_boxes"].map { |box| box["id"] }
+  end
+
+  test "create opens a new bag in the chosen box and puts the part and its stock in it" do
+    @box.add_bags!(1)
+
+    assert_difference -> { @box.children.bags.count } => 1 do
+      post parts_path, params: { part: { name: "Cap 100n", category_id: @category.id, new_bag_box_id: @box.id }, initial_quantity: "5" }
+    end
+
+    part = Part.find_by!(name: "Cap 100n")
+    assert_equal "A-2", part.ipn
+    assert_equal "A-2", part.bag.code
+    assert_equal @box, part.bag.parent
+    assert_equal 5, PartStorage.find_by!(part: part, storage_location: part.bag).quantity
+  end
+
+  test "a refused new part leaves no new bag behind" do
+    assert_no_difference -> { StorageLocation.count } do
+      post parts_path, params: { part: { name: "", category_id: @category.id, new_bag_box_id: @box.id } }
+    end
+    assert_nil Part.find_by(category: @category)
+  end
+
+  test "create refuses a new bag in a box of another organization or in an uncoded box" do
+    foreign_box = create_storage_location(organization: create_organization, location_type: "box", code: "Z")
+    uncoded_box = create_storage_location(organization: @org, name: "Uncoded", location_type: "box")
+
+    assert_no_difference [ "Part.count", "StorageLocation.count" ] do
+      post parts_path, params: { part: { name: "Cap 100n", category_id: @category.id, new_bag_box_id: foreign_box.id } }
+      post parts_path, params: { part: { name: "Cap 100n", category_id: @category.id, new_bag_box_id: uncoded_box.id } }
+    end
+  end
+
+  test "update moves a part into a new bag along with its stock" do
+    bag = @box.add_bags!(1).first
+    part = create_part(organization: @org, category: @category)
+    @org.stock_movements.create!(part: part, storage_location: bag, movement_type: "in", quantity_delta: 4)
+
+    patch part_path(part), params: { part: { bag_id: "", new_bag_box_id: @box.id } }
+
+    part.reload
+    assert_equal "A-2", part.ipn
+    assert_equal 0, PartStorage.find_by!(part: part, storage_location: bag).quantity
+    assert_equal 4, PartStorage.find_by!(part: part, storage_location: part.bag).quantity
+  end
+
+  test "new_bag_box_id is ignored outside box & bag mode" do
+    @org.update!(ipn_generation_mode: "incremental")
+
+    assert_no_difference -> { StorageLocation.count } do
+      post parts_path, params: { part: { name: "Diode", category_id: @category.id, new_bag_box_id: @box.id } }
+    end
+    assert_nil Part.find_by!(name: "Diode").bag
+  end
+
   test "renaming a box onto an IPN in use is an error, not a crash" do
     @box.add_bags!(1)
     create_part(organization: @org, category: @category)
