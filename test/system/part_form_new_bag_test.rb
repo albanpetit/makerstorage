@@ -24,7 +24,7 @@ class PartFormNewBagTest < ApplicationSystemTestCase
 
     within("[role='dialog']") do
       find("input[placeholder='e.g. Resistor 10k 1% 0603']").fill_in(with: "Cap 100n")
-      find("button[role='combobox']", text: "Select a category").click
+      find("#part-category").click
     end
     find("[role='option']", text: "Capacitors").click
 
