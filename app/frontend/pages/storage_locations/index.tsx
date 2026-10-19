@@ -85,7 +85,6 @@ export default function StorageLocationsIndex({ storage_locations, part_storages
   const {
     byId, childrenByParent, partStoragesByLocation, aggCounts, subtreeIds, pathOf,
     visibleIds, treeRows, expanded, setExpanded, toggleExpand, expandAll, collapseAll,
-    parentOptions, allZoneOptions,
   } = tree
 
   const roots = childrenByParent.get(null) || []
@@ -257,7 +256,7 @@ export default function StorageLocationsIndex({ storage_locations, part_storages
       onOpenChange={setNewOpen}
       form={newForm}
       onSubmit={submitNew}
-      parentOptions={parentOptions()}
+      zones={storage_locations}
     />
   )
 
@@ -583,7 +582,8 @@ export default function StorageLocationsIndex({ storage_locations, part_storages
         onOpenChange={setEditOpen}
         form={editForm}
         onSubmit={submitEdit}
-        parentOptions={parentOptions(effectiveSelected?.id)}
+        zones={storage_locations}
+        excludeIds={effectiveSelected ? subtreeIds(effectiveSelected.id) : undefined}
       />
 
       {/* Delete confirmation */}
@@ -636,7 +636,7 @@ export default function StorageLocationsIndex({ storage_locations, part_storages
       <MoveStockDialog
         moveDialog={moveDialog}
         setMoveDialog={setMoveDialog}
-        zoneOptions={allZoneOptions()}
+        zones={storage_locations}
         zoneName={(id) => byId.get(id)?.name}
         valid={moveDialogValid}
         onSubmit={submitMove}

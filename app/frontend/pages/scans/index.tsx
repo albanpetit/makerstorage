@@ -12,17 +12,13 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+import { StorageLocationSelect } from '@/components/storage-location-select'
 
 interface ScanLocationOption {
   id: number
   name: string
+  code: string | null
+  location_type: string
   quantity: number
 }
 
@@ -448,21 +444,12 @@ export default function ScansIndex({ code, result, recent_scans, today_count, al
 
                   {part.locations.length > 1 && (
                     <div className="mt-3">
-                      <Select
+                      <StorageLocationSelect
+                        locations={part.locations.map((location) => (location.quantity > 0 ? { ...location, hint: location.quantity.toLocaleString() } : location))}
                         value={String(selectedLocation?.id ?? '')}
                         onValueChange={setLocationId}
-                      >
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Select a location" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {part.locations.map((location) => (
-                            <SelectItem key={location.id} value={String(location.id)}>
-                              {location.name} · {location.quantity.toLocaleString()}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                        placeholder="Select a location"
+                      />
                     </div>
                   )}
 

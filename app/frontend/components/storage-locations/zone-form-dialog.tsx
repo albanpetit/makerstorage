@@ -19,6 +19,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { StorageLocationSelect, type StorageLocationOption } from '@/components/storage-location-select'
 
 import { LOCATION_TYPES, typeMeta } from './zone-meta'
 import type { ZoneFormData } from './types'
@@ -29,12 +30,14 @@ interface ZoneFormDialogProps {
   onOpenChange: (open: boolean) => void
   form: InertiaFormProps<ZoneFormData>
   onSubmit: (e: FormEvent) => void
-  parentOptions: { id: number; label: string }[]
+  zones: StorageLocationOption[]
+  // Zones that can't be the parent (in edit mode, the zone's own subtree).
+  excludeIds?: number[]
 }
 
 // Create or edit a storage zone (name, type, parent, code). In edit mode the
 // parent picker doubles as "move", and excludes the zone's own subtree.
-export function ZoneFormDialog({ mode, open, onOpenChange, form, onSubmit, parentOptions }: ZoneFormDialogProps) {
+export function ZoneFormDialog({ mode, open, onOpenChange, form, onSubmit, zones, excludeIds }: ZoneFormDialogProps) {
   const isNew = mode === 'new'
   const data = form.data.storage_location
   const set = (patch: Partial<ZoneFormData['storage_location']>) =>
@@ -87,20 +90,13 @@ export function ZoneFormDialog({ mode, open, onOpenChange, form, onSubmit, paren
                 )}
               </FieldLabel>
               <FieldContent>
-                <Select
-                  value={data.parent_id || 'none'}
-                  onValueChange={(value) => set({ parent_id: value === 'none' ? '' : value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">— Root (none) —</SelectItem>
-                    {parentOptions.map((o) => (
-                      <SelectItem key={o.id} value={String(o.id)}>{o.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <StorageLocationSelect
+                  locations={zones}
+                  value={data.parent_id}
+                  onValueChange={(value) => set({ parent_id: value })}
+                  noneLabel="— Root (none) —"
+                  exclude={excludeIds}
+                />
               </FieldContent>
             </Field>
           </div>

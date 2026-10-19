@@ -12,7 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { StorageZoneTreePicker, type ZoneNode } from '@/components/storage-zone-tree-picker'
+import { StorageLocationSelect, type StorageLocationOption } from '@/components/storage-location-select'
 
 import type { Order, OrderLine } from './types'
 
@@ -20,7 +20,7 @@ interface AllocationDialogProps {
   order: Order
   allocLine: OrderLine | null
   onClose: () => void
-  storageLocations: ZoneNode[]
+  storageLocations: StorageLocationOption[]
 }
 
 function initialRows(line: OrderLine | null) {
@@ -65,11 +65,13 @@ export function AllocationDialog({ order, allocLine, onClose, storageLocations }
               <div className="space-y-2 py-4">
                 {allocRows.map((row, i) => (
                   <div key={i} className="flex items-center gap-2">
-                    <StorageZoneTreePicker
+                    <StorageLocationSelect
                       locations={storageLocations}
-                      value={row.storage_location_id}
-                      onChange={(id) => setAllocRows((rows) => rows.map((r, idx) => (idx === i ? { ...r, storage_location_id: id } : r)))}
-                      className="flex-1"
+                      value={row.storage_location_id != null ? String(row.storage_location_id) : ''}
+                      onValueChange={(value) => setAllocRows((rows) => rows.map((r, idx) => (idx === i ? { ...r, storage_location_id: value ? Number(value) : null } : r)))}
+                      placeholder="Select a zone"
+                      className="min-w-0 flex-1"
+                      allowCreate
                     />
                     <Input
                       type="number"

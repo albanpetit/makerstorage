@@ -16,6 +16,10 @@ export interface ComboboxOption {
   depth?: number
   // Text for the trigger when this option is selected (defaults to `label`).
   selectedLabel?: string
+  // Shown before the label (e.g. a storage zone's type icon).
+  icon?: React.ReactNode
+  // Short muted text at the end of the row, always shown (e.g. a zone's code).
+  hint?: string
 }
 
 interface ComboboxProps {
@@ -195,9 +199,13 @@ function Combobox({
                   )}
                 >
                   <Check className={cn("size-4 shrink-0", option.value === value ? "opacity-100" : "opacity-0")} />
+                  {option.icon}
                   <span className="max-w-[70%] shrink-0 truncate">{option.label}</span>
-                  {showDescription && (
-                    <span className="text-muted-foreground ml-auto min-w-0 truncate text-xs">{option.description}</span>
+                  {(showDescription || option.hint) && (
+                    <span className="text-muted-foreground ml-auto flex min-w-0 items-center gap-2 text-xs">
+                      {showDescription && <span className="min-w-0 truncate">{option.description}</span>}
+                      {option.hint && <span className="shrink-0 font-mono">{option.hint}</span>}
+                    </span>
                   )}
                 </button>
               )

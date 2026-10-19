@@ -102,34 +102,6 @@ export function useZoneTree(storage_locations: StorageLocationRecord[], part_sto
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [childrenByParent, visibleIds, expanded, partStoragesByLocation])
 
-  function parentOptions(excludeId?: number) {
-    const excluded = excludeId != null ? new Set(subtreeIds(excludeId)) : new Set<number>()
-    const options: { id: number; label: string }[] = []
-    const walk = (parentId: number | null, depth: number) => {
-      (childrenByParent.get(parentId) || []).forEach((z) => {
-        if (!excluded.has(z.id)) {
-          options.push({ id: z.id, label: `${'— '.repeat(depth)}${z.name}` })
-          walk(z.id, depth + 1)
-        }
-      })
-    }
-    walk(null, 0)
-    return options
-  }
-
-  // Flat, indented list of every zone (for the bulk "move to" picker).
-  function allZoneOptions() {
-    const options: { id: number; label: string }[] = []
-    const walk = (parentId: number | null, depth: number) => {
-      (childrenByParent.get(parentId) || []).forEach((z) => {
-        options.push({ id: z.id, label: `${'— '.repeat(depth)}${z.name}` })
-        walk(z.id, depth + 1)
-      })
-    }
-    walk(null, 0)
-    return options
-  }
-
   function toggleExpand(id: number) {
     setExpanded((prev) => {
       const next = new Set(prev)
@@ -164,8 +136,6 @@ export function useZoneTree(storage_locations: StorageLocationRecord[], part_sto
     toggleExpand,
     expandAll,
     collapseAll,
-    parentOptions,
-    allZoneOptions,
   }
 }
 

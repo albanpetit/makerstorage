@@ -9,6 +9,7 @@ import { usePermissions } from '@/hooks/use-permissions'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { CategorySelect } from '@/components/category-select'
+import { StorageLocationSelect } from '@/components/storage-location-select'
 import { TagPicker } from '@/components/tag-picker'
 import { PrintLabelsDialog } from '@/components/print-labels-dialog'
 import { labelCodeForPart, type LabelItem } from '@/lib/labels'
@@ -271,19 +272,14 @@ export function BulkActions({
 
         <div className="min-w-0 space-y-2">
           <Label htmlFor="bulk-move-location">Destination location</Label>
-          <Select value={moveLocationId} onValueChange={setMoveLocationId}>
-            <SelectTrigger id="bulk-move-location" className="w-full">
-              <SelectValue placeholder="Choose a location" />
-            </SelectTrigger>
-            <SelectContent position="popper">
-              {storageLocations.map((loc) => (
-                <SelectItem key={loc.id} value={String(loc.id)} title={loc.name}>{loc.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {storageLocations.length === 0 && (
-            <p className="text-sm text-muted-foreground">No storage locations yet — create one first.</p>
-          )}
+          <StorageLocationSelect
+            id="bulk-move-location"
+            locations={storageLocations}
+            value={moveLocationId}
+            onValueChange={setMoveLocationId}
+            placeholder="Choose a location"
+            allowCreate
+          />
         </div>
 
         <DialogFooter>

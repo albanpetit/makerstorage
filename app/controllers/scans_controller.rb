@@ -112,13 +112,13 @@ class ScansController < ApplicationController
     path_cache = StorageLocation.full_path_cache(current_organization.storage_locations)
     storages = part.part_storages.includes(:storage_location).sort_by { |ps| -ps.quantity }
     locations = storages.map do |ps|
-      { id: ps.storage_location_id, name: ps.storage_location.full_path(cache: path_cache), quantity: ps.quantity }
+      serialize_part_location(ps.storage_location, path_cache, ps.quantity)
     end
     # A part that has never been stored can still receive stock: offer every
     # zone of the organization as a target for an inbound count.
     if locations.empty?
       locations = current_organization.storage_locations.alphabetical.map do |location|
-        { id: location.id, name: location.full_path(cache: path_cache), quantity: 0 }
+        serialize_part_location(location, path_cache, 0)
       end
     end
 
@@ -130,6 +130,18 @@ class ScansController < ApplicationController
       total_quantity: storages.sum(&:quantity),
       stock_status: part.stock_status,
       locations: locations
+    }
+  end
+
+  # A zone the scanned part can be counted in, for the scanner's zone picker
+  # (searchable by path and code).
+  def serialize_part_location(location, path_cache, quantity)
+    {
+      id: location.id,
+      name: location.full_path(cache: path_cache),
+      code: location.code,
+      location_type: location.location_type,
+      quantity: quantity
     }
   end
 
