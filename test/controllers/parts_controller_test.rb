@@ -307,6 +307,27 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
     assert_includes props["storage_locations"].map { |l| l["id"] }, location.id
   end
 
+  test "index lists categories as a tree sorted by full path" do
+    user = create_user
+    org = user.organizations.first
+    passives = create_category(organization: org, name: "Passives", code: "PAS")
+    smd = create_category(organization: org, name: "SMD", parent: passives)
+    actives = create_category(organization: org, name: "actives")
+    zener = create_category(organization: org, name: "Zener", parent: actives)
+
+    sign_in user
+    get parts_path
+
+    categories = inertia_props["categories"]
+    assert_equal [ actives.id, zener.id, passives.id, smd.id ], categories.map { |c| c["id"] }
+    smd_json = categories.find { |c| c["id"] == smd.id }
+    assert_equal "Passives > SMD", smd_json["name"]
+    assert_equal "SMD", smd_json["short_name"]
+    assert_equal passives.id, smd_json["parent_id"]
+    assert_equal 1, smd_json["depth"]
+    assert_equal "PAS", categories.find { |c| c["id"] == passives.id }["code"]
+  end
+
   test "index provides footprints, suppliers, and tags for the add-part modal" do
     user = create_user
     org = user.organizations.first

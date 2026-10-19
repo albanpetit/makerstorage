@@ -379,10 +379,11 @@ export default function EditPart({ part, categories, footprints, suppliers, tags
               <FieldGroup className="grid gap-4 md:grid-cols-2">
                 <Field>
                   <FieldLabel>
-                    <Label>Category *</Label>
+                    <Label htmlFor="part-category">Category *</Label>
                   </FieldLabel>
                   <FieldContent>
                     <CategorySelect
+                      id="part-category"
                       categories={categories}
                       value={data.part.category_id}
                       onValueChange={(value) => handleSelectChange('category_id', value)}

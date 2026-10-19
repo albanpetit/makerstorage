@@ -37,6 +37,11 @@ class Category < ApplicationRecord
   # "Passives > Resistors > SMD". In a serialization loop, pass +cache+ (see
   # .full_path_cache) so parents resolve in memory instead of one query per level.
   def full_path(cache: nil)
+    path_names(cache: cache).join(" > ")
+  end
+
+  # ["Passives", "Resistors", "SMD"]: the names from the root down to this one.
+  def path_names(cache: nil)
     path = [ name ]
     current = self
     seen = [ id ]
@@ -45,7 +50,7 @@ class Category < ApplicationRecord
       current = parent
       path.unshift(current.name)
     end
-    path.join(" > ")
+    path
   end
 
   def ancestors

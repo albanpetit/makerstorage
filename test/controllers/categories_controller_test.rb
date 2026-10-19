@@ -222,6 +222,52 @@ class CategoriesControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "create as JSON returns the new category for the part form picker" do
+    user = create_user
+    org = user.organizations.first
+    parent = create_category(organization: org, name: "Passives")
+
+    sign_in user
+    post categories_path, params: { category: { name: "Capacitors", parent_id: parent.id } }, as: :json
+
+    assert_response :created
+    child = org.categories.find_by!(name: "Capacitors")
+    assert_equal(
+      { "id" => child.id, "name" => "Passives > Capacitors", "short_name" => "Capacitors",
+        "parent_id" => parent.id, "depth" => 1, "code" => nil },
+      response.parsed_body["category"]
+    )
+  end
+
+  test "create as JSON returns validation errors" do
+    user = create_user
+    org = user.organizations.first
+    create_category(organization: org, name: "Resistors")
+
+    sign_in user
+    assert_no_difference -> { org.categories.count } do
+      post categories_path, params: { category: { name: "resistors" } }, as: :json
+    end
+
+    assert_response :unprocessable_content
+    assert_match(/already been taken/, response.parsed_body["errors"]["name"])
+  end
+
+  test "create as JSON is forbidden for a viewer" do
+    owner = create_user
+    org = owner.organizations.first
+    viewer = create_user(email: "viewer@example.com")
+    OrganizationMembership.create!(organization: org, user: viewer, role: "viewer")
+
+    sign_in viewer
+    post switch_organization_path(org)
+    assert_no_difference -> { org.categories.count } do
+      post categories_path, params: { category: { name: "Sneaky" } }, as: :json
+    end
+    assert_response :forbidden
+    assert_match(/read-only/, response.parsed_body["error"])
+  end
+
   private
 
   def inertia_props
