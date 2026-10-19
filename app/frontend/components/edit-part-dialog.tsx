@@ -20,6 +20,7 @@ import {
   Category,
   EMPTY_PART,
   Footprint,
+  BagBox,
   BagOption,
   FullPart,
   lookupResultPatch,
@@ -82,6 +83,7 @@ export function EditPartDialog({
 
   // Box & bag numbering: the bags this part can move to (null in other modes).
   const [bagOptions, setBagOptions] = useState<BagOption[] | null>(null)
+  const [bagBoxes, setBagBoxes] = useState<BagBox[] | null>(null)
 
   const form = useForm({ part: { ...EMPTY_PART } })
   const { data, setData } = form
@@ -97,10 +99,11 @@ export function EditPartDialog({
         if (!res.ok) throw new Error('Failed to load part')
         return res.json()
       })
-      .then((body: { part: FullPart; bag_options?: BagOption[] | null }) => {
+      .then((body: { part: FullPart; bag_options?: BagOption[] | null; bag_boxes?: BagBox[] | null }) => {
         if (cancelled) return
         const part = body.part
         setBagOptions(body.bag_options ?? null)
+        setBagBoxes(body.bag_boxes ?? null)
         setData('part', toFormPart(part))
         setCurrentImageUrl(part.thumbnail_url)
         suppliersController.seedFromPartSuppliers(part.part_suppliers)
@@ -203,6 +206,7 @@ export function EditPartDialog({
               tags={tags}
               ipnManualEntry={ipnManualEntry}
               bagOptions={bagOptions}
+              bagBoxes={bagBoxes}
               supplierLookupEnabled={supplierLookupEnabled}
               onApplyLookup={applyResult}
               attach={attach}

@@ -58,6 +58,7 @@ class PartsController < ApplicationController
       supplier_lookup_enabled: current_organization.supplier_lookup_configured?,
       ipn_manual_entry: current_organization.ipn_generation_mode == "manual",
       bag_options: bag_options,
+      bag_boxes: bag_boxes,
       open_add: params[:new].present?
     }
   end
@@ -110,7 +111,7 @@ class PartsController < ApplicationController
     # JSON: the edit-part modal (opened from the list/detail pages) fetches the
     # full part on demand. HTML: the standalone edit page, kept as a fallback.
     respond_to do |format|
-      format.json { render json: { part: serialize_part_full(@part), bag_options: bag_options(@part) } }
+      format.json { render json: { part: serialize_part_full(@part), bag_options: bag_options(@part), bag_boxes: bag_boxes } }
       format.html do
         render inertia: "parts/edit", props: {
           part: serialize_part_full(@part),
@@ -128,12 +129,14 @@ class PartsController < ApplicationController
   def create
     part = current_organization.parts.build(part_params)
     part.image_source_url = Part.supplier_image_url(params[:image_url])
-    place_in_initial_bag(part)
 
-    # The part and its opening stock land together: a refused stock movement
-    # must not leave the part created behind an error.
+    # The part, its new bag and its opening stock land together: a refused
+    # stock movement must not leave the part created behind an error.
     stock_errors = []
     saved = ActiveRecord::Base.transaction do
+      raise ActiveRecord::Rollback unless take_new_bag(part)
+
+      place_in_initial_bag(part)
       raise ActiveRecord::Rollback unless part.save
 
       assign_initial_stock(part)
@@ -175,6 +178,8 @@ class PartsController < ApplicationController
     # whole edit in one transaction so a rejected edit doesn't keep them.
     saved = ActiveRecord::Base.transaction do
       @part.assign_attributes(part_params)
+      raise ActiveRecord::Rollback unless take_new_bag(@part)
+
       previous_bag = @part.bag_id_changed? ? current_organization.storage_locations.find_by(id: @part.bag_id_in_database) : nil
       # Only from a fresh catalog lookup; a plain edit doesn't send it, so an
       # existing hotlinked image is preserved.
@@ -619,6 +624,41 @@ class PartsController < ApplicationController
     bags = current_organization.free_bags.select(:id, :code).to_a
     bags.unshift(part.bag) if part&.bag && bags.none? { |bag| bag.id == part.bag_id }
     bags.map { |bag| { id: bag.id, code: bag.code } }
+  end
+
+  # Box & bag numbering: the boxes the part form can open a new bag in (those
+  # with a code, which bags are numbered from), with the code that bag gets.
+  def bag_boxes
+    return unless box_bag_mode?
+
+    boxes = current_organization.storage_locations.of_type("box").where.not(code: [ nil, "" ]).alphabetical.to_a
+    last_positions = current_organization.storage_locations.bags.where(parent_id: boxes.map(&:id)).group(:parent_id).maximum(:position)
+    boxes.map do |box|
+      next_code = StorageLocation.bag_code(box.code, last_positions.fetch(box.id, 0).to_i + 1, current_organization.ipn_separator)
+      { id: box.id, name: box.name, next_code: next_code }
+    end
+  end
+
+  # Box & bag numbering: `part[new_bag_box_id]` asks for a fresh bag at the end
+  # of that box (instead of an existing one), which the part then takes. Runs
+  # inside the save's transaction so a refused part leaves no empty bag behind.
+  # Returns false, with the reason on the part's errors, when the bag can't be
+  # made.
+  def take_new_bag(part)
+    box_id = params.dig(:part, :new_bag_box_id).presence
+    return true unless box_id && box_bag_mode?
+
+    box = current_organization.storage_locations.of_type("box").find_by(id: box_id)
+    if box.nil?
+      part.errors.add(:bag, "must go in a box of this organization")
+      return false
+    end
+
+    part.bag = box.add_bags!(1).first
+    true
+  rescue ActiveRecord::RecordInvalid => e
+    part.errors.add(:bag, e.record.errors.full_messages.to_sentence)
+    false
   end
 
   def part_params

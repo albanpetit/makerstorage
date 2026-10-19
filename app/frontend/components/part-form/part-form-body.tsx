@@ -15,7 +15,10 @@ import { Field, FieldContent, FieldError, FieldLabel } from '@/components/ui/fie
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
+  SelectSeparator,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
@@ -30,6 +33,7 @@ import {
 
 import { PartSuppliersController } from './use-part-suppliers'
 import {
+  BagBox,
   BagOption,
   Category,
   fieldLabel,
@@ -86,6 +90,8 @@ export interface PartFormBodyProps {
   ipnManualEntry: boolean
   // Box & bag numbering: the bags to choose from (null in the other modes).
   bagOptions?: BagOption[] | null
+  // ...and the boxes a new bag can be opened in, for when no free bag suits.
+  bagBoxes?: BagBox[] | null
 
   // Supplier catalog lookup
   supplierLookupEnabled: boolean
@@ -128,6 +134,7 @@ export function PartFormBody({
   tags,
   ipnManualEntry,
   bagOptions = null,
+  bagBoxes = null,
   supplierLookupEnabled,
   onApplyLookup,
   attach,
@@ -311,8 +318,12 @@ export function PartFormBody({
             </FieldLabel>
             <FieldContent>
               <Select
-                value={part.bag_id || 'none'}
-                onValueChange={(value) => setPart({ bag_id: value === 'none' ? '' : value })}
+                value={part.new_bag_box_id ? `new:${part.new_bag_box_id}` : part.bag_id || 'none'}
+                onValueChange={(value) =>
+                  value.startsWith('new:')
+                    ? setPart({ bag_id: '', new_bag_box_id: value.slice(4) })
+                    : setPart({ bag_id: value === 'none' ? '' : value, new_bag_box_id: '' })
+                }
               >
                 <SelectTrigger className="w-full">
                   <SelectValue />
@@ -326,15 +337,32 @@ export function PartFormBody({
                   {bagOptions.map((bag) => (
                     <SelectItem key={bag.id} value={bag.id.toString()}>{bag.code}</SelectItem>
                   ))}
+                  {bagBoxes && bagBoxes.length > 0 && (
+                    <>
+                      <SelectSeparator />
+                      <SelectGroup>
+                        <SelectLabel>New bag</SelectLabel>
+                        {bagBoxes.map((box) => (
+                          <SelectItem key={`new:${box.id}`} value={`new:${box.id}`}>
+                            {box.next_code} <span className="text-muted-foreground">in {box.name}</span>
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </>
+                  )}
                 </SelectContent>
               </Select>
             </FieldContent>
             <p className="text-xs text-muted-foreground">
-              {mode === 'add'
-                ? bagOptions.length > 0
-                  ? 'The bag’s code becomes this part’s IPN.'
-                  : 'Every bag is taken: add bags to a box in Storage zones, or the part is saved without an IPN.'
-                : 'The bag’s code is this part’s IPN. Moving to another bag takes the stock along.'}
+              {part.new_bag_box_id
+                ? 'This bag is added to its box when the part is saved; its code becomes this part’s IPN.'
+                : mode === 'add'
+                  ? bagOptions.length > 0
+                    ? 'The bag’s code becomes this part’s IPN.'
+                    : bagBoxes && bagBoxes.length > 0
+                      ? 'Every bag is taken: pick a new bag in a box, or the part is saved without an IPN.'
+                      : 'Every bag is taken: add bags to a box in Storage zones, or the part is saved without an IPN.'
+                  : 'The bag’s code is this part’s IPN. Moving to another bag takes the stock along.'}
             </p>
             {errors['part.bag'] && <FieldError>{errors['part.bag']}</FieldError>}
           </Field>
