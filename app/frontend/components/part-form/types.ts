@@ -69,6 +69,9 @@ export interface PartFormData {
   // Box & bag numbering: the chosen bag's id ('' = first free bag on add, no
   // bag on edit). Ignored by the server in the other numbering modes.
   bag_id: string
+  // Box & bag numbering: a box to open a new bag in for this part, when the
+  // operator picks "New bag" rather than an existing one ('' = none).
+  new_bag_box_id: string
   manufacturer: string
   description: string
   value: string
@@ -133,6 +136,7 @@ export const EMPTY_PART: PartFormData = {
   barcode: '',
   ipn: '',
   bag_id: '',
+  new_bag_box_id: '',
   manufacturer: '',
   description: '',
   value: '',
@@ -160,6 +164,7 @@ export function toFormPart(part: FullPart): PartFormData {
     barcode: part.barcode || '',
     ipn: part.ipn || '',
     bag_id: part.bag_id?.toString() || '',
+    new_bag_box_id: '',
     manufacturer: part.manufacturer || '',
     description: part.description || '',
     value: part.value || '',
@@ -214,4 +219,12 @@ export function lookupResultPatch(result: LookupResult, part: PartFormData): Par
 export interface BagOption {
   id: number
   code: string
+}
+
+// Box & bag numbering: a box the part form can open a new bag in, with the
+// code that bag will get (and so the part's IPN).
+export interface BagBox {
+  id: number
+  name: string
+  next_code: string
 }

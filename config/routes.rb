@@ -36,6 +36,9 @@ Rails.application.routes.draw do
   resources :organizations, only: [ :create, :destroy ] do
     member do
       post :switch
+      # Danger zone: empty the organization, or merge it into another one.
+      post :reset
+      post :merge
     end
   end
 

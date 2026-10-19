@@ -340,4 +340,37 @@ class OrganizationTest < ActiveSupport::TestCase
       assert_equal [ included, unconfirmed ].sort_by(&:id), org.notification_recipients.order(:id).to_a
     end
   end
+
+  test "reset_data! empties the inventory and keeps the organization, its settings and members" do
+    owner = create_user
+    org = create_organization(ipn_prefix: "FA", ipn_next_sequence: 42, mouser_api_key: "key")
+    org.organization_memberships.create!(user: owner, role: "owner")
+    room = create_storage_location(organization: org, code: "AT")
+    drawer = create_storage_location(organization: org, location_type: "drawer", parent: room)
+    parent = create_category(organization: org, name: "Passives")
+    part = create_part(organization: org, category: create_category(organization: org, name: "Resistors", parent: parent))
+    part.tags << create_tag(organization: org)
+    supplier = create_supplier(organization: org)
+    part.part_suppliers.create!(supplier: supplier)
+    part.images.attach(io: file_fixture("logo.png").open, filename: "photo.png", content_type: "image/png")
+    org.stock_movements.create!(part: part, storage_location: drawer, movement_type: "in", quantity_delta: 5)
+    create_order(organization: org, supplier: supplier, reference: "PO-1").order_lines.create!(part: part, quantity: 2)
+    create_project(organization: org).project_lines.create!(part: part, quantity: 1)
+    other = create_organization
+    other_part = create_part(organization: other)
+
+    assert_equal 1, org.reset_data!
+
+    Organization::DATA_ASSOCIATIONS.each do |name|
+      next if name == :suppliers
+
+      assert_empty org.public_send(name).reload, "#{name} should be empty"
+    end
+    assert_equal Supplier::CATALOG_PROVIDERS.sort, org.suppliers.reload.pluck(:catalog_provider).sort
+    assert_equal 1, org.reload.ipn_next_sequence
+    assert_equal "FA", org.ipn_prefix
+    assert_equal "key", org.mouser_api_key
+    assert owner.owner_of?(org)
+    assert Part.exists?(other_part.id)
+  end
 end

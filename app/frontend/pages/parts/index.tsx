@@ -23,7 +23,7 @@ import { usePartFilters } from '@/components/parts/use-part-filters'
 
 export default function PartsIndex({
   parts, filters: listFilters, pagination, facets, total_count, total_units, matching_ids, part_identifiers,
-  categories, footprints, suppliers, tags, storage_locations, supplier_lookup_enabled, ipn_manual_entry, bag_options, open_add,
+  categories, footprints, suppliers, tags, storage_locations, supplier_lookup_enabled, ipn_manual_entry, bag_options, bag_boxes, open_add,
 }: PartsIndexProps) {
   const { canWrite } = usePermissions()
   const filters = usePartFilters(listFilters, facets)
@@ -151,6 +151,7 @@ export default function PartsIndex({
         supplierLookupEnabled={supplier_lookup_enabled}
         ipnManualEntry={ipn_manual_entry}
         bagOptions={bag_options}
+        bagBoxes={bag_boxes}
       />
 
       {/* Edit Part modal */}

@@ -147,4 +147,90 @@ class OrganizationsControllerTest < ActionDispatch::IntegrationTest
   def inertia_props
     JSON.parse(@response.body[/data-page="app" type="application\/json"[^>]*>(.*?)<\/script>/m, 1])["props"]
   end
+
+  test "an owner can reset an organization by typing its name" do
+    user = create_user
+    org = user.organizations.first
+    part = create_part(organization: org)
+
+    sign_in user
+    post reset_organization_path(org), params: { confirmation: org.name }
+
+    assert_redirected_to settings_path
+    assert_not Part.exists?(part.id)
+    assert Organization.exists?(org.id)
+    assert_match(/was reset/, flash[:notice])
+  end
+
+  test "a reset needs the organization's name" do
+    user = create_user
+    org = user.organizations.first
+    part = create_part(organization: org)
+
+    sign_in user
+    post reset_organization_path(org), params: { confirmation: "nope" }
+
+    assert Part.exists?(part.id)
+    assert_match(/Type the organization's name/, flash[:alert])
+  end
+
+  test "an admin cannot reset the organization" do
+    owner = create_user
+    org = owner.organizations.first
+    admin = create_user
+    OrganizationMembership.create!(organization: org, user: admin, role: "admin")
+    part = create_part(organization: org)
+
+    sign_in admin
+    post reset_organization_path(org), params: { confirmation: org.name }
+
+    assert Part.exists?(part.id)
+  end
+
+  test "an owner can merge an organization into another one they own" do
+    user = create_user
+    target = user.organizations.first
+    source = create_organization(name: "Club")
+    OrganizationMembership.create!(organization: source, user: user, role: "owner")
+    part = create_part(organization: source)
+
+    sign_in user
+    post switch_organization_path(source)
+    post merge_organization_path(source), params: { target_id: target.id, confirmation: "Club" }
+
+    assert_redirected_to settings_path
+    assert_not Organization.exists?(source.id)
+    assert_equal target.id, part.reload.organization_id
+    assert_equal target.id, session[:current_organization_id]
+    assert_match(/was merged into/, flash[:notice])
+  end
+
+  test "merging needs ownership of the target organization" do
+    user = create_user
+    source = create_organization(name: "Club")
+    OrganizationMembership.create!(organization: source, user: user, role: "owner")
+    target = create_organization(name: "Other")
+    OrganizationMembership.create!(organization: target, user: user, role: "admin")
+    stranger_org = create_organization(name: "Stranger")
+
+    sign_in user
+    [ target, stranger_org ].each do |org|
+      post merge_organization_path(source), params: { target_id: org.id, confirmation: "Club" }
+      assert_match(/Choose an organization you own/, flash[:alert])
+    end
+    assert Organization.exists?(source.id)
+  end
+
+  test "a personal organization cannot be merged away" do
+    user = create_user
+    personal = user.organizations.first
+    other = create_organization(name: "Club")
+    OrganizationMembership.create!(organization: other, user: user, role: "owner")
+
+    sign_in user
+    post merge_organization_path(personal), params: { target_id: other.id, confirmation: personal.name }
+
+    assert Organization.exists?(personal.id)
+    assert_match(/personal organization/, flash[:alert])
+  end
 end

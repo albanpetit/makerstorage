@@ -31,7 +31,7 @@ const SECTIONS = [
 type SectionKey = (typeof SECTIONS)[number]['key']
 
 export default function SettingsIndex({
-  organization, currencies, ipn_separators, timezones, email_notifications_available,
+  organization, merge_targets, currencies, ipn_separators, timezones, email_notifications_available,
 }: SettingsPageProps) {
   const { isOwner } = usePermissions()
   const [section, setSection] = useState<SectionKey>('general')
@@ -148,7 +148,7 @@ export default function SettingsIndex({
 
             {section === 'backup' && <BackupSection organization={organization} />}
 
-            {section === 'danger' && isOwner && <DangerSection organization={organization} />}
+            {section === 'danger' && isOwner && <DangerSection organization={organization} mergeTargets={merge_targets} />}
           </div>
         </div>
       </div>
