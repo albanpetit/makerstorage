@@ -34,6 +34,26 @@ class SettingsControllerTest < ActionDispatch::IntegrationTest
     assert_includes inertia_props["currencies"], "USD"
   end
 
+  test "show lists the organizations an owner can merge this one into" do
+    user = create_user
+    owned = create_organization(name: "Owned")
+    OrganizationMembership.create!(organization: owned, user: user, role: "owner")
+    administered = create_organization(name: "Administered")
+    OrganizationMembership.create!(organization: administered, user: user, role: "admin")
+    club = create_organization(name: "Club")
+    OrganizationMembership.create!(organization: club, user: user, role: "owner")
+
+    sign_in user
+    post switch_organization_path(club)
+    get settings_path
+    names = inertia_props["merge_targets"].map { |target| target["name"] }
+    assert_equal [ "Owned", user.personal_organization.name ].sort, names.sort
+
+    post switch_organization_path(user.personal_organization)
+    get settings_path
+    assert_empty inertia_props["merge_targets"], "a personal organization can't be merged away"
+  end
+
   test "update is forbidden for a non-admin member" do
     owner = create_user
     org = owner.organizations.first
