@@ -176,11 +176,12 @@ class PartsController < ApplicationController
     saved = ActiveRecord::Base.transaction do
       @part.assign_attributes(part_params)
       previous_bag = @part.bag_id_changed? ? current_organization.storage_locations.find_by(id: @part.bag_id_in_database) : nil
+      stray_bags = @part.bag_id_changed? ? stray_bags_of(@part) : []
       # Only from a fresh catalog lookup; a plain edit doesn't send it, so an
       # existing hotlinked image is preserved.
       @part.image_source_url = Part.supplier_image_url(params[:image_url]) if params[:image_url].present?
       @part.save || raise(ActiveRecord::Rollback)
-      move_stock_to_new_bag(@part, previous_bag) if previous_bag && @part.bag
+      [ previous_bag, *stray_bags ].compact.each { |bag| move_stock_to_new_bag(@part, bag) } if @part.bag
       true
     rescue ActiveRecord::RecordInvalid => e
       @part.errors.add(:bag, e.record.errors.full_messages.to_sentence)
@@ -607,16 +608,27 @@ class PartsController < ApplicationController
     )
   end
 
+  # Box & bag numbering: the bags another part holds where this part still has
+  # stock (put there by mistake). Picking a bag of its own for the part takes
+  # that stock along, so a shared bag goes back to holding one component.
+  def stray_bags_of(part)
+    current_organization.storage_locations.bags
+      .where(id: part.part_storages.where("quantity > 0").select(:storage_location_id))
+      .where(id: current_organization.parts.where.not(id: part.id).where.not(bag_id: nil).select(:bag_id))
+      .to_a
+  end
+
   def box_bag_mode?
     current_organization.ipn_generation_mode == "box_bag"
   end
 
-  # Box & bag numbering: the bags the part form offers (the free ones, plus the
-  # part's own), or nil when the organization numbers parts another way.
+  # Box & bag numbering: the bags the part form offers (the free ones, counting
+  # a bag only this part's stock sits in, plus the part's own), or nil when the
+  # organization numbers parts another way.
   def bag_options(part = nil)
     return unless box_bag_mode?
 
-    bags = current_organization.free_bags.select(:id, :code).to_a
+    bags = current_organization.free_bags(for_part: part).select(:id, :code).to_a
     bags.unshift(part.bag) if part&.bag && bags.none? { |bag| bag.id == part.bag_id }
     bags.map { |bag| { id: bag.id, code: bag.code } }
   end

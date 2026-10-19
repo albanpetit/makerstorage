@@ -142,6 +142,40 @@ class BoxBagStorageControllerTest < ActionDispatch::IntegrationTest
     assert_equal 7, PartStorage.find_by!(part: part, storage_location: bag2).quantity
   end
 
+  test "update takes a part's stray stock out of another part's bag into the bag picked for it" do
+    bag1, bag2 = @box.add_bags!(2)
+    holder = create_part(organization: @org, category: @category)
+    stray = create_part(organization: @org, category: @category, skip_bag_claim: true)
+    @org.stock_movements.create!(part: holder, storage_location: bag1, movement_type: "in", quantity_delta: 5)
+    # Two components in one bag, as before stock into another part's bag was refused.
+    PartStorage.create!(part: stray, storage_location: bag1, quantity: 3)
+
+    get edit_part_path(stray, format: :json)
+    assert_equal [ bag2.id ], response.parsed_body["bag_options"].map { |bag| bag["id"] }
+
+    patch part_path(stray), params: { part: { bag_id: bag2.id } }
+
+    assert_equal "A-2", stray.reload.ipn
+    assert_equal 0, PartStorage.find_by!(part: stray, storage_location: bag1).quantity
+    assert_equal 3, PartStorage.find_by!(part: stray, storage_location: bag2).quantity
+    assert_equal 5, PartStorage.find_by!(part: holder, storage_location: bag1).quantity
+    assert_equal bag1, holder.reload.bag
+  end
+
+  test "a part can take the bag only its own stock sits in" do
+    bag1, = @box.add_bags!(1)
+    part = create_part(organization: @org, category: @category, skip_bag_claim: true)
+    @org.stock_movements.create!(part: part, storage_location: bag1, movement_type: "in", quantity_delta: 4)
+
+    get edit_part_path(part, format: :json)
+    assert_equal [ bag1.id ], response.parsed_body["bag_options"].map { |bag| bag["id"] }
+
+    patch part_path(part), params: { part: { bag_id: bag1.id } }
+
+    assert_equal bag1, part.reload.bag
+    assert_equal 4, PartStorage.find_by!(part: part, storage_location: bag1).quantity
+  end
+
   test "update refuses a bag another part holds" do
     bag1, bag2 = @box.add_bags!(2)
     part = create_part(organization: @org, category: @category)
