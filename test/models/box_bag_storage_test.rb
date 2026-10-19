@@ -245,12 +245,62 @@ class BoxBagStorageTest < ActiveSupport::TestCase
     stock(elsewhere, create_storage_location(organization: @org, location_type: "shelf"), 4)
     @org.update!(ipn_generation_mode: "box_bag")
 
-    assert_equal 1, @org.reassign_ipns!
+    assert_equal 2, @org.reassign_ipns!(clear_unbagged: true)
 
     assert_equal bag2, in_bag.reload.bag
     assert_equal "A-2", in_bag.ipn
     assert_nil elsewhere.reload.ipn
     assert_includes @org.free_bags, bag1
+  end
+
+  test "reassigning IPNs keeps the reference of parts without a bag by default" do
+    bag = @box_a.add_bags!(1).first
+    @org.update!(ipn_generation_mode: "incremental")
+    in_bag = create_part(organization: @org)
+    elsewhere = create_part(organization: @org)
+    old_ipn = elsewhere.ipn
+    stock(in_bag, bag, 2)
+    @org.update!(ipn_generation_mode: "box_bag")
+
+    assert_equal 1, @org.reassign_ipns!
+
+    assert_equal "A-1", in_bag.reload.ipn
+    assert_equal old_ipn, elsewhere.reload.ipn
+    assert_nil elsewhere.bag
+  end
+
+  test "reassigning IPNs clears a kept reference that a bag code takes over" do
+    bag = @box_a.add_bags!(1).first
+    @org.update!(ipn_generation_mode: "manual")
+    squatter = create_part(organization: @org, ipn: "a-1")
+    in_bag = create_part(organization: @org, ipn: "OLD")
+    stock(in_bag, bag, 2)
+    @org.update!(ipn_generation_mode: "box_bag")
+
+    assert_equal 2, @org.reassign_ipns!
+
+    assert_equal "A-1", in_bag.reload.ipn
+    assert_nil squatter.reload.ipn
+  end
+
+  test "the reassignment plan shows the changes without writing them" do
+    bag = @box_a.add_bags!(1).first
+    @org.update!(ipn_generation_mode: "manual")
+    holder = create_part(organization: @org, ipn: "A-1", bag: bag)
+    in_bag = create_part(organization: @org, ipn: "OLD")
+    stock(in_bag, @box_a.add_bags!(1).first, 2)
+    untouched = create_part(organization: @org, ipn: "KEEP")
+    @org.update!(ipn_generation_mode: "box_bag")
+
+    entries = @org.ipn_reassignment_plan[:entries].index_by { |entry| entry[:part] }
+
+    assert_not entries[holder][:changed]
+    assert_equal [ "OLD", "A-2", true ], entries[in_bag].values_at(:from, :to, :changed)
+    assert entries[in_bag][:takes_bag]
+    assert_not entries[untouched][:changed]
+    assert_equal [ "KEEP", nil ], @org.ipn_reassignment_plan(clear_unbagged: true)[:entries].find { |e| e[:part] == untouched }.values_at(:from, :to)
+    assert_equal "OLD", in_bag.reload.ipn
+    assert_nil in_bag.bag
   end
 
   test "ipn_preview lists the next free bags" do

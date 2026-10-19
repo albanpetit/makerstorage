@@ -218,6 +218,22 @@ class BoxBagStorageControllerTest < ActionDispatch::IntegrationTest
     assert_equal "A-1", part.reload.ipn
   end
 
+  test "reassign_ipns in box & bag mode clears unbagged parts only when asked" do
+    @org.update!(ipn_generation_mode: "manual")
+    part = create_part(organization: @org, category: @category, ipn: "OLD-1")
+    @org.update!(ipn_generation_mode: "box_bag")
+
+    get reassign_ipns_preview_settings_path(clear_unbagged: false), as: :json
+    assert_equal 0, response.parsed_body["changed"]
+    get reassign_ipns_preview_settings_path(clear_unbagged: true), as: :json
+    assert_equal [ 1, 1 ], response.parsed_body.values_at("changed", "cleared")
+
+    post reassign_ipns_settings_path
+    assert_equal "OLD-1", part.reload.ipn
+    post reassign_ipns_settings_path, params: { clear_unbagged: true }
+    assert_nil part.reload.ipn
+  end
+
   private
 
   def inertia_props

@@ -103,37 +103,48 @@ class Organization < ApplicationRecord
   # Renumbers every existing part with a freshly generated IPN using the current
   # config, replacing whatever they had — the companion to a mid-run format
   # change, which otherwise leaves old parts on the old format. No-op in manual
-  # mode (nothing to generate). Parts are numbered in creation order from
-  # sequence 1, and `ipn_next_sequence` is left pointing just past the last one
-  # so new parts continue the run. Returns the number of parts renumbered.
+  # mode (nothing to generate). Writes what #ipn_reassignment_plan shows (see
+  # there for the rules), recomputed under the lock, and in sequence modes
+  # leaves `ipn_next_sequence` just past the last number so new parts continue
+  # the run. Returns the number of parts whose IPN changed.
   #
-  # Clears every IPN up front so a value we're about to reuse can't collide with
-  # an old one still sitting on another part, then draws each reference the same
-  # way Part#assign_ipn does (skipping any already taken, e.g. random collisions).
-  def reassign_ipns!
+  # Clears the IPNs being replaced up front so a value we're about to reuse
+  # can't collide with an old one still sitting on another part.
+  def reassign_ipns!(clear_unbagged: false)
     return 0 if ipn_generation_mode == "manual"
-    return reassign_bag_ipns! if ipn_generation_mode == "box_bag"
 
     with_lock do
-      parts.update_all(ipn: nil)
-      sequence = 1
-      count = 0
+      refresh_bag_codes! if ipn_generation_mode == "box_bag"
+      plan = ipn_reassignment_plan(clear_unbagged: clear_unbagged)
+      changes = plan[:entries].select { |entry| entry[:changed] }
 
-      parts.includes(:category).order(:created_at, :id).each do |part|
-        candidate = next_ipn(category_code: part.category&.code, sequence: sequence)
-        attempts = 0
-        while attempts < 100 && parts.exists?(ipn: candidate)
-          sequence += 1
-          candidate = next_ipn(category_code: part.category&.code, sequence: sequence)
-          attempts += 1
-        end
-        part.update_column(:ipn, candidate)
-        sequence += 1
-        count += 1
+      parts.where(id: changes.map { |entry| entry[:part].id }).update_all(ipn: nil)
+      changes.each do |entry|
+        columns = { ipn: entry[:to] }
+        columns.merge!(bag_id: entry[:takes_bag].id, bag_assigned_at: Time.current) if entry[:takes_bag]
+        entry[:part].update_columns(columns)
       end
+      update_column(:ipn_next_sequence, plan[:next_sequence]) if plan[:next_sequence]
+      changes.size
+    end
+  end
 
-      update_column(:ipn_next_sequence, sequence)
-      count
+  # What #reassign_ipns! would do, without writing anything: one entry per part,
+  # in creation order, as { part:, from:, to:, changed:, takes_bag: }, plus the
+  # `next_sequence` the counter would be left at (sequence modes only).
+  #
+  # Sequence modes number every part from 1 in creation order, skipping any
+  # reference already drawn in this run (random collisions), the way
+  # Part#assign_ipn does. Box & bag mode gives each part holding a bag that
+  # bag's code, lets a part without a bag but with stock in a bag nobody holds
+  # take it (`takes_bag`), and leaves the other parts' IPNs alone — or clears
+  # them with `clear_unbagged`. A kept IPN that one of those bag codes is about
+  # to take is cleared too, since IPNs are unique.
+  def ipn_reassignment_plan(clear_unbagged: false)
+    case ipn_generation_mode
+    when "manual" then { entries: [], next_sequence: nil }
+    when "box_bag" then bag_ipn_reassignment_plan(clear_unbagged)
+    else sequence_ipn_reassignment_plan
     end
   end
 
@@ -336,28 +347,56 @@ class Organization < ApplicationRecord
     self.digikey_token_expires_at = nil
   end
 
-  # Box & bag flavor of #reassign_ipns!: gives each part holding a bag that bag's code, lets a part
-  # without a bag but with stock in a bag nobody holds take it, and clears the
-  # other parts' IPNs. Returns the number of parts left with an IPN.
-  def reassign_bag_ipns!
-    with_lock do
-      refresh_bag_codes!
-      parts.update_all(ipn: nil)
-      held = parts.where.not(bag_id: nil).pluck(:bag_id).to_set
+  def sequence_ipn_reassignment_plan
+    drawn = Set.new
+    sequence = 1
 
-      parts.where(bag_id: nil).order(:created_at, :id).includes(part_storages: :storage_location).each do |part|
-        storage = part.part_storages.find do |ps|
-          ps.quantity.positive? && ps.storage_location.bag? && held.exclude?(ps.storage_location_id)
-        end
-        next unless storage
-
-        part.update_columns(bag_id: storage.storage_location_id, bag_assigned_at: Time.current)
-        held << storage.storage_location_id
+    entries = parts.includes(:category).order(:created_at, :id).map do |part|
+      candidate = next_ipn(category_code: part.category&.code, sequence: sequence)
+      attempts = 0
+      while attempts < 100 && drawn.include?(candidate.downcase)
+        sequence += 1
+        candidate = next_ipn(category_code: part.category&.code, sequence: sequence)
+        attempts += 1
       end
-
-      parts.where.not(bag_id: nil).includes(:bag).find_each { |part| part.update_column(:ipn, part.bag.code) }
-      parts.where.not(ipn: nil).count
+      drawn << candidate.downcase
+      sequence += 1
+      ipn_plan_entry(part, candidate)
     end
+
+    { entries: entries, next_sequence: sequence }
+  end
+
+  def bag_ipn_reassignment_plan(clear_unbagged)
+    bags = storage_locations.bags.includes(:parent).index_by(&:id)
+    code_of = ->(bag) { bag.parent&.box? ? StorageLocation.bag_code(bag.parent.code, bag.position, ipn_separator) : bag.code }
+    all_parts = parts.order(:created_at, :id).includes(part_storages: :storage_location).to_a
+    held = all_parts.filter_map(&:bag_id).to_set
+
+    targets = all_parts.to_h do |part|
+      next [ part, [ code_of.(bags.fetch(part.bag_id)), nil ] ] if part.bag_id
+
+      storage = part.part_storages.find do |ps|
+        ps.quantity.positive? && ps.storage_location.bag? && held.exclude?(ps.storage_location_id)
+      end
+      next [ part, [ nil, nil ] ] unless storage
+
+      held << storage.storage_location_id
+      bag = bags.fetch(storage.storage_location_id)
+      [ part, [ code_of.(bag), bag ] ]
+    end
+
+    bag_codes = targets.values.filter_map { |code, _| code&.downcase }.to_set
+    entries = targets.map do |part, (code, takes_bag)|
+      code ||= part.ipn unless clear_unbagged || bag_codes.include?(part.ipn.to_s.downcase)
+      ipn_plan_entry(part, code, takes_bag: takes_bag)
+    end
+
+    { entries: entries, next_sequence: nil }
+  end
+
+  def ipn_plan_entry(part, to, takes_bag: nil)
+    { part: part, from: part.ipn, to: to, changed: part.ipn != to || takes_bag.present?, takes_bag: takes_bag }
   end
 
   def random_ipn_body(seed)
