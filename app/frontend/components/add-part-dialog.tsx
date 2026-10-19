@@ -15,6 +15,7 @@ import {
 import { PartFormBody } from '@/components/part-form/part-form-body'
 import { usePartSuppliers } from '@/components/part-form/use-part-suppliers'
 import {
+  BagBox,
   BagOption,
   Category,
   EMPTY_PART,
@@ -39,6 +40,8 @@ interface AddPartDialogProps {
   ipnManualEntry?: boolean
   // Box & bag numbering: the free bags (null in the other modes).
   bagOptions?: BagOption[] | null
+  // ...and the boxes a new bag can be opened in.
+  bagBoxes?: BagBox[] | null
 }
 
 export function AddPartDialog({
@@ -52,6 +55,7 @@ export function AddPartDialog({
   supplierLookupEnabled = false,
   ipnManualEntry = false,
   bagOptions = null,
+  bagBoxes = null,
 }: AddPartDialogProps) {
   const [detailsOpen, setDetailsOpen] = useState(false)
   const [suppliersOpen, setSuppliersOpen] = useState(false)
@@ -154,6 +158,7 @@ export function AddPartDialog({
             tags={tags}
             ipnManualEntry={ipnManualEntry}
             bagOptions={bagOptions}
+            bagBoxes={bagBoxes}
             supplierLookupEnabled={supplierLookupEnabled}
             onApplyLookup={applyResult}
             attach={attach}

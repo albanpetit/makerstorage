@@ -15,7 +15,9 @@ class SettingsController < ApplicationController
       currencies: Organization::CURRENCIES,
       ipn_separators: Organization::IPN_SEPARATORS,
       timezones: Organization::TIMEZONES,
-      email_notifications_available: NotificationDigest.available?
+      email_notifications_available: NotificationDigest.available?,
+      # Danger zone: the other organizations this one can be merged into.
+      merge_targets: merge_targets
     }
   end
 
@@ -67,6 +69,15 @@ class SettingsController < ApplicationController
   end
 
   private
+
+  def merge_targets
+    return [] if current_organization.personal? || !current_user.owner_of?(current_organization)
+
+    current_user.organizations
+      .where(id: current_user.active_organization_memberships.owners.select(:organization_id))
+      .where.not(id: current_organization.id).alphabetical
+      .map { |org| { id: org.id, name: org.name } }
+  end
 
   def clear_unbagged?
     ActiveModel::Type::Boolean.new.cast(params[:clear_unbagged]) || false

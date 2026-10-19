@@ -2,6 +2,7 @@
 
 class CategoriesController < ApplicationController
   include Auth
+  include OptionListSerializers
 
   before_action :verify_organization_access
   before_action :verify_organization_writer, only: %i[create update destroy]
@@ -19,16 +20,30 @@ class CategoriesController < ApplicationController
     }
   end
 
-  # Also used for inline creation from the part form so a fresh organization
-  # (which starts with no categories) can define one without leaving the
-  # "New part" flow. `redirect_back_or_to` returns to whichever page posted.
+  # Also used for inline creation from the part form's category picker, which
+  # posts JSON so it works wherever the form is open (the part sidebar fetches
+  # its option lists, so an Inertia reload wouldn't refresh them) and gets the
+  # new category back to select it. HTML: `redirect_back_or_to` returns to
+  # whichever page posted.
   def create
     category = current_organization.categories.build(category_params)
+    saved = category.save
 
-    if category.save
-      redirect_back_or_to categories_path, notice: "Category \"#{category.name}\" created."
-    else
-      redirect_back_or_to categories_path, alert: "Failed to create category.", inertia: { errors: inertia_errors(category, as: :category) }
+    respond_to do |format|
+      format.json do
+        if saved
+          render json: { category: serialize_category_option(category) }, status: :created
+        else
+          render json: { errors: category.errors.to_hash(true).transform_values(&:first) }, status: :unprocessable_content
+        end
+      end
+      format.html do
+        if saved
+          redirect_back_or_to categories_path, notice: "Category \"#{category.name}\" created."
+        else
+          redirect_back_or_to categories_path, alert: "Failed to create category.", inertia: { errors: inertia_errors(category, as: :category) }
+        end
+      end
     end
   end
 

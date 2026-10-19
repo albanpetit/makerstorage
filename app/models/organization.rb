@@ -80,6 +80,34 @@ class Organization < ApplicationRecord
   scope :alphabetical, -> { order(:name) }
   scope :recent, -> { order(created_at: :desc) }
 
+  # Methods - Reset
+  #
+  # The inventory associations a reset clears, in the destroy order above.
+  DATA_ASSOCIATIONS = %i[stock_movements projects orders parts storage_locations categories footprints tags suppliers].freeze
+
+  # Deletes every inventory record (movements, projects, orders, parts, zones,
+  # categories, footprints, tags, suppliers) and keeps the organization itself:
+  # its settings, integrations, logo and members. The IPN counter starts over
+  # and the catalog suppliers are seeded again, as for a new organization.
+  # Returns the number of parts removed.
+  def reset_data!
+    transaction do
+      lock!
+      parts_count = parts.count
+
+      DATA_ASSOCIATIONS.each do |name|
+        scope = public_send(name).reset
+        # Trees go from their roots: destroying a parent takes its children with it.
+        scope = scope.where(parent_id: nil) if name.in?(%i[storage_locations categories])
+        scope.find_each { |record| record.destroy! }
+      end
+
+      update_columns(ipn_next_sequence: 1, notifications_sent_on: nil)
+      seed_catalog_suppliers
+      parts_count
+    end
+  end
+
   # Methods - IPN numbering
   #
   # The generation mode decides how the numeric segment is produced:

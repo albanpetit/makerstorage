@@ -33,12 +33,21 @@ class BackupsControllerTest < ActionDispatch::IntegrationTest
 
   test "export streams the archive from a temporary file it removes afterwards" do
     sign_in @owner
-    get export_backup_path
+    # Other parallel workers export into the same tmp/backups directory, so
+    # check this request's own file (named by SecureRandom.uuid) rather than
+    # the whole directory.
+    uuids = []
+    original_uuid = SecureRandom.method(:uuid)
+    stub_singleton(SecureRandom, :uuid, -> { original_uuid.call.tap { |uuid| uuids << uuid } }) do
+      get export_backup_path
+    end
 
     assert_response :success
     assert_equal response.body.bytesize, response.headers["Content-Length"].to_i
     assert_nil response.headers["ETag"]
-    assert_empty Dir.glob(Rails.root.join("tmp/backups/*.zip"))
+    paths = uuids.map { |uuid| Rails.root.join("tmp/backups/#{uuid}.zip") }
+    assert_not_empty paths
+    assert paths.none?(&:exist?), "the export file should be removed once sent"
   end
 
   test "export is admin-only" do
