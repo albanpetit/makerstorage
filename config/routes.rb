@@ -140,6 +140,7 @@ Rails.application.routes.draw do
 
   resource :settings, only: %i[show update] do
     post :reassign_ipns
+    get :reassign_ipns_preview
   end
 
   # Organization backup: download the current organization, or restore an

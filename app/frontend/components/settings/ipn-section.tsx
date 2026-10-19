@@ -1,5 +1,4 @@
 import { FormEvent, useMemo, useState } from 'react'
-import { router } from '@inertiajs/react'
 import { Hash, Info, TrendingUp, Shuffle, Boxes, Pencil, Check, TriangleAlert, PackageOpen } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -22,9 +21,9 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
 
+import { ReassignIpnsCard } from './reassign-ipns-card'
 import type { IpnForm, IpnMode, OrganizationSettings } from './types'
 
 const SEPARATOR_LABELS: Record<string, string> = {
@@ -110,15 +109,6 @@ interface IpnSectionProps {
 // composition, and renumbering existing parts.
 export function IpnSection({ form, organization, separators }: IpnSectionProps) {
   const saveIpn = () => form.patch('/settings', { preserveScroll: true })
-
-  const [reassigning, setReassigning] = useState(false)
-  const reassignIpns = () => {
-    router.post('/settings/reassign_ipns', {}, {
-      preserveScroll: true,
-      onStart: () => setReassigning(true),
-      onFinish: () => setReassigning(false),
-    })
-  }
 
   const submitIpn = (e: FormEvent) => {
     e.preventDefault()
@@ -402,56 +392,7 @@ export function IpnSection({ form, organization, separators }: IpnSectionProps) 
         </CardFooter>
       </Card>
 
-      {/* Renumber existing parts to the saved format. Hidden in manual
-          mode (nothing to generate) and disabled while the format has
-          unsaved edits, since the server uses the saved settings. */}
-      {ipnMode !== 'manual' && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Reassign existing references</CardTitle>
-            <CardDescription>
-              {organization.ipn_generation_mode === 'box_bag'
-                ? <>Give every part the code of its bag. A part without a bag takes the bag its stock sits in, if
-                  no other part holds it; the others lose their reference.</>
-                : <>Renumber every part with the current saved format. A format change only affects new
-                  parts — use this to bring the {organization.parts_count} existing{' '}
-                  {organization.parts_count === 1 ? 'part' : 'parts'} in line with it.</>}
-            </CardDescription>
-          </CardHeader>
-          <CardFooter className="flex-wrap justify-between gap-2 border-t">
-            <p className="text-xs text-muted-foreground">
-              {formatChanged
-                ? 'Save your format changes first to renumber with them.'
-                : 'Overwrites the reference on every part — this can’t be undone.'}
-            </p>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={formatChanged || reassigning || organization.parts_count === 0}
-                >
-                  {reassigning ? 'Reassigning…' : 'Reassign IPNs'}
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Reassign every part’s IPN?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    All {organization.parts_count} existing{' '}
-                    {organization.parts_count === 1 ? 'part' : 'parts'} will be renumbered in creation
-                    order using your saved format, replacing their current references. This can’t be undone.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={reassignIpns}>Reassign IPNs</AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </CardFooter>
-        </Card>
-      )}
+      {ipnMode !== 'manual' && <ReassignIpnsCard organization={organization} formatChanged={formatChanged} />}
 
       <div className="flex items-center gap-2 text-xs text-muted-foreground">
         <Info className="size-3.5 shrink-0" />

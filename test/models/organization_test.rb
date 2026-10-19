@@ -121,6 +121,23 @@ class OrganizationTest < ActiveSupport::TestCase
     assert_equal 3, org.reload.ipn_next_sequence
   end
 
+  test "ipn_reassignment_plan previews a renumbering without writing it" do
+    org = create_organization(ipn_generation_mode: "incremental", ipn_prefix: "MS", ipn_use_category_code: false, ipn_separator: "-", ipn_digits: 3, ipn_next_sequence: 7)
+    category = create_category(organization: org)
+    first = create_part(organization: org, category: category, ipn: "MS-001")
+    second = create_part(organization: org, category: category)
+
+    plan = org.ipn_reassignment_plan
+
+    assert_equal [ [ "MS-001", "MS-001", false ], [ "MS-007", "MS-002", true ] ], plan[:entries].map { |e| e.values_at(:from, :to, :changed) }
+    assert_equal 3, plan[:next_sequence]
+    assert_equal "MS-007", second.reload.ipn
+    assert_equal 8, org.reload.ipn_next_sequence
+    assert_equal 1, org.reassign_ipns!
+    assert_equal "MS-001", first.reload.ipn
+    assert_equal "MS-002", second.reload.ipn
+  end
+
   test "reassign_ipns! is a no-op in manual mode" do
     org = create_organization(ipn_generation_mode: "manual")
     part = create_part(organization: org, category: create_category(organization: org), ipn: "CUSTOM")

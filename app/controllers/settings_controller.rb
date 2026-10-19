@@ -6,6 +6,9 @@ class SettingsController < ApplicationController
   before_action :verify_organization_access
   before_action :verify_organization_admin
 
+  # Most part rows the reassign preview sends; the counts cover the rest.
+  REASSIGN_PREVIEW_LIMIT = 500
+
   def show
     render inertia: "settings/index", props: {
       organization: serialize_organization_settings,
@@ -35,15 +38,34 @@ class SettingsController < ApplicationController
   end
 
   # Renumber every existing part with the org's current IPN format. Overwrites
-  # the references parts already have, so the UI gates this behind a destructive
-  # confirmation.
+  # the references parts already have, so the UI shows #reassign_ipns_preview
+  # behind a destructive confirmation first.
   def reassign_ipns
     if current_organization.ipn_generation_mode == "manual"
       return redirect_to settings_path, alert: "Turn on an automatic numbering mode before reassigning IPNs."
     end
 
-    count = current_organization.reassign_ipns!
-    redirect_to settings_path, notice: "Reassigned IPNs to #{count} #{'part'.pluralize(count)}."
+    count = current_organization.reassign_ipns!(clear_unbagged: clear_unbagged?)
+    redirect_to settings_path, notice: "Updated the IPN of #{count} #{'part'.pluralize(count)}."
+  end
+
+  # The IPN changes #reassign_ipns would make, part by part, for the
+  # confirmation dialog.
+  def reassign_ipns_preview
+    if current_organization.ipn_generation_mode == "manual"
+      return render json: { error: "Turn on an automatic numbering mode before reassigning IPNs." }, status: :unprocessable_entity
+    end
+
+    entries = current_organization.ipn_reassignment_plan(clear_unbagged: clear_unbagged?)[:entries]
+    changes = entries.select { |entry| entry[:changed] }
+    render json: {
+      total: entries.size,
+      changed: changes.size,
+      cleared: changes.count { |entry| entry[:to].nil? },
+      changes: changes.first(REASSIGN_PREVIEW_LIMIT).map do |entry|
+        { id: entry[:part].id, name: entry[:part].name, from: entry[:from], to: entry[:to], takes_bag: entry[:takes_bag].present? }
+      end
+    }
   end
 
   private
@@ -55,6 +77,10 @@ class SettingsController < ApplicationController
       .where(id: current_user.active_organization_memberships.owners.select(:organization_id))
       .where.not(id: current_organization.id).alphabetical
       .map { |org| { id: org.id, name: org.name } }
+  end
+
+  def clear_unbagged?
+    ActiveModel::Type::Boolean.new.cast(params[:clear_unbagged]) || false
   end
 
   # Make sure each configured catalog integration has its supplier record so a
