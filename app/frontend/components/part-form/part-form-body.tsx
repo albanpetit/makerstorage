@@ -228,10 +228,11 @@ export function PartFormBody({
         </Field>
         <Field className="col-span-2 @2xl:col-span-4">
           <FieldLabel>
-            <Label>Category *</Label>
+            <Label htmlFor="part-category">Category *</Label>
           </FieldLabel>
           <FieldContent>
             <CategorySelect
+              id="part-category"
               categories={categories}
               value={part.category_id}
               onValueChange={(value) => setPart({ category_id: value })}

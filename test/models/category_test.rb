@@ -92,6 +92,14 @@ class CategoryTest < ActiveSupport::TestCase
     assert_not child.has_children?
   end
 
+  test "path_names lists names from the root down" do
+    root = create_category(organization: @org, name: "Passives")
+    child = create_category(organization: @org, name: "Resistors", parent: root)
+
+    assert_equal [ "Passives", "Resistors" ], child.path_names
+    assert_equal [ "Passives" ], root.path_names
+  end
+
   test "full_path builds the breadcrumb from ancestors" do
     grandparent = create_category(organization: @org, name: "Passives")
     parent = create_category(organization: @org, name: "Resistors", parent: grandparent)

@@ -8,6 +8,7 @@ import {
 import { usePermissions } from '@/hooks/use-permissions'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
+import { CategorySelect } from '@/components/category-select'
 import { TagPicker } from '@/components/tag-picker'
 import { PrintLabelsDialog } from '@/components/print-labels-dialog'
 import { labelCodeForPart, type LabelItem } from '@/lib/labels'
@@ -324,16 +325,14 @@ export function BulkActions({
 
         <div className="space-y-2">
           <Label htmlFor="bulk-category">Category</Label>
-          <Select value={categoryValue} onValueChange={setCategoryValue}>
-            <SelectTrigger id="bulk-category">
-              <SelectValue placeholder="Choose a category" />
-            </SelectTrigger>
-            <SelectContent>
-              {categories.map((category) => (
-                <SelectItem key={category.id} value={String(category.id)}>{category.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <CategorySelect
+            id="bulk-category"
+            categories={categories}
+            value={categoryValue}
+            onValueChange={setCategoryValue}
+            placeholder="Choose a category"
+            allowCreate={false}
+          />
         </div>
 
         <DialogFooter>

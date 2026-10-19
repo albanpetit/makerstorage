@@ -94,8 +94,13 @@ class ApplicationController < ActionController::Base
 
   # Verify user may write in the current organization (blocks viewers)
   def verify_organization_writer
-    unless current_organization && current_user.writer_of?(current_organization)
-      redirect_back_or_to root_path, alert: "Your role is read-only for this organization."
+    return if current_organization && current_user.writer_of?(current_organization)
+
+    message = "Your role is read-only for this organization."
+    if request.format.json?
+      render json: { error: message }, status: :forbidden
+    else
+      redirect_back_or_to root_path, alert: message
     end
   end
 
