@@ -88,6 +88,17 @@ export interface PartFormData {
   rohs_compliant: boolean
   storage_notes: string
   tag_ids: number[]
+  // Parameter definition id => value; null = removed in this form.
+  parameters: Record<string, string | null>
+}
+
+// A part's parameter value, as PartsController#serialize_part_parameters
+// sends it (`display` is the canonical form, e.g. "4.7 kΩ").
+export interface PartParameterValue {
+  id: number
+  name: string
+  value: string
+  display: string
 }
 
 // The full part payload fetched from GET /parts/:id/edit (JSON).
@@ -117,6 +128,7 @@ export interface FullPart {
   tag_ids: number[]
   part_suppliers: PartSupplier[]
   thumbnail_url: string | null
+  parameters: PartParameterValue[]
 }
 
 export const EMPTY_SUPPLIER: NewSupplier = {
@@ -153,6 +165,7 @@ export const EMPTY_PART: PartFormData = {
   rohs_compliant: false,
   storage_notes: '',
   tag_ids: [],
+  parameters: {},
 }
 
 // Maps a fetched part into the flat, all-strings shape the form fields use.
@@ -181,7 +194,18 @@ export function toFormPart(part: FullPart): PartFormData {
     rohs_compliant: part.rohs_compliant,
     storage_notes: part.storage_notes || '',
     tag_ids: part.tag_ids,
+    parameters: Object.fromEntries(part.parameters.map((parameter) => [String(parameter.id), parameter.value])),
   }
+}
+
+// The form's part as the server takes it: parameters go as
+// `parameter_values` (definition id => value, "" removes one).
+export function partPayload<T extends { parameters: Record<string, string | null> }>(part: T) {
+  const { parameters, ...rest } = part
+  const parameter_values = Object.fromEntries(
+    Object.entries(parameters).map(([id, value]) => [id, value ?? '']),
+  )
+  return { ...rest, parameter_values }
 }
 
 // Turns a (possibly dotted, nested) error key into a readable label, e.g.

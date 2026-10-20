@@ -268,6 +268,27 @@ class CategoriesControllerTest < ActionDispatch::IntegrationTest
     assert_match(/read-only/, response.parsed_body["error"])
   end
 
+  test "update sets the category's parameter template, keeping only this organization's parameters" do
+    user = create_user
+    org = user.organizations.first
+    category = create_category(organization: org, name: "Resistors")
+    resistance = org.parameter_definitions.create!(name: "Resistance", unit: "Ω")
+    tolerance = org.parameter_definitions.create!(name: "Tolerance", unit: "%")
+    foreign = create_organization.parameter_definitions.create!(name: "Gain", unit: "dB")
+
+    sign_in user
+    patch category_path(category), params: { category: { parameter_definition_ids: [ tolerance.id, foreign.id, resistance.id ] } }
+    assert_redirected_to categories_path
+    assert_equal [ tolerance.id, resistance.id ], category.category_parameters.reload.map(&:parameter_definition_id)
+
+    get categories_path
+    assert_equal [ tolerance.id, resistance.id ], inertia_props["categories"].find { |c| c["id"] == category.id }["parameter_definition_ids"]
+    assert_equal %w[Resistance Tolerance], inertia_props["parameter_definitions"].map { |d| d["name"] }
+
+    patch category_path(category), params: { category: { parameter_definition_ids: [ "" ] } }
+    assert_empty category.category_parameters.reload
+  end
+
   private
 
   def inertia_props

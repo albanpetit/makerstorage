@@ -61,6 +61,10 @@ module OrganizationBackup
   # itself, for the category and zone trees).
   TABLES = [
     table("categories", Category, ->(org) { org.categories }, references: { "parent_id" => "categories" }),
+    table("parameter_definitions", ParameterDefinition, ->(org) { org.parameter_definitions },
+          enums: { "value_type" => ParameterDefinition::VALUE_TYPES }),
+    table("category_parameters", CategoryParameter, ->(org) { CategoryParameter.where(category_id: org.categories.select(:id)) },
+          references: { "category_id" => "categories", "parameter_definition_id" => "parameter_definitions" }),
     table("footprints", Footprint, ->(org) { org.footprints }, enums: { "mounting_type" => Footprint::MOUNTING_TYPES }),
     table("tags", Tag, ->(org) { org.tags }),
     table("suppliers", Supplier, ->(org) { org.suppliers }, enums: { "catalog_provider" => Supplier::CATALOG_PROVIDERS }),
@@ -69,6 +73,8 @@ module OrganizationBackup
     table("parts", Part, ->(org) { org.parts },
           references: { "category_id" => "categories", "footprint_id" => "footprints", "bag_id" => "storage_locations" },
           enums: { "status" => Part::STATUSES, "unit" => Part::UNITS }),
+    table("part_parameters", PartParameter, ->(org) { PartParameter.where(part_id: org.parts.select(:id)) },
+          references: { "part_id" => "parts", "parameter_definition_id" => "parameter_definitions" }),
     table("part_tags", PartTag, ->(org) { PartTag.where(part_id: org.parts.select(:id)) },
           references: { "part_id" => "parts", "tag_id" => "tags" }),
     table("part_suppliers", PartSupplier, ->(org) { PartSupplier.where(part_id: org.parts.select(:id)) },

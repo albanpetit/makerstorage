@@ -21,6 +21,7 @@ import {
   EMPTY_PART,
   Footprint,
   lookupResultPatch,
+  partPayload,
   StorageLocationOption,
   Supplier,
   Tag,
@@ -94,7 +95,7 @@ export function AddPartDialog({
     datasheet_url: attach.datasheet_url,
     image_url: attach.image_url,
     part: {
-      ...payload.part,
+      ...partPayload(payload.part),
       ...(imageFile ? { images: [imageFile] } : {}),
       part_suppliers_attributes: suppliersController.suppliersAttributes(),
     },

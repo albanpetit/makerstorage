@@ -174,6 +174,35 @@ class OrganizationMergeTest < ActiveSupport::TestCase
     assert_nil invited.role_in(@target)
   end
 
+  test "combines parameters with the same name, type and unit, and renames the others" do
+    resistance = @target.parameter_definitions.create!(name: "Resistance", unit: "Ω")
+    @target.parameter_definitions.create!(name: "Gain", unit: "dB")
+    source_resistance = @source.parameter_definitions.create!(name: "resistance", unit: "Ω")
+    source_gain = @source.parameter_definitions.create!(name: "Gain", value_type: "text")
+    source_only = @source.parameter_definitions.create!(name: "Dielectric", value_type: "text")
+
+    target_resistors = create_category(organization: @target, name: "Resistors")
+    target_resistors.update!(parameter_template: [ resistance.id ])
+    source_resistors = create_category(organization: @source, name: "Resistors")
+    source_resistors.update!(parameter_template: [ source_resistance.id, source_only.id ])
+
+    kept = create_part(organization: @target, name: "Kept", mpn: "SAME")
+    kept.update!(parameter_values: { resistance.id => "10k" })
+    folded = create_part(organization: @source, name: "Folded", mpn: "same")
+    folded.update!(parameter_values: { source_resistance.id => "22k", source_only.id => "X7R" })
+    moved = create_part(organization: @source, name: "Moved")
+    moved.update!(parameter_values: { source_resistance.id => "4k7", source_gain.id => "high" })
+
+    merge!
+
+    assert_equal [ "Dielectric", "Gain", "Gain (2)", "Resistance" ], @target.parameter_definitions.alphabetical.pluck(:name)
+    assert_equal [ resistance.id, source_only.id ], target_resistors.reload.parameter_template_ids
+    values = ->(part) { part.reload.part_parameters.includes(:parameter_definition).to_h { |p| [ p.name, p.value ] } }
+    assert_equal({ "Resistance" => "10k", "Dielectric" => "X7R" }, values.(kept), "the target's value wins")
+    assert_equal({ "Resistance" => "4k7", "Gain (2)" => "high" }, values.(moved))
+    assert_not ParameterDefinition.exists?(source_resistance.id)
+  end
+
   test "refuses to merge an organization into itself or a personal organization away" do
     assert_raises(OrganizationMerge::Error) { OrganizationMerge.new(source: @source, target: @source).merge! }
     assert_raises(OrganizationMerge::Error) { OrganizationMerge.new(source: @target, target: @source).merge! }

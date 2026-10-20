@@ -32,6 +32,8 @@ import {
   TableRow,
 } from '@/components/ui/table'
 
+import { useParameterDefinitions } from '@/components/parameters/use-parameter-definitions'
+import { PartParametersSection } from './part-parameters-section'
 import { PartSuppliersController } from './use-part-suppliers'
 import {
   BagBox,
@@ -163,6 +165,13 @@ export function PartFormBody({
     removePendingSupplier,
     setPreferred,
   } = suppliersController
+
+  // Tolerance / Voltage / Power fields mirror the parameters of those names
+  // (Part#sync_parameter_fields): when the organization has them, the
+  // parameter rows replace the fields.
+  const { definitions } = useParameterDefinitions()
+  const parameterNames = new Set(definitions.map((d) => d.name.toLowerCase()))
+  const showField = (name: string) => !parameterNames.has(name)
 
   // A flat, human-readable list of every validation error so nothing is hidden —
   // fields living inside collapsed sections would otherwise show no error.
@@ -431,6 +440,14 @@ export function PartFormBody({
         </Field>
       </div>
 
+      {/* Parameters */}
+      <PartParametersSection
+        categoryId={part.category_id}
+        values={part.parameters}
+        onChange={(parameters) => setPart({ parameters })}
+        error={errors['part.parameters']}
+      />
+
       {/* More details */}
       <Section
         title="More details"
@@ -585,42 +602,48 @@ export function PartFormBody({
               />
             </FieldContent>
           </Field>
-          <Field>
-            <FieldLabel>
-              <Label>Tolerance</Label>
-            </FieldLabel>
-            <FieldContent>
-              <Input
-                placeholder="e.g. 1%, 5%"
-                value={part.tolerance}
-                onChange={(e) => setPart({ tolerance: e.target.value })}
-              />
-            </FieldContent>
-          </Field>
-          <Field>
-            <FieldLabel>
-              <Label>Voltage rating</Label>
-            </FieldLabel>
-            <FieldContent>
-              <Input
-                placeholder="e.g. 50V"
-                value={part.voltage_rating}
-                onChange={(e) => setPart({ voltage_rating: e.target.value })}
-              />
-            </FieldContent>
-          </Field>
-          <Field>
-            <FieldLabel>
-              <Label>Power rating</Label>
-            </FieldLabel>
-            <FieldContent>
-              <Input
-                placeholder="e.g. 0.125W"
-                value={part.power_rating}
-                onChange={(e) => setPart({ power_rating: e.target.value })}
-              />
-            </FieldContent>
-          </Field>
+          {showField('tolerance') && (
+            <Field>
+              <FieldLabel>
+                <Label>Tolerance</Label>
+              </FieldLabel>
+              <FieldContent>
+                <Input
+                  placeholder="e.g. 1%, 5%"
+                  value={part.tolerance}
+                  onChange={(e) => setPart({ tolerance: e.target.value })}
+                />
+              </FieldContent>
+            </Field>
+          )}
+          {showField('voltage rating') && (
+            <Field>
+              <FieldLabel>
+                <Label>Voltage rating</Label>
+              </FieldLabel>
+              <FieldContent>
+                <Input
+                  placeholder="e.g. 50V"
+                  value={part.voltage_rating}
+                  onChange={(e) => setPart({ voltage_rating: e.target.value })}
+                />
+              </FieldContent>
+            </Field>
+          )}
+          {showField('power rating') && (
+            <Field>
+              <FieldLabel>
+                <Label>Power rating</Label>
+              </FieldLabel>
+              <FieldContent>
+                <Input
+                  placeholder="e.g. 0.125W"
+                  value={part.power_rating}
+                  onChange={(e) => setPart({ power_rating: e.target.value })}
+                />
+              </FieldContent>
+            </Field>
+          )}
           <Field>
             <FieldLabel>
               <Label>Target stock</Label>

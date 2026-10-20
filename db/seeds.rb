@@ -596,6 +596,13 @@ end
 puts "  Created #{Part.count} parts"
 
 # =============================================================================
+# Technical parameters (standard set, category templates, values from fields)
+# =============================================================================
+puts "Creating parameters..."
+ParameterDefinition.install_standard!(org)
+puts "  Created #{ParameterDefinition.count} parameters and #{PartParameter.count} part values"
+
+# =============================================================================
 # Stock movements & initial inventory
 # =============================================================================
 puts "Creating stock movements..."

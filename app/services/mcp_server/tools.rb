@@ -47,7 +47,7 @@ class McpServer
       {
         name: "get_part",
         title: "Get part details",
-        description: "Everything about one part: specs, stock per storage location, suppliers and prices, " \
+        description: "Everything about one part: specs and technical parameters, stock per storage location, suppliers and prices, " \
                      "open purchase orders, project reservations and the projects using it.",
         inputSchema: {
           type: "object",
@@ -226,6 +226,8 @@ class McpServer
         lead_time_days: part.lead_time_days,
         has_datasheet: part.datasheet.attached?,
         tags: part.tags.order(:name).pluck(:name),
+        parameters: part.part_parameters.includes(:parameter_definition).sort_by { |parameter| parameter.name.downcase }
+          .to_h { |parameter| [ parameter.name, parameter.display_value ] },
         suppliers: part.part_suppliers.includes(:supplier).sort_by { |link| [ link.is_preferred ? 0 : 1, link.supplier.name ] }.map do |link|
           {
             supplier: link.supplier.name,

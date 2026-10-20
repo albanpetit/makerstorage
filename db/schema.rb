@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_15_100000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_20_150000) do
   create_table "active_storage_attachments", force: :cascade do |t|
     t.bigint "blob_id", null: false
     t.datetime "created_at", null: false
@@ -53,6 +53,17 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_15_100000) do
     t.index ["organization_id", "code"], name: "index_categories_on_organization_id_and_code"
     t.index ["organization_id"], name: "index_categories_on_organization_id"
     t.index ["parent_id"], name: "index_categories_on_parent_id"
+  end
+
+  create_table "category_parameters", force: :cascade do |t|
+    t.integer "category_id", null: false
+    t.integer "parameter_definition_id", null: false
+    t.integer "position", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["category_id", "parameter_definition_id"], name: "index_category_parameters_on_category_and_definition", unique: true
+    t.index ["category_id"], name: "index_category_parameters_on_category_id"
+    t.index ["parameter_definition_id"], name: "index_category_parameters_on_parameter_definition_id"
   end
 
   create_table "footprints", force: :cascade do |t|
@@ -196,6 +207,31 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_15_100000) do
     t.boolean "stock_reservations_enabled", default: true, null: false
     t.index ["email"], name: "index_organizations_on_email"
     t.index ["name"], name: "index_organizations_on_name"
+  end
+
+  create_table "parameter_definitions", force: :cascade do |t|
+    t.integer "organization_id", null: false
+    t.string "name", null: false
+    t.string "value_type", default: "number", null: false
+    t.string "unit"
+    t.text "description"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index "organization_id, LOWER(name)", name: "index_parameter_definitions_on_organization_id_and_lower_name", unique: true
+    t.index ["organization_id"], name: "index_parameter_definitions_on_organization_id"
+  end
+
+  create_table "part_parameters", force: :cascade do |t|
+    t.integer "part_id", null: false
+    t.integer "parameter_definition_id", null: false
+    t.string "value", null: false
+    t.float "numeric_value"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["parameter_definition_id", "numeric_value"], name: "index_part_parameters_on_definition_and_numeric_value"
+    t.index ["parameter_definition_id"], name: "index_part_parameters_on_parameter_definition_id"
+    t.index ["part_id", "parameter_definition_id"], name: "index_part_parameters_on_part_and_definition", unique: true
+    t.index ["part_id"], name: "index_part_parameters_on_part_id"
   end
 
   create_table "part_storages", force: :cascade do |t|
@@ -404,6 +440,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_15_100000) do
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "categories", "categories", column: "parent_id"
   add_foreign_key "categories", "organizations"
+  add_foreign_key "category_parameters", "categories"
+  add_foreign_key "category_parameters", "parameter_definitions"
   add_foreign_key "footprints", "organizations"
   add_foreign_key "oauth_authorizations", "oauth_clients"
   add_foreign_key "oauth_authorizations", "organizations"
@@ -417,6 +455,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_15_100000) do
   add_foreign_key "organization_memberships", "organizations"
   add_foreign_key "organization_memberships", "users"
   add_foreign_key "organization_memberships", "users", column: "invited_by_id"
+  add_foreign_key "parameter_definitions", "organizations"
+  add_foreign_key "part_parameters", "parameter_definitions"
+  add_foreign_key "part_parameters", "parts"
   add_foreign_key "part_storages", "parts"
   add_foreign_key "part_storages", "storage_locations"
   add_foreign_key "part_suppliers", "parts"

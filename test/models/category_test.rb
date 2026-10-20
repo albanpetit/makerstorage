@@ -125,4 +125,32 @@ class CategoryTest < ActiveSupport::TestCase
     assert_equal [ grandparent.id, parent.id, child.id ].sort, grandparent.self_and_descendant_ids.sort
     assert_equal [ child.id ], child.self_and_descendant_ids
   end
+
+  test "a category's parameter template inherits its parents', root first, each parameter once" do
+    org = create_organization
+    resistance = org.parameter_definitions.create!(name: "Resistance", unit: "Ω")
+    tolerance = org.parameter_definitions.create!(name: "Tolerance", unit: "%")
+    power = org.parameter_definitions.create!(name: "Power rating", unit: "W")
+    passives = create_category(organization: org, name: "Passives")
+    resistors = create_category(organization: org, name: "Resistors", parent: passives)
+    smd = create_category(organization: org, name: "SMD", parent: resistors)
+
+    passives.update!(parameter_template: [ tolerance.id ])
+    resistors.update!(parameter_template: [ resistance.id, power.id, tolerance.id ])
+
+    assert_equal [ tolerance.id ], passives.parameter_template_ids
+    assert_equal [ tolerance.id, resistance.id, power.id ], smd.parameter_template_ids
+
+    resistors.update!(parameter_template: [ power.id ])
+    assert_equal [ power.id ], resistors.category_parameters.reload.map(&:parameter_definition_id)
+    assert_equal [ tolerance.id, power.id ], Category.parameter_templates(org)[smd.id]
+  end
+
+  test "a category template only takes its own organization's parameters" do
+    category = create_category(organization: create_organization)
+    foreign = create_organization.parameter_definitions.create!(name: "Gain", unit: "dB")
+
+    category.parameter_template = [ foreign.id ]
+    assert_not category.save
+  end
 end
