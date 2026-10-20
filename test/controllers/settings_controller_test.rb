@@ -34,6 +34,63 @@ class SettingsControllerTest < ActionDispatch::IntegrationTest
     assert_includes inertia_props["currencies"], "USD"
   end
 
+  test "show reports the KiCad library state" do
+    user = create_user
+    org = user.organizations.first
+    create_part(organization: org, category: create_category(organization: org, name: "Resistors"))
+    create_part(organization: org, category: create_category(organization: org, name: "Modules"))
+
+    sign_in user
+    get settings_path
+    kicad = inertia_props["kicad"]
+    assert_equal false, kicad["enabled"]
+    assert_equal "http://www.example.com/kicad/", kicad["root_url"]
+    assert_equal 1, kicad["listed_parts_count"]
+    assert_equal 1, kicad["parts_without_symbol_count"]
+  end
+
+  test "an admin creates a KiCad token, returned once inside the library file" do
+    user = create_user
+    org = user.organizations.first
+
+    sign_in user
+    post kicad_token_settings_path, as: :json
+    assert_response :success
+
+    token = response.parsed_body["token"]
+    assert_equal org, KicadLibrary.authenticate(token)
+    assert_match(/\.kicad_httplib\z/, response.parsed_body["filename"])
+    library = JSON.parse(response.parsed_body["library_file"])
+    assert_equal token, library.dig("source", "token")
+    assert_equal "http://www.example.com/kicad/", library.dig("source", "root_url")
+  end
+
+  test "an admin revokes the KiCad token" do
+    user = create_user
+    org = user.organizations.first
+    token = KicadLibrary.issue_token!(org)
+
+    sign_in user
+    delete kicad_token_settings_path
+    assert_redirected_to settings_path
+    assert_nil KicadLibrary.authenticate(token)
+  end
+
+  test "a member can't create or revoke the KiCad token" do
+    owner = create_user
+    org = owner.organizations.first
+    token = KicadLibrary.issue_token!(org)
+    member = create_user
+    OrganizationMembership.create!(organization: org, user: member, role: "member")
+
+    sign_in member
+    post switch_organization_path(org)
+    post kicad_token_settings_path, as: :json
+    delete kicad_token_settings_path
+
+    assert_equal org, KicadLibrary.authenticate(token)
+  end
+
   test "show lists the organizations an owner can merge this one into" do
     user = create_user
     owned = create_organization(name: "Owned")

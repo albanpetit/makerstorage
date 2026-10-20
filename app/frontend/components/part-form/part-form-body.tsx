@@ -647,6 +647,32 @@ export function PartFormBody({
               />
             </FieldContent>
           </Field>
+          <Field className="col-span-2">
+            <FieldLabel>
+              <Label>KiCad symbol</Label>
+            </FieldLabel>
+            <FieldContent>
+              <Input
+                className="font-mono"
+                placeholder="From the category"
+                value={part.kicad_symbol}
+                onChange={(e) => setPart({ kicad_symbol: e.target.value })}
+              />
+            </FieldContent>
+          </Field>
+          <Field className="col-span-2">
+            <FieldLabel>
+              <Label>KiCad footprint</Label>
+            </FieldLabel>
+            <FieldContent>
+              <Input
+                className="font-mono"
+                placeholder="From the footprint"
+                value={part.kicad_footprint}
+                onChange={(e) => setPart({ kicad_footprint: e.target.value })}
+              />
+            </FieldContent>
+          </Field>
           <Field className="col-span-2 @2xl:col-span-4">
             <div className="flex items-center space-x-2">
               <Checkbox

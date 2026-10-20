@@ -17,7 +17,8 @@ class SettingsController < ApplicationController
       timezones: Organization::TIMEZONES,
       email_notifications_available: NotificationDigest.available?,
       # Danger zone: the other organizations this one can be merged into.
-      merge_targets: merge_targets
+      merge_targets: merge_targets,
+      kicad: serialize_kicad_settings
     }
   end
 
@@ -68,7 +69,41 @@ class SettingsController < ApplicationController
     }
   end
 
+  # A new KiCad library token (replacing any previous one), returned once with
+  # the `.kicad_httplib` file that carries it.
+  def create_kicad_token
+    token = KicadLibrary.issue_token!(current_organization)
+    render json: {
+      token: token,
+      filename: KicadLibrary.library_filename(current_organization),
+      library_file: KicadLibrary.library_file(current_organization, token: token, root_url: kicad_root_url)
+    }
+  end
+
+  def destroy_kicad_token
+    KicadLibrary.revoke_token!(current_organization)
+    redirect_to settings_path, notice: "KiCad library access revoked. KiCad can no longer read your parts."
+  end
+
   private
+
+  # With a trailing slash: KiCad appends the API version ("v1/") to it.
+  def kicad_root_url
+    "#{request.base_url}/kicad/"
+  end
+
+  def serialize_kicad_settings
+    org = current_organization
+    coverage = KicadLibrary.new(org, base_url: request.base_url).coverage
+    {
+      enabled: org.kicad_token_digest.present?,
+      token_created_at: org.kicad_token_created_at&.iso8601,
+      token_last_used_at: org.kicad_token_last_used_at&.iso8601,
+      root_url: kicad_root_url,
+      listed_parts_count: coverage[:listed],
+      parts_without_symbol_count: coverage[:without_symbol]
+    }
+  end
 
   def merge_targets
     return [] if current_organization.personal? || !current_user.owner_of?(current_organization)

@@ -684,6 +684,7 @@ class PartsController < ApplicationController
       :category_id, :footprint_id,
       :unit_price, :min_stock_threshold, :target_stock,
       :status, :rohs_compliant, :storage_notes,
+      :kicad_symbol, :kicad_footprint,
       images: [],
       tag_ids: [],
       part_suppliers_attributes: [
@@ -788,6 +789,8 @@ class PartsController < ApplicationController
       lead_time_days: part.lead_time_days,
       rohs_compliant: part.rohs_compliant,
       storage_notes: part.storage_notes,
+      kicad_symbol: part.kicad_symbol,
+      kicad_footprint: part.kicad_footprint,
       category_id: part.category_id,
       footprint_id: part.footprint_id,
       bag_id: part.bag_id,

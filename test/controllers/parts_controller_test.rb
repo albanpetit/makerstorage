@@ -417,6 +417,19 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
     assert_equal [ tag_a, tag_b ].sort, part.tags.sort
   end
 
+  test "update sets the part's KiCad symbol and footprint overrides" do
+    user = create_user
+    part = create_part(organization: user.organizations.first)
+
+    sign_in user
+    patch part_path(part), params: { part: { name: part.name, category_id: part.category_id,
+      kicad_symbol: "Device:R_Small", kicad_footprint: "Resistor_SMD:R_0402_1005Metric" } }
+
+    part.reload
+    assert_equal "Device:R_Small", part.kicad_symbol
+    assert_equal "Resistor_SMD:R_0402_1005Metric", part.kicad_footprint
+  end
+
   test "update replaces the set of attached tags" do
     user = create_user
     org = user.organizations.first

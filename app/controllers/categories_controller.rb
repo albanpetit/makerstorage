@@ -98,7 +98,7 @@ class CategoriesController < ApplicationController
   end
 
   def category_params
-    params.require(:category).permit(:name, :code, :color, :description, :parent_id)
+    params.require(:category).permit(:name, :code, :color, :description, :parent_id, :kicad_symbol)
   end
 
   def serialize_category(category)
@@ -109,6 +109,7 @@ class CategoriesController < ApplicationController
       color: category.color,
       description: category.description,
       parent_id: category.parent_id,
+      kicad_symbol: category.kicad_symbol,
       parts_count: category.attributes["parts_count"] || 0
     }
   end
