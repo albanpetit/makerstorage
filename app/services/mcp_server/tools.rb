@@ -13,6 +13,7 @@ class McpServer
     MAX_ZONE_PARTS = 200
     LOW_STOCK_LIMIT = 25
     SIMILAR_LIMIT = 5
+    MAX_LOANS = 100
 
     READ_ONLY = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }.freeze
 
@@ -112,6 +113,20 @@ class McpServer
             id: { type: "integer", description: "Project id (from list_projects)." },
             reference: { type: "string", description: "Project reference (PRJ-…) or exact name." },
             builds: { type: "integer", minimum: 1, maximum: MAX_BUILDS, description: "Number of builds to check (default 1)." }
+          }
+        }
+      },
+      {
+        name: "list_loans",
+        title: "List loans",
+        description: "Tools and parts lent to members (or others): who has what, since when, the due date and " \
+                     "whether it is overdue. Open loans by default (overdue ones included).",
+        inputSchema: {
+          type: "object",
+          properties: {
+            status: { type: "string", enum: Loan::STATUSES, description: "open (default, overdue included), overdue, or returned." },
+            borrower: { type: "string", description: "Only loans whose borrower name contains this text." },
+            limit: { type: "integer", minimum: 1, maximum: MAX_LOANS, description: "Maximum results (default #{MAX_LOANS})." }
           }
         }
       },
@@ -350,6 +365,43 @@ class McpServer
             builds_count: project.builds_count,
             last_built_at: project.last_built_at&.iso8601,
             url: "#{base_url}/projects/#{project.id}"
+          }
+        end
+      }
+    end
+
+    def list_loans(arguments)
+      status = string_argument(arguments, "status") || "open"
+      raise ToolError, "status must be one of #{Loan::STATUSES.join(', ')}" unless Loan::STATUSES.include?(status)
+
+      today = organization.local_date
+      limit = integer_argument(arguments, "limit", default: MAX_LOANS, min: 1, max: MAX_LOANS)
+      scope = case status
+      when "open" then organization.loans.active
+      when "overdue" then organization.loans.overdue_on(today)
+      else organization.loans.closed
+      end
+      if (borrower = string_argument(arguments, "borrower"))
+        scope = scope.where("loans.borrower_name LIKE ? ESCAPE '\\'", "%#{Loan.sanitize_sql_like(borrower)}%")
+      end
+
+      {
+        today: today.iso8601,
+        loans: scope.recent.limit(limit).includes(loan_lines: { part: :footprint }).map do |loan|
+          {
+            id: loan.id,
+            reference: loan.reference,
+            borrower: loan.borrower_name,
+            status: loan.status(today),
+            lent_at: loan.created_at.iso8601,
+            due_on: loan.due_on&.iso8601,
+            days_overdue: loan.days_overdue(today),
+            returned_at: loan.closed_at&.iso8601,
+            items: loan.loan_lines.map do |line|
+              { part: part_brief(line.part), quantity: line.quantity, returned: line.returned_quantity,
+                written_off: line.lost_quantity, outstanding: line.outstanding_quantity }
+            end,
+            url: "#{base_url}/loans/#{loan.id}"
           }
         end
       }

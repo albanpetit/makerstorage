@@ -1,13 +1,15 @@
 # The alerts an organization's email digest reports (see NotificationDigestJob
-# and NotificationMailer#digest): parts below their low-stock threshold and open
-# purchase orders past their expected delivery date. Each section only appears
-# when its switch is on in Settings → Notifications.
+# and NotificationMailer#digest): parts below their low-stock threshold, open
+# purchase orders past their expected delivery date, and loans past their due
+# date. Each section only appears when its switch is on in Settings →
+# Notifications.
 class NotificationDigest
   # Rows listed per section; the email links to the app for the rest.
   LIMIT = 50
 
   LowStockItem = Data.define(:part_id, :code, :name, :quantity, :threshold)
   LateOrderItem = Data.define(:order_id, :reference, :supplier_name, :expected_delivery, :days_late)
+  OverdueLoanItem = Data.define(:loan_id, :reference, :borrower_name, :outstanding, :due_on, :days_late)
 
   attr_reader :organization, :date
 
@@ -47,7 +49,19 @@ class NotificationDigest
       end
   end
 
+  def overdue_loans
+    return [] unless organization.notify_overdue_loans
+
+    @overdue_loans ||= organization.loans.overdue_on(date)
+      .includes(:loan_lines)
+      .order(:due_on, :id)
+      .map do |loan|
+        OverdueLoanItem.new(loan_id: loan.id, reference: loan.reference, borrower_name: loan.borrower_name,
+                            outstanding: loan.outstanding_quantity, due_on: loan.due_on, days_late: (date - loan.due_on).to_i)
+      end
+  end
+
   def empty?
-    low_stock.empty? && late_orders.empty?
+    low_stock.empty? && late_orders.empty? && overdue_loans.empty?
   end
 end

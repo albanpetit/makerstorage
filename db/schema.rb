@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_15_100000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_20_150000) do
   create_table "active_storage_attachments", force: :cascade do |t|
     t.bigint "blob_id", null: false
     t.datetime "created_at", null: false
@@ -65,6 +65,39 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_15_100000) do
     t.index ["mounting_type"], name: "index_footprints_on_mounting_type"
     t.index ["organization_id", "name"], name: "index_footprints_on_organization_id_and_name", unique: true
     t.index ["organization_id"], name: "index_footprints_on_organization_id"
+  end
+
+  create_table "loan_lines", force: :cascade do |t|
+    t.integer "loan_id", null: false
+    t.integer "part_id", null: false
+    t.integer "storage_location_id"
+    t.integer "quantity", null: false
+    t.integer "returned_quantity", default: 0, null: false
+    t.integer "lost_quantity", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["loan_id"], name: "index_loan_lines_on_loan_id"
+    t.index ["part_id"], name: "index_loan_lines_on_part_id"
+    t.index ["storage_location_id"], name: "index_loan_lines_on_storage_location_id"
+  end
+
+  create_table "loans", force: :cascade do |t|
+    t.integer "organization_id", null: false
+    t.string "reference"
+    t.integer "borrower_id"
+    t.string "borrower_name", null: false
+    t.string "borrower_contact"
+    t.integer "lent_by_id"
+    t.date "due_on"
+    t.text "notes"
+    t.datetime "closed_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["borrower_id"], name: "index_loans_on_borrower_id"
+    t.index ["lent_by_id"], name: "index_loans_on_lent_by_id"
+    t.index ["organization_id", "closed_at", "due_on"], name: "index_loans_on_organization_id_and_closed_at_and_due_on"
+    t.index ["organization_id", "reference"], name: "index_loans_on_organization_id_and_reference", unique: true, where: "reference IS NOT NULL AND reference != ''"
+    t.index ["organization_id"], name: "index_loans_on_organization_id"
   end
 
   create_table "oauth_authorizations", force: :cascade do |t|
@@ -194,6 +227,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_15_100000) do
     t.string "notification_frequency", default: "daily", null: false
     t.date "notifications_sent_on"
     t.boolean "stock_reservations_enabled", default: true, null: false
+    t.integer "default_loan_days", default: 14, null: false
+    t.boolean "notify_overdue_loans", default: true, null: false
     t.index ["email"], name: "index_organizations_on_email"
     t.index ["name"], name: "index_organizations_on_name"
   end
@@ -405,6 +440,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_15_100000) do
   add_foreign_key "categories", "categories", column: "parent_id"
   add_foreign_key "categories", "organizations"
   add_foreign_key "footprints", "organizations"
+  add_foreign_key "loan_lines", "loans"
+  add_foreign_key "loan_lines", "parts"
+  add_foreign_key "loan_lines", "storage_locations"
+  add_foreign_key "loans", "organizations"
+  add_foreign_key "loans", "users", column: "borrower_id"
+  add_foreign_key "loans", "users", column: "lent_by_id"
   add_foreign_key "oauth_authorizations", "oauth_clients"
   add_foreign_key "oauth_authorizations", "organizations"
   add_foreign_key "oauth_authorizations", "users"

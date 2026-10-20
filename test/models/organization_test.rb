@@ -334,7 +334,7 @@ class OrganizationTest < ActiveSupport::TestCase
   end
 
   test "no digest is due when every alert type is off" do
-    org = create_organization(timezone: "Etc/UTC", notify_low_stock: false, notify_late_orders: false)
+    org = create_organization(timezone: "Etc/UTC", notify_low_stock: false, notify_late_orders: false, notify_overdue_loans: false)
     assert_not org.notification_digest_due?(Time.utc(2026, 10, 12, 9))
   end
 

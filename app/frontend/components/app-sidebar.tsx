@@ -14,6 +14,7 @@ import {
   ShoppingCart,
   AlertTriangle,
   ClipboardList,
+  HandHelping,
   Users,
   Settings,
   ChevronUp,
@@ -76,6 +77,7 @@ const navigationItems = [
   { title: 'Suppliers', url: '/suppliers', icon: Truck },
   { title: 'Orders', url: '/orders', icon: ShoppingCart },
   { title: 'Projects', url: '/projects', icon: ClipboardList },
+  { title: 'Loans', url: '/loans', icon: HandHelping, badgeKey: 'loans' as const },
   { title: 'Alerts', url: '/alerts', icon: AlertTriangle, badgeKey: 'alerts' as const },
   { title: 'Members & Roles', url: '/members', icon: Users },
   { title: 'Settings', url: '/settings', icon: Settings, adminOnly: true },
@@ -133,6 +135,7 @@ interface PageProps {
     current_organization?: CurrentOrganization
     organizations?: Organization[]
     alerts_count?: number
+    overdue_loans_count?: number
     is_organization_admin?: boolean
     pending_invitations_count?: number
   }
@@ -146,6 +149,7 @@ export function AppSidebar() {
   const currentOrganization = auth?.current_organization
   const organizations = auth?.organizations || []
   const alertsCount = auth?.alerts_count || 0
+  const overdueLoansCount = auth?.overdue_loans_count || 0
   const pendingInvitationsCount = auth?.pending_invitations_count || 0
   const isOrganizationAdmin = auth?.is_organization_admin || false
   const visibleNavigationItems = navigationItems.filter((item) => !item.adminOnly || isOrganizationAdmin)
@@ -281,6 +285,11 @@ export function AppSidebar() {
                   {item.badgeKey === 'alerts' && alertsCount > 0 && (
                     <SidebarMenuBadge className="bg-destructive/15 text-destructive">
                       {alertsCount}
+                    </SidebarMenuBadge>
+                  )}
+                  {item.badgeKey === 'loans' && overdueLoansCount > 0 && (
+                    <SidebarMenuBadge className="bg-destructive/15 text-destructive" title="Overdue loans">
+                      {overdueLoansCount}
                     </SidebarMenuBadge>
                   )}
                 </SidebarMenuItem>

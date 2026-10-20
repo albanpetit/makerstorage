@@ -51,6 +51,24 @@ class NotificationDigestJobTest < ActiveJob::TestCase
     assert_no_emails { NotificationDigestJob.perform_now(now: @now + 1.day) }
   end
 
+  test "mails overdue loans even with the other alerts off" do
+    @org.update!(notify_low_stock: false, notify_late_orders: false)
+    zone = create_storage_location(organization: @org)
+    part = create_part(organization: @org)
+    StockMovement.create!(organization: @org, part: part, storage_location: zone, movement_type: "in", quantity_delta: 2)
+    loan = @org.loans.new(borrower_name: "Ada", due_on: Date.new(2026, 10, 10))
+    loan.loan_lines.build(part: part, storage_location: zone, quantity: 2)
+    loan.lend!(user: @user)
+
+    assert_emails 1 do
+      NotificationDigestJob.perform_now(now: @now)
+    end
+    mail = ActionMailer::Base.deliveries.last
+    assert_equal "#{@org.name}: 1 overdue loan", mail.subject
+    assert_includes mail.text_part.body.to_s, "#{loan.reference} (Ada, 2 items): 2 days late"
+    assert_includes mail.html_part.body.to_s, "/loans/#{loan.id}?organization_id=#{@org.id}"
+  end
+
   test "sends nothing when the install has no SMTP" do
     with_email_notifications(false) do
       assert_no_emails do

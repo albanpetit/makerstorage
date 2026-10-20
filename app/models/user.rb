@@ -27,6 +27,9 @@ class User < ApplicationRecord
   # Rows that merely reference the user as an author keep existing (the ledger
   # and memberships outlive the account) with the reference cleared.
   has_many :stock_movements, dependent: :nullify
+  # Loans keep the borrower's name, so they still read right without the account.
+  has_many :borrowed_loans, class_name: "Loan", foreign_key: :borrower_id, dependent: :nullify, inverse_of: :borrower
+  has_many :lent_loans, class_name: "Loan", foreign_key: :lent_by_id, dependent: :nullify, inverse_of: :lent_by
   has_many :sent_invitations, class_name: "OrganizationMembership", foreign_key: :invited_by_id,
            inverse_of: :invited_by, dependent: :nullify
 
@@ -38,6 +41,11 @@ class User < ApplicationRecord
   def personal_organization
     organizations.find_by(personal: true) ||
     organizations.first
+  end
+
+  # "Firstname Lastname", or the email when no name was given.
+  def display_name
+    "#{firstname} #{lastname}".strip.presence || email
   end
 
   # Check if the user is a member of an organization by ID (more efficient)

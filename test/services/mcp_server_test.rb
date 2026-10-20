@@ -153,6 +153,24 @@ class McpServerTest < ActiveSupport::TestCase
     assert_raises_tool_error { call("get_project", "id" => -1) }
   end
 
+  test "list_loans reports open and overdue loans with what is still out" do
+    @org.update!(timezone: "Etc/UTC")
+    late = @org.loans.new(borrower_name: "Ada Lovelace", due_on: @org.local_date - 3)
+    late.loan_lines.build(part: @r10k, storage_location: @box, quantity: 2)
+    late.lend!(user: @user)
+    back = @org.loans.new(borrower_name: "Bob")
+    back.loan_lines.build(part: @r4k7, storage_location: @drawer, quantity: 1)
+    back.lend!(user: @user).return_all!(user: @user)
+
+    listed = call("list_loans", {})[:loans].sole
+    assert_equal [ late.id, "overdue", 3 ], [ listed[:id], listed[:status], listed[:days_overdue] ]
+    assert_equal [ [ @r10k.id, 2, 2 ] ], listed[:items].map { |item| [ item[:part][:id], item[:quantity], item[:outstanding] ] }
+    assert_equal [ late.id ], call("list_loans", "status" => "overdue", "borrower" => "lovelace")[:loans].map { |loan| loan[:id] }
+    assert_equal [ back.id ], call("list_loans", "status" => "returned")[:loans].map { |loan| loan[:id] }
+    assert_empty call("list_loans", "borrower" => "nobody")[:loans]
+    assert_raises_tool_error { call("list_loans", "status" => "lost") }
+  end
+
   test "get_storage_location lists sub-zones and the parts stored below" do
     data = call("get_storage_location", "code" => "da")
     assert_equal "Drawer A", data[:path]

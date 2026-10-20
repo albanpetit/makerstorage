@@ -2,7 +2,7 @@ import { Link, router, useForm } from '@inertiajs/react'
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
 import {
   ArrowDown, ArrowUp, ArrowLeftRight, Cpu, MapPin,
-  Pencil, Trash2, ExternalLink, Loader2, CircleAlert,
+  Pencil, Trash2, ExternalLink, Loader2, CircleAlert, HandHelping,
 } from 'lucide-react'
 
 import { usePermissions } from '@/hooks/use-permissions'
@@ -100,6 +100,15 @@ interface ReservationEntry {
   quantity: number
 }
 
+interface LoanEntry {
+  loan_id: number
+  reference: string | null
+  borrower_name: string
+  quantity: number
+  due_on: string | null
+  overdue: boolean
+}
+
 interface Category {
   id: number
   name: string
@@ -130,6 +139,7 @@ interface PartShowPayload {
   storages: StorageEntry[]
   movements: MovementEntry[]
   reservations: ReservationEntry[]
+  loans: LoanEntry[]
   storage_locations: StorageLocationOption[]
   categories: Category[]
   footprints: Footprint[]
@@ -159,6 +169,11 @@ const MOVEMENT_META: Record<MovementEntry['movement_type'], { label: string; cla
 
 function partRef(part: PartDetail): string {
   return part.mpn || part.sku || part.name
+}
+
+// A calendar day ("2026-10-20"), read as local midnight so it doesn't shift.
+function formatDay(day: string) {
+  return new Date(`${day}T00:00:00`).toLocaleDateString(undefined, { day: '2-digit', month: '2-digit' })
 }
 
 function formatDate(iso: string) {
@@ -435,6 +450,14 @@ export function PartDetailSheet({
                         <ArrowUp className="size-4" />
                         Stock out
                       </Button>
+                      {part.total_quantity > 0 && (
+                        <Button variant="outline" className="flex-1" asChild>
+                          <Link href={`/loans?part_id=${part.id}`}>
+                            <HandHelping className="size-4" />
+                            Lend
+                          </Link>
+                        </Button>
+                      )}
                     </div>
                   )}
                 </div>
@@ -456,6 +479,36 @@ export function PartDetailSheet({
                             {reservation.name}
                           </Link>
                           <span className="shrink-0 font-mono text-sm font-semibold">{reservation.quantity}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Loans */}
+                {payload.loans.length > 0 && (
+                  <div>
+                    <div className="mb-2 flex items-center justify-between">
+                      <h3 className="text-sm font-semibold">On loan</h3>
+                      <span className="font-mono text-xs text-muted-foreground">
+                        {payload.loans.reduce((sum, l) => sum + l.quantity, 0).toLocaleString()} out
+                      </span>
+                    </div>
+                    <div className="space-y-2.5 rounded-lg border p-3">
+                      {payload.loans.map((loan) => (
+                        <div key={loan.loan_id} className="flex items-center justify-between gap-2 text-sm">
+                          <Link href={`/loans/${loan.loan_id}`} className="min-w-0 truncate hover:underline">
+                            {loan.reference && <span className="mr-1.5 font-mono text-xs text-muted-foreground">{loan.reference}</span>}
+                            {loan.borrower_name}
+                          </Link>
+                          <span className="flex shrink-0 items-center gap-2">
+                            {loan.due_on && (
+                              <span className={`text-xs ${loan.overdue ? 'font-medium text-destructive' : 'text-muted-foreground'}`}>
+                                {loan.overdue ? 'overdue' : `due ${formatDay(loan.due_on)}`}
+                              </span>
+                            )}
+                            <span className="font-mono text-sm font-semibold">{loan.quantity}</span>
+                          </span>
                         </div>
                       ))}
                     </div>
