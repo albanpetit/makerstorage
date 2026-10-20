@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Search, Loader2, FileText, Image as ImageIcon } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -33,6 +33,9 @@ function csrfToken(): string {
 interface SupplierLookupProps {
   // Seed the search box (e.g. the part's existing MPN when editing).
   defaultQuery?: string
+  // Search for this part number once, without waiting for a click (the add
+  // dialog opened from a scanned supplier label).
+  autoQuery?: string | null
   // Called with the chosen match — the parent prefills its form from it.
   onApply: (result: LookupResult) => void
   // Whether a datasheet/image is currently queued for attachment, for the badges.
@@ -54,6 +57,7 @@ function providerLabel(provider: string): string {
 const PROVIDER_DOMAINS: Record<string, string> = {
   mouser: 'mouser.com',
   digikey: 'digikey.com',
+  lcsc: 'lcsc.com',
 }
 
 // Finds the supplier that corresponds to a result's provider: the explicit
@@ -77,20 +81,34 @@ export function matchProviderSupplier<
 // Search external supplier catalogs (Mouser, DigiKey) by manufacturer part
 // number and let the user pick a match. Owns the query/results state; the
 // parent owns what happens to the chosen result via `onApply`.
-export function SupplierLookup({ defaultQuery = '', onApply, attached }: SupplierLookupProps) {
+export function SupplierLookup({ defaultQuery = '', autoQuery = null, onApply, attached }: SupplierLookupProps) {
   const [query, setQuery] = useState(defaultQuery)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [results, setResults] = useState<LookupResult[] | null>(null)
 
+  // A lookup resolves after the parent may have re-rendered (an automatic one
+  // starts on mount): always hand the result to its latest onApply.
+  const onApplyRef = useRef(onApply)
+  onApplyRef.current = onApply
+
   const apply = (result: LookupResult) => {
-    onApply(result)
+    onApplyRef.current(result)
     setResults(null)
     setError(null)
   }
 
-  const runLookup = async () => {
-    const mpn = query.trim()
+  const autoQueried = useRef<string | null>(null)
+  useEffect(() => {
+    if (!autoQuery || autoQueried.current === autoQuery) return
+    autoQueried.current = autoQuery
+    setQuery(autoQuery)
+    runLookup(autoQuery)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoQuery])
+
+  const runLookup = async (value: string = query) => {
+    const mpn = value.trim()
     if (!mpn) return
     setLoading(true)
     setError(null)
@@ -144,7 +162,7 @@ export function SupplierLookup({ defaultQuery = '', onApply, attached }: Supplie
             }
           }}
         />
-        <Button type="button" variant="secondary" onClick={runLookup} disabled={loading || !query.trim()}>
+        <Button type="button" variant="secondary" onClick={() => runLookup()} disabled={loading || !query.trim()}>
           {loading ? <Loader2 className="size-4 animate-spin" /> : <Search className="size-4" />}
           Fetch
         </Button>

@@ -59,7 +59,8 @@ class PartsController < ApplicationController
       ipn_manual_entry: current_organization.ipn_generation_mode == "manual",
       bag_options: bag_options,
       bag_boxes: bag_boxes,
-      open_add: params[:new].present?
+      open_add: params[:new].present?,
+      add_prefill: add_prefill
     }
   end
 
@@ -152,7 +153,13 @@ class PartsController < ApplicationController
 
     if saved
       attach_remote_datasheet(part)
-      redirect_to parts_path, notice: "Part created successfully."
+      # Created from a scanned supplier label: back to the scanner, on the new
+      # part, ready for the next bag.
+      if params[:return_to] == "scan"
+        redirect_to scan_path(code: "part:#{part.id}"), notice: "Part created successfully."
+      else
+        redirect_to parts_path, notice: "Part created successfully."
+      end
     else
       # No flash alert here: the add-part modal renders these errors inline, and
       # a page-level alert would surface behind the still-open dialog instead.
@@ -595,6 +602,15 @@ class PartsController < ApplicationController
   def attach_remote_datasheet(part)
     datasheet_url = params[:datasheet_url].presence
     AttachRemotePartAssetsJob.perform_later(part, datasheet_url: datasheet_url) if datasheet_url
+  end
+
+  # What a scanned supplier label knows about a part that isn't in the
+  # inventory yet (see ScansController#label_lookup), to prefill the add dialog.
+  def add_prefill
+    return unless params[:new].present? && params[:prefill].is_a?(ActionController::Parameters)
+
+    prefill = params[:prefill].permit(:mpn, :manufacturer, :provider, :supplier_sku, :quantity).to_h
+    prefill.transform_values { |value| value.to_s.strip.first(255) }.compact_blank.presence
   end
 
   def set_part
