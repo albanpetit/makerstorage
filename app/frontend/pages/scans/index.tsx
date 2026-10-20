@@ -1,10 +1,10 @@
 import { Head, Link, router } from '@inertiajs/react'
-import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
-import { Box, Camera, CameraOff, Check, ChevronRight, Cpu, ExternalLink, MapPin, ScanLine } from 'lucide-react'
-import type { IScannerControls } from '@zxing/browser'
+import { FormEvent, useEffect, useMemo, useState } from 'react'
+import { Box, Camera, CameraOff, Check, ChevronRight, ClipboardCheck, Cpu, ExternalLink, MapPin, ScanLine } from 'lucide-react'
 
 import { AppLayout } from '@/layouts/app-layout'
 import { usePermissions } from '@/hooks/use-permissions'
+import { useBarcodeScanner } from '@/hooks/use-barcode-scanner'
 import { PageHeader } from '@/components/page-header'
 import { FlashMessages } from '@/components/flash-messages'
 import { PartDetailSheet } from '@/components/part-detail-sheet'
@@ -42,6 +42,8 @@ interface ScannedZone {
   children_count: number
   // Stocked parts held directly in the zone, largest quantity first (capped).
   contents: Array<{ id: number; reference: string; name: string; quantity: number }>
+  // The stocktake already counting this zone, if any.
+  stocktake: { id: number; reference: string | null } | null
 }
 
 type ScanResult =
@@ -83,38 +85,6 @@ const QR_GHOST_CELLS: Array<[number, number]> = [
   [1, 5], [2, 5], [4, 5], [5, 5],
 ]
 
-// Symbologies we read: QR (zones) plus the common 1D/2D barcodes on part labels.
-const SCAN_FORMATS = [
-  'qr_code', 'data_matrix', 'code_128', 'code_39',
-  'ean_13', 'ean_8', 'upc_a', 'upc_e', 'itf', 'codabar',
-] as const
-
-// Minimal shape of the browser-native BarcodeDetector (not yet in TS DOM libs).
-interface DetectedBarcode {
-  rawValue: string
-}
-interface BarcodeDetectorInstance {
-  detect(source: CanvasImageSource): Promise<DetectedBarcode[]>
-}
-interface BarcodeDetectorConstructor {
-  new (options?: { formats?: string[] }): BarcodeDetectorInstance
-  getSupportedFormats?(): Promise<string[]>
-}
-
-function describeCameraError(err: unknown): string {
-  const e = err as { name?: string; message?: string }
-  if (e?.name === 'NotAllowedError' || e?.name === 'SecurityError') {
-    return 'Camera permission was denied. Allow camera access in your browser and try again.'
-  }
-  if (e?.name === 'NotFoundError' || e?.name === 'OverconstrainedError' || e?.name === 'DevicesNotFoundError') {
-    return 'No camera was found on this device.'
-  }
-  if (e?.name === 'NotReadableError' || e?.name === 'TrackStartError') {
-    return 'The camera is already in use by another application.'
-  }
-  return e?.message || 'Could not start the camera.'
-}
-
 function formatAgo(iso: string) {
   const seconds = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000)
   if (seconds < 60) return 'just now'
@@ -153,114 +123,9 @@ export default function ScansIndex({ code, result, recent_scans, today_count, al
   const [submitting, setSubmitting] = useState(false)
   const [detailPartId, setDetailPartId] = useState<number | null>(null)
 
-  const videoRef = useRef<HTMLVideoElement>(null)
-  const controlsRef = useRef<IScannerControls | null>(null)
-  const streamRef = useRef<MediaStream | null>(null)
-  const rafRef = useRef<number | null>(null)
-  // Guards against firing multiple lookups from rapid consecutive detections.
-  const scannedRef = useRef(false)
-  const [cameraActive, setCameraActive] = useState(false)
-  const [cameraStarting, setCameraStarting] = useState(false)
-  const [cameraError, setCameraError] = useState<string | null>(null)
-
-  const stopCamera = () => {
-    if (rafRef.current != null) {
-      cancelAnimationFrame(rafRef.current)
-      rafRef.current = null
-    }
-    controlsRef.current?.stop()
-    controlsRef.current = null
-    streamRef.current?.getTracks().forEach((track) => track.stop())
-    streamRef.current = null
-    if (videoRef.current) videoRef.current.srcObject = null
-    setCameraActive(false)
-  }
-
-  const handleDecoded = (text: string) => {
-    const trimmed = text.trim()
-    if (!trimmed || scannedRef.current) return
-    scannedRef.current = true
-    stopCamera()
-    router.get('/scan', { code: trimmed }, { preserveState: true, preserveScroll: true })
-  }
-
-  const startCamera = async () => {
-    setCameraError(null)
-    if (!navigator.mediaDevices?.getUserMedia) {
-      setCameraError(
-        window.isSecureContext
-          ? 'This browser does not support camera access.'
-          : 'Camera access requires HTTPS. Open the app over https:// (or on localhost) to scan.',
-      )
-      return
-    }
-    setCameraStarting(true)
-    setCameraActive(true)
-    scannedRef.current = false
-
-    const BarcodeDetectorCtor = (window as unknown as { BarcodeDetector?: BarcodeDetectorConstructor }).BarcodeDetector
-
-    try {
-      if (BarcodeDetectorCtor) {
-        // Preferred path: the browser-native detector (Chrome/Android/Edge) is
-        // far faster and more reliable than decoding every frame in JS.
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
-        streamRef.current = stream
-        const video = videoRef.current!
-        video.srcObject = stream
-        await video.play()
-
-        const supported = (await BarcodeDetectorCtor.getSupportedFormats?.()) ?? []
-        const formats = SCAN_FORMATS.filter((f) => supported.length === 0 || supported.includes(f))
-        const detector = new BarcodeDetectorCtor(formats.length ? { formats: [ ...formats ] } : undefined)
-
-        const scan = async () => {
-          if (scannedRef.current || !streamRef.current) return
-          try {
-            const codes = await detector.detect(video)
-            if (codes.length > 0 && codes[0].rawValue) {
-              handleDecoded(codes[0].rawValue)
-              return
-            }
-          } catch {
-            // Transient decode errors (e.g. a not-yet-ready frame) — keep going.
-          }
-          rafRef.current = requestAnimationFrame(scan)
-        }
-        rafRef.current = requestAnimationFrame(scan)
-      } else {
-        // Fallback (Safari/Firefox): ZXing, restricted to the formats we use so
-        // it locks on faster than scanning for every possible symbology.
-        const [{ BrowserMultiFormatReader }, { DecodeHintType, BarcodeFormat }] = await Promise.all([
-          import('@zxing/browser'),
-          import('@zxing/library'),
-        ])
-        const hints = new Map([
-          [ DecodeHintType.POSSIBLE_FORMATS, [
-            BarcodeFormat.QR_CODE, BarcodeFormat.DATA_MATRIX, BarcodeFormat.CODE_128,
-            BarcodeFormat.CODE_39, BarcodeFormat.EAN_13, BarcodeFormat.EAN_8,
-            BarcodeFormat.UPC_A, BarcodeFormat.UPC_E, BarcodeFormat.ITF, BarcodeFormat.CODABAR,
-          ] ],
-        ])
-        const reader = new BrowserMultiFormatReader(hints)
-        controlsRef.current = await reader.decodeFromConstraints(
-          { video: { facingMode: 'environment' } },
-          videoRef.current!,
-          (decoded) => {
-            if (decoded) handleDecoded(decoded.getText())
-          },
-        )
-      }
-    } catch (err) {
-      stopCamera()
-      setCameraError(describeCameraError(err))
-    } finally {
-      setCameraStarting(false)
-    }
-  }
-
-  // Always release the camera when leaving the page.
-  useEffect(() => () => stopCamera(), [])
+  const camera = useBarcodeScanner((code) => {
+    router.get('/scan', { code }, { preserveState: true, preserveScroll: true })
+  })
 
   useEffect(() => {
     setDelta(0)
@@ -323,14 +188,14 @@ export default function ScansIndex({ code, result, recent_scans, today_count, al
             <div className="relative aspect-square overflow-hidden rounded-xl bg-[radial-gradient(circle_at_50%_40%,#1c1c22_0%,#0c0c0e_75%)]">
               {/* Live camera feed — always mounted so the decoder can attach to it */}
               <video
-                ref={videoRef}
-                className={`absolute inset-0 size-full object-cover transition-opacity ${cameraActive ? 'opacity-100' : 'opacity-0'}`}
+                ref={camera.videoRef}
+                className={`absolute inset-0 size-full object-cover transition-opacity ${camera.active ? 'opacity-100' : 'opacity-0'}`}
                 muted
                 playsInline
               />
 
               {/* Framing overlay — only meaningful while the camera is live */}
-              {cameraActive && (
+              {camera.active && (
                 <div className="absolute inset-[14%]">
                   <div className="absolute top-0 left-0 size-8 rounded-tl-lg border-t-[3px] border-l-[3px] border-primary" />
                   <div className="absolute top-0 right-0 size-8 rounded-tr-lg border-t-[3px] border-r-[3px] border-primary" />
@@ -341,7 +206,7 @@ export default function ScansIndex({ code, result, recent_scans, today_count, al
               )}
 
               {/* Idle state — ghost QR + start button */}
-              {!cameraActive && (
+              {!camera.active && (
                 <>
                   <svg
                     viewBox="0 0 6 6"
@@ -354,9 +219,9 @@ export default function ScansIndex({ code, result, recent_scans, today_count, al
                     ))}
                   </svg>
                   <div className="absolute inset-x-0 bottom-4 flex flex-col items-center gap-2 px-4">
-                    <Button type="button" onClick={startCamera} disabled={cameraStarting} className="h-10">
+                    <Button type="button" onClick={camera.start} disabled={camera.starting} className="h-10">
                       <Camera className="size-4" />
-                      {cameraStarting ? 'Starting camera…' : 'Start camera'}
+                      {camera.starting ? 'Starting camera…' : 'Start camera'}
                     </Button>
                     <span className="text-xs text-zinc-400">…or use a hardware scanner / type a code below</span>
                   </div>
@@ -364,11 +229,11 @@ export default function ScansIndex({ code, result, recent_scans, today_count, al
               )}
 
               {/* Stop control while live */}
-              {cameraActive && (
+              {camera.active && (
                 <Button
                   type="button"
                   variant="ghost"
-                  onClick={stopCamera}
+                  onClick={camera.stop}
                   className="absolute top-2.5 right-2.5 h-auto gap-1.5 rounded-lg border border-white/20 bg-black/40 px-2.5 py-1.5 text-xs text-white backdrop-blur hover:bg-black/60 hover:text-white has-[>svg]:px-2.5 dark:hover:bg-black/60"
                 >
                   <CameraOff className="size-3.5" />
@@ -377,9 +242,9 @@ export default function ScansIndex({ code, result, recent_scans, today_count, al
               )}
             </div>
 
-            {cameraError && (
+            {camera.error && (
               <div className="mt-3 rounded-lg border border-red-900/50 bg-red-950/40 px-3 py-2 text-xs text-red-300">
-                {cameraError}
+                {camera.error}
               </div>
             )}
 
@@ -582,6 +447,23 @@ export default function ScansIndex({ code, result, recent_scans, today_count, al
                       Open zone
                     </Link>
                   </Button>
+                  {canWrite && (result.location.stocktake ? (
+                    <Button variant="outline" className="mt-2 w-full" asChild>
+                      <Link href={`/stocktakes/${result.location.stocktake.id}?zone=${result.location.id}`}>
+                        <ClipboardCheck className="size-4" />
+                        Continue stocktake {result.location.stocktake.reference}
+                      </Link>
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      className="mt-2 w-full"
+                      onClick={() => router.post('/stocktakes', { stocktake: { storage_location_id: result.location.id } })}
+                    >
+                      <ClipboardCheck className="size-4" />
+                      Count this zone
+                    </Button>
+                  ))}
                 </CardContent>
               </Card>
             )}

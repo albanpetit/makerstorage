@@ -42,6 +42,11 @@ class OrganizationBackupTest < ActiveSupport::TestCase
     @project.project_lines.create!(part: @part, raw_reference: "RC0603-10K", quantity: 4, match_type: "mpn")
     @project.project_lines.create!(raw_reference: "UNKNOWN", quantity: 1, match_type: "none")
 
+    @stocktake = @org.stocktakes.create!(storage_location: @room, reference: "ST-1", user: @owner, blind: true)
+    @stocktake.snapshot_stock!
+    @stocktake.count!(@stocktake.stocktake_lines.first, 68, user: @owner)
+    @stocktake.complete!(user: @owner)
+
     # Another tenant's data must stay out of the archive.
     @other = create_organization(name: "Other Lab")
     create_part(organization: @other, name: "Foreign part", mpn: "FOREIGN-1")
@@ -77,9 +82,8 @@ class OrganizationBackupTest < ActiveSupport::TestCase
     assert_equal "0603", part.footprint.name
     assert_equal [ "Kit" ], part.tags.map(&:name)
     assert_equal @part.reload.unit_price, part.unit_price
-    assert_equal 70, part.total_quantity
     assert_equal "Farnell", part.preferred_supplier.name
-    assert_equal [ 100, -30 ], org.stock_movements.order(:created_at).pluck(:quantity_delta)
+    assert_equal [ 100, -30, -2 ], org.stock_movements.order(:created_at, :id).pluck(:quantity_delta)
     assert_equal [ nil ], org.stock_movements.distinct.pluck(:user_id)
     assert_equal @org.stock_movements.order(:id).pluck(:created_at).map(&:to_i),
                  org.stock_movements.order(:id).pluck(:created_at).map(&:to_i)
@@ -91,6 +95,18 @@ class OrganizationBackupTest < ActiveSupport::TestCase
     project = org.projects.find_by!(reference: "PRJ-1")
     assert_equal [ part.id, nil ], project.project_lines.order(:id).pluck(:part_id)
     assert_equal @project.reserved_at.to_i, project.reserved_at.to_i
+
+    stocktake = org.stocktakes.find_by!(reference: "ST-1")
+    assert stocktake.completed?
+    assert stocktake.blind
+    assert_equal "Atelier", stocktake.storage_location.name
+    assert_nil stocktake.user_id
+    assert_nil stocktake.completed_by_id
+    stocktake_line = stocktake.stocktake_lines.sole
+    assert_equal [ part, "Tiroir 1", 70, 68, nil ],
+                 [ stocktake_line.part, stocktake_line.storage_location.name, stocktake_line.expected_quantity, stocktake_line.counted_quantity, stocktake_line.counted_by_id ]
+    assert_equal org.stock_movements.find_by!(movement_type: "adjustment"), stocktake_line.stock_movement
+    assert_equal 68, part.total_quantity
 
     assert_equal 1, org.suppliers.where(catalog_provider: "mouser").count
     assert_equal "Account 1234", org.suppliers.find_by!(catalog_provider: "mouser").notes

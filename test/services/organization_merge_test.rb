@@ -98,6 +98,9 @@ class OrganizationMergeTest < ActiveSupport::TestCase
     order = create_order(organization: @source)
     line = order.order_lines.create!(part: by_mpn, quantity: 5)
     project_line = create_project(organization: @source).project_lines.create!(part: by_sku, quantity: 1)
+    stocktake = @source.stocktakes.create!(storage_location: room, reference: "ST-1")
+    stocktake.snapshot_stock!
+    stocktake.count!(stocktake.stocktake_lines.find_by!(part: by_mpn), 3, user: @owner)
 
     result = merge!
     target_part.reload
@@ -111,6 +114,8 @@ class OrganizationMergeTest < ActiveSupport::TestCase
     assert_ledger_matches(target_part)
     assert_equal target_part, line.reload.part
     assert_equal target_part, project_line.reload.part
+    stocktake_line = stocktake.stocktake_lines.sole
+    assert_equal [ target_part.id, 5, 3 ], [ stocktake_line.part_id, stocktake_line.expected_quantity, stocktake_line.counted_quantity ]
     assert_equal 1, target_part.part_suppliers.where(is_preferred: true).count
     assert_equal 2, target_part.part_suppliers.count
     assert_equal 1, target_part.images.count
@@ -121,15 +126,19 @@ class OrganizationMergeTest < ActiveSupport::TestCase
     create_part(organization: @target, ipn: "CL-00001")
     create_order(organization: @target, reference: "PO-1")
     create_project(organization: @target, reference: "PRJ-1")
+    create_storage_location(organization: @target).then { |shelf| @target.stocktakes.create!(storage_location: shelf, reference: "ST-1") }
 
     zone = create_storage_location(organization: @source, name: "Shelf", code: "s1")
     part = create_part(organization: @source, ipn: "CL-00001")
     kept = create_part(organization: @source, ipn: "CL-00002")
     order = create_order(organization: @source, reference: "PO-1")
     project = create_project(organization: @source, reference: "PRJ-1")
+    stocktake = @source.stocktakes.create!(storage_location: zone, reference: "ST-1")
 
     result = merge!
 
+    assert_equal "ST-1-2", stocktake.reload.reference
+    assert_equal @target.id, stocktake.organization_id
     assert_equal "s1-2", zone.reload.code
     assert_equal "PO-1-2", order.reload.reference
     assert_equal "PRJ-1-2", project.reload.reference

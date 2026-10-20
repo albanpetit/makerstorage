@@ -11,6 +11,7 @@ class Part < ApplicationRecord
   has_many :storage_locations, through: :part_storages
 
   has_many :stock_movements, dependent: :restrict_with_error
+  has_many :stocktake_lines, dependent: :destroy
 
   has_many :part_tags, dependent: :destroy
   has_many :tags, through: :part_tags

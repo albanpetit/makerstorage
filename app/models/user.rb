@@ -29,6 +29,11 @@ class User < ApplicationRecord
   has_many :stock_movements, dependent: :nullify
   has_many :sent_invitations, class_name: "OrganizationMembership", foreign_key: :invited_by_id,
            inverse_of: :invited_by, dependent: :nullify
+  has_many :stocktakes, dependent: :nullify
+  has_many :completed_stocktakes, class_name: "Stocktake", foreign_key: :completed_by_id,
+           inverse_of: :completed_by, dependent: :nullify
+  has_many :counted_stocktake_lines, class_name: "StocktakeLine", foreign_key: :counted_by_id,
+           inverse_of: :counted_by, dependent: :nullify
 
   after_create :create_personal_organization
 
