@@ -162,7 +162,7 @@ class PartsController < ApplicationController
     end
   end
 
-  # Queries the organization's configured supplier catalog (Mouser, ...) for a
+  # Queries the organization's configured supplier catalogs (Mouser, DigiKey, LCSC) for a
   # manufacturer part number and returns normalized matches as JSON for the
   # add-part dialog to prefill from. Async fetch, not an Inertia visit.
   def lookup
@@ -172,7 +172,7 @@ class PartsController < ApplicationController
     results = SupplierCatalog.lookup(current_organization, mpn: mpn)
     render json: { results: results.map(&:as_json) }
   rescue SupplierCatalog::NotConfiguredError
-    render json: { error: "No supplier catalog is configured. Add a Mouser or DigiKey key in Settings." }, status: :unprocessable_entity
+    render json: { error: "No supplier catalog is configured. Add a Mouser or DigiKey key, or turn on LCSC, in Settings." }, status: :unprocessable_entity
   rescue SupplierCatalog::LookupError => e
     render json: { error: e.message }, status: :bad_gateway
   end

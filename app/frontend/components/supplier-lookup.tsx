@@ -43,6 +43,7 @@ interface SupplierLookupProps {
 const PROVIDER_LABELS: Record<string, string> = {
   mouser: 'Mouser',
   digikey: 'DigiKey',
+  lcsc: 'LCSC',
 }
 
 function providerLabel(provider: string): string {
@@ -54,6 +55,7 @@ function providerLabel(provider: string): string {
 const PROVIDER_DOMAINS: Record<string, string> = {
   mouser: 'mouser.com',
   digikey: 'digikey.com',
+  lcsc: 'lcsc.com',
 }
 
 // Finds the supplier that corresponds to a result's provider: the explicit
@@ -74,7 +76,7 @@ export function matchProviderSupplier<
   })
 }
 
-// Search external supplier catalogs (Mouser, DigiKey) by manufacturer part
+// Search external supplier catalogs (Mouser, DigiKey, LCSC) by manufacturer part
 // number and let the user pick a match. Owns the query/results state; the
 // parent owns what happens to the chosen result via `onApply`.
 export function SupplierLookup({ defaultQuery = '', onApply, attached }: SupplierLookupProps) {

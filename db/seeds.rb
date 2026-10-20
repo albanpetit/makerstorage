@@ -231,7 +231,8 @@ suppliers_data = [
     name: "LCSC",
     email: "support@lcsc.com",
     website: "https://www.lcsc.com",
-    country: "China"
+    country: "China",
+    catalog_provider: "lcsc"
   }
 ]
 
