@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
+import { t } from '@/lib/i18n'
 
 // A normalized catalog match returned by POST /parts/lookup.
 export interface LookupResult {
@@ -108,19 +109,19 @@ export function SupplierLookup({ defaultQuery = '', onApply, attached }: Supplie
       })
       const json = await res.json()
       if (!res.ok) {
-        setError(json.error ?? 'Lookup failed.')
+        setError(json.error ?? t('Lookup failed.'))
         return
       }
       const found: LookupResult[] = json.results ?? []
       if (found.length === 0) {
-        setError(`No matches found for "${mpn}".`)
+        setError(t('No matches found for "{mpn}".', { mpn }))
       } else if (found.length === 1) {
         apply(found[0])
       } else {
         setResults(found)
       }
     } catch {
-      setError('Could not reach the server. Please try again.')
+      setError(t('Could not reach the server. Please try again.'))
     } finally {
       setLoading(false)
     }
@@ -128,13 +129,13 @@ export function SupplierLookup({ defaultQuery = '', onApply, attached }: Supplie
 
   return (
     <div className="rounded-lg border border-dashed bg-muted/40 p-4">
-      <Label className="text-sm font-medium">Look up from supplier catalog</Label>
+      <Label className="text-sm font-medium">{t('Look up from supplier catalog')}</Label>
       <p className="mb-2.5 text-xs text-muted-foreground">
-        Enter a manufacturer part number to auto-fill details, datasheet and image.
+        {t('Enter a manufacturer part number to auto-fill details, datasheet and image.')}
       </p>
       <div className="flex gap-2">
         <Input
-          placeholder="e.g. RC0805FR-0710KL"
+          placeholder={t('e.g. RC0805FR-0710KL')}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={(e) => {
@@ -146,7 +147,7 @@ export function SupplierLookup({ defaultQuery = '', onApply, attached }: Supplie
         />
         <Button type="button" variant="secondary" onClick={runLookup} disabled={loading || !query.trim()}>
           {loading ? <Loader2 className="size-4 animate-spin" /> : <Search className="size-4" />}
-          Fetch
+          {t('Fetch')}
         </Button>
       </div>
 
@@ -155,7 +156,7 @@ export function SupplierLookup({ defaultQuery = '', onApply, attached }: Supplie
       {/* Multiple matches — let the user pick one */}
       {results && results.length > 0 && (
         <div className="mt-3 space-y-2">
-          <p className="text-xs font-medium text-muted-foreground">{results.length} matches — select one:</p>
+          <p className="text-xs font-medium text-muted-foreground">{t('{count} matches — select one:', { count: results.length })}</p>
           <div className="max-h-64 space-y-2 overflow-y-auto">
             {results.map((result, index) => (
               <Button
@@ -199,12 +200,12 @@ export function SupplierLookup({ defaultQuery = '', onApply, attached }: Supplie
         <div className="mt-3 flex flex-wrap gap-2">
           {attached.datasheet && (
             <Badge variant="secondary" className="gap-1">
-              <FileText className="size-3" /> Datasheet will be attached
+              <FileText className="size-3" /> {t('Datasheet will be attached')}
             </Badge>
           )}
           {attached.image && (
             <Badge variant="secondary" className="gap-1">
-              <ImageIcon className="size-3" /> Image will be attached
+              <ImageIcon className="size-3" /> {t('Image will be attached')}
             </Badge>
           )}
         </div>

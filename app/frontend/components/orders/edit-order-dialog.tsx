@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/dialog'
 
 import type { Order, SupplierOption } from './types'
+import { t } from '@/lib/i18n'
 
 interface EditOrderDialogProps {
   open: boolean
@@ -55,19 +56,19 @@ export function EditOrderDialog({ open, onOpenChange, order, suppliers }: EditOr
       <DialogContent className="sm:max-w-md">
         <form onSubmit={submitEdit}>
           <DialogHeader>
-            <DialogTitle>Edit order</DialogTitle>
-            <DialogDescription>Update the supplier, reference, dates, and notes.</DialogDescription>
+            <DialogTitle>{t('Edit order')}</DialogTitle>
+            <DialogDescription>{t('Update the supplier, reference, dates, and notes.')}</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="edit-supplier">Supplier</Label>
+              <Label htmlFor="edit-supplier">{t('Supplier')}</Label>
               <Select
                 value={editForm.data.order.supplier_id}
                 onValueChange={(value) => editForm.setData('order', { ...editForm.data.order, supplier_id: value })}
               >
                 <SelectTrigger id="edit-supplier">
-                  <SelectValue placeholder="Select a supplier" />
+                  <SelectValue placeholder={t('Select a supplier')} />
                 </SelectTrigger>
                 <SelectContent>
                   {suppliers.map((supplier) => (
@@ -79,7 +80,7 @@ export function EditOrderDialog({ open, onOpenChange, order, suppliers }: EditOr
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="edit-reference">Reference</Label>
+              <Label htmlFor="edit-reference">{t('Reference')}</Label>
               <Input
                 id="edit-reference"
                 value={editForm.data.order.reference}
@@ -88,7 +89,7 @@ export function EditOrderDialog({ open, onOpenChange, order, suppliers }: EditOr
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
-                <Label htmlFor="edit-ordered">Ordered on</Label>
+                <Label htmlFor="edit-ordered">{t('Ordered on')}</Label>
                 <Input
                   id="edit-ordered"
                   type="date"
@@ -97,7 +98,7 @@ export function EditOrderDialog({ open, onOpenChange, order, suppliers }: EditOr
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="edit-expected">Expected</Label>
+                <Label htmlFor="edit-expected">{t('Expected')}</Label>
                 <Input
                   id="edit-expected"
                   type="date"
@@ -107,7 +108,7 @@ export function EditOrderDialog({ open, onOpenChange, order, suppliers }: EditOr
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="edit-notes">Notes</Label>
+              <Label htmlFor="edit-notes">{t('Notes')}</Label>
               <Textarea
                 id="edit-notes"
                 rows={3}
@@ -119,10 +120,10 @@ export function EditOrderDialog({ open, onOpenChange, order, suppliers }: EditOr
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
+              {t('Cancel')}
             </Button>
             <Button type="submit" disabled={editForm.processing}>
-              Save changes
+              {t('Save changes')}
             </Button>
           </DialogFooter>
         </form>

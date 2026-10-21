@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/dialog'
 
 import type { StorageLocationRecord } from './types'
+import { t, tx } from '@/lib/i18n'
 
 interface AddBagsDialogProps {
   box: StorageLocationRecord
@@ -46,17 +47,17 @@ export function AddBagsDialog({ box, bagCount, separator, open, onOpenChange }: 
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Add bags to {box.name}</DialogTitle>
+          <DialogTitle>{t('Add bags to {name}', { name: box.name })}</DialogTitle>
           <DialogDescription>
             {box.code
-              ? 'Each bag is numbered after the last one in the box; its code becomes the reference of the part stored in it.'
-              : 'Give this box a code (A, B, C…) first: bags are numbered from it.'}
+              ? t('Each bag is numbered after the last one in the box; its code becomes the reference of the part stored in it.')
+              : t('Give this box a code (A, B, C…) first: bags are numbered from it.')}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="flex flex-col gap-4">
           <Field>
             <FieldLabel>
-              <Label>Number of bags</Label>
+              <Label>{t('Number of bags')}</Label>
             </FieldLabel>
             <FieldContent>
               <Input
@@ -67,13 +68,15 @@ export function AddBagsDialog({ box, bagCount, separator, open, onOpenChange }: 
             </FieldContent>
             {box.code && n > 0 && (
               <p className="text-xs text-muted-foreground">
-                Creates <span className="font-mono">{n === 1 ? first : `${first} to ${last}`}</span>.
+                {n === 1
+                  ? tx('Creates {code}.', { code: <span className="font-mono">{first}</span> })
+                  : tx('Creates {first} to {last}.', { first: <span className="font-mono">{first}</span>, last: <span className="font-mono">{last}</span> })}
               </p>
             )}
           </Field>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-            <Button type="submit" disabled={processing || !box.code || n < 1 || n > 200}>Add bags</Button>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>{t('Cancel')}</Button>
+            <Button type="submit" disabled={processing || !box.code || n < 1 || n > 200}>{t('Add bags')}</Button>
           </DialogFooter>
         </form>
       </DialogContent>

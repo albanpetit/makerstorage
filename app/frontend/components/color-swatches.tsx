@@ -1,5 +1,6 @@
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { t } from '@/lib/i18n'
 
 // Preset colors offered for tags and categories. The leading `null` is "no
 // color"; every other value is a #RRGGBB hex the Tag and Category models accept.
@@ -31,7 +32,7 @@ export function ColorSwatches({ value, onChange }: ColorSwatchesProps) {
           variant="ghost"
           size="icon"
           onClick={() => onChange(preset.value)}
-          aria-label={preset.value ?? 'No color'}
+          aria-label={preset.value ?? t('No color')}
           aria-pressed={value === preset.value}
           className={cn(
             'size-6 rounded-full p-0 hover:bg-transparent dark:hover:bg-transparent',

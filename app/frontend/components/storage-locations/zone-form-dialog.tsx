@@ -23,6 +23,7 @@ import { StorageLocationSelect, type StorageLocationOption } from '@/components/
 
 import { LOCATION_TYPES, typeMeta } from './zone-meta'
 import type { ZoneFormData } from './types'
+import { t } from '@/lib/i18n'
 
 interface ZoneFormDialogProps {
   mode: 'new' | 'edit'
@@ -47,16 +48,16 @@ export function ZoneFormDialog({ mode, open, onOpenChange, form, onSubmit, zones
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{isNew ? 'New storage zone' : 'Edit zone'}</DialogTitle>
+          <DialogTitle>{isNew ? t('New storage zone') : t('Edit zone')}</DialogTitle>
         </DialogHeader>
         <form onSubmit={onSubmit} className="flex flex-col gap-4">
           <Field>
             <FieldLabel>
-              <Label>Zone name</Label>
+              <Label>{t('Zone name')}</Label>
             </FieldLabel>
             <FieldContent>
               <Input
-                placeholder={isNew ? 'e.g. Box B2-T06' : undefined}
+                placeholder={isNew ? t('e.g. Box B2-T06') : undefined}
                 value={data.name}
                 onChange={(e) => set({ name: e.target.value })}
               />
@@ -66,7 +67,7 @@ export function ZoneFormDialog({ mode, open, onOpenChange, form, onSubmit, zones
           <div className="grid grid-cols-2 gap-4">
             <Field>
               <FieldLabel>
-                <Label>Type</Label>
+                <Label>{t('Type')}</Label>
               </FieldLabel>
               <FieldContent>
                 <Select value={data.location_type} onValueChange={(value) => set({ location_type: value })}>
@@ -84,9 +85,9 @@ export function ZoneFormDialog({ mode, open, onOpenChange, form, onSubmit, zones
             <Field>
               <FieldLabel>
                 {isNew ? (
-                  <Label>Parent zone</Label>
+                  <Label>{t('Parent zone')}</Label>
                 ) : (
-                  <Label>Parent zone <span className="font-normal text-muted-foreground">(move)</span></Label>
+                  <Label>{t('Parent zone')} <span className="font-normal text-muted-foreground">{t('(move)')}</span></Label>
                 )}
               </FieldLabel>
               <FieldContent>
@@ -94,7 +95,7 @@ export function ZoneFormDialog({ mode, open, onOpenChange, form, onSubmit, zones
                   locations={zones}
                   value={data.parent_id}
                   onValueChange={(value) => set({ parent_id: value })}
-                  noneLabel="— Root (none) —"
+                  noneLabel={t('— Root (none) —')}
                   exclude={excludeIds}
                 />
               </FieldContent>
@@ -102,11 +103,11 @@ export function ZoneFormDialog({ mode, open, onOpenChange, form, onSubmit, zones
           </div>
           <Field>
             <FieldLabel>
-              <Label>Code <span className="font-normal text-muted-foreground">(optional)</span></Label>
+              <Label>{t('Code')} <span className="font-normal text-muted-foreground">{t('(optional)')}</span></Label>
             </FieldLabel>
             <FieldContent>
               <Input
-                placeholder={data.location_type === 'bag' ? 'From the box code and bag number' : isNew ? 'e.g. B2-T06' : undefined}
+                placeholder={data.location_type === 'bag' ? t('From the box code and bag number') : isNew ? t('e.g. B2-T06') : undefined}
                 value={data.location_type === 'bag' ? '' : data.code}
                 disabled={data.location_type === 'bag'}
                 onChange={(e) => set({ code: e.target.value })}
@@ -114,14 +115,14 @@ export function ZoneFormDialog({ mode, open, onOpenChange, form, onSubmit, zones
             </FieldContent>
             {data.location_type === 'bag' && (
               <p className="text-xs text-muted-foreground">
-                A bag goes inside a box with a code, and is numbered after the box’s last bag (A-1, A-2…).
+                {t('A bag goes inside a box with a code, and is numbered after the box’s last bag (A-1, A-2…).')}
               </p>
             )}
             {form.errors['storage_location.code'] && <FieldError>{form.errors['storage_location.code']}</FieldError>}
           </Field>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-            <Button type="submit" disabled={form.processing}>{isNew ? 'Create zone' : 'Save'}</Button>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>{t('Cancel')}</Button>
+            <Button type="submit" disabled={form.processing}>{isNew ? t('Create zone') : t('Save')}</Button>
           </DialogFooter>
         </form>
       </DialogContent>

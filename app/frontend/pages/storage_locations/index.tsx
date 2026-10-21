@@ -55,6 +55,7 @@ import { ZoneFormDialog } from '@/components/storage-locations/zone-form-dialog'
 import { AddBagsDialog } from '@/components/storage-locations/add-bags-dialog'
 import { ZoneHistory } from '@/components/storage-locations/zone-history'
 import { typeMeta } from '@/components/storage-locations/zone-meta'
+import { t, intlLocale, tx } from '@/lib/i18n'
 
 export default function StorageLocationsIndex({ storage_locations, part_storages, recent_movements, selected_zone_id, bag_separator }: StorageLocationsPageProps) {
   const { canWrite } = usePermissions()
@@ -263,24 +264,24 @@ export default function StorageLocationsIndex({ storage_locations, part_storages
   if (storage_locations.length === 0) {
     return (
       <AppLayout
-        header={<PageHeader title="Storage Zones" subtitle="Organize your locations hierarchically" />}
+        header={<PageHeader title={t('Storage Zones')} subtitle={t('Organize your locations hierarchically')} />}
       >
-        <Head title="Storage Zones" />
+        <Head title={t('Storage Zones')} />
         <FlashMessages />
         <div className="space-y-6">
           <Card>
             <CardContent className="flex flex-col items-center gap-3 py-10 text-center">
               <Archive className="size-8 text-muted-foreground" />
               <div>
-                <p className="font-medium">No storage zones yet</p>
+                <p className="font-medium">{t('No storage zones yet')}</p>
                 <p className="text-sm text-muted-foreground">
-                  {canWrite ? 'Create your first zone to start organizing your inventory.' : 'No storage zones have been created yet.'}
+                  {canWrite ? t('Create your first zone to start organizing your inventory.') : t('No storage zones have been created yet.')}
                 </p>
               </div>
               {canWrite && (
                 <Button onClick={() => openNewDialog(null)}>
                   <Plus className="size-4" />
-                  New Zone
+                  {t('New Zone')}
                 </Button>
               )}
             </CardContent>
@@ -320,29 +321,29 @@ export default function StorageLocationsIndex({ storage_locations, part_storages
 
   const stats = effectiveSelected
     ? [
-        { label: 'Direct sub-zones', value: String(selChildren.length) },
-        { label: 'References (total)', value: String(selAgg.refs) },
-        { label: 'Units (total)', value: selAgg.units.toLocaleString() },
-        { label: 'Depth', value: `L${path.length}` },
+        { label: t('Direct sub-zones'), value: String(selChildren.length) },
+        { label: t('References (total)'), value: String(selAgg.refs) },
+        { label: t('Units (total)'), value: selAgg.units.toLocaleString(intlLocale()) },
+        { label: t('Depth'), value: `L${path.length}` },
       ]
     : []
 
   return (
     <AppLayout>
-      <Head title="Storage Zones" />
+      <Head title={t('Storage Zones')} />
 
       <div className="-m-4 flex h-[100svh] flex-col">
         <div className="flex shrink-0 flex-wrap items-center gap-3 border-b bg-background px-4 py-3 sm:px-5">
           <SidebarTrigger className="-ml-1 md:hidden" />
           <div>
-            <h1 className="text-base font-semibold tracking-tight">Storage Zones</h1>
-            <p className="text-xs text-muted-foreground">Organize your locations hierarchically</p>
+            <h1 className="text-base font-semibold tracking-tight">{t('Storage Zones')}</h1>
+            <p className="text-xs text-muted-foreground">{t('Organize your locations hierarchically')}</p>
           </div>
           <div className="flex-1" />
           <div className="relative w-full sm:w-64">
             <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Search a zone…"
+              placeholder={t('Search a zone…')}
               className="pl-9"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
@@ -352,7 +353,7 @@ export default function StorageLocationsIndex({ storage_locations, part_storages
           {canWrite && (
             <Button size="sm" onClick={() => openNewDialog(effectiveSelected?.id)}>
               <Plus className="size-4" />
-              New Zone
+              {t('New Zone')}
             </Button>
           )}
         </div>
@@ -365,15 +366,15 @@ export default function StorageLocationsIndex({ storage_locations, part_storages
           {/* Tree explorer */}
           <div className={`${mobileDetail ? 'hidden' : 'flex'} w-full flex-col border-r bg-card lg:flex lg:w-72 lg:shrink-0`}>
             <div className="flex shrink-0 items-center justify-between border-b px-3 py-2.5">
-              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Tree</span>
+              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('Tree')}</span>
               <div className="flex gap-1">
-                <Button variant="outline" size="sm" className="h-7 text-xs" onClick={expandAll}>Expand</Button>
-                <Button variant="outline" size="sm" className="h-7 text-xs" onClick={collapseAll}>Collapse</Button>
+                <Button variant="outline" size="sm" className="h-7 text-xs" onClick={expandAll}>{t('Expand')}</Button>
+                <Button variant="outline" size="sm" className="h-7 text-xs" onClick={collapseAll}>{t('Collapse')}</Button>
               </div>
             </div>
             <div className="flex-1 overflow-y-auto p-2">
               {treeRows.length === 0 ? (
-                <p className="p-4 text-center text-sm text-muted-foreground">No zone matches.</p>
+                <p className="p-4 text-center text-sm text-muted-foreground">{t('No zone matches.')}</p>
               ) : (
                 treeRows.map((row) => {
                   const meta = typeMeta(row.location.location_type)
@@ -444,7 +445,7 @@ export default function StorageLocationsIndex({ storage_locations, part_storages
                   onDrop={(e) => { e.preventDefault(); if (dragId != null) moveZone(dragId, null); endDrag() }}
                   className={`mt-1 rounded-md border border-dashed px-2 py-2 text-center text-xs text-muted-foreground ${dropTargetId === 'root' ? 'border-primary bg-accent text-foreground' : ''}`}
                 >
-                  Drop here to move to top level
+                  {t('Drop here to move to top level')}
                 </div>
               )}
             </div>
@@ -460,7 +461,7 @@ export default function StorageLocationsIndex({ storage_locations, part_storages
                 className="sticky top-0 z-10 -mx-5 -mt-5 mb-1 flex h-auto w-[calc(100%+2.5rem)] justify-start gap-1.5 rounded-none border-b bg-background/95 px-5 py-3 backdrop-blur has-[>svg]:px-5 lg:hidden"
               >
                 <ChevronLeft className="size-4" />
-                Back to zones
+                {t('Back to zones')}
               </Button>
               <Breadcrumb>
                 <BreadcrumbList>
@@ -500,7 +501,7 @@ export default function StorageLocationsIndex({ storage_locations, part_storages
                       <Badge className={selMeta.className} variant="outline">{selMeta.label}</Badge>
                     </div>
                     <div className="mt-1.5 flex items-center gap-1.5 text-sm text-muted-foreground">
-                      <span>{parent ? `In ${parent.name}` : 'Root zone'}</span>
+                      <span>{parent ? `In ${parent.name}` : t('Root zone')}</span>
                       {effectiveSelected.code && (
                         <>
                           <span className="opacity-50">·</span>
@@ -512,18 +513,18 @@ export default function StorageLocationsIndex({ storage_locations, part_storages
                   <div className="flex shrink-0 gap-2 empty:hidden">
                     <Button variant="outline" size="sm" onClick={() => setLabelsOpen(true)}>
                       <Printer className="size-4" />
-                      Label
+                      {t('Label')}
                     </Button>
                     {canWrite && effectiveSelected.location_type === 'box' && (
                       <Button variant="outline" size="sm" onClick={() => setAddBagsOpen(true)}>
                         <ShoppingBag className="size-4" />
-                        Add bags
+                        {t('Add bags')}
                       </Button>
                     )}
                     {canWrite && (
                       <Button variant="outline" size="sm" onClick={openEditDialog}>
                         <Pencil className="size-4" />
-                        Edit
+                        {t('Edit')}
                       </Button>
                     )}
                     {canWrite && (
@@ -590,15 +591,17 @@ export default function StorageLocationsIndex({ storage_locations, part_storages
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete this zone?</AlertDialogTitle>
+            <AlertDialogTitle>{t('Delete this zone?')}</AlertDialogTitle>
             <AlertDialogDescription>
-              <span className="font-semibold text-foreground">{effectiveSelected?.name}</span> will be removed. A zone containing sub-zones cannot be deleted.
+              {tx('{name} will be removed. A zone containing sub-zones cannot be deleted.', {
+                name: <span className="font-semibold text-foreground">{effectiveSelected?.name}</span>,
+              })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t('Cancel')}</AlertDialogCancel>
             <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-white hover:bg-destructive/90">
-              Delete
+              {t('Delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -622,12 +625,12 @@ export default function StorageLocationsIndex({ storage_locations, part_storages
         onOpenChange={setLabelsOpen}
         count={zoneLabels.length}
         loadItems={() => Promise.resolve(zoneLabels)}
-        title={`Print labels for ${effectiveSelected?.name ?? 'zone'}`}
-        description="Scanning a zone label opens the scanner on that zone and lists what it holds."
+        title={effectiveSelected ? t('Print labels for {name}', { name: effectiveSelected.name }) : t('Print zone labels')}
+        description={t('Scanning a zone label opens the scanner on that zone and lists what it holds.')}
       >
         {effectiveSelected && (childrenByParent.get(effectiveSelected.id) || []).length > 0 && (
           <div className="flex items-center justify-between gap-3">
-            <Label htmlFor="label-sub-zones">Include all sub-zones</Label>
+            <Label htmlFor="label-sub-zones">{t('Include all sub-zones')}</Label>
             <Switch id="label-sub-zones" checked={labelSubZones} onCheckedChange={setLabelSubZones} />
           </div>
         )}

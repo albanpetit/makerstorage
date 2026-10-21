@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 
 import type { InventoryForm } from './types'
+import { t } from '@/lib/i18n'
 
 // Organization-wide stock defaults.
 export function InventorySection({ form }: { form: InventoryForm }) {
@@ -18,21 +19,21 @@ export function InventorySection({ form }: { form: InventoryForm }) {
   return (
     <form onSubmit={submitInventory} className="space-y-4">
       <div>
-        <h2 className="text-lg font-semibold">Inventory</h2>
+        <h2 className="text-lg font-semibold">{t('Inventory')}</h2>
         <p className="max-w-xl text-sm text-muted-foreground">
-          Default behavior applied across the organization's stock.
+          {t('Default behavior applied across the organization\'s stock.')}
         </p>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Stock defaults</CardTitle>
+          <CardTitle>{t('Stock defaults')}</CardTitle>
         </CardHeader>
         <CardContent className="divide-y">
           <div className="flex items-center justify-between gap-4 py-3 first:pt-0">
             <div>
-              <div className="text-sm font-medium">Default low-stock threshold</div>
-              <div className="text-xs text-muted-foreground">Applied to new components unless overridden.</div>
+              <div className="text-sm font-medium">{t('Default low-stock threshold')}</div>
+              <div className="text-xs text-muted-foreground">{t('Applied to new components unless overridden.')}</div>
             </div>
             <Input
               type="number"
@@ -47,8 +48,8 @@ export function InventorySection({ form }: { form: InventoryForm }) {
           </div>
           <div className="flex items-center justify-between gap-4 py-3">
             <div>
-              <div className="text-sm font-medium">Allow negative stock</div>
-              <div className="text-xs text-muted-foreground">Permit stock movements that exceed the available quantity.</div>
+              <div className="text-sm font-medium">{t('Allow negative stock')}</div>
+              <div className="text-xs text-muted-foreground">{t('Permit stock movements that exceed the available quantity.')}</div>
             </div>
             <Switch
               checked={form.data.organization.allow_negative_stock}
@@ -57,8 +58,8 @@ export function InventorySection({ form }: { form: InventoryForm }) {
           </div>
           <div className="flex items-center justify-between gap-4 py-3 last:pb-0">
             <div>
-              <div className="text-sm font-medium">Reserve stock for projects</div>
-              <div className="text-xs text-muted-foreground">Confirmed projects hold their BOM quantities until built, so other projects only count what's left.</div>
+              <div className="text-sm font-medium">{t('Reserve stock for projects')}</div>
+              <div className="text-xs text-muted-foreground">{t('Confirmed projects hold their BOM quantities until built, so other projects only count what\'s left.')}</div>
             </div>
             <Switch
               checked={form.data.organization.stock_reservations_enabled}
@@ -67,12 +68,12 @@ export function InventorySection({ form }: { form: InventoryForm }) {
           </div>
         </CardContent>
         <CardFooter className="justify-end border-t">
-          <Button type="submit" disabled={form.processing}>Save</Button>
+          <Button type="submit" disabled={form.processing}>{t('Save')}</Button>
         </CardFooter>
       </Card>
       <div className="flex items-center gap-2 text-xs text-muted-foreground">
         <Info className="size-3.5 shrink-0" />
-        Per-component thresholds set on individual parts always take priority over this default.
+        {t('Per-component thresholds set on individual parts always take priority over this default.')}
       </div>
     </form>
   )

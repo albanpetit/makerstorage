@@ -95,6 +95,14 @@ module Makerstorage
     # config.time_zone = "Central Time (US & Canada)"
     # config.eager_load_paths << Rails.root.join("extras")
 
+    # UI languages (see ApplicationController#switch_locale): English by
+    # default, French for users who pick it or whose browser asks for it.
+    # Rails/Devise strings come from the rails-i18n and devise-i18n gems, the
+    # app's own from config/locales, the React UI's from app/frontend/locales.
+    config.i18n.available_locales = %i[en fr]
+    config.i18n.default_locale = :en
+    config.i18n.load_path += Dir[Rails.root.join("config/locales/**/*.yml")]
+
     # Email verification (Devise :confirmable, see User). On, signup still signs
     # in straight away, but answering an invitation needs a confirmed address and
     # a new sign-in email only applies once confirmed. Production turns it off

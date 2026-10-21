@@ -46,6 +46,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { ORDER_STATUS_META, formatMoney, formatDate } from './helpers'
+import { t } from '@/lib/i18n'
 
 interface OrderSummary {
   id: number
@@ -78,8 +79,8 @@ export default function OrdersIndex({ orders, suppliers, mouser_order_enabled, d
   const [deleteId, setDeleteId] = useState<number | null>(null)
 
   const importProviders = [
-    ...(mouser_order_enabled ? [{ value: 'mouser', label: 'Mouser' }] : []),
-    ...(digikey_order_enabled ? [{ value: 'digikey', label: 'DigiKey' }] : []),
+    ...(mouser_order_enabled ? [{ value: 'mouser', label: t('Mouser') }] : []),
+    ...(digikey_order_enabled ? [{ value: 'digikey', label: t('DigiKey') }] : []),
   ]
 
   const form = useForm({ order: { supplier_id: '', expected_delivery: '' } })
@@ -111,18 +112,18 @@ export default function OrdersIndex({ orders, suppliers, mouser_order_enabled, d
   return (
     <AppLayout
       header={
-        <PageHeader title="Orders" subtitle="Create supplier purchase orders and track them to delivery">
+        <PageHeader title={t('Orders')} subtitle={t('Create supplier purchase orders and track them to delivery')}>
           {canWrite ? (
             <div className="flex gap-2">
               {importProviders.length > 0 && (
                 <Button size="sm" variant="outline" onClick={() => setImportOpen(true)}>
                   <Download className="size-4" />
-                  Import order
+                  {t('Import order')}
                 </Button>
               )}
               <Button size="sm" onClick={openDialog} disabled={suppliers.length === 0}>
                 <Plus className="size-4" />
-                New order
+                {t('New order')}
               </Button>
             </div>
           ) : (
@@ -131,7 +132,7 @@ export default function OrdersIndex({ orders, suppliers, mouser_order_enabled, d
         </PageHeader>
       }
     >
-      <Head title="Orders" />
+      <Head title={t('Orders')} />
 
       <div className="space-y-6">
         <FlashMessages />
@@ -142,9 +143,9 @@ export default function OrdersIndex({ orders, suppliers, mouser_order_enabled, d
               <div className="flex size-11 items-center justify-center rounded-xl bg-muted text-muted-foreground">
                 <ShoppingCart className="size-[22px]" />
               </div>
-              <p className="font-semibold">No orders yet</p>
+              <p className="font-semibold">{t('No orders yet')}</p>
               <p className="max-w-sm text-sm text-muted-foreground">
-                Create an order for a supplier, then add components from your inventory, a catalog search, or a project BOM.
+                {t('Create an order for a supplier, then add components from your inventory, a catalog search, or a project BOM.')}
               </p>
             </CardContent>
           </Card>
@@ -153,12 +154,12 @@ export default function OrdersIndex({ orders, suppliers, mouser_order_enabled, d
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Reference</TableHead>
-                  <TableHead>Supplier</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Lines</TableHead>
-                  <TableHead className="text-right">Total</TableHead>
-                  <TableHead>Ordered</TableHead>
+                  <TableHead>{t('Reference')}</TableHead>
+                  <TableHead>{t('Supplier')}</TableHead>
+                  <TableHead>{t('Status')}</TableHead>
+                  <TableHead className="text-right">{t('Lines')}</TableHead>
+                  <TableHead className="text-right">{t('Total')}</TableHead>
+                  <TableHead>{t('Ordered')}</TableHead>
                   <TableHead className="w-10" />
                 </TableRow>
               </TableHeader>
@@ -186,7 +187,7 @@ export default function OrdersIndex({ orders, suppliers, mouser_order_enabled, d
                           <Button
                             variant="ghost"
                             size="icon-sm"
-                            aria-label="Delete order"
+                            aria-label={t('Delete order')}
                             onClick={(e) => {
                               e.stopPropagation()
                               setDeleteId(order.id)
@@ -210,21 +211,21 @@ export default function OrdersIndex({ orders, suppliers, mouser_order_enabled, d
         <DialogContent className="sm:max-w-md">
           <form onSubmit={submit}>
             <DialogHeader>
-              <DialogTitle>New order</DialogTitle>
+              <DialogTitle>{t('New order')}</DialogTitle>
               <DialogDescription>
-                Pick a supplier to start a draft order. A reference is generated automatically; you can add components next.
+                {t('Pick a supplier to start a draft order. A reference is generated automatically; you can add components next.')}
               </DialogDescription>
             </DialogHeader>
 
             <div className="space-y-4 py-4">
               <div className="space-y-2">
-                <Label htmlFor="order-supplier">Supplier</Label>
+                <Label htmlFor="order-supplier">{t('Supplier')}</Label>
                 <Select
                   value={form.data.order.supplier_id}
                   onValueChange={(value) => form.setData('order', { ...form.data.order, supplier_id: value })}
                 >
                   <SelectTrigger id="order-supplier" aria-invalid={!!form.errors['order.supplier_id']}>
-                    <SelectValue placeholder="Select a supplier" />
+                    <SelectValue placeholder={t('Select a supplier')} />
                   </SelectTrigger>
                   <SelectContent>
                     {suppliers.map((supplier) => (
@@ -237,23 +238,23 @@ export default function OrdersIndex({ orders, suppliers, mouser_order_enabled, d
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="order-expected">Expected delivery</Label>
+                <Label htmlFor="order-expected">{t('Expected delivery')}</Label>
                 <Input
                   id="order-expected"
                   type="date"
                   value={form.data.order.expected_delivery}
                   onChange={(e) => form.setData('order', { ...form.data.order, expected_delivery: e.target.value })}
                 />
-                <p className="text-xs text-muted-foreground">Optional.</p>
+                <p className="text-xs text-muted-foreground">{t('Optional.')}</p>
               </div>
             </div>
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-                Cancel
+                {t('Cancel')}
               </Button>
               <Button type="submit" disabled={form.processing || !form.data.order.supplier_id}>
-                Create order
+                {t('Create order')}
               </Button>
             </DialogFooter>
           </form>
@@ -265,16 +266,16 @@ export default function OrdersIndex({ orders, suppliers, mouser_order_enabled, d
         <DialogContent className="sm:max-w-md">
           <form onSubmit={submitImport}>
             <DialogHeader>
-              <DialogTitle>Import a supplier order</DialogTitle>
+              <DialogTitle>{t('Import a supplier order')}</DialogTitle>
               <DialogDescription>
-                Pull a placed order's lines into a new order. Parts are matched to your inventory and created when missing.
+                {t('Pull a placed order\'s lines into a new order. Parts are matched to your inventory and created when missing.')}
               </DialogDescription>
             </DialogHeader>
 
             <div className="space-y-4 py-4">
               {importProviders.length > 1 && (
                 <div className="space-y-2">
-                  <Label>Supplier</Label>
+                  <Label>{t('Supplier')}</Label>
                   <Select value={importForm.data.provider} onValueChange={(v) => importForm.setData('provider', v)}>
                     <SelectTrigger>
                       <SelectValue />
@@ -290,7 +291,7 @@ export default function OrdersIndex({ orders, suppliers, mouser_order_enabled, d
 
               <div className="space-y-2">
                 <Label htmlFor="import-order-number">
-                  {importForm.data.provider === 'digikey' ? 'Sales order number' : 'Web order number'}
+                  {importForm.data.provider === 'digikey' ? t('Sales order number') : t('Web order number')}
                 </Label>
                 <Input
                   id="import-order-number"
@@ -304,10 +305,10 @@ export default function OrdersIndex({ orders, suppliers, mouser_order_enabled, d
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setImportOpen(false)}>
-                Cancel
+                {t('Cancel')}
               </Button>
               <Button type="submit" disabled={importForm.processing || !importForm.data.order_number.trim()}>
-                Import
+                {t('Import')}
               </Button>
             </DialogFooter>
           </form>
@@ -318,20 +319,20 @@ export default function OrdersIndex({ orders, suppliers, mouser_order_enabled, d
       <AlertDialog open={deleteId !== null} onOpenChange={(o) => !o && setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete this order?</AlertDialogTitle>
+            <AlertDialogTitle>{t('Delete this order?')}</AlertDialogTitle>
             <AlertDialogDescription>
-              This removes the order and its lines. Stock movements already recorded on receipt are not affected.
+              {t('This removes the order and its lines. Stock movements already recorded on receipt are not affected.')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t('Cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
                 if (deleteId !== null) router.delete(`/orders/${deleteId}`, { preserveScroll: true })
                 setDeleteId(null)
               }}
             >
-              Delete
+              {t('Delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

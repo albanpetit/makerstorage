@@ -6,6 +6,7 @@
 // keeps only its `code`, whatever host printed it).
 
 import { html, printDocument } from '@/lib/print-document'
+import { t } from '@/lib/i18n'
 
 export interface LabelItem {
   // What the scanner looks up (see labelCodeForPart / labelCodeForZone).
@@ -25,7 +26,7 @@ interface LabelFormat {
 
 export const LABEL_FORMATS = {
   'a4-3x8': {
-    name: 'A4 sheet · 24 labels (70 × 37 mm)',
+    get name() { return t('A4 sheet · 24 labels (70 × 37 mm)') },
     width: 70,
     height: 37,
     sheet: { cols: 3, rows: 8, pageWidth: 210, pageHeight: 297 },
@@ -126,5 +127,5 @@ export async function printLabels(items: LabelItem[], formatId: LabelFormatId, t
     ${layout}
   </style>`
 
-  printDocument('Labels', html`<div class="sheet">${labels}</div>`, '', target, head)
+  printDocument(t('Labels'), html`<div class="sheet">${labels}</div>`, '', target, head)
 }

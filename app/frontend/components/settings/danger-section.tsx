@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/alert-dialog'
 
 import type { MergeTarget, OrganizationSettings } from './types'
+import { t, tx } from '@/lib/i18n'
 
 // Owner-only actions on the whole organization (reset, merge, delete), each
 // confirmed by typing the organization's name.
@@ -30,38 +31,34 @@ export function DangerSection({
   mergeTargets: MergeTarget[]
 }) {
   const [targetId, setTargetId] = useState('')
-  const target = mergeTargets.find((t) => String(t.id) === targetId)
+  const target = mergeTargets.find((org) => String(org.id) === targetId)
+  const orgName = <span className="font-medium text-foreground">{organization.name}</span>
 
   return (
     <div className="space-y-4">
       <div>
-        <h2 className="text-lg font-semibold">Danger zone</h2>
+        <h2 className="text-lg font-semibold">{t('Danger zone')}</h2>
         <p className="max-w-xl text-sm text-muted-foreground">
-          Irreversible actions that affect the entire organization. Download a backup first if you may want the data
-          back.
+          {t('Irreversible actions that affect the entire organization. Download a backup first if you may want the data back.')}
         </p>
       </div>
 
       <Card className="border-destructive/40">
         <CardHeader>
-          <CardTitle>Reset organization</CardTitle>
+          <CardTitle>{t('Reset organization')}</CardTitle>
           <CardDescription>
-            Deletes every part, zone, category, footprint, tag, supplier, stock movement, order and project of{' '}
-            <span className="font-medium text-foreground">{organization.name}</span>. Settings, integrations and
-            members are kept, and IPN numbering starts over.
+            {tx('Deletes every part, zone, category, footprint, tag, supplier, stock movement, order and project of {name}. Settings, integrations and members are kept, and IPN numbering starts over.', { name: orgName })}
           </CardDescription>
         </CardHeader>
         <CardFooter className="justify-end gap-2 border-t border-destructive/40">
           <BackupButton />
           <ConfirmByNameDialog
             organization={organization}
-            trigger={<><Eraser className="size-4" /> Reset organization</>}
-            title="Reset this organization?"
+            trigger={<><Eraser className="size-4" /> {t('Reset organization')}</>}
+            title={t('Reset this organization?')}
             description={
               <>
-                This permanently removes all inventory data of{' '}
-                <span className="font-medium text-foreground">{organization.name}</span>. To confirm, type the
-                organization name below.
+                {tx('This permanently removes all inventory data of {name}. To confirm, type the organization name below.', { name: orgName })}
               </>
             }
             onConfirm={(confirmation) => router.post(`/organizations/${organization.id}/reset`, { confirmation })}
@@ -72,22 +69,19 @@ export function DangerSection({
       {mergeTargets.length > 0 && (
         <Card className="border-destructive/40">
           <CardHeader>
-            <CardTitle>Merge into another organization</CardTitle>
+            <CardTitle>{t('Merge into another organization')}</CardTitle>
             <CardDescription>
-              Moves everything in <span className="font-medium text-foreground">{organization.name}</span> into an
-              organization you own, then deletes this one. Categories, footprints, tags and suppliers with the same
-              name are combined, parts with the same MPN, SKU or barcode become one part with the stock of both, and
-              codes or IPNs already used there are renumbered. Members join with their role (owners as admins).
+              {tx('Moves everything in {name} into an organization you own, then deletes this one. Categories, footprints, tags and suppliers with the same name are combined, parts with the same MPN, SKU or barcode become one part with the stock of both, and codes or IPNs already used there are renumbered. Members join with their role (owners as admins).', { name: orgName })}
             </CardDescription>
           </CardHeader>
           <CardFooter className="flex-wrap justify-end gap-2 border-t border-destructive/40">
             <Select value={targetId} onValueChange={setTargetId}>
-              <SelectTrigger className="w-56" aria-label="Organization to merge into">
-                <SelectValue placeholder="Merge into…" />
+              <SelectTrigger className="w-56" aria-label={t('Organization to merge into')}>
+                <SelectValue placeholder={t('Merge into…')} />
               </SelectTrigger>
               <SelectContent>
-                {mergeTargets.map((t) => (
-                  <SelectItem key={t.id} value={String(t.id)}>{t.name}</SelectItem>
+                {mergeTargets.map((org) => (
+                  <SelectItem key={org.id} value={String(org.id)}>{org.name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -95,14 +89,14 @@ export function DangerSection({
             <ConfirmByNameDialog
               organization={organization}
               disabled={!target}
-              trigger={<><GitMerge className="size-4" /> Merge</>}
-              title={`Merge into ${target?.name ?? ''}?`}
+              trigger={<><GitMerge className="size-4" /> {t('Merge')}</>}
+              title={t('Merge into {name}?', { name: target?.name ?? '' })}
               description={
                 <>
-                  All data of <span className="font-medium text-foreground">{organization.name}</span> moves into{' '}
-                  <span className="font-medium text-foreground">{target?.name}</span>, and{' '}
-                  <span className="font-medium text-foreground">{organization.name}</span> is deleted. To confirm,
-                  type its name below.
+                  {tx('All data of {name} moves into {target}, and {name} is deleted. To confirm, type its name below.', {
+                    name: orgName,
+                    target: <span className="font-medium text-foreground">{target?.name}</span>,
+                  })}
                 </>
               }
               onConfirm={(confirmation) =>
@@ -115,22 +109,19 @@ export function DangerSection({
 
       <Card className="border-destructive/40">
         <CardHeader>
-          <CardTitle>Delete organization</CardTitle>
+          <CardTitle>{t('Delete organization')}</CardTitle>
           <CardDescription>
-            Permanently deletes <span className="font-medium text-foreground">{organization.name}</span> and all of its
-            parts, categories, stock movements, suppliers and members. This cannot be undone.
+            {tx('Permanently deletes {name} and all of its parts, categories, stock movements, suppliers and members. This cannot be undone.', { name: orgName })}
           </CardDescription>
         </CardHeader>
         <CardFooter className="justify-end border-t border-destructive/40">
           <ConfirmByNameDialog
             organization={organization}
-            trigger={<><Trash2 className="size-4" /> Delete organization</>}
-            title="Delete this organization?"
+            trigger={<><Trash2 className="size-4" /> {t('Delete organization')}</>}
+            title={t('Delete this organization?')}
             description={
               <>
-                This permanently removes all data belonging to{' '}
-                <span className="font-medium text-foreground">{organization.name}</span>. To confirm, type the
-                organization name below.
+                {tx('This permanently removes all data belonging to {name}. To confirm, type the organization name below.', { name: orgName })}
               </>
             }
             onConfirm={() => router.delete(`/organizations/${organization.id}`)}
@@ -139,7 +130,7 @@ export function DangerSection({
       </Card>
       <div className="flex items-center gap-2 text-xs text-muted-foreground">
         <TriangleAlert className="size-3.5 shrink-0" />
-        You'll be switched to another organization after a merge or deletion.
+        {t('You\'ll be switched to another organization after a merge or deletion.')}
       </div>
     </div>
   )
@@ -149,7 +140,7 @@ function BackupButton() {
   return (
     <Button asChild variant="outline">
       <a href="/backup/export" download>
-        <Download className="size-4" /> Download backup
+        <Download className="size-4" /> {t('Download backup')}
       </a>
     </Button>
   )
@@ -190,11 +181,11 @@ function ConfirmByNameDialog({
           value={confirmation}
           onChange={(e) => setConfirmation(e.target.value)}
           placeholder={organization.name}
-          aria-label="Organization name"
+          aria-label={t('Organization name')}
           autoFocus
         />
         <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogCancel>{t('Cancel')}</AlertDialogCancel>
           <AlertDialogAction
             disabled={confirmation.trim() !== organization.name.trim()}
             className="bg-destructive text-white hover:bg-destructive/90"

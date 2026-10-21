@@ -18,6 +18,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { t, intlLocale } from '@/lib/i18n'
 
 interface Stats {
   references_count: number
@@ -71,46 +72,46 @@ const CURRENCY_SYMBOLS: Record<string, string> = {
 
 function formatMoney(value: number, currency: string) {
   const symbol = CURRENCY_SYMBOLS[currency] || currency
-  return `${Math.round(value).toLocaleString()} ${symbol}`
+  return `${Math.round(value).toLocaleString(intlLocale())} ${symbol}`
 }
 
 const MOVEMENT_META: Record<RecentMovement['movement_type'], { label: string; className: string }> = {
-  in: { label: 'In', className: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400' },
-  out: { label: 'Out', className: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400' },
-  adjustment: { label: 'Adjustment', className: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400' },
+  in: { get label() { return t('In') }, className: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400' },
+  out: { get label() { return t('Out') }, className: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400' },
+  adjustment: { get label() { return t('Adjustment') }, className: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400' },
 }
 
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString(undefined, { day: '2-digit', month: '2-digit', year: 'numeric' })
+  return new Date(iso).toLocaleDateString(intlLocale(), { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
 export default function Dashboard({ stats, category_breakdown, low_stock_parts, recent_movements }: DashboardProps) {
   const { canWrite } = usePermissions()
   const [detailPartId, setDetailPartId] = useState<number | null>(null)
   const statCards = [
-    { label: 'References', value: stats.references_count.toLocaleString(), icon: Package },
-    { label: 'Units in stock', value: stats.total_units.toLocaleString(), icon: Boxes },
-    { label: 'Stock value', value: formatMoney(stats.stock_value, stats.currency), icon: Coins },
-    { label: 'Low stock alerts', value: stats.alerts_count.toLocaleString(), icon: AlertTriangle, alert: stats.alerts_count > 0 },
+    { label: t('References'), value: stats.references_count.toLocaleString(intlLocale()), icon: Package },
+    { label: t('Units in stock'), value: stats.total_units.toLocaleString(intlLocale()), icon: Boxes },
+    { label: t('Stock value'), value: formatMoney(stats.stock_value, stats.currency), icon: Coins },
+    { label: t('Low stock alerts'), value: stats.alerts_count.toLocaleString(intlLocale()), icon: AlertTriangle, alert: stats.alerts_count > 0 },
   ]
 
   return (
     <AppLayout
       header={
-        <PageHeader title="Dashboard" subtitle="Overview of your inventory">
+        <PageHeader title={t('Dashboard')} subtitle={t('Overview of your inventory')}>
           <GlobalSearch />
           {canWrite && (
             <Button size="sm" asChild>
               <Link href="/parts?new=1">
                 <Plus className="size-4" />
-                New component
+                {t('New component')}
               </Link>
             </Button>
           )}
         </PageHeader>
       }
     >
-      <Head title="Dashboard" />
+      <Head title={t('Dashboard')} />
 
       <div className="space-y-6">
         {/* Stat cards */}
@@ -133,11 +134,11 @@ export default function Dashboard({ stats, category_breakdown, low_stock_parts, 
           <Card className="gap-0 py-0">
             <CardHeader className="flex flex-row items-center justify-between border-b py-4">
               <div>
-                <CardTitle>Low stock alerts</CardTitle>
-                <p className="text-xs text-muted-foreground">References under their minimum threshold</p>
+                <CardTitle>{t('Low stock alerts')}</CardTitle>
+                <p className="text-xs text-muted-foreground">{t('References under their minimum threshold')}</p>
               </div>
               <Link href="/alerts" className="text-sm font-medium text-muted-foreground hover:text-foreground">
-                See all →
+                {t('See all →')}
               </Link>
             </CardHeader>
             <CardContent className="p-0">
@@ -145,10 +146,10 @@ export default function Dashboard({ stats, category_breakdown, low_stock_parts, 
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Reference</TableHead>
-                      <TableHead>Location</TableHead>
-                      <TableHead className="text-right">Stock</TableHead>
-                      <TableHead className="text-right">Threshold</TableHead>
+                      <TableHead>{t('Reference')}</TableHead>
+                      <TableHead>{t('Location')}</TableHead>
+                      <TableHead className="text-right">{t('Stock')}</TableHead>
+                      <TableHead className="text-right">{t('Threshold')}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -179,7 +180,7 @@ export default function Dashboard({ stats, category_breakdown, low_stock_parts, 
                   </TableBody>
                 </Table>
               ) : (
-                <p className="p-6 text-sm text-muted-foreground">Nothing below threshold.</p>
+                <p className="p-6 text-sm text-muted-foreground">{t('Nothing below threshold.')}</p>
               )}
             </CardContent>
           </Card>
@@ -187,7 +188,7 @@ export default function Dashboard({ stats, category_breakdown, low_stock_parts, 
           {/* Category breakdown */}
           <Card>
             <CardHeader>
-              <CardTitle>Breakdown by category</CardTitle>
+              <CardTitle>{t('Breakdown by category')}</CardTitle>
             </CardHeader>
             <CardContent>
               {category_breakdown.length > 0 ? (
@@ -208,7 +209,7 @@ export default function Dashboard({ stats, category_breakdown, low_stock_parts, 
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground">No parts yet.</p>
+                <p className="text-sm text-muted-foreground">{t('No parts yet.')}</p>
               )}
             </CardContent>
           </Card>
@@ -217,9 +218,9 @@ export default function Dashboard({ stats, category_breakdown, low_stock_parts, 
         {/* Recent movements */}
         <Card className="gap-0 py-0">
           <CardHeader className="flex flex-row items-center justify-between border-b py-4">
-            <CardTitle>Recent movements</CardTitle>
+            <CardTitle>{t('Recent movements')}</CardTitle>
             <Link href="/stock_movements" className="text-sm font-medium text-muted-foreground hover:text-foreground">
-              See all →
+              {t('See all →')}
             </Link>
           </CardHeader>
           <CardContent className="p-0">
@@ -227,11 +228,11 @@ export default function Dashboard({ stats, category_breakdown, low_stock_parts, 
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Reference</TableHead>
-                    <TableHead>Reason</TableHead>
-                    <TableHead className="text-right">Qty</TableHead>
+                    <TableHead>{t('Date')}</TableHead>
+                    <TableHead>{t('Type')}</TableHead>
+                    <TableHead>{t('Reference')}</TableHead>
+                    <TableHead>{t('Reason')}</TableHead>
+                    <TableHead className="text-right">{t('Qty')}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -267,7 +268,7 @@ export default function Dashboard({ stats, category_breakdown, low_stock_parts, 
                 </TableBody>
               </Table>
             ) : (
-              <p className="p-6 text-sm text-muted-foreground">No stock movements yet.</p>
+              <p className="p-6 text-sm text-muted-foreground">{t('No stock movements yet.')}</p>
             )}
           </CardContent>
         </Card>
@@ -277,11 +278,11 @@ export default function Dashboard({ stats, category_breakdown, low_stock_parts, 
             <CardContent className="flex flex-col items-center gap-3 py-10 text-center">
               <Package className="size-8 text-muted-foreground" />
               <div>
-                <p className="font-medium">No parts yet</p>
-                <p className="text-sm text-muted-foreground">Add your first part to start tracking inventory.</p>
+                <p className="font-medium">{t('No parts yet')}</p>
+                <p className="text-sm text-muted-foreground">{t('Add your first part to start tracking inventory.')}</p>
               </div>
               <Link href="/parts?new=1" className="text-sm font-medium underline underline-offset-4">
-                Add a part
+                {t('Add a part')}
               </Link>
             </CardContent>
           </Card>

@@ -24,6 +24,7 @@ import {
 import { SupplierLookup, type LookupResult } from '@/components/supplier-lookup'
 
 import type { CategoryOption, Order, PartOption } from './types'
+import { t } from '@/lib/i18n'
 
 interface AddLineDialogProps {
   open: boolean
@@ -100,9 +101,9 @@ export function AddLineDialog({ open, onOpenChange, order, parts, categories, ca
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Add component</DialogTitle>
+          <DialogTitle>{t('Add component')}</DialogTitle>
           <DialogDescription>
-            Pick a part from your inventory, or search a supplier catalog to add a new one.
+            {t('Pick a part from your inventory, or search a supplier catalog to add a new one.')}
           </DialogDescription>
         </DialogHeader>
 
@@ -114,7 +115,7 @@ export function AddLineDialog({ open, onOpenChange, order, parts, categories, ca
               variant={addMode === 'inventory' ? 'default' : 'ghost'}
               onClick={() => setAddMode('inventory')}
             >
-              From inventory
+              {t('From inventory')}
             </Button>
             <Button
               type="button"
@@ -122,7 +123,7 @@ export function AddLineDialog({ open, onOpenChange, order, parts, categories, ca
               variant={addMode === 'catalog' ? 'default' : 'ghost'}
               onClick={() => setAddMode('catalog')}
             >
-              Search catalog
+              {t('Search catalog')}
             </Button>
           </div>
         )}
@@ -131,19 +132,19 @@ export function AddLineDialog({ open, onOpenChange, order, parts, categories, ca
           <form onSubmit={submitAdd}>
             <div className="space-y-4 py-4">
               <div className="space-y-2">
-                <Label>Part</Label>
+                <Label>{t('Part')}</Label>
                 <Combobox
                   options={partOptions}
                   value={addForm.data.order_line.part_id}
                   onValueChange={(value) => addForm.setData('order_line', { ...addForm.data.order_line, part_id: value })}
-                  placeholder="Select a part"
-                  searchPlaceholder="Search parts…"
+                  placeholder={t('Select a part')}
+                  searchPlaceholder={t('Search parts…')}
                   className="w-full"
                 />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
-                  <Label htmlFor="add-qty">Quantity</Label>
+                  <Label htmlFor="add-qty">{t('Quantity')}</Label>
                   <Input
                     id="add-qty"
                     type="number"
@@ -153,27 +154,27 @@ export function AddLineDialog({ open, onOpenChange, order, parts, categories, ca
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="add-price">Unit price</Label>
+                  <Label htmlFor="add-price">{t('Unit price')}</Label>
                   <Input
                     id="add-price"
                     type="number"
                     min={0}
                     step="0.01"
-                    placeholder="Auto"
+                    placeholder={t('Auto')}
                     value={addForm.data.order_line.unit_price}
                     onChange={(e) => addForm.setData('order_line', { ...addForm.data.order_line, unit_price: e.target.value })}
                   />
                 </div>
               </div>
-              <p className="text-xs text-muted-foreground">Leave the price blank to use the supplier or part price.</p>
+              <p className="text-xs text-muted-foreground">{t('Leave the price blank to use the supplier or part price.')}</p>
             </div>
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-                Cancel
+                {t('Cancel')}
               </Button>
               <Button type="submit" disabled={addForm.processing || !addForm.data.order_line.part_id}>
-                Add to order
+                {t('Add to order')}
               </Button>
             </DialogFooter>
           </form>
@@ -195,7 +196,7 @@ export function AddLineDialog({ open, onOpenChange, order, parts, categories, ca
                         className="ml-auto h-7"
                         onClick={() => setApplied(null)}
                       >
-                        Change
+                        {t('Change')}
                       </Button>
                     </div>
                     {applied.description && (
@@ -204,10 +205,10 @@ export function AddLineDialog({ open, onOpenChange, order, parts, categories, ca
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Category</Label>
+                    <Label>{t('Category')}</Label>
                     <Select value={catalogCategory} onValueChange={setCatalogCategory}>
                       <SelectTrigger>
-                        <SelectValue placeholder="Select a category" />
+                        <SelectValue placeholder={t('Select a category')} />
                       </SelectTrigger>
                       <SelectContent>
                         {categories.map((c) => (
@@ -215,11 +216,11 @@ export function AddLineDialog({ open, onOpenChange, order, parts, categories, ca
                         ))}
                       </SelectContent>
                     </Select>
-                    <p className="text-xs text-muted-foreground">Required — the new part is created in your inventory.</p>
+                    <p className="text-xs text-muted-foreground">{t('Required — the new part is created in your inventory.')}</p>
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="catalog-qty">Quantity</Label>
+                    <Label htmlFor="catalog-qty">{t('Quantity')}</Label>
                     <Input
                       id="catalog-qty"
                       type="number"
@@ -236,10 +237,10 @@ export function AddLineDialog({ open, onOpenChange, order, parts, categories, ca
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-                Cancel
+                {t('Cancel')}
               </Button>
               <Button type="submit" disabled={!applied || !catalogCategory || catalogSubmitting}>
-                Create & add
+                {t('Create & add')}
               </Button>
             </DialogFooter>
           </form>

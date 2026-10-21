@@ -21,6 +21,7 @@ import {
 } from '@/components/ui/select'
 import { LOCATION_TYPES, typeMeta } from '@/components/storage-locations/zone-meta'
 import { cn } from '@/lib/utils'
+import { t } from '@/lib/i18n'
 
 // Shape of OptionListSerializers#serialize_storage_locations: `name` is the
 // full path ("Lab > Cabinet A > Box 3"), `short_name` the zone's own name.
@@ -133,7 +134,7 @@ export function StorageLocationSelect({
   value,
   onValueChange,
   id,
-  placeholder = 'Select a zone',
+  placeholder = t('Select a zone'),
   className,
   disabled,
   noneLabel,
@@ -165,7 +166,7 @@ export function StorageLocationSelect({
 
   const parentOptions: ComboboxOption[] = useMemo(
     () => [
-      { value: NONE, label: 'None (top level)' },
+      { value: NONE, label: t('None (top level)') },
       ...toOptions(all.filter((r) => r.location.location_type !== 'bag'), true),
     ],
     [all]
@@ -194,7 +195,7 @@ export function StorageLocationSelect({
     const bag = locationType === 'bag'
     const trimmed = name.trim()
     if (!trimmed && !bag) {
-      setError('Name is required.')
+      setError(t('Name is required.'))
       return
     }
 
@@ -225,10 +226,10 @@ export function StorageLocationSelect({
         setOpen(false)
       } else {
         const errors = (data.errors ?? {}) as Record<string, string>
-        setError(errors.name ?? errors.code ?? errors.parent ?? data.error ?? Object.values(errors)[0] ?? 'Could not create the zone.')
+        setError(errors.name ?? errors.code ?? errors.parent ?? data.error ?? Object.values(errors)[0] ?? t('Could not create the zone.'))
       }
     } catch {
-      setError('Could not create the zone.')
+      setError(t('Could not create the zone.'))
     } finally {
       setProcessing(false)
     }
@@ -242,13 +243,13 @@ export function StorageLocationSelect({
         value={value}
         onValueChange={onValueChange}
         placeholder={placeholder}
-        searchPlaceholder="Search zones or codes…"
-        emptyText={all.length === 0 ? 'No storage zone yet.' : 'No matching zone.'}
+        searchPlaceholder={t('Search zones or codes…')}
+        emptyText={all.length === 0 ? t('No storage zone yet.') : t('No matching zone.')}
         className={cn('w-full', className)}
         contentClassName="min-w-[20rem]"
         disabled={disabled}
         onCreate={allowCreate ? startCreate : undefined}
-        createLabel={(query) => (query ? `Create zone "${query}"` : 'New zone…')}
+        createLabel={(query) => (query ? t('Create zone "{name}"', { name: query }) : t('New zone…'))}
       />
 
       {allowCreate && (
@@ -256,24 +257,24 @@ export function StorageLocationSelect({
           <DialogContent className="sm:max-w-sm">
             <form onSubmit={submit}>
               <DialogHeader>
-                <DialogTitle>New storage zone</DialogTitle>
-                <DialogDescription>Add a place to keep components.</DialogDescription>
+                <DialogTitle>{t('New storage zone')}</DialogTitle>
+                <DialogDescription>{t('Add a place to keep components.')}</DialogDescription>
               </DialogHeader>
 
               <div className="space-y-4 py-4">
                 <div className="grid grid-cols-[1fr_8rem] gap-3">
                   <div className="min-w-0 space-y-2">
-                    <Label htmlFor="new-zone-name">Name</Label>
+                    <Label htmlFor="new-zone-name">{t('Name')}</Label>
                     <Input
                       id="new-zone-name"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
-                      placeholder={locationType === 'bag' ? 'From its number' : 'e.g. Box 3'}
+                      placeholder={locationType === 'bag' ? t('From its number') : t('e.g. Box 3')}
                       autoFocus
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="new-zone-type">Type</Label>
+                    <Label htmlFor="new-zone-type">{t('Type')}</Label>
                     <Select value={locationType} onValueChange={setLocationType}>
                       <SelectTrigger id="new-zone-type" className="w-full">
                         <SelectValue />
@@ -289,14 +290,14 @@ export function StorageLocationSelect({
                 {error && <p className="text-sm text-destructive">{error}</p>}
 
                 <div className="space-y-2">
-                  <Label htmlFor="new-zone-parent">Inside</Label>
+                  <Label htmlFor="new-zone-parent">{t('Inside')}</Label>
                   <Combobox
                     id="new-zone-parent"
                     options={parentOptions}
                     value={parentId}
                     onValueChange={setParentId}
-                    searchPlaceholder="Search zones or codes…"
-                    emptyText="No matching zone."
+                    searchPlaceholder={t('Search zones or codes…')}
+                    emptyText={t('No matching zone.')}
                     className="w-full"
                     contentClassName="min-w-[20rem]"
                   />
@@ -304,24 +305,24 @@ export function StorageLocationSelect({
 
                 <div className="space-y-2">
                   <Label htmlFor="new-zone-code">
-                    Code <span className="font-normal text-muted-foreground">(optional)</span>
+                    {t('Code')} <span className="font-normal text-muted-foreground">{t('(optional)')}</span>
                   </Label>
                   <Input
                     id="new-zone-code"
                     value={locationType === 'bag' ? '' : code}
                     disabled={locationType === 'bag'}
                     onChange={(e) => setCode(e.target.value)}
-                    placeholder={locationType === 'bag' ? 'From the box code and bag number' : 'e.g. B2-T06'}
+                    placeholder={locationType === 'bag' ? t('From the box code and bag number') : 'e.g. B2-T06'}
                   />
                 </div>
               </div>
 
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-                  Cancel
+                  {t('Cancel')}
                 </Button>
                 <Button type="submit" disabled={processing}>
-                  Create zone
+                  {t('Create zone')}
                 </Button>
               </DialogFooter>
             </form>

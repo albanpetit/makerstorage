@@ -2,6 +2,7 @@ import { PropsWithChildren } from 'react'
 
 import logo from '/assets/logo.svg'
 import authImage from '/assets/auth.jpeg'
+import { t } from '@/lib/i18n'
 
 interface AuthLayoutProps {
   eyebrow: string
@@ -17,8 +18,8 @@ export function AuthLayout({ eyebrow, headline, description, children }: PropsWi
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/70 to-black/55" />
 
         <div className="relative flex items-center gap-2.5">
-          <img src={logo} alt="Makerstorage" className="size-9 rounded-md" />
-          <span className="text-lg font-semibold tracking-tight">Makerstorage</span>
+          <img src={logo} alt={t('Makerstorage')} className="size-9 rounded-md" />
+          <span className="text-lg font-semibold tracking-tight">{t('Makerstorage')}</span>
         </div>
 
         <div className="relative flex flex-1 max-w-md flex-col justify-center">

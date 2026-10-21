@@ -39,6 +39,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { t, tn, tx } from '@/lib/i18n'
 
 interface Tag {
   id: number
@@ -80,9 +81,9 @@ export default function TagsIndex({ tags }: TagsPageProps) {
     const withParts = tags.filter((t) => t.parts_count > 0).length
     const totalTagged = tags.reduce((sum, t) => sum + t.parts_count, 0)
     return [
-      { label: 'Tags', value: String(tags.length) },
-      { label: 'In use', value: String(withParts) },
-      { label: 'Tagged parts', value: String(totalTagged) },
+      { label: t('Tags'), value: String(tags.length) },
+      { label: t('In use'), value: String(withParts) },
+      { label: t('Tagged parts'), value: String(totalTagged) },
     ]
   }, [tags])
 
@@ -130,17 +131,17 @@ export default function TagsIndex({ tags }: TagsPageProps) {
   return (
     <AppLayout
       header={
-        <PageHeader title="Tags" subtitle="Label parts with cross-cutting keywords">
+        <PageHeader title={t('Tags')} subtitle={t('Label parts with cross-cutting keywords')}>
           {canWrite && (
             <Button size="sm" onClick={openNewDialog}>
               <Plus className="size-4" />
-              Add Tag
+              {t('Add Tag')}
             </Button>
           )}
         </PageHeader>
       }
     >
-      <Head title="Tags" />
+      <Head title={t('Tags')} />
 
       <div className="space-y-6">
         <FlashMessages />
@@ -166,17 +167,17 @@ export default function TagsIndex({ tags }: TagsPageProps) {
             <CardContent className="flex flex-col items-center gap-3 py-10 text-center">
               <TagIcon className="size-8 text-muted-foreground" />
               <div>
-                <p className="font-medium">No tags yet</p>
+                <p className="font-medium">{t('No tags yet')}</p>
                 <p className="text-sm text-muted-foreground">
                   {canWrite
-                    ? 'Add your first tag to label parts across categories.'
-                    : 'No tags have been added yet.'}
+                    ? t('Add your first tag to label parts across categories.')
+                    : t('No tags have been added yet.')}
                 </p>
               </div>
               {canWrite && (
                 <Button onClick={openNewDialog}>
                   <Plus className="size-4" />
-                  Add Tag
+                  {t('Add Tag')}
                 </Button>
               )}
             </CardContent>
@@ -186,9 +187,9 @@ export default function TagsIndex({ tags }: TagsPageProps) {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead className="text-right">Parts</TableHead>
+                  <TableHead>{t('Name')}</TableHead>
+                  <TableHead>{t('Description')}</TableHead>
+                  <TableHead className="text-right">{t('Parts')}</TableHead>
                   {canWrite && <TableHead className="w-24" />}
                 </TableRow>
               </TableHeader>
@@ -218,7 +219,7 @@ export default function TagsIndex({ tags }: TagsPageProps) {
                           <Button
                             variant="ghost"
                             size="icon-sm"
-                            aria-label="Edit tag"
+                            aria-label={t('Edit tag')}
                             onClick={() => openEditDialog(tag)}
                           >
                             <Pencil className="size-4" />
@@ -226,7 +227,7 @@ export default function TagsIndex({ tags }: TagsPageProps) {
                           <Button
                             variant="ghost"
                             size="icon-sm"
-                            aria-label="Delete tag"
+                            aria-label={t('Delete tag')}
                             className="text-destructive"
                             onClick={() => setDeleteId(tag.id)}
                           >
@@ -247,7 +248,7 @@ export default function TagsIndex({ tags }: TagsPageProps) {
       <Dialog open={newOpen} onOpenChange={setNewOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Add tag</DialogTitle>
+            <DialogTitle>{t('Add tag')}</DialogTitle>
           </DialogHeader>
           <TagForm
             data={newForm.data.tag}
@@ -260,7 +261,7 @@ export default function TagsIndex({ tags }: TagsPageProps) {
             onSubmit={submitNew}
             onCancel={() => setNewOpen(false)}
             processing={newForm.processing}
-            submitLabel="Add tag"
+            submitLabel={t('Add tag')}
           />
         </DialogContent>
       </Dialog>
@@ -269,7 +270,7 @@ export default function TagsIndex({ tags }: TagsPageProps) {
       <Dialog open={editId != null} onOpenChange={(open) => !open && setEditId(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Edit tag</DialogTitle>
+            <DialogTitle>{t('Edit tag')}</DialogTitle>
           </DialogHeader>
           <TagForm
             data={editForm.data.tag}
@@ -282,7 +283,7 @@ export default function TagsIndex({ tags }: TagsPageProps) {
             onSubmit={submitEdit}
             onCancel={() => setEditId(null)}
             processing={editForm.processing}
-            submitLabel="Save"
+            submitLabel={t('Save')}
           />
         </DialogContent>
       </Dialog>
@@ -291,18 +292,22 @@ export default function TagsIndex({ tags }: TagsPageProps) {
       <AlertDialog open={deleteId != null} onOpenChange={(open) => !open && setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete this tag?</AlertDialogTitle>
+            <AlertDialogTitle>{t('Delete this tag?')}</AlertDialogTitle>
             <AlertDialogDescription>
-              <span className="font-semibold text-foreground">{deleting?.name}</span> will be removed.
+              {tx('{name} will be removed.', { name: <span className="font-semibold text-foreground">{deleting?.name}</span> })}
               {deleting && deleting.parts_count > 0 && (
-                <> It will be removed from {deleting.parts_count} part{deleting.parts_count !== 1 ? 's' : ''}; the parts themselves are kept.</>
+                <>{' '}{tn(
+                  'It will be removed from {count} part; the part itself is kept.',
+                  'It will be removed from {count} parts; the parts themselves are kept.',
+                  deleting.parts_count,
+                )}</>
               )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t('Cancel')}</AlertDialogCancel>
             <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-white hover:bg-destructive/90">
-              Delete
+              {t('Delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -332,11 +337,11 @@ function TagForm({
     <form onSubmit={onSubmit} className="flex flex-col gap-4">
       <Field>
         <FieldLabel>
-          <Label>Name</Label>
+          <Label>{t('Name')}</Label>
         </FieldLabel>
         <FieldContent>
           <Input
-            placeholder="e.g. RoHS, obsolete, favorite"
+            placeholder={t('e.g. RoHS, obsolete, favorite')}
             value={data.name}
             onChange={(e) => onChange({ name: e.target.value })}
           />
@@ -346,7 +351,7 @@ function TagForm({
 
       <Field>
         <FieldLabel>
-          <Label>Color</Label>
+          <Label>{t('Color')}</Label>
         </FieldLabel>
         <FieldContent>
           <ColorSwatches value={data.color || null} onChange={(color) => onChange({ color: color ?? '' })} />
@@ -356,11 +361,11 @@ function TagForm({
 
       <Field>
         <FieldLabel>
-          <Label>Description</Label>
+          <Label>{t('Description')}</Label>
         </FieldLabel>
         <FieldContent>
           <Textarea
-            placeholder="Optional notes about this tag"
+            placeholder={t('Optional notes about this tag')}
             value={data.description}
             onChange={(e) => onChange({ description: e.target.value })}
           />
@@ -369,7 +374,7 @@ function TagForm({
       </Field>
 
       <DialogFooter>
-        <Button type="button" variant="outline" onClick={onCancel}>Cancel</Button>
+        <Button type="button" variant="outline" onClick={onCancel}>{t('Cancel')}</Button>
         <Button type="submit" disabled={processing}>{submitLabel}</Button>
       </DialogFooter>
     </form>

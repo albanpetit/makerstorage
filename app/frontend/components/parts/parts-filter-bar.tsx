@@ -12,6 +12,7 @@ import {
 import { SORT_OPTIONS } from './part-meta'
 import type { SortKey } from './types'
 import type { PartFilters } from './use-part-filters'
+import { t } from '@/lib/i18n'
 
 interface FacetGroupProps {
   label: string
@@ -66,7 +67,7 @@ export function PartsFilterBar({ filters, totalCount }: PartsFilterBarProps) {
                 onClick={() => setCategory(null)}
                 className={`h-8 gap-1.5 rounded-full border px-3 shadow-none ${categoryId == null ? 'border-primary' : ''}`}
               >
-                All
+                {t('All')}
                 <span className="text-xs opacity-75">{totalCount}</span>
               </Button>
               {categoryChips.map((chip) => (
@@ -98,10 +99,10 @@ export function PartsFilterBar({ filters, totalCount }: PartsFilterBarProps) {
 
       {/* Facet groups */}
       <div className="flex flex-col gap-2">
-        <FacetGroup label="Status" options={facets.status} active={current.status} onToggle={(v) => toggleFacet('status', v)} />
-        <FacetGroup label="Package" options={facets.package} active={current.package} onToggle={(v) => toggleFacet('package', v)} />
-        <FacetGroup label="Footprint" options={facets.footprint} active={current.footprint} onToggle={(v) => toggleFacet('footprint', v)} />
-        <FacetGroup label="Supplier" options={facets.supplier} active={current.supplier} onToggle={(v) => toggleFacet('supplier', v)} />
+        <FacetGroup label={t('Status')} options={facets.status} active={current.status} onToggle={(v) => toggleFacet('status', v)} />
+        <FacetGroup label={t('Package')} options={facets.package} active={current.package} onToggle={(v) => toggleFacet('package', v)} />
+        <FacetGroup label={t('Footprint')} options={facets.footprint} active={current.footprint} onToggle={(v) => toggleFacet('footprint', v)} />
+        <FacetGroup label={t('Supplier')} options={facets.supplier} active={current.supplier} onToggle={(v) => toggleFacet('supplier', v)} />
       </div>
 
       {/* Active filter pills */}
@@ -117,7 +118,7 @@ export function PartsFilterBar({ filters, totalCount }: PartsFilterBarProps) {
                 variant="ghost"
                 size="icon"
                 onClick={pill.remove}
-                aria-label={`Remove filter ${pill.label}`}
+                aria-label={t('Remove filter {name}', { name: pill.label })}
                 className="size-4 rounded-full text-muted-foreground hover:bg-transparent hover:text-foreground"
               >
                 <X className="size-3" />
@@ -130,7 +131,7 @@ export function PartsFilterBar({ filters, totalCount }: PartsFilterBarProps) {
             onClick={clearAllFilters}
             className="h-auto px-0 text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
           >
-            Clear all
+            {t('Clear all')}
           </Button>
         </div>
       )}

@@ -4,6 +4,8 @@ import { Search, Package, Box, Loader2 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { typeMeta } from '@/components/storage-locations/zone-meta'
+import { t } from '@/lib/i18n'
 
 interface PartResult {
   id: number
@@ -85,7 +87,7 @@ export function GlobalSearch() {
     router.visit(href)
   }
 
-  const emptyLabel = useMemo(() => (loading ? 'Searching…' : 'No matches'), [loading])
+  const emptyLabel = useMemo(() => (loading ? t('Searching…') : t('No matches')), [loading])
 
   return (
     <div ref={containerRef} className="relative w-full max-w-sm">
@@ -96,9 +98,9 @@ export function GlobalSearch() {
         onChange={(e) => { setQuery(e.target.value); setOpen(true) }}
         onFocus={() => setOpen(true)}
         onKeyDown={(e) => { if (e.key === 'Escape') setOpen(false) }}
-        placeholder="Search a component or zone…"
+        placeholder={t('Search a component or zone…')}
         className="pl-9"
-        aria-label="Search everywhere"
+        aria-label={t('Search everywhere')}
       />
 
       {showDropdown && (
@@ -109,7 +111,7 @@ export function GlobalSearch() {
             <div className="max-h-80 overflow-y-auto py-1">
               {results.parts.length > 0 && (
                 <div>
-                  <div className="px-3 py-1.5 text-xs font-semibold text-muted-foreground">Components</div>
+                  <div className="px-3 py-1.5 text-xs font-semibold text-muted-foreground">{t('Components')}</div>
                   {results.parts.map((part) => (
                     <Button
                       key={`p-${part.id}`}
@@ -130,7 +132,7 @@ export function GlobalSearch() {
               )}
               {results.zones.length > 0 && (
                 <div>
-                  <div className="px-3 py-1.5 text-xs font-semibold text-muted-foreground">Zones</div>
+                  <div className="px-3 py-1.5 text-xs font-semibold text-muted-foreground">{t('Zones')}</div>
                   {results.zones.map((zone) => (
                     <Button
                       key={`z-${zone.id}`}
@@ -144,7 +146,7 @@ export function GlobalSearch() {
                         <div className="truncate text-sm font-medium">{zone.name}</div>
                         <div className="truncate text-xs text-muted-foreground">{zone.path}</div>
                       </div>
-                      <span className="shrink-0 text-xs text-muted-foreground capitalize">{zone.location_type}</span>
+                      <span className="shrink-0 text-xs text-muted-foreground">{typeMeta(zone.location_type).label}</span>
                     </Button>
                   ))}
                 </div>

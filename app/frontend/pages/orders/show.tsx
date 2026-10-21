@@ -27,10 +27,11 @@ import { ImportProjectDialog } from '@/components/orders/import-project-dialog'
 import { OrderLinesTable } from '@/components/orders/order-lines-table'
 import type { Order, OrderLine, OrderShowProps } from '@/components/orders/types'
 import { ORDER_STATUS_META, formatMoney } from './helpers'
+import { t, intlLocale } from '@/lib/i18n'
 
 const ADVANCE_LABEL: Partial<Record<Order['status'], { label: string; icon: typeof Truck }>> = {
-  pending: { label: 'Mark as shipped', icon: Truck },
-  shipped: { label: 'Mark as received', icon: PackageCheck },
+  pending: { get label() { return t('Mark as shipped') }, icon: Truck },
+  shipped: { get label() { return t('Mark as received') }, icon: PackageCheck },
 }
 
 export default function OrderShow({ order, suppliers, parts, categories, catalog_enabled, projects, mouser_cart_enabled, storage_locations }: OrderShowProps) {
@@ -72,7 +73,7 @@ export default function OrderShow({ order, suppliers, parts, categories, catalog
               {order.editable && (
                 <Button size="sm" variant="outline" onClick={() => setEditOpen(true)}>
                   <Pencil className="size-4" />
-                  Edit
+                  {t('Edit')}
                 </Button>
               )}
               {mouser_cart_enabled && order.lines.length > 0 && (
@@ -82,7 +83,7 @@ export default function OrderShow({ order, suppliers, parts, categories, catalog
                   onClick={() => router.post(`/orders/${order.id}/push_to_cart`, {}, { preserveScroll: true })}
                 >
                   <ShoppingCart className="size-4" />
-                  Send to Mouser cart
+                  {t('Send to Mouser cart')}
                 </Button>
               )}
               {advance && (
@@ -97,12 +98,12 @@ export default function OrderShow({ order, suppliers, parts, categories, catalog
               {order.editable && (
                 <Button size="sm" variant="outline" onClick={cancelOrder}>
                   <Ban className="size-4" />
-                  Cancel
+                  {t('Cancel')}
                 </Button>
               )}
               <Button size="sm" variant="outline" onClick={() => setDeleteOpen(true)}>
                 <Trash2 className="size-4" />
-                Delete
+                {t('Delete')}
               </Button>
             </div>
           )}
@@ -116,17 +117,17 @@ export default function OrderShow({ order, suppliers, parts, categories, catalog
 
         <Link href="/orders" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
           <ArrowLeft className="size-4" />
-          All orders
+          {t('All orders')}
         </Link>
 
         {/* Summary */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <SummaryCard label="Status" value={<Badge variant="outline" className={meta.className}>{meta.label}</Badge>} />
-          <SummaryCard label="Lines" value={order.lines.length} />
-          <SummaryCard label="Total" value={formatMoney(order.total_amount)} />
+          <SummaryCard label={t('Status')} value={<Badge variant="outline" className={meta.className}>{meta.label}</Badge>} />
+          <SummaryCard label={t('Lines')} value={order.lines.length} />
+          <SummaryCard label={t('Total')} value={formatMoney(order.total_amount)} />
           <SummaryCard
-            label="Expected"
-            value={order.expected_delivery ? new Date(order.expected_delivery).toLocaleDateString() : '—'}
+            label={t('Expected')}
+            value={order.expected_delivery ? new Date(order.expected_delivery).toLocaleDateString(intlLocale()) : '—'}
           />
         </div>
 
@@ -138,7 +139,7 @@ export default function OrderShow({ order, suppliers, parts, categories, catalog
 
         {/* Lines */}
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold">Components</h2>
+          <h2 className="text-sm font-semibold">{t('Components')}</h2>
           {canWrite && order.editable && (
             <div className="flex flex-wrap gap-2">
               {order.lines.length > 0 && storage_locations.length > 0 && (
@@ -151,18 +152,18 @@ export default function OrderShow({ order, suppliers, parts, categories, catalog
                   }}
                 >
                   <Boxes className="size-4" />
-                  Set storage zone
+                  {t('Set storage zone')}
                 </Button>
               )}
               {projects.length > 0 && (
                 <Button size="sm" variant="outline" onClick={() => setImportOpen(true)}>
                   <ClipboardList className="size-4" />
-                  Import from project
+                  {t('Import from project')}
                 </Button>
               )}
               <Button size="sm" variant="outline" onClick={openAdd}>
                 <Plus className="size-4" />
-                Add component
+                {t('Add component')}
               </Button>
             </div>
           )}
@@ -172,7 +173,7 @@ export default function OrderShow({ order, suppliers, parts, categories, catalog
 
         <div className="flex justify-end">
           <div className="flex w-64 items-center justify-between rounded-lg border px-4 py-2">
-            <span className="text-sm text-muted-foreground">Total</span>
+            <span className="text-sm text-muted-foreground">{t('Total')}</span>
             <span className="font-mono text-lg font-bold">{formatMoney(order.total_amount)}</span>
           </div>
         </div>
@@ -212,20 +213,20 @@ export default function OrderShow({ order, suppliers, parts, categories, catalog
       <AlertDialog open={receiveOpen} onOpenChange={setReceiveOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Mark this order as received?</AlertDialogTitle>
+            <AlertDialogTitle>{t('Mark this order as received?')}</AlertDialogTitle>
             <AlertDialogDescription>
-              This credits each line into stock as incoming movements — into the zones you configured, or the part's existing location when none is set — and freezes the order.
+              {t('This credits each line into stock as incoming movements — into the zones you configured, or the part\'s existing location when none is set — and freezes the order.')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t('Cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
                 doAdvance()
                 setReceiveOpen(false)
               }}
             >
-              Receive
+              {t('Receive')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -235,20 +236,20 @@ export default function OrderShow({ order, suppliers, parts, categories, catalog
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete this order?</AlertDialogTitle>
+            <AlertDialogTitle>{t('Delete this order?')}</AlertDialogTitle>
             <AlertDialogDescription>
-              This removes the order and its lines. Stock movements already recorded on receipt are not affected.
+              {t('This removes the order and its lines. Stock movements already recorded on receipt are not affected.')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t('Cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
                 router.delete(`/orders/${order.id}`)
                 setDeleteOpen(false)
               }}
             >
-              Delete
+              {t('Delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

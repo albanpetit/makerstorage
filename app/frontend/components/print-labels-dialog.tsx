@@ -27,6 +27,7 @@ import {
   isLabelFormatId,
   printLabels,
 } from '@/lib/labels'
+import { t, tn } from '@/lib/i18n'
 
 const FORMAT_STORAGE_KEY = 'makerstorage.labelFormat'
 
@@ -75,7 +76,7 @@ export function PrintLabelsDialog({ open, onOpenChange, count, loadItems, title,
       .then((items) => printLabels(items, format, target))
       .catch(() => {
         target?.close()
-        toast.error('Could not prepare the labels.')
+        toast.error(t('Could not prepare the labels.'))
       })
     onOpenChange(false)
   }
@@ -86,14 +87,14 @@ export function PrintLabelsDialog({ open, onOpenChange, count, loadItems, title,
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>
-            {description ?? 'Each label carries a QR code that opens the scanner on this record.'}
+            {description ?? t('Each label carries a QR code that opens the scanner on this record.')}
           </DialogDescription>
         </DialogHeader>
 
         {children}
 
         <div className="min-w-0 space-y-2">
-          <Label htmlFor="label-format">Label format</Label>
+          <Label htmlFor="label-format">{t('Label format')}</Label>
           <Select value={format} onValueChange={chooseFormat}>
             <SelectTrigger id="label-format" className="w-full">
               <SelectValue />
@@ -105,15 +106,15 @@ export function PrintLabelsDialog({ open, onOpenChange, count, loadItems, title,
             </SelectContent>
           </Select>
           <p className="text-xs text-muted-foreground">
-            In the print dialog, keep the scale at 100% and disable headers and footers.
+            {t('In the print dialog, keep the scale at 100% and disable headers and footers.')}
           </p>
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>{t('Cancel')}</Button>
           <Button disabled={count === 0} onClick={print}>
             <Printer className="size-4" />
-            Print {count} label{count !== 1 ? 's' : ''}
+            {tn('Print {count} label', 'Print {count} labels', count)}
           </Button>
         </DialogFooter>
       </DialogContent>

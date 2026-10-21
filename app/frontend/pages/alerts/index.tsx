@@ -19,6 +19,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { t, intlLocale, tn } from '@/lib/i18n'
 
 interface Alert {
   id: number
@@ -50,22 +51,22 @@ interface AlertsPageProps {
 }
 
 const SEVERITY_META: Record<Alert['severity'], { label: string; className: string; border: string }> = {
-  critical: { label: 'Critical', className: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400', border: 'border-l-red-500' },
-  low: { label: 'Low stock', className: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400', border: 'border-l-amber-500' },
+  critical: { get label() { return t('Critical') }, className: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400', border: 'border-l-red-500' },
+  low: { get label() { return t('Low stock') }, className: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400', border: 'border-l-amber-500' },
 }
 
 const ORDER_STATUS_META: Record<string, { label: string; className: string; next: string | null }> = {
-  pending: { label: 'Pending', className: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400', next: 'Mark shipped' },
-  shipped: { label: 'Shipped', className: 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400', next: 'Mark received' },
-  received: { label: 'Received', className: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400', next: null },
+  pending: { get label() { return t('Pending') }, className: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400', get next() { return t('Mark shipped') } },
+  shipped: { get label() { return t('Shipped') }, className: 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400', get next() { return t('Mark received') } },
+  received: { get label() { return t('Received') }, className: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400', next: null },
 }
 
 function formatMoney(value: number) {
-  return `${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`
+  return `${value.toLocaleString(intlLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`
 }
 
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString(undefined, { day: '2-digit', month: '2-digit', year: 'numeric' })
+  return new Date(iso).toLocaleDateString(intlLocale(), { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
 export default function AlertsIndex({ alerts, orders }: AlertsPageProps) {
@@ -83,9 +84,9 @@ export default function AlertsIndex({ alerts, orders }: AlertsPageProps) {
     const counts = { all: alerts.length, critical: 0, low: 0 }
     alerts.forEach((a) => { counts[a.severity] += 1 })
     return [
-      { value: 'all' as const, label: 'All', count: counts.all },
-      { value: 'critical' as const, label: 'Critical', count: counts.critical },
-      { value: 'low' as const, label: 'Low stock', count: counts.low },
+      { value: 'all' as const, label: t('All'), count: counts.all },
+      { value: 'critical' as const, label: t('Critical'), count: counts.critical },
+      { value: 'low' as const, label: t('Low stock'), count: counts.low },
     ]
   }, [alerts])
 
@@ -113,10 +114,10 @@ export default function AlertsIndex({ alerts, orders }: AlertsPageProps) {
     const critical = alerts.filter((a) => a.severity === 'critical').length
     const low = alerts.filter((a) => a.severity === 'low').length
     return [
-      { label: 'Active alerts', value: String(alerts.length), className: '' },
-      { label: 'Critical', value: String(critical), className: 'text-red-600 dark:text-red-400' },
-      { label: 'Low stock', value: String(low), className: 'text-amber-600 dark:text-amber-400' },
-      { label: 'To order', value: String(alerts.length), className: '' },
+      { label: t('Active alerts'), value: String(alerts.length), className: '' },
+      { label: t('Critical'), value: String(critical), className: 'text-red-600 dark:text-red-400' },
+      { label: t('Low stock'), value: String(low), className: 'text-amber-600 dark:text-amber-400' },
+      { label: t('To order'), value: String(alerts.length), className: '' },
     ]
   }, [alerts])
 
@@ -125,9 +126,9 @@ export default function AlertsIndex({ alerts, orders }: AlertsPageProps) {
       <h3 style="margin:18px 0 6px;font-size:14px;">${g.supplier} — ${formatMoney(g.subtotal)}</h3>
       <table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:8px;">
         <thead><tr style="text-align:left;border-bottom:1px solid #ccc;">
-          <th style="padding:4px 8px;">Reference</th><th style="padding:4px 8px;">Name</th>
-          <th style="padding:4px 8px;text-align:right;">Qty</th><th style="padding:4px 8px;text-align:right;">Unit price</th>
-          <th style="padding:4px 8px;text-align:right;">Total</th>
+          <th style="padding:4px 8px;">${t('Reference')}</th><th style="padding:4px 8px;">${t('Name')}</th>
+          <th style="padding:4px 8px;text-align:right;">${t('Qty')}</th><th style="padding:4px 8px;text-align:right;">${t('Unit price')}</th>
+          <th style="padding:4px 8px;text-align:right;">${t('Total')}</th>
         </tr></thead>
         <tbody>${g.items.map((it) => html`
           <tr style="border-bottom:1px solid #eee;">
@@ -140,12 +141,12 @@ export default function AlertsIndex({ alerts, orders }: AlertsPageProps) {
       </table>`)
 
     printDocument(
-      'Purchase order',
+      t('Purchase order'),
       html`
-        <h1 style="font-size:20px;margin:0 0 4px;">Restock purchase order</h1>
-        <p style="color:#666;font-size:12px;margin:0 0 20px;">Makerstorage · Generated ${new Date().toLocaleDateString()}</p>
+        <h1 style="font-size:20px;margin:0 0 4px;">${t('Restock purchase order')}</h1>
+        <p style="color:#666;font-size:12px;margin:0 0 20px;">${t('Makerstorage · Generated {date}', { date: new Date().toLocaleDateString(intlLocale()) })}</p>
         ${rows}
-        <p style="margin-top:16px;font-size:14px;font-weight:bold;">Estimated total: ${formatMoney(poTotal)}</p>`,
+        <p style="margin-top:16px;font-size:14px;font-weight:bold;">${t('Estimated total: {amount}', { amount: formatMoney(poTotal) })}</p>`,
       'font-family:Arial,sans-serif;padding:32px;color:#111;',
     )
   }
@@ -168,17 +169,17 @@ export default function AlertsIndex({ alerts, orders }: AlertsPageProps) {
   return (
     <AppLayout
       header={
-        <PageHeader title="Alerts" subtitle="References under their minimum threshold to restock">
+        <PageHeader title={t('Alerts')} subtitle={t('References under their minimum threshold to restock')}>
           {canWrite && groups.length > 0 && (
             <Button size="sm" onClick={() => setPoOpen(true)}>
               <FileText className="size-4" />
-              Generate Purchase Order
+              {t('Generate Purchase Order')}
             </Button>
           )}
         </PageHeader>
       }
     >
-      <Head title="Alerts" />
+      <Head title={t('Alerts')} />
 
       <div className="space-y-6">
         <FlashMessages />
@@ -221,8 +222,8 @@ export default function AlertsIndex({ alerts, orders }: AlertsPageProps) {
               <div className="flex size-11 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400">
                 <CheckCircle2 className="size-[22px]" />
               </div>
-              <p className="font-semibold">No alerts</p>
-              <p className="text-sm text-muted-foreground">All stock in this category is above threshold.</p>
+              <p className="font-semibold">{t('No alerts')}</p>
+              <p className="text-sm text-muted-foreground">{t('All stock in this category is above threshold.')}</p>
             </CardContent>
           </Card>
         ) : (
@@ -242,24 +243,24 @@ export default function AlertsIndex({ alerts, orders }: AlertsPageProps) {
                   <div className="truncate text-sm text-muted-foreground">{alert.name}</div>
                 </div>
                 <div className="min-w-0 shrink text-right text-xs text-muted-foreground">
-                  <div className="truncate">Stock {alert.quantity} / threshold {alert.min_stock_threshold} · {alert.supplier_name || 'No supplier'}</div>
-                  <div className="truncate font-mono">{alert.location_name || 'No location'}</div>
+                  <div className="truncate">{t('Stock {quantity} / threshold {threshold}', { quantity: alert.quantity, threshold: alert.min_stock_threshold })} · {alert.supplier_name || t('No supplier')}</div>
+                  <div className="truncate font-mono">{alert.location_name || t('No location')}</div>
                 </div>
                 <div className="shrink-0 text-right">
-                  <div className="text-xs text-muted-foreground">Suggested reorder</div>
+                  <div className="text-xs text-muted-foreground">{t('Suggested reorder')}</div>
                   <div className="font-mono text-base font-bold text-emerald-600 dark:text-emerald-400">+{alert.reorder_quantity}</div>
                 </div>
                 <Button variant="outline" size="sm" onClick={() => setDetailPartId(alert.id)}>
-                  View
+                  {t('View')}
                 </Button>
                 {canWrite && (
                   <Button
                     size="sm"
                     disabled={!alert.supplier_name}
-                    title={alert.supplier_name ? undefined : 'No preferred supplier to order from'}
+                    title={alert.supplier_name ? undefined : t('No preferred supplier to order from')}
                     onClick={() => orderSingle(alert)}
                   >
-                    Order
+                    {t('Order')}
                   </Button>
                 )}
               </Card>
@@ -270,7 +271,7 @@ export default function AlertsIndex({ alerts, orders }: AlertsPageProps) {
         {/* Orders in progress */}
         {orders.length > 0 && (
           <div>
-            <h2 className="mb-2 text-sm font-semibold">Orders in progress</h2>
+            <h2 className="mb-2 text-sm font-semibold">{t('Orders in progress')}</h2>
             <Card className="gap-0 overflow-hidden py-0 divide-y">
               {orders.map((order) => (
                 <div key={order.id} className="flex items-center gap-3 px-4 py-3 text-sm">
@@ -278,7 +279,7 @@ export default function AlertsIndex({ alerts, orders }: AlertsPageProps) {
                   <div className="min-w-0 flex-1">
                     <div className="truncate font-medium">{order.supplier_name}</div>
                     <div className="text-xs text-muted-foreground">
-                      {order.ordered_at ? formatDate(order.ordered_at) : '-'} · {order.line_count} reference{order.line_count !== 1 ? 's' : ''}
+                      {order.ordered_at ? formatDate(order.ordered_at) : '-'} · {tn('{count} reference', '{count} references', order.line_count)}
                     </div>
                   </div>
                   <Badge className={ORDER_STATUS_META[order.status].className} variant="outline">
@@ -301,11 +302,16 @@ export default function AlertsIndex({ alerts, orders }: AlertsPageProps) {
       <Dialog open={poOpen} onOpenChange={setPoOpen}>
         <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-xl">
           <DialogHeader>
-            <DialogTitle>Restock purchase order</DialogTitle>
+            <DialogTitle>{t('Restock purchase order')}</DialogTitle>
             <DialogDescription>
-              {poLineCount} reference{poLineCount !== 1 ? 's' : ''} below threshold, grouped across {groups.length} supplier{groups.length !== 1 ? 's' : ''}.
-              Quantities are calculated to reach target stock.
-              {unassignedCount > 0 && ` ${unassignedCount} alert${unassignedCount !== 1 ? 's have' : ' has'} no preferred supplier and will be skipped.`}
+              {tn('{count} reference below threshold', '{count} references below threshold', poLineCount)}
+              {tn(', grouped across {count} supplier.', ', grouped across {count} suppliers.', groups.length)}
+              {' '}{t('Quantities are calculated to reach target stock.')}
+              {unassignedCount > 0 && tn(
+                ' {count} alert has no preferred supplier and will be skipped.',
+                ' {count} alerts have no preferred supplier and will be skipped.',
+                unassignedCount,
+              )}
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-4">
@@ -314,20 +320,20 @@ export default function AlertsIndex({ alerts, orders }: AlertsPageProps) {
                 <div className="flex items-center justify-between gap-3 border-b bg-muted px-3.5 py-2.5">
                   <div>
                     <div className="text-sm font-semibold">{group.supplier}</div>
-                    <div className="text-xs text-muted-foreground">{group.items.length} line{group.items.length !== 1 ? 's' : ''}</div>
+                    <div className="text-xs text-muted-foreground">{tn('{count} line', '{count} lines', group.items.length)}</div>
                   </div>
                   <div className="text-right">
-                    <div className="text-xs text-muted-foreground">Subtotal</div>
+                    <div className="text-xs text-muted-foreground">{t('Subtotal')}</div>
                     <div className="font-mono font-semibold">{formatMoney(group.subtotal)}</div>
                   </div>
                 </div>
                 <table className="w-full text-xs">
                   <thead>
                     <tr className="text-left text-muted-foreground">
-                      <th className="px-3.5 py-1.5 font-medium">Reference</th>
-                      <th className="px-2 py-1.5 text-right font-medium">Qty</th>
-                      <th className="px-2 py-1.5 text-right font-medium">Unit price</th>
-                      <th className="px-3.5 py-1.5 text-right font-medium">Total</th>
+                      <th className="px-3.5 py-1.5 font-medium">{t('Reference')}</th>
+                      <th className="px-2 py-1.5 text-right font-medium">{t('Qty')}</th>
+                      <th className="px-2 py-1.5 text-right font-medium">{t('Unit price')}</th>
+                      <th className="px-3.5 py-1.5 text-right font-medium">{t('Total')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -349,15 +355,15 @@ export default function AlertsIndex({ alerts, orders }: AlertsPageProps) {
           </div>
           <DialogFooter className="items-center sm:justify-between">
             <div>
-              <div className="text-xs text-muted-foreground">Estimated total</div>
+              <div className="text-xs text-muted-foreground">{t('Estimated total')}</div>
               <div className="text-lg font-bold font-mono">{formatMoney(poTotal)}</div>
             </div>
             <div className="flex gap-2">
               <Button variant="outline" onClick={printPo}>
                 <Printer className="size-4" />
-                Export PDF
+                {t('Export PDF')}
               </Button>
-              <Button onClick={submitPurchaseOrders}>Create Purchase Orders</Button>
+              <Button onClick={submitPurchaseOrders}>{t('Create Purchase Orders')}</Button>
             </div>
           </DialogFooter>
         </DialogContent>

@@ -13,6 +13,9 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Field, FieldContent, FieldError, FieldLabel } from '@/components/ui/field'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { t, intlLocale, LOCALES, LOCALE_NAMES, type Locale } from '@/lib/i18n'
+import { roleLabel } from '@/lib/roles'
 
 interface ProfileUser {
   firstname: string
@@ -21,6 +24,8 @@ interface ProfileUser {
   email_confirmed: boolean
   // A new sign-in email waiting for confirmation (the current one still applies).
   unconfirmed_email: string | null
+  // UI language picked here; null follows the browser.
+  locale: Locale | null
 }
 
 interface Invitation {
@@ -102,8 +107,8 @@ export default function Profile({
   }
 
   return (
-    <AppLayout header={<PageHeader title="Profile" subtitle="Your personal account settings" />}>
-      <Head title="Profile" />
+    <AppLayout header={<PageHeader title={t('Profile')} subtitle={t('Your personal account settings')} />}>
+      <Head title={t('Profile')} />
 
       <div className="mx-auto w-full min-w-0 max-w-[680px] space-y-6">
         <FlashMessages />
@@ -113,13 +118,13 @@ export default function Profile({
           <Alert>
             <MailWarning />
             <AlertTitle>
-              {user.unconfirmed_email ? `Confirm ${user.unconfirmed_email}` : 'Confirm your email address'}
+              {user.unconfirmed_email ? t('Confirm {email}', { email: user.unconfirmed_email }) : t('Confirm your email address')}
             </AlertTitle>
             <AlertDescription>
               <p>
                 {user.unconfirmed_email
-                  ? `You'll keep signing in with ${user.email} until you open the link we sent to ${user.unconfirmed_email}.`
-                  : `Open the link we sent to ${user.email}. Invitations to join an organization appear here once your address is confirmed.`}
+                  ? t('You\'ll keep signing in with {email} until you open the link we sent to {new_email}.', { email: user.email, new_email: user.unconfirmed_email })
+                  : t('Open the link we sent to {email}. Invitations to join an organization appear here once your address is confirmed.', { email: user.email })}
               </p>
               <Button
                 variant="outline"
@@ -127,7 +132,7 @@ export default function Profile({
                 className="mt-2"
                 onClick={() => router.post('/confirm-email', {}, { preserveScroll: true })}
               >
-                Resend confirmation email
+                {t('Resend confirmation email')}
               </Button>
             </AlertDescription>
           </Alert>
@@ -137,8 +142,8 @@ export default function Profile({
         {invitations.length > 0 && (
           <Card>
             <CardHeader>
-              <CardTitle>Invitations</CardTitle>
-              <CardDescription>You'll only join an organization once you accept its invitation.</CardDescription>
+              <CardTitle>{t('Invitations')}</CardTitle>
+              <CardDescription>{t('You\'ll only join an organization once you accept its invitation.')}</CardDescription>
             </CardHeader>
             <CardContent className="divide-y">
               {invitations.map((invitation) => (
@@ -146,10 +151,12 @@ export default function Profile({
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 font-semibold">
                       <span className="truncate">{invitation.organization_name}</span>
-                      <Badge variant="outline" className="capitalize">{invitation.role}</Badge>
+                      <Badge variant="outline">{roleLabel(invitation.role)}</Badge>
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      {invitation.invited_by ? `Invited by ${invitation.invited_by}` : 'Invited'} on {new Date(invitation.sent_at).toLocaleDateString()}
+                      {invitation.invited_by
+                        ? t('Invited by {name} on {date}', { name: invitation.invited_by, date: new Date(invitation.sent_at).toLocaleDateString(intlLocale()) })
+                        : t('Invited on {date}', { date: new Date(invitation.sent_at).toLocaleDateString(intlLocale()) })}
                     </div>
                   </div>
                   <div className="flex gap-2">
@@ -158,10 +165,10 @@ export default function Profile({
                       size="sm"
                       onClick={() => router.delete(`/invitations/${invitation.id}/decline`, { preserveScroll: true })}
                     >
-                      Decline
+                      {t('Decline')}
                     </Button>
                     <Button size="sm" onClick={() => router.post(`/invitations/${invitation.id}/accept`)}>
-                      Accept
+                      {t('Accept')}
                     </Button>
                   </div>
                 </div>
@@ -174,13 +181,13 @@ export default function Profile({
         <form onSubmit={submitDetails}>
           <Card>
             <CardHeader>
-              <CardTitle>Personal information</CardTitle>
-              <CardDescription>Your name and the email you sign in with.</CardDescription>
+              <CardTitle>{t('Personal information')}</CardTitle>
+              <CardDescription>{t('Your name and the email you sign in with.')}</CardDescription>
             </CardHeader>
             <CardContent className="grid gap-4 sm:grid-cols-2">
               <Field>
                 <FieldLabel>
-                  <Label htmlFor="firstname">First name</Label>
+                  <Label htmlFor="firstname">{t('First name')}</Label>
                 </FieldLabel>
                 <FieldContent>
                   <Input
@@ -196,7 +203,7 @@ export default function Profile({
 
               <Field>
                 <FieldLabel>
-                  <Label htmlFor="lastname">Last name</Label>
+                  <Label htmlFor="lastname">{t('Last name')}</Label>
                 </FieldLabel>
                 <FieldContent>
                   <Input
@@ -212,7 +219,7 @@ export default function Profile({
 
               <Field className="sm:col-span-2">
                 <FieldLabel>
-                  <Label htmlFor="email">Email</Label>
+                  <Label htmlFor="email">{t('Email')}</Label>
                 </FieldLabel>
                 <FieldContent>
                   <Input
@@ -230,7 +237,7 @@ export default function Profile({
               {(emailChanged || detailsForm.errors['user.current_password']) && (
                 <Field className="sm:col-span-2">
                   <FieldLabel>
-                    <Label htmlFor="details_current_password">Current password</Label>
+                    <Label htmlFor="details_current_password">{t('Current password')}</Label>
                   </FieldLabel>
                   <FieldContent>
                     <Input
@@ -242,26 +249,54 @@ export default function Profile({
                       aria-invalid={!!detailsForm.errors['user.current_password']}
                     />
                   </FieldContent>
-                  <p className="text-sm text-muted-foreground">Confirm your password to change the email you sign in with.</p>
+                  <p className="text-sm text-muted-foreground">{t('Confirm your password to change the email you sign in with.')}</p>
                   {detailsForm.errors['user.current_password'] && <FieldError>{detailsForm.errors['user.current_password']}</FieldError>}
                 </Field>
               )}
             </CardContent>
             <CardFooter className="justify-end border-t">
               <Button type="submit" disabled={detailsForm.processing}>
-                Save changes
+                {t('Save changes')}
               </Button>
             </CardFooter>
           </Card>
         </form>
 
+        {/* UI language: English, French, or whatever the browser asks for */}
+        <Card>
+          <CardHeader>
+            <CardTitle>{t('Language')}</CardTitle>
+            <CardDescription>{t('The language of the interface and of the emails you receive.')}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Select
+              value={user.locale ?? 'auto'}
+              onValueChange={(value) => router.patch(
+                '/profile/locale',
+                { locale: value === 'auto' ? '' : value },
+                { preserveScroll: true },
+              )}
+            >
+              <SelectTrigger className="w-64" aria-label={t('Language')}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="auto">{t('Same as the browser')}</SelectItem>
+                {LOCALES.map((locale) => (
+                  <SelectItem key={locale} value={locale}>{LOCALE_NAMES[locale]}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </CardContent>
+        </Card>
+
         {/* Email notifications: a per-organization opt-out of the alert digest */}
         {email_notifications_available && notification_memberships.length > 0 && (
           <Card>
             <CardHeader>
-              <CardTitle>Email notifications</CardTitle>
+              <CardTitle>{t('Email notifications')}</CardTitle>
               <CardDescription>
-                Low-stock and late-order digests, as each organization's admins set them up.
+                {t('Low-stock and late-order digests, as each organization\'s admins set them up.')}
               </CardDescription>
             </CardHeader>
             <CardContent className="divide-y">
@@ -288,16 +323,15 @@ export default function Profile({
         {/* MCP server: connect Claude (or another MCP client) to the inventory */}
         <Card>
           <CardHeader>
-            <CardTitle>Claude &amp; AI assistants</CardTitle>
+            <CardTitle>{t('Claude & AI assistants')}</CardTitle>
             <CardDescription>
-              Add this URL as a custom connector in Claude (or any MCP client) to ask about parts, stock and
-              projects. You'll pick an organization and allow read-only access.
+              {t('Add this URL as a custom connector in Claude (or any MCP client) to ask about parts, stock and projects. You\'ll pick an organization and allow read-only access.')}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex gap-2">
-              <Input readOnly value={mcp_url} className="font-mono" aria-label="MCP server URL" onFocus={(e) => e.target.select()} />
-              <Button variant="outline" size="icon" onClick={copyMcpUrl} aria-label="Copy MCP server URL">
+              <Input readOnly value={mcp_url} className="font-mono" aria-label={t('MCP server URL')} onFocus={(e) => e.target.select()} />
+              <Button variant="outline" size="icon" onClick={copyMcpUrl} aria-label={t('Copy MCP server URL')}>
                 {copied ? <Check /> : <Copy />}
               </Button>
             </div>
@@ -312,8 +346,8 @@ export default function Profile({
                         <Badge variant="outline">{app.organization_name}</Badge>
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        Connected on {new Date(app.connected_at).toLocaleDateString()}
-                        {app.last_used_at && ` · last used ${new Date(app.last_used_at).toLocaleString()}`}
+                        {t('Connected on {date}', { date: new Date(app.connected_at).toLocaleDateString(intlLocale()) })}
+                        {app.last_used_at && t(' · last used {date}', { date: new Date(app.last_used_at).toLocaleString(intlLocale()) })}
                       </div>
                     </div>
                     <Button
@@ -321,7 +355,7 @@ export default function Profile({
                       size="sm"
                       onClick={() => router.delete(`/profile/connected_apps/${app.id}`, { preserveScroll: true })}
                     >
-                      Disconnect
+                      {t('Disconnect')}
                     </Button>
                   </div>
                 ))}
@@ -334,13 +368,13 @@ export default function Profile({
         <form onSubmit={submitPassword}>
           <Card>
             <CardHeader>
-              <CardTitle>Password</CardTitle>
-              <CardDescription>Enter your current password to set a new one.</CardDescription>
+              <CardTitle>{t('Password')}</CardTitle>
+              <CardDescription>{t('Enter your current password to set a new one.')}</CardDescription>
             </CardHeader>
             <CardContent className="grid gap-4 sm:grid-cols-2">
               <Field className="sm:col-span-2">
                 <FieldLabel>
-                  <Label htmlFor="current_password">Current password</Label>
+                  <Label htmlFor="current_password">{t('Current password')}</Label>
                 </FieldLabel>
                 <FieldContent>
                   <Input
@@ -357,7 +391,7 @@ export default function Profile({
 
               <Field>
                 <FieldLabel>
-                  <Label htmlFor="password">New password</Label>
+                  <Label htmlFor="password">{t('New password')}</Label>
                 </FieldLabel>
                 <FieldContent>
                   <Input
@@ -374,7 +408,7 @@ export default function Profile({
 
               <Field>
                 <FieldLabel>
-                  <Label htmlFor="password_confirmation">Confirm new password</Label>
+                  <Label htmlFor="password_confirmation">{t('Confirm new password')}</Label>
                 </FieldLabel>
                 <FieldContent>
                   <Input
@@ -391,7 +425,7 @@ export default function Profile({
             </CardContent>
             <CardFooter className="justify-end border-t">
               <Button type="submit" disabled={passwordForm.processing}>
-                Update password
+                {t('Update password')}
               </Button>
             </CardFooter>
           </Card>

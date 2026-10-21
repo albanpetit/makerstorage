@@ -1,6 +1,7 @@
 import { toast } from 'sonner'
 
 import type { Part, PartListFilters } from './types'
+import { t } from '@/lib/i18n'
 
 // Text starting with = + - @ (or a tab/CR) is run as a formula by Excel and
 // friends, so user-entered fields get a leading quote. Plain numbers (e.g. a
@@ -106,7 +107,7 @@ function splitCsvLine(line: string, sep: string): string[] {
 export function parseCsvPreview(text: string): { rows: ParsedImportRow[] } | { error: string } {
   const stripped = text.replace(/^\uFEFF/, '')
   const lines = stripped.split(/\r\n|\n|\r/).filter((l) => l.trim().length > 0)
-  if (lines.length < 2) return { error: 'File is empty or has no data rows.' }
+  if (lines.length < 2) return { error: t('File is empty or has no data rows.') }
 
   const sep = lines[0].includes(';') ? ';' : ','
   const header = splitCsvLine(lines[0], sep).map((h) => h.trim().toLowerCase())
@@ -124,7 +125,7 @@ export function parseCsvPreview(text: string): { rows: ParsedImportRow[] } | { e
   const iSku = col([ 'sku', 'reference', 'ref', 'référence' ])
 
   if (iName < 0 || iCategory < 0) {
-    return { error: 'Could not find "Name" and "Category" columns in the header row.' }
+    return { error: t('Could not find "Name" and "Category" columns in the header row.') }
   }
 
   const rows: ParsedImportRow[] = []
@@ -141,6 +142,6 @@ export function parseCsvPreview(text: string): { rows: ParsedImportRow[] } | { e
     })
   }
 
-  if (rows.length === 0) return { error: 'No valid rows found (each row needs a Name and Category).' }
+  if (rows.length === 0) return { error: t('No valid rows found (each row needs a Name and Category).') }
   return { rows }
 }

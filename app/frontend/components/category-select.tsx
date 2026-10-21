@@ -13,6 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { t } from '@/lib/i18n'
 
 // Shape of OptionListSerializers#serialize_categories: `name` is the full path
 // ("Passives > Resistors"), `short_name` the category's own name. The extra
@@ -61,7 +62,7 @@ export function CategorySelect({
   value,
   onValueChange,
   id,
-  placeholder = 'Select a category',
+  placeholder = t('Select a category'),
   allowCreate = true,
 }: CategorySelectProps) {
   // Categories created from here. The parent's `categories` list may never
@@ -99,7 +100,7 @@ export function CategorySelect({
 
   const parentOptions: ComboboxOption[] = useMemo(
     () => [
-      { value: NO_PARENT, label: 'None (top level)' },
+      { value: NO_PARENT, label: t('None (top level)') },
       ...options.map((option) => ({ ...option, label: option.selectedLabel ?? option.label, description: undefined, depth: undefined })),
     ],
     [options]
@@ -128,7 +129,7 @@ export function CategorySelect({
     e.stopPropagation()
     const trimmed = name.trim()
     if (!trimmed) {
-      setError('Name is required.')
+      setError(t('Name is required.'))
       return
     }
 
@@ -160,10 +161,10 @@ export function CategorySelect({
         setOpen(false)
       } else {
         const errors = (data.errors ?? {}) as Record<string, string>
-        setError(errors.name ?? errors.parent ?? data.error ?? Object.values(errors)[0] ?? 'Could not create the category.')
+        setError(errors.name ?? errors.parent ?? data.error ?? Object.values(errors)[0] ?? t('Could not create the category.'))
       }
     } catch {
-      setError('Could not create the category.')
+      setError(t('Could not create the category.'))
     } finally {
       setProcessing(false)
     }
@@ -177,12 +178,12 @@ export function CategorySelect({
         value={value}
         onValueChange={onValueChange}
         placeholder={placeholder}
-        searchPlaceholder="Search categories…"
-        emptyText={all.length === 0 ? 'No category yet.' : 'No matching category.'}
+        searchPlaceholder={t('Search categories…')}
+        emptyText={all.length === 0 ? t('No category yet.') : t('No matching category.')}
         className="w-full"
         contentClassName="min-w-[18rem]"
         onCreate={allowCreate ? startCreate : undefined}
-        createLabel={(query) => (query ? `Create category "${query}"` : 'New category…')}
+        createLabel={(query) => (query ? t('Create category "{name}"', { name: query }) : t('New category…'))}
       />
 
       <Dialog open={open} onOpenChange={setOpen}>
@@ -191,48 +192,48 @@ export function CategorySelect({
               bubbling up to it (portals still bubble React events). */}
           <form onSubmit={submit}>
             <DialogHeader>
-              <DialogTitle>New category</DialogTitle>
-              <DialogDescription>Add a category to classify this part.</DialogDescription>
+              <DialogTitle>{t('New category')}</DialogTitle>
+              <DialogDescription>{t('Add a category to classify this part.')}</DialogDescription>
             </DialogHeader>
 
             <div className="space-y-4 py-4">
               <div className="space-y-2">
-                <Label htmlFor="new-category-name">Name</Label>
+                <Label htmlFor="new-category-name">{t('Name')}</Label>
                 <Input
                   id="new-category-name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g. Resistors"
+                  placeholder={t('e.g. Resistors')}
                   autoFocus
                 />
                 {error && <p className="text-sm text-destructive">{error}</p>}
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="new-category-parent">Parent</Label>
+                <Label htmlFor="new-category-parent">{t('Parent')}</Label>
                 <Combobox
                   id="new-category-parent"
                   options={parentOptions}
                   value={parentId}
                   onValueChange={setParentId}
-                  searchPlaceholder="Search categories…"
-                  emptyText="No matching category."
+                  searchPlaceholder={t('Search categories…')}
+                  emptyText={t('No matching category.')}
                   className="w-full"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label>Color</Label>
+                <Label>{t('Color')}</Label>
                 <ColorSwatches value={color} onChange={setColor} />
               </div>
             </div>
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-                Cancel
+                {t('Cancel')}
               </Button>
               <Button type="submit" disabled={processing}>
-                Create category
+                {t('Create category')}
               </Button>
             </DialogFooter>
           </form>

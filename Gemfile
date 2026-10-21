@@ -82,3 +82,8 @@ gem "inertia_rails", "~> 3.22"
 gem "vite_rails", "~> 3.11"
 
 gem "devise", "~> 5.0"
+
+# French (and other) translations of Rails and Devise messages: validation
+# errors, dates, numbers, Devise flashes.
+gem "rails-i18n", "~> 8.0"
+gem "devise-i18n", "~> 1.15"

@@ -45,6 +45,17 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { t, tn, tx } from '@/lib/i18n'
+
+// Mounting types are stored in English (Footprint::MOUNTING_TYPES).
+function mountingTypeLabel(type: string) {
+  switch (type) {
+    case 'SMD': return t('SMD')
+    case 'Through-hole': return t('Through-hole')
+    case 'Both': return t('Both')
+    default: return type
+  }
+}
 
 const MOUNTING_TYPE_META: Record<string, string> = {
   SMD: 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400',
@@ -96,10 +107,10 @@ export default function FootprintsIndex({ footprints, mounting_types }: Footprin
     const smd = footprints.filter((f) => f.mounting_type === 'SMD').length
     const tht = footprints.filter((f) => f.mounting_type === 'Through-hole').length
     return [
-      { label: 'Footprints', value: String(footprints.length) },
-      { label: 'In use', value: String(withParts) },
-      { label: 'SMD', value: String(smd) },
-      { label: 'Through-hole', value: String(tht) },
+      { label: t('Footprints'), value: String(footprints.length) },
+      { label: t('In use'), value: String(withParts) },
+      { label: t('SMD'), value: String(smd) },
+      { label: t('Through-hole'), value: String(tht) },
     ]
   }, [footprints])
 
@@ -147,17 +158,17 @@ export default function FootprintsIndex({ footprints, mounting_types }: Footprin
   return (
     <AppLayout
       header={
-        <PageHeader title="Footprints" subtitle="Component packages and mounting types">
+        <PageHeader title={t('Footprints')} subtitle={t('Component packages and mounting types')}>
           {canWrite && (
             <Button size="sm" onClick={openNewDialog}>
               <Plus className="size-4" />
-              Add Footprint
+              {t('Add Footprint')}
             </Button>
           )}
         </PageHeader>
       }
     >
-      <Head title="Footprints" />
+      <Head title={t('Footprints')} />
 
       <div className="space-y-6">
         <FlashMessages />
@@ -183,17 +194,17 @@ export default function FootprintsIndex({ footprints, mounting_types }: Footprin
             <CardContent className="flex flex-col items-center gap-3 py-10 text-center">
               <Cpu className="size-8 text-muted-foreground" />
               <div>
-                <p className="font-medium">No footprints yet</p>
+                <p className="font-medium">{t('No footprints yet')}</p>
                 <p className="text-sm text-muted-foreground">
                   {canWrite
-                    ? 'Add your first footprint to describe component packages.'
-                    : 'No footprints have been added yet.'}
+                    ? t('Add your first footprint to describe component packages.')
+                    : t('No footprints have been added yet.')}
                 </p>
               </div>
               {canWrite && (
                 <Button onClick={openNewDialog}>
                   <Plus className="size-4" />
-                  Add Footprint
+                  {t('Add Footprint')}
                 </Button>
               )}
             </CardContent>
@@ -203,10 +214,10 @@ export default function FootprintsIndex({ footprints, mounting_types }: Footprin
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Mounting</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead className="text-right">Parts</TableHead>
+                  <TableHead>{t('Name')}</TableHead>
+                  <TableHead>{t('Mounting')}</TableHead>
+                  <TableHead>{t('Description')}</TableHead>
+                  <TableHead className="text-right">{t('Parts')}</TableHead>
                   {canWrite && <TableHead className="w-24" />}
                 </TableRow>
               </TableHeader>
@@ -217,7 +228,7 @@ export default function FootprintsIndex({ footprints, mounting_types }: Footprin
                     <TableCell>
                       {footprint.mounting_type ? (
                         <Badge variant="outline" className={MOUNTING_TYPE_META[footprint.mounting_type]}>
-                          {footprint.mounting_type}
+                          {mountingTypeLabel(footprint.mounting_type)}
                         </Badge>
                       ) : (
                         <span className="text-muted-foreground">-</span>
@@ -233,7 +244,7 @@ export default function FootprintsIndex({ footprints, mounting_types }: Footprin
                           <Button
                             variant="ghost"
                             size="icon-sm"
-                            aria-label="Edit footprint"
+                            aria-label={t('Edit footprint')}
                             onClick={() => openEditDialog(footprint)}
                           >
                             <Pencil className="size-4" />
@@ -241,7 +252,7 @@ export default function FootprintsIndex({ footprints, mounting_types }: Footprin
                           <Button
                             variant="ghost"
                             size="icon-sm"
-                            aria-label="Delete footprint"
+                            aria-label={t('Delete footprint')}
                             className="text-destructive"
                             onClick={() => setDeleteId(footprint.id)}
                           >
@@ -262,7 +273,7 @@ export default function FootprintsIndex({ footprints, mounting_types }: Footprin
       <Dialog open={newOpen} onOpenChange={setNewOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Add footprint</DialogTitle>
+            <DialogTitle>{t('Add footprint')}</DialogTitle>
           </DialogHeader>
           <FootprintForm
             data={newForm.data.footprint}
@@ -276,7 +287,7 @@ export default function FootprintsIndex({ footprints, mounting_types }: Footprin
             onSubmit={submitNew}
             onCancel={() => setNewOpen(false)}
             processing={newForm.processing}
-            submitLabel="Add footprint"
+            submitLabel={t('Add footprint')}
           />
         </DialogContent>
       </Dialog>
@@ -285,7 +296,7 @@ export default function FootprintsIndex({ footprints, mounting_types }: Footprin
       <Dialog open={editId != null} onOpenChange={(open) => !open && setEditId(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Edit footprint</DialogTitle>
+            <DialogTitle>{t('Edit footprint')}</DialogTitle>
           </DialogHeader>
           <FootprintForm
             data={editForm.data.footprint}
@@ -299,7 +310,7 @@ export default function FootprintsIndex({ footprints, mounting_types }: Footprin
             onSubmit={submitEdit}
             onCancel={() => setEditId(null)}
             processing={editForm.processing}
-            submitLabel="Save"
+            submitLabel={t('Save')}
           />
         </DialogContent>
       </Dialog>
@@ -308,18 +319,22 @@ export default function FootprintsIndex({ footprints, mounting_types }: Footprin
       <AlertDialog open={deleteId != null} onOpenChange={(open) => !open && setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete this footprint?</AlertDialogTitle>
+            <AlertDialogTitle>{t('Delete this footprint?')}</AlertDialogTitle>
             <AlertDialogDescription>
-              <span className="font-semibold text-foreground">{deleting?.name}</span> will be removed.
+              {tx('{name} will be removed.', { name: <span className="font-semibold text-foreground">{deleting?.name}</span> })}
               {deleting && deleting.parts_count > 0 && (
-                <> This footprint is used by {deleting.parts_count} part{deleting.parts_count !== 1 ? 's' : ''} and cannot be deleted while in use.</>
+                <>{' '}{tn(
+                  'This footprint is used by {count} part and cannot be deleted while in use.',
+                  'This footprint is used by {count} parts and cannot be deleted while in use.',
+                  deleting.parts_count,
+                )}</>
               )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t('Cancel')}</AlertDialogCancel>
             <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-white hover:bg-destructive/90">
-              Delete
+              {t('Delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -350,11 +365,11 @@ function FootprintForm({
     <form onSubmit={onSubmit} className="flex flex-col gap-4">
       <Field>
         <FieldLabel>
-          <Label>Name</Label>
+          <Label>{t('Name')}</Label>
         </FieldLabel>
         <FieldContent>
           <Input
-            placeholder="e.g. 0805, SOT-23, DIP-8"
+            placeholder={t('e.g. 0805, SOT-23, DIP-8')}
             value={data.name}
             onChange={(e) => onChange({ name: e.target.value })}
           />
@@ -363,7 +378,7 @@ function FootprintForm({
       </Field>
       <Field>
         <FieldLabel>
-          <Label>Mounting type</Label>
+          <Label>{t('Mounting type')}</Label>
         </FieldLabel>
         <FieldContent>
           <Select
@@ -371,12 +386,12 @@ function FootprintForm({
             onValueChange={(value) => onChange({ mounting_type: value === NONE_VALUE ? '' : value })}
           >
             <SelectTrigger className="w-full">
-              <SelectValue placeholder="Select a mounting type" />
+              <SelectValue placeholder={t('Select a mounting type')} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value={NONE_VALUE}>None</SelectItem>
+              <SelectItem value={NONE_VALUE}>{t('None')}</SelectItem>
               {mountingTypes.map((type) => (
-                <SelectItem key={type} value={type}>{type}</SelectItem>
+                <SelectItem key={type} value={type}>{mountingTypeLabel(type)}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -385,11 +400,11 @@ function FootprintForm({
       </Field>
       <Field>
         <FieldLabel>
-          <Label>Description</Label>
+          <Label>{t('Description')}</Label>
         </FieldLabel>
         <FieldContent>
           <Textarea
-            placeholder="Optional notes about this package"
+            placeholder={t('Optional notes about this package')}
             value={data.description}
             onChange={(e) => onChange({ description: e.target.value })}
           />
@@ -397,7 +412,7 @@ function FootprintForm({
         {errors.description && <FieldError>{errors.description}</FieldError>}
       </Field>
       <DialogFooter>
-        <Button type="button" variant="outline" onClick={onCancel}>Cancel</Button>
+        <Button type="button" variant="outline" onClick={onCancel}>{t('Cancel')}</Button>
         <Button type="submit" disabled={processing}>{submitLabel}</Button>
       </DialogFooter>
     </form>

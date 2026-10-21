@@ -8,6 +8,7 @@ import { Field, FieldContent, FieldError, FieldGroup, FieldLabel } from '@/compo
 import { FlashMessages } from '@/components/flash-messages'
 
 import authImage from '/assets/auth.jpeg'
+import { t } from '@/lib/i18n'
 
 interface ResetPasswordProps {
   reset_password_token: string
@@ -29,7 +30,7 @@ export default function ResetPassword({ reset_password_token }: ResetPasswordPro
 
   return (
     <>
-      <Head title="Reset Password" />
+      <Head title={t('Reset Password')} />
 
       <div className="grid min-h-svh lg:grid-cols-2 bg-background text-foreground">
         <div className="flex flex-col gap-4 p-6 md:p-10 bg-background text-foreground">
@@ -40,16 +41,16 @@ export default function ResetPassword({ reset_password_token }: ResetPasswordPro
               <form onSubmit={submit} className="space-y-4 mt-4">
                 <FieldGroup>
                   <div className="flex flex-col items-center gap-1 text-center">
-                    <h1 className="text-2xl font-bold">Reset your password</h1>
+                    <h1 className="text-2xl font-bold">{t('Reset your password')}</h1>
                     <p className="text-muted-foreground text-sm text-balance">
-                      Enter your new password below
+                      {t('Enter your new password below')}
                     </p>
                   </div>
 
                   {/* Password Field */}
                   <Field>
                     <FieldLabel>
-                      <Label htmlFor="password">New Password</Label>
+                      <Label htmlFor="password">{t('New Password')}</Label>
                     </FieldLabel>
                     <FieldContent>
                       <Input
@@ -69,7 +70,7 @@ export default function ResetPassword({ reset_password_token }: ResetPasswordPro
                   {/* Password Confirmation Field */}
                   <Field>
                     <FieldLabel>
-                      <Label htmlFor="password_confirmation">Confirm Password</Label>
+                      <Label htmlFor="password_confirmation">{t('Confirm Password')}</Label>
                     </FieldLabel>
                     <FieldContent>
                       <Input
@@ -91,17 +92,17 @@ export default function ResetPassword({ reset_password_token }: ResetPasswordPro
                     className="w-full"
                     disabled={processing}
                   >
-                    {processing ? 'Resetting...' : 'Reset password'}
+                    {processing ? t('Resetting...') : t('Reset password')}
                   </Button>
 
                   {/* Back to login link */}
                   <div className="text-center text-sm">
-                    <span className="text-muted-foreground">Remember your password? </span>
+                    <span className="text-muted-foreground">{t('Remember your password?')} </span>
                     <Link
                       href="/login"
                       className="text-foreground hover:text-primary transition-colors underline-offset-4 hover:underline font-medium"
                     >
-                      Back to login
+                      {t('Back to login')}
                     </Link>
                   </div>
                 </FieldGroup>
@@ -112,7 +113,7 @@ export default function ResetPassword({ reset_password_token }: ResetPasswordPro
         <div className="relative hidden lg:block">
           <img
             src={authImage}
-            alt="Image"
+            alt={t('Image')}
             className="absolute inset-0 h-full w-full object-cover dark:brightness-[0.8]"
           />
         </div>

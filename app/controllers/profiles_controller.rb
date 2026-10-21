@@ -11,7 +11,8 @@ class ProfilesController < ApplicationController
         lastname: current_user.lastname,
         email: current_user.email,
         email_confirmed: current_user.confirmed?,
-        unconfirmed_email: current_user.unconfirmed_email
+        unconfirmed_email: current_user.unconfirmed_email,
+        locale: current_user.locale
       },
       # Hidden until the address is confirmed: they're addressed to an email the
       # user hasn't yet proven is theirs.
@@ -55,6 +56,15 @@ class ProfilesController < ApplicationController
     authorization.destroy!
 
     redirect_to profile_path, notice: "#{authorization.oauth_client.name} disconnected."
+  end
+
+  # UI language: "en", "fr", or blank to follow the browser.
+  def update_locale
+    current_user.update!(locale: params[:locale].presence_in(I18n.available_locales.map(&:to_s)))
+
+    I18n.with_locale(current_user.locale || browser_locale) do
+      redirect_to profile_path, notice: t("flash.profiles.locale_updated")
+    end
   end
 
   # Per-organization opt-out of the email digest (NotificationDigestJob).

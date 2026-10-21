@@ -15,6 +15,7 @@ import {
 import { StorageLocationSelect, type StorageLocationOption } from '@/components/storage-location-select'
 
 import type { Order, OrderLine } from './types'
+import { t, tn } from '@/lib/i18n'
 
 interface AllocationDialogProps {
   order: Order
@@ -55,10 +56,13 @@ export function AllocationDialog({ order, allocLine, onClose, storageLocations }
           return (
             <>
               <DialogHeader>
-                <DialogTitle>Storage for {allocLine.part.reference}</DialogTitle>
+                <DialogTitle>{t('Storage for {reference}', { reference: allocLine.part.reference })}</DialogTitle>
                 <DialogDescription>
-                  Split the {allocLine.quantity} received unit{allocLine.quantity !== 1 ? 's' : ''} across one or more zones.
-                  They must add up to {allocLine.quantity}.
+                  {tn(
+                    'Split the {count} received unit across one or more zones. They must add up to {count}.',
+                    'Split the {count} received units across one or more zones. They must add up to {count}.',
+                    allocLine.quantity,
+                  )}
                 </DialogDescription>
               </DialogHeader>
 
@@ -69,7 +73,7 @@ export function AllocationDialog({ order, allocLine, onClose, storageLocations }
                       locations={storageLocations}
                       value={row.storage_location_id != null ? String(row.storage_location_id) : ''}
                       onValueChange={(value) => setAllocRows((rows) => rows.map((r, idx) => (idx === i ? { ...r, storage_location_id: value ? Number(value) : null } : r)))}
-                      placeholder="Select a zone"
+                      placeholder={t('Select a zone')}
                       className="min-w-0 flex-1"
                       allowCreate
                     />
@@ -84,7 +88,7 @@ export function AllocationDialog({ order, allocLine, onClose, storageLocations }
                       type="button"
                       variant="ghost"
                       size="icon-sm"
-                      aria-label="Remove zone"
+                      aria-label={t('Remove zone')}
                       disabled={allocRows.length === 1}
                       onClick={() => setAllocRows((rows) => rows.filter((_, idx) => idx !== i))}
                     >
@@ -101,10 +105,10 @@ export function AllocationDialog({ order, allocLine, onClose, storageLocations }
                     onClick={() => setAllocRows((rows) => [...rows, { storage_location_id: null, quantity: '' }])}
                   >
                     <Plus className="size-4" />
-                    Add zone
+                    {t('Add zone')}
                   </Button>
                   <span className={`text-xs ${remaining === 0 ? 'text-muted-foreground' : 'text-amber-600 dark:text-amber-400'}`}>
-                    {remaining === 0 ? 'All units allocated' : remaining > 0 ? `${remaining} left to allocate` : `${-remaining} over`}
+                    {remaining === 0 ? t('All units allocated') : remaining > 0 ? t('{count} left to allocate', { count: remaining }) : t('{count} over', { count: -remaining })}
                   </span>
                 </div>
               </div>
@@ -115,11 +119,11 @@ export function AllocationDialog({ order, allocLine, onClose, storageLocations }
                   variant="ghost"
                   onClick={() => patchAllocations(allocLine, [])}
                 >
-                  Clear (use default location)
+                  {t('Clear (use default location)')}
                 </Button>
                 <div className="flex gap-2">
                   <Button type="button" variant="outline" onClick={onClose}>
-                    Cancel
+                    {t('Cancel')}
                   </Button>
                   <Button
                     type="button"
@@ -131,7 +135,7 @@ export function AllocationDialog({ order, allocLine, onClose, storageLocations }
                       )
                     }
                   >
-                    Save split
+                    {t('Save split')}
                   </Button>
                 </div>
               </DialogFooter>

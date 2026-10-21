@@ -42,6 +42,7 @@ import {
 import { exportCsv } from './csv'
 import { LIFECYCLE_META, locationLabel } from './part-meta'
 import type { Category, Part, StorageLocationOption, Supplier, Tag } from './types'
+import { t, tn } from '@/lib/i18n'
 
 interface BulkActionsProps {
   selected: number[]
@@ -98,7 +99,7 @@ export function BulkActions({
   const [supplierConfirmOpen, setSupplierConfirmOpen] = useState(false)
 
   const selectedCount = selected.length
-  const plural = selectedCount !== 1 ? 's' : ''
+  const hiddenNote = hiddenSelectedCount > 0 ? t(' This includes parts hidden by your current filters.') : ''
 
   const openMove = () => {
     setMoveLocationId('')
@@ -196,21 +197,21 @@ export function BulkActions({
   const exportSelected = () => {
     loadSelectedParts()
       .then(exportCsv)
-      .catch(() => toast.error('Could not load the selected parts.'))
+      .catch(() => toast.error(t('Could not load the selected parts.')))
   }
 
   const bulkActions = [
-    { label: 'Move', icon: Move, action: openMove },
-    { label: 'Category', icon: Layers, action: openCategory },
-    { label: 'Status', icon: CircleDot, action: openStatus },
-    { label: 'Tags', icon: Tags, action: openTags },
-    { label: 'Supplier', icon: Truck, action: openSupplier },
-    { label: 'Labels', icon: TagIcon, action: () => setLabelsOpen(true) },
-    { label: 'Export', icon: Download, action: exportSelected },
+    { label: t('Move'), icon: Move, action: openMove },
+    { label: t('Category'), icon: Layers, action: openCategory },
+    { label: t('Status'), icon: CircleDot, action: openStatus },
+    { label: t('Tags'), icon: Tags, action: openTags },
+    { label: t('Supplier'), icon: Truck, action: openSupplier },
+    { label: t('Labels'), icon: TagIcon, action: () => setLabelsOpen(true) },
+    { label: t('Export'), icon: Download, action: exportSelected },
     // Bulk delete is admin-gated server-side (PartsController#bulk_destroy) —
     // hidden here too so members/viewers don't hit a dead-end confirmation
     // dialog for an action the server will always reject.
-    ...(canAdminister ? [ { label: 'Delete', icon: Trash2, action: () => setDeleteOpen(true) } ] : []),
+    ...(canAdminister ? [ { label: t('Delete'), icon: Trash2, action: () => setDeleteOpen(true) } ] : []),
   ]
 
   return (
@@ -219,10 +220,10 @@ export function BulkActions({
       {canWrite && selected.length > 0 && (
         <div className="flex shrink-0 items-center gap-3 bg-foreground px-5 py-2.5 text-background">
           <span className="text-sm font-medium">
-            {selected.length} selected
+            {tn('{count} selected', '{count} selected', selected.length)}
             {hiddenSelectedCount > 0 && (
               <span className="ml-1 font-normal text-background/75">
-                (includes {hiddenSelectedCount} hidden by filters)
+                {tn('(includes {count} hidden by filters)', '(includes {count} hidden by filters)', hiddenSelectedCount)}
               </span>
             )}
           </span>
@@ -246,7 +247,7 @@ export function BulkActions({
             onClick={onClearSelection}
             className="h-7 px-2 font-normal text-background/75 hover:bg-background/10 hover:text-background"
           >
-            Deselect
+            {t('Deselect')}
           </Button>
         </div>
       )}
@@ -256,36 +257,39 @@ export function BulkActions({
       onOpenChange={setLabelsOpen}
       count={selectedCount}
       loadItems={() => loadSelectedParts().then((parts) => parts.map(partLabel))}
-      title={`Print labels for ${selectedCount} part${plural}`}
+      title={tn('Print labels for {count} part', 'Print labels for {count} parts', selectedCount)}
     />
 
     {/* Bulk move modal */}
     <Dialog open={moveOpen} onOpenChange={setMoveOpen}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Move {selectedCount} part{plural}</DialogTitle>
+          <DialogTitle>{tn('Move {count} part', 'Move {count} parts', selectedCount)}</DialogTitle>
           <DialogDescription>
-            All stock for the selected part{plural} is relocated into the destination location.
-            Parts with no stock are skipped.
+            {tn(
+              'All stock for the selected part is relocated into the destination location. Parts with no stock are skipped.',
+              'All stock for the selected parts is relocated into the destination location. Parts with no stock are skipped.',
+              selectedCount,
+            )}
           </DialogDescription>
         </DialogHeader>
 
         <div className="min-w-0 space-y-2">
-          <Label htmlFor="bulk-move-location">Destination location</Label>
+          <Label htmlFor="bulk-move-location">{t('Destination location')}</Label>
           <StorageLocationSelect
             id="bulk-move-location"
             locations={storageLocations}
             value={moveLocationId}
             onValueChange={setMoveLocationId}
-            placeholder="Choose a location"
+            placeholder={t('Choose a location')}
             allowCreate
           />
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => setMoveOpen(false)}>Cancel</Button>
+          <Button variant="outline" onClick={() => setMoveOpen(false)}>{t('Cancel')}</Button>
           <Button disabled={!moveLocationId || bulkSubmitting} onClick={() => setMoveConfirmOpen(true)}>
-            Move part{plural}
+            {tn('Move part', 'Move parts', selectedCount)}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -294,16 +298,19 @@ export function BulkActions({
     <AlertDialog open={moveConfirmOpen} onOpenChange={setMoveConfirmOpen}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Move {selectedCount} part{plural}?</AlertDialogTitle>
+          <AlertDialogTitle>{tn('Move {count} part?', 'Move {count} parts?', selectedCount)}</AlertDialogTitle>
           <AlertDialogDescription>
-            This writes stock-out and stock-in movements for every location currently holding
-            the selected part{plural}. This can&apos;t be undone.
+            {tn(
+              "This writes stock-out and stock-in movements for every location currently holding the selected part. This can't be undone.",
+              "This writes stock-out and stock-in movements for every location currently holding the selected parts. This can't be undone.",
+              selectedCount,
+            )}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={bulkSubmitting}>Cancel</AlertDialogCancel>
+          <AlertDialogCancel disabled={bulkSubmitting}>{t('Cancel')}</AlertDialogCancel>
           <AlertDialogAction disabled={bulkSubmitting} onClick={(e) => { e.preventDefault(); submitMove() }}>
-            {bulkSubmitting ? 'Moving…' : `Move part${plural}`}
+            {bulkSubmitting ? t('Moving…') : tn('Move part', 'Move parts', selectedCount)}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
@@ -313,28 +320,28 @@ export function BulkActions({
     <Dialog open={categoryOpen} onOpenChange={setCategoryOpen}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Set category for {selectedCount} part{plural}</DialogTitle>
+          <DialogTitle>{tn('Set category for {count} part', 'Set category for {count} parts', selectedCount)}</DialogTitle>
           <DialogDescription>
-            Replaces the category on every selected part.
+            {t('Replaces the category on every selected part.')}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-2">
-          <Label htmlFor="bulk-category">Category</Label>
+          <Label htmlFor="bulk-category">{t('Category')}</Label>
           <CategorySelect
             id="bulk-category"
             categories={categories}
             value={categoryValue}
             onValueChange={setCategoryValue}
-            placeholder="Choose a category"
+            placeholder={t('Choose a category')}
             allowCreate={false}
           />
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => setCategoryOpen(false)}>Cancel</Button>
+          <Button variant="outline" onClick={() => setCategoryOpen(false)}>{t('Cancel')}</Button>
           <Button disabled={!categoryValue || bulkSubmitting} onClick={() => setCategoryConfirmOpen(true)}>
-            Set category
+            {t('Set category')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -343,16 +350,15 @@ export function BulkActions({
     <AlertDialog open={categoryConfirmOpen} onOpenChange={setCategoryConfirmOpen}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Set category for {selectedCount} part{plural}?</AlertDialogTitle>
+          <AlertDialogTitle>{tn('Set category for {count} part?', 'Set category for {count} parts?', selectedCount)}</AlertDialogTitle>
           <AlertDialogDescription>
-            This overwrites the current category on every selected part
-            {hiddenSelectedCount > 0 ? ', including parts hidden by your current filters' : ''}.
+            {t('This overwrites the current category on every selected part.')}{hiddenNote}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={bulkSubmitting}>Cancel</AlertDialogCancel>
+          <AlertDialogCancel disabled={bulkSubmitting}>{t('Cancel')}</AlertDialogCancel>
           <AlertDialogAction disabled={bulkSubmitting} onClick={(e) => { e.preventDefault(); submitCategory() }}>
-            {bulkSubmitting ? 'Setting…' : 'Set category'}
+            {bulkSubmitting ? t('Setting…') : t('Set category')}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
@@ -362,17 +368,17 @@ export function BulkActions({
     <Dialog open={statusOpen} onOpenChange={setStatusOpen}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Set status for {selectedCount} part{plural}</DialogTitle>
+          <DialogTitle>{tn('Set status for {count} part', 'Set status for {count} parts', selectedCount)}</DialogTitle>
           <DialogDescription>
-            Replaces the lifecycle status on every selected part.
+            {t('Replaces the lifecycle status on every selected part.')}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-2">
-          <Label htmlFor="bulk-status">Status</Label>
+          <Label htmlFor="bulk-status">{t('Status')}</Label>
           <Select value={statusValue} onValueChange={(value) => setStatusValue(value as Part['status'])}>
             <SelectTrigger id="bulk-status">
-              <SelectValue placeholder="Choose a status" />
+              <SelectValue placeholder={t('Choose a status')} />
             </SelectTrigger>
             <SelectContent>
               {(Object.keys(LIFECYCLE_META) as Part['status'][]).map((status) => (
@@ -383,9 +389,9 @@ export function BulkActions({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => setStatusOpen(false)}>Cancel</Button>
+          <Button variant="outline" onClick={() => setStatusOpen(false)}>{t('Cancel')}</Button>
           <Button disabled={!statusValue || bulkSubmitting} onClick={() => setStatusConfirmOpen(true)}>
-            Set status
+            {t('Set status')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -394,16 +400,15 @@ export function BulkActions({
     <AlertDialog open={statusConfirmOpen} onOpenChange={setStatusConfirmOpen}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Set status for {selectedCount} part{plural}?</AlertDialogTitle>
+          <AlertDialogTitle>{tn('Set status for {count} part?', 'Set status for {count} parts?', selectedCount)}</AlertDialogTitle>
           <AlertDialogDescription>
-            This overwrites the lifecycle status on every selected part
-            {hiddenSelectedCount > 0 ? ', including parts hidden by your current filters' : ''}.
+            {t('This overwrites the lifecycle status on every selected part.')}{hiddenNote}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={bulkSubmitting}>Cancel</AlertDialogCancel>
+          <AlertDialogCancel disabled={bulkSubmitting}>{t('Cancel')}</AlertDialogCancel>
           <AlertDialogAction disabled={bulkSubmitting} onClick={(e) => { e.preventDefault(); submitStatus() }}>
-            {bulkSubmitting ? 'Setting…' : 'Set status'}
+            {bulkSubmitting ? t('Setting…') : t('Set status')}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
@@ -413,9 +418,9 @@ export function BulkActions({
     <Dialog open={tagsOpen} onOpenChange={setTagsOpen}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Edit tags for {selectedCount} part{plural}</DialogTitle>
+          <DialogTitle>{tn('Edit tags for {count} part', 'Edit tags for {count} parts', selectedCount)}</DialogTitle>
           <DialogDescription>
-            Add or remove the chosen tags across every selected part.
+            {t('Add or remove the chosen tags across every selected part.')}
           </DialogDescription>
         </DialogHeader>
 
@@ -428,23 +433,23 @@ export function BulkActions({
                 variant={tagsMode === mode ? 'default' : 'ghost'}
                 size="sm"
                 onClick={() => setTagsMode(mode)}
-                className="h-7 rounded px-3 capitalize"
+                className="h-7 rounded px-3"
               >
-                {mode}
+                {mode === 'add' ? t('Add') : t('Remove')}
               </Button>
             ))}
           </div>
 
           <div className="space-y-2">
-            <Label>Tags</Label>
+            <Label>{t('Tags')}</Label>
             <TagPicker tags={tags} value={tagsValue} onChange={setTagsValue} />
           </div>
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => setTagsOpen(false)}>Cancel</Button>
+          <Button variant="outline" onClick={() => setTagsOpen(false)}>{t('Cancel')}</Button>
           <Button disabled={tagsValue.length === 0 || bulkSubmitting} onClick={() => setTagsConfirmOpen(true)}>
-            {tagsMode === 'add' ? 'Add tags' : 'Remove tags'}
+            {tagsMode === 'add' ? t('Add tags') : t('Remove tags')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -454,17 +459,21 @@ export function BulkActions({
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>
-            {tagsMode === 'add' ? 'Add' : 'Remove'} tags for {selectedCount} part{plural}?
+            {tagsMode === 'add'
+              ? tn('Add tags to {count} part?', 'Add tags to {count} parts?', selectedCount)
+              : tn('Remove tags from {count} part?', 'Remove tags from {count} parts?', selectedCount)}
           </AlertDialogTitle>
           <AlertDialogDescription>
-            This {tagsMode === 'add' ? 'adds the chosen tags to' : 'removes the chosen tags from'} every
-            selected part{hiddenSelectedCount > 0 ? ', including parts hidden by your current filters' : ''}.
+            {tagsMode === 'add'
+              ? t('This adds the chosen tags to every selected part.')
+              : t('This removes the chosen tags from every selected part.')}
+            {hiddenNote}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={bulkSubmitting}>Cancel</AlertDialogCancel>
+          <AlertDialogCancel disabled={bulkSubmitting}>{t('Cancel')}</AlertDialogCancel>
           <AlertDialogAction disabled={bulkSubmitting} onClick={(e) => { e.preventDefault(); submitTags() }}>
-            {bulkSubmitting ? 'Saving…' : tagsMode === 'add' ? 'Add tags' : 'Remove tags'}
+            {bulkSubmitting ? t('Saving…') : tagsMode === 'add' ? t('Add tags') : t('Remove tags')}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
@@ -474,17 +483,17 @@ export function BulkActions({
     <Dialog open={supplierOpen} onOpenChange={setSupplierOpen}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Assign supplier for {selectedCount} part{plural}</DialogTitle>
+          <DialogTitle>{tn('Assign supplier for {count} part', 'Assign supplier for {count} parts', selectedCount)}</DialogTitle>
           <DialogDescription>
-            Links the supplier to every selected part and marks it preferred.
+            {t('Links the supplier to every selected part and marks it preferred.')}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-2">
-          <Label htmlFor="bulk-supplier">Supplier</Label>
+          <Label htmlFor="bulk-supplier">{t('Supplier')}</Label>
           <Select value={supplierValue} onValueChange={setSupplierValue}>
             <SelectTrigger id="bulk-supplier">
-              <SelectValue placeholder="Choose a supplier" />
+              <SelectValue placeholder={t('Choose a supplier')} />
             </SelectTrigger>
             <SelectContent>
               {suppliers.map((supplier) => (
@@ -493,14 +502,14 @@ export function BulkActions({
             </SelectContent>
           </Select>
           {suppliers.length === 0 && (
-            <p className="text-sm text-muted-foreground">No suppliers yet — add one first.</p>
+            <p className="text-sm text-muted-foreground">{t('No suppliers yet — add one first.')}</p>
           )}
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => setSupplierOpen(false)}>Cancel</Button>
+          <Button variant="outline" onClick={() => setSupplierOpen(false)}>{t('Cancel')}</Button>
           <Button disabled={!supplierValue || bulkSubmitting} onClick={() => setSupplierConfirmOpen(true)}>
-            Assign supplier
+            {t('Assign supplier')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -509,17 +518,16 @@ export function BulkActions({
     <AlertDialog open={supplierConfirmOpen} onOpenChange={setSupplierConfirmOpen}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Assign supplier for {selectedCount} part{plural}?</AlertDialogTitle>
+          <AlertDialogTitle>{tn('Assign supplier for {count} part?', 'Assign supplier for {count} parts?', selectedCount)}</AlertDialogTitle>
           <AlertDialogDescription>
-            This links the chosen supplier to every selected part and marks it preferred, which
-            also updates each part&apos;s unit price to match
-            {hiddenSelectedCount > 0 ? '. This includes parts hidden by your current filters.' : '.'}
+            {t("This links the chosen supplier to every selected part and marks it preferred, which also updates each part's unit price to match.")}
+            {hiddenNote}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={bulkSubmitting}>Cancel</AlertDialogCancel>
+          <AlertDialogCancel disabled={bulkSubmitting}>{t('Cancel')}</AlertDialogCancel>
           <AlertDialogAction disabled={bulkSubmitting} onClick={(e) => { e.preventDefault(); submitSupplier() }}>
-            {bulkSubmitting ? 'Assigning…' : 'Assign supplier'}
+            {bulkSubmitting ? t('Assigning…') : t('Assign supplier')}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
@@ -529,20 +537,23 @@ export function BulkActions({
     <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Delete {selectedCount} part{plural}?</AlertDialogTitle>
+          <AlertDialogTitle>{tn('Delete {count} part?', 'Delete {count} parts?', selectedCount)}</AlertDialogTitle>
           <AlertDialogDescription>
-            This permanently removes the selected part{plural} along with their stock and
-            movement history. This can&apos;t be undone.
+            {tn(
+              "This permanently removes the selected part along with its stock and movement history. This can't be undone.",
+              "This permanently removes the selected parts along with their stock and movement history. This can't be undone.",
+              selectedCount,
+            )}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={bulkSubmitting}>Cancel</AlertDialogCancel>
+          <AlertDialogCancel disabled={bulkSubmitting}>{t('Cancel')}</AlertDialogCancel>
           <AlertDialogAction
             disabled={bulkSubmitting}
             onClick={(e) => { e.preventDefault(); submitDelete() }}
             className="bg-destructive text-white hover:bg-destructive/90"
           >
-            {bulkSubmitting ? 'Deleting…' : `Delete part${plural}`}
+            {bulkSubmitting ? t('Deleting…') : tn('Delete part', 'Delete parts', selectedCount)}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

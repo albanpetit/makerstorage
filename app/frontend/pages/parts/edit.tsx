@@ -43,6 +43,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
+import { t } from '@/lib/i18n'
 
 interface Category {
   id: number
@@ -211,7 +212,7 @@ export default function EditPart({ part, categories, footprints, suppliers, tags
   }
 
   const handleRemoveSupplier = (supplierId: number) => {
-    if (confirm('Are you sure you want to remove this supplier?')) {
+    if (confirm(t('Are you sure you want to remove this supplier?'))) {
       router.delete(`/parts/${part.id}/part_suppliers/${supplierId}`)
     }
   }
@@ -239,7 +240,7 @@ export default function EditPart({ part, categories, footprints, suppliers, tags
             </Link>
           </Button>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">Edit Part</h1>
+            <h1 className="text-2xl font-bold tracking-tight">{t('Edit Part')}</h1>
             <p className="text-muted-foreground">{part.name}</p>
           </div>
         </div>
@@ -259,14 +260,14 @@ export default function EditPart({ part, categories, footprints, suppliers, tags
           {/* Basic Information */}
           <Card>
             <CardHeader>
-              <CardTitle>Basic Information</CardTitle>
-              <CardDescription>Essential details about the part</CardDescription>
+              <CardTitle>{t('Basic Information')}</CardTitle>
+              <CardDescription>{t('Essential details about the part')}</CardDescription>
             </CardHeader>
             <CardContent>
               <FieldGroup className="grid gap-4 md:grid-cols-2">
                 <Field className="md:col-span-2">
                   <FieldLabel>
-                    <Label htmlFor="name">Name *</Label>
+                    <Label htmlFor="name">{t('Name *')}</Label>
                   </FieldLabel>
                   <FieldContent>
                     <Input
@@ -281,7 +282,7 @@ export default function EditPart({ part, categories, footprints, suppliers, tags
 
                 <Field>
                   <FieldLabel>
-                    <Label htmlFor="mpn">Manufacturer Part Number (MPN)</Label>
+                    <Label htmlFor="mpn">{t('Manufacturer Part Number (MPN)')}</Label>
                   </FieldLabel>
                   <FieldContent>
                     <Input
@@ -295,7 +296,7 @@ export default function EditPart({ part, categories, footprints, suppliers, tags
 
                 <Field>
                   <FieldLabel>
-                    <Label htmlFor="sku">Internal SKU</Label>
+                    <Label htmlFor="sku">{t('Internal SKU')}</Label>
                   </FieldLabel>
                   <FieldContent>
                     <Input
@@ -309,7 +310,7 @@ export default function EditPart({ part, categories, footprints, suppliers, tags
 
                 <Field>
                   <FieldLabel>
-                    <Label htmlFor="barcode">Barcode</Label>
+                    <Label htmlFor="barcode">{t('Barcode')}</Label>
                   </FieldLabel>
                   <FieldContent>
                     <Input
@@ -323,12 +324,12 @@ export default function EditPart({ part, categories, footprints, suppliers, tags
 
                 <Field>
                   <FieldLabel>
-                    <Label htmlFor="ipn">Internal part number (IPN)</Label>
+                    <Label htmlFor="ipn">{t('Internal part number (IPN)')}</Label>
                   </FieldLabel>
                   <FieldContent>
                     <Input
                       id="ipn"
-                      placeholder={ipn_manual_entry ? 'e.g. MS-00042' : 'Assigned automatically'}
+                      placeholder={ipn_manual_entry ? t('e.g. MS-00042') : t('Assigned automatically')}
                       value={data.part.ipn}
                       onChange={(e) => setData('part', { ...data.part, ipn: e.target.value })}
                       disabled={!ipn_manual_entry}
@@ -339,7 +340,7 @@ export default function EditPart({ part, categories, footprints, suppliers, tags
 
                 <Field>
                   <FieldLabel>
-                    <Label htmlFor="manufacturer">Manufacturer</Label>
+                    <Label htmlFor="manufacturer">{t('Manufacturer')}</Label>
                   </FieldLabel>
                   <FieldContent>
                     <Input
@@ -353,7 +354,7 @@ export default function EditPart({ part, categories, footprints, suppliers, tags
 
                 <Field className="md:col-span-2">
                   <FieldLabel>
-                    <Label htmlFor="description">Description</Label>
+                    <Label htmlFor="description">{t('Description')}</Label>
                   </FieldLabel>
                   <FieldContent>
                     <Textarea
@@ -372,14 +373,14 @@ export default function EditPart({ part, categories, footprints, suppliers, tags
           {/* Classification */}
           <Card>
             <CardHeader>
-              <CardTitle>Classification</CardTitle>
-              <CardDescription>Category and physical characteristics</CardDescription>
+              <CardTitle>{t('Classification')}</CardTitle>
+              <CardDescription>{t('Category and physical characteristics')}</CardDescription>
             </CardHeader>
             <CardContent>
               <FieldGroup className="grid gap-4 md:grid-cols-2">
                 <Field>
                   <FieldLabel>
-                    <Label htmlFor="part-category">Category *</Label>
+                    <Label htmlFor="part-category">{t('Category *')}</Label>
                   </FieldLabel>
                   <FieldContent>
                     <CategorySelect
@@ -394,7 +395,7 @@ export default function EditPart({ part, categories, footprints, suppliers, tags
 
                 <Field>
                   <FieldLabel>
-                    <Label>Footprint</Label>
+                    <Label>{t('Footprint')}</Label>
                   </FieldLabel>
                   <FieldContent>
                     <Select
@@ -402,10 +403,10 @@ export default function EditPart({ part, categories, footprints, suppliers, tags
                       onValueChange={(value) => handleSelectChange('footprint_id', value)}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Select a footprint" />
+                        <SelectValue placeholder={t('Select a footprint')} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="none">None</SelectItem>
+                        <SelectItem value="none">{t('None')}</SelectItem>
                         {footprints.map((footprint) => (
                           <SelectItem key={footprint.id} value={footprint.id.toString()}>
                             {footprint.name}
@@ -420,7 +421,7 @@ export default function EditPart({ part, categories, footprints, suppliers, tags
 
                 <Field className="md:col-span-2">
                   <FieldLabel>
-                    <Label>Tags</Label>
+                    <Label>{t('Tags')}</Label>
                   </FieldLabel>
                   <FieldContent>
                     <TagPicker
@@ -434,7 +435,7 @@ export default function EditPart({ part, categories, footprints, suppliers, tags
 
                 <Field>
                   <FieldLabel>
-                    <Label>Status</Label>
+                    <Label>{t('Status')}</Label>
                   </FieldLabel>
                   <FieldContent>
                     <Select
@@ -445,9 +446,9 @@ export default function EditPart({ part, categories, footprints, suppliers, tags
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="active">Active</SelectItem>
-                        <SelectItem value="discontinued">Discontinued</SelectItem>
-                        <SelectItem value="obsolete">Obsolete</SelectItem>
+                        <SelectItem value="active">{t('Active')}</SelectItem>
+                        <SelectItem value="discontinued">{t('Discontinued')}</SelectItem>
+                        <SelectItem value="obsolete">{t('Obsolete')}</SelectItem>
                       </SelectContent>
                     </Select>
                   </FieldContent>
@@ -456,7 +457,7 @@ export default function EditPart({ part, categories, footprints, suppliers, tags
 
                 <Field>
                   <FieldLabel>
-                    <Label htmlFor="package_type">Package Type</Label>
+                    <Label htmlFor="package_type">{t('Package Type')}</Label>
                   </FieldLabel>
                   <FieldContent>
                     <Input
@@ -474,14 +475,14 @@ export default function EditPart({ part, categories, footprints, suppliers, tags
           {/* Technical Specifications */}
           <Card>
             <CardHeader>
-              <CardTitle>Technical Specifications</CardTitle>
-              <CardDescription>Electrical and physical properties</CardDescription>
+              <CardTitle>{t('Technical Specifications')}</CardTitle>
+              <CardDescription>{t('Electrical and physical properties')}</CardDescription>
             </CardHeader>
             <CardContent>
               <FieldGroup className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 <Field>
                   <FieldLabel>
-                    <Label htmlFor="value">Value</Label>
+                    <Label htmlFor="value">{t('Value')}</Label>
                   </FieldLabel>
                   <FieldContent>
                     <Input
@@ -495,7 +496,7 @@ export default function EditPart({ part, categories, footprints, suppliers, tags
 
                 <Field>
                   <FieldLabel>
-                    <Label htmlFor="tolerance">Tolerance</Label>
+                    <Label htmlFor="tolerance">{t('Tolerance')}</Label>
                   </FieldLabel>
                   <FieldContent>
                     <Input
@@ -509,7 +510,7 @@ export default function EditPart({ part, categories, footprints, suppliers, tags
 
                 <Field>
                   <FieldLabel>
-                    <Label htmlFor="voltage_rating">Voltage Rating</Label>
+                    <Label htmlFor="voltage_rating">{t('Voltage Rating')}</Label>
                   </FieldLabel>
                   <FieldContent>
                     <Input
@@ -523,7 +524,7 @@ export default function EditPart({ part, categories, footprints, suppliers, tags
 
                 <Field>
                   <FieldLabel>
-                    <Label htmlFor="power_rating">Power Rating</Label>
+                    <Label htmlFor="power_rating">{t('Power Rating')}</Label>
                   </FieldLabel>
                   <FieldContent>
                     <Input
@@ -545,7 +546,7 @@ export default function EditPart({ part, categories, footprints, suppliers, tags
                       }
                     />
                     <Label htmlFor="rohs_compliant" className="font-normal cursor-pointer">
-                      RoHS Compliant
+                      {t('RoHS Compliant')}
                     </Label>
                   </div>
                 </Field>
@@ -556,14 +557,14 @@ export default function EditPart({ part, categories, footprints, suppliers, tags
           {/* Pricing & Stock */}
           <Card>
             <CardHeader>
-              <CardTitle>Pricing & Stock</CardTitle>
-              <CardDescription>Inventory thresholds and pricing</CardDescription>
+              <CardTitle>{t('Pricing & Stock')}</CardTitle>
+              <CardDescription>{t('Inventory thresholds and pricing')}</CardDescription>
             </CardHeader>
             <CardContent>
               <FieldGroup className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 <Field>
                   <FieldLabel>
-                    <Label htmlFor="unit_price">Unit Price ($)</Label>
+                    <Label htmlFor="unit_price">{t('Unit Price ($)')}</Label>
                   </FieldLabel>
                   <FieldContent>
                     <Input
@@ -580,7 +581,7 @@ export default function EditPart({ part, categories, footprints, suppliers, tags
 
                 <Field>
                   <FieldLabel>
-                    <Label htmlFor="min_stock_threshold">Min Stock Threshold</Label>
+                    <Label htmlFor="min_stock_threshold">{t('Min Stock Threshold')}</Label>
                   </FieldLabel>
                   <FieldContent>
                     <Input
@@ -596,7 +597,7 @@ export default function EditPart({ part, categories, footprints, suppliers, tags
 
                 <Field>
                   <FieldLabel>
-                    <Label htmlFor="target_stock">Target Stock</Label>
+                    <Label htmlFor="target_stock">{t('Target Stock')}</Label>
                   </FieldLabel>
                   <FieldContent>
                     <Input
@@ -612,7 +613,7 @@ export default function EditPart({ part, categories, footprints, suppliers, tags
 
                 <Field className="md:col-span-2 lg:col-span-4">
                   <FieldLabel>
-                    <Label htmlFor="storage_notes">Storage Notes</Label>
+                    <Label htmlFor="storage_notes">{t('Storage Notes')}</Label>
                   </FieldLabel>
                   <FieldContent>
                     <Textarea
@@ -631,10 +632,10 @@ export default function EditPart({ part, categories, footprints, suppliers, tags
           {/* Actions */}
           <div className="flex items-center justify-end gap-4">
             <Button variant="outline" asChild>
-              <Link href="/parts">Cancel</Link>
+              <Link href="/parts">{t('Cancel')}</Link>
             </Button>
             <Button type="submit" disabled={processing}>
-              {processing ? 'Saving...' : 'Save Changes'}
+              {processing ? t('Saving...') : t('Save Changes')}
             </Button>
           </div>
         </form>
@@ -644,13 +645,13 @@ export default function EditPart({ part, categories, footprints, suppliers, tags
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle>Suppliers</CardTitle>
-                <CardDescription>Manage suppliers for this part</CardDescription>
+                <CardTitle>{t('Suppliers')}</CardTitle>
+                <CardDescription>{t('Manage suppliers for this part')}</CardDescription>
               </div>
               {availableSuppliers.length > 0 && !showAddSupplier && (
                 <Button onClick={() => setShowAddSupplier(true)} size="sm">
                   <Plus className="mr-2 size-4" />
-                  Add Supplier
+                  {t('Add Supplier')}
                 </Button>
               )}
             </div>
@@ -659,10 +660,10 @@ export default function EditPart({ part, categories, footprints, suppliers, tags
             {/* Add Supplier Form */}
             {showAddSupplier && (
               <form onSubmit={handleAddSupplier} className="mb-6 p-4 border rounded-lg bg-muted/50">
-                <h4 className="font-medium mb-4">Add New Supplier</h4>
+                <h4 className="font-medium mb-4">{t('Add New Supplier')}</h4>
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                   <div className="space-y-2">
-                    <Label>Supplier *</Label>
+                    <Label>{t('Supplier *')}</Label>
                     <Select
                       value={newSupplierForm.data.part_supplier.supplier_id}
                       onValueChange={(value) =>
@@ -673,7 +674,7 @@ export default function EditPart({ part, categories, footprints, suppliers, tags
                       }
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Select supplier" />
+                        <SelectValue placeholder={t('Select supplier')} />
                       </SelectTrigger>
                       <SelectContent>
                         {availableSuppliers.map((supplier) => (
@@ -686,7 +687,7 @@ export default function EditPart({ part, categories, footprints, suppliers, tags
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="new_supplier_sku">Supplier SKU</Label>
+                    <Label htmlFor="new_supplier_sku">{t('Supplier SKU')}</Label>
                     <Input
                       id="new_supplier_sku"
                       value={newSupplierForm.data.part_supplier.supplier_sku}
@@ -696,12 +697,12 @@ export default function EditPart({ part, categories, footprints, suppliers, tags
                           supplier_sku: e.target.value,
                         })
                       }
-                      placeholder="Supplier's part number"
+                      placeholder={t('Supplier\'s part number')}
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="new_unit_price">Unit Price ($)</Label>
+                    <Label htmlFor="new_unit_price">{t('Unit Price ($)')}</Label>
                     <Input
                       id="new_unit_price"
                       type="number"
@@ -718,7 +719,7 @@ export default function EditPart({ part, categories, footprints, suppliers, tags
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="new_lead_time">Lead Time (days)</Label>
+                    <Label htmlFor="new_lead_time">{t('Lead Time (days)')}</Label>
                     <Input
                       id="new_lead_time"
                       type="number"
@@ -734,7 +735,7 @@ export default function EditPart({ part, categories, footprints, suppliers, tags
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="new_url">Product URL</Label>
+                    <Label htmlFor="new_url">{t('Product URL')}</Label>
                     <Input
                       id="new_url"
                       type="url"
@@ -745,7 +746,7 @@ export default function EditPart({ part, categories, footprints, suppliers, tags
                           url: e.target.value,
                         })
                       }
-                      placeholder="https://..."
+                      placeholder={t('https://...')}
                     />
                   </div>
 
@@ -761,7 +762,7 @@ export default function EditPart({ part, categories, footprints, suppliers, tags
                       }
                     />
                     <Label htmlFor="new_is_preferred" className="font-normal cursor-pointer">
-                      Preferred supplier
+                      {t('Preferred supplier')}
                     </Label>
                   </div>
                 </div>
@@ -775,10 +776,10 @@ export default function EditPart({ part, categories, footprints, suppliers, tags
                       newSupplierForm.reset()
                     }}
                   >
-                    Cancel
+                    {t('Cancel')}
                   </Button>
                   <Button type="submit" disabled={newSupplierForm.processing}>
-                    {newSupplierForm.processing ? 'Adding...' : 'Add Supplier'}
+                    {newSupplierForm.processing ? t('Adding...') : t('Add Supplier')}
                   </Button>
                 </div>
               </form>
@@ -790,12 +791,12 @@ export default function EditPart({ part, categories, footprints, suppliers, tags
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Supplier</TableHead>
-                      <TableHead>Supplier SKU</TableHead>
-                      <TableHead className="text-right">Unit Price</TableHead>
-                      <TableHead className="text-right">Lead Time</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="w-[100px]">Actions</TableHead>
+                      <TableHead>{t('Supplier')}</TableHead>
+                      <TableHead>{t('Supplier SKU')}</TableHead>
+                      <TableHead className="text-right">{t('Unit Price')}</TableHead>
+                      <TableHead className="text-right">{t('Lead Time')}</TableHead>
+                      <TableHead>{t('Status')}</TableHead>
+                      <TableHead className="w-[100px]">{t('Actions')}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -829,7 +830,7 @@ export default function EditPart({ part, categories, footprints, suppliers, tags
                           {ps.is_preferred && (
                             <Badge variant="default">
                               <Star className="mr-1 size-3" />
-                              Preferred
+                              {t('Preferred')}
                             </Badge>
                           )}
                         </TableCell>
@@ -840,7 +841,7 @@ export default function EditPart({ part, categories, footprints, suppliers, tags
                                 variant="ghost"
                                 size="icon"
                                 onClick={() => handleSetPreferred(ps.id)}
-                                title="Set as preferred"
+                                title={t('Set as preferred')}
                               >
                                 <Star className="size-4" />
                               </Button>
@@ -849,7 +850,7 @@ export default function EditPart({ part, categories, footprints, suppliers, tags
                               variant="ghost"
                               size="icon"
                               onClick={() => handleRemoveSupplier(ps.id)}
-                              title="Remove supplier"
+                              title={t('Remove supplier')}
                             >
                               <Trash2 className="size-4 text-destructive" />
                             </Button>
@@ -862,12 +863,12 @@ export default function EditPart({ part, categories, footprints, suppliers, tags
               </div>
             ) : (
               <p className="text-muted-foreground text-center py-8">
-                No suppliers linked to this part yet.
+                {t('No suppliers linked to this part yet.')}
                 {availableSuppliers.length > 0 && (
                   <>
                     {' '}
                     <Button variant="link" onClick={() => setShowAddSupplier(true)} className="p-0">
-                      Add one now
+                      {t('Add one now')}
                     </Button>
                   </>
                 )}

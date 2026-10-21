@@ -17,6 +17,7 @@ import {
 import { formatMoney } from '@/pages/orders/helpers'
 
 import type { Order, OrderLine } from './types'
+import { t } from '@/lib/i18n'
 
 // "Drawer A ×50, Drawer B ×50" — leaf zone name and quantity per allocation.
 function allocationSummary(line: OrderLine): string {
@@ -57,11 +58,11 @@ export function OrderLinesTable({ order, onEditAllocation }: OrderLinesTableProp
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Component</TableHead>
-            <TableHead className="text-right">Quantity</TableHead>
-            <TableHead className="text-right">Unit price</TableHead>
-            <TableHead className="text-right">Subtotal</TableHead>
-            <TableHead>Storage on receipt</TableHead>
+            <TableHead>{t('Component')}</TableHead>
+            <TableHead className="text-right">{t('Quantity')}</TableHead>
+            <TableHead className="text-right">{t('Unit price')}</TableHead>
+            <TableHead className="text-right">{t('Subtotal')}</TableHead>
+            <TableHead>{t('Storage on receipt')}</TableHead>
             {canWrite && order.editable && <TableHead className="w-10" />}
           </TableRow>
         </TableHeader>
@@ -69,7 +70,7 @@ export function OrderLinesTable({ order, onEditAllocation }: OrderLinesTableProp
           {order.lines.length === 0 ? (
             <TableRow>
               <TableCell colSpan={canWrite && order.editable ? 6 : 5} className="py-10 text-center text-sm text-muted-foreground">
-                No components yet. Add one from your inventory.
+                {t('No components yet. Add one from your inventory.')}
               </TableCell>
             </TableRow>
           ) : (
@@ -122,7 +123,7 @@ export function OrderLinesTable({ order, onEditAllocation }: OrderLinesTableProp
                     >
                       {line.allocations.length === 0 ? (
                         <span className="text-xs text-muted-foreground underline decoration-dotted group-hover:text-foreground">
-                          Set zones…
+                          {t('Set zones…')}
                         </span>
                       ) : (
                         <>
@@ -146,7 +147,7 @@ export function OrderLinesTable({ order, onEditAllocation }: OrderLinesTableProp
                     <Button
                       variant="ghost"
                       size="icon-sm"
-                      aria-label="Remove line"
+                      aria-label={t('Remove line')}
                       onClick={() => router.delete(`/orders/${order.id}/order_lines/${line.id}`, { preserveScroll: true })}
                     >
                       <Trash2 className="size-4 text-muted-foreground" />

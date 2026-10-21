@@ -29,6 +29,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { t, intlLocale, tn } from '@/lib/i18n'
 
 interface LinePart {
   id: number
@@ -85,13 +86,13 @@ interface ProjectShowProps {
 const NONE = '__none__'
 
 const MATCH_LABELS: Record<ProjectLine['match_type'], string> = {
-  mpn: 'by MPN',
-  sku: 'by SKU',
-  supplier_sku: 'by supplier SKU',
-  value_footprint: 'by value + footprint',
-  name: 'by name',
-  manual: 'manual',
-  none: 'no match',
+  get mpn() { return t('by MPN') },
+  get sku() { return t('by SKU') },
+  get supplier_sku() { return t('by supplier SKU') },
+  get value_footprint() { return t('by value + footprint') },
+  get name() { return t('by name') },
+  get manual() { return t('manual') },
+  get none() { return t('no match') },
 }
 
 export default function ProjectShow({ project, parts }: ProjectShowProps) {
@@ -100,7 +101,7 @@ export default function ProjectShow({ project, parts }: ProjectShowProps) {
 
   const partOptions = useMemo<ComboboxOption[]>(
     () => [
-      { value: NONE, label: 'Not in inventory' },
+      { value: NONE, label: t('Not in inventory') },
       ...parts.map((p) => ({ value: String(p.id), label: `${p.reference} — ${p.name}` })),
     ],
     [parts]
@@ -135,7 +136,7 @@ export default function ProjectShow({ project, parts }: ProjectShowProps) {
                   onClick={() => router.post(`/projects/${project.id}/confirm`, {}, { preserveScroll: true })}
                 >
                   <CheckCircle2 className="size-4" />
-                  Confirm matches
+                  {t('Confirm matches')}
                 </Button>
               )}
               {project.status === 'confirmed' && project.reservations_enabled && (
@@ -145,27 +146,27 @@ export default function ProjectShow({ project, parts }: ProjectShowProps) {
                   onClick={() => router.post(`/projects/${project.id}/${project.reserved ? 'release' : 'reserve'}`, {}, { preserveScroll: true })}
                 >
                   {project.reserved ? <LockOpen className="size-4" /> : <Lock className="size-4" />}
-                  {project.reserved ? 'Release stock' : 'Reserve stock'}
+                  {project.reserved ? t('Release stock') : t('Reserve stock')}
                 </Button>
               )}
               <Button
                 size="sm"
                 variant="outline"
                 disabled={project.short_count === 0}
-                title={project.short_count === 0 ? 'No shortfalls to order' : undefined}
+                title={project.short_count === 0 ? t('No shortfalls to order') : undefined}
                 onClick={() => router.post(`/projects/${project.id}/create_purchase_orders`, {}, { preserveScroll: true })}
               >
                 <FileText className="size-4" />
-                Order shortfalls
+                {t('Order shortfalls')}
               </Button>
               <Button
                 size="sm"
                 disabled={!project.buildable}
-                title={project.buildable ? undefined : 'Resolve shortfalls and unmatched lines first'}
+                title={project.buildable ? undefined : t('Resolve shortfalls and unmatched lines first')}
                 onClick={() => setBuildOpen(true)}
               >
                 <Hammer className="size-4" />
-                Build kit
+                {t('Build kit')}
               </Button>
             </div>
           )}
@@ -179,15 +180,15 @@ export default function ProjectShow({ project, parts }: ProjectShowProps) {
 
         <Link href="/projects" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
           <ArrowLeft className="size-4" />
-          All projects
+          {t('All projects')}
         </Link>
 
         {/* Availability summary */}
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-          <SummaryCard label="Total lines" value={project.lines.length} />
-          <SummaryCard label="Matched" value={`${matchedCount} / ${project.lines.length}`} />
-          <SummaryCard label="Short on stock" value={project.short_count} tone={project.short_count > 0 ? 'amber' : undefined} />
-          <SummaryCard label="Not in inventory" value={project.unmatched_count} tone={project.unmatched_count > 0 ? 'red' : undefined} />
+          <SummaryCard label={t('Total lines')} value={project.lines.length} />
+          <SummaryCard label={t('Matched')} value={`${matchedCount} / ${project.lines.length}`} />
+          <SummaryCard label={t('Short on stock')} value={project.short_count} tone={project.short_count > 0 ? 'amber' : undefined} />
+          <SummaryCard label={t('Not in inventory')} value={project.unmatched_count} tone={project.unmatched_count > 0 ? 'red' : undefined} />
         </div>
 
         <Card className={`border-l-[3px] ${project.buildable ? 'border-l-emerald-500' : 'border-l-amber-500'}`}>
@@ -195,24 +196,30 @@ export default function ProjectShow({ project, parts }: ProjectShowProps) {
             {project.buildable ? (
               <>
                 <CheckCircle2 className="size-5 text-emerald-600 dark:text-emerald-400" />
-                <p className="text-sm font-medium">You have enough stock to build this project.</p>
+                <p className="text-sm font-medium">{t('You have enough stock to build this project.')}</p>
               </>
             ) : (
               <>
                 <AlertTriangle className="size-5 text-amber-600 dark:text-amber-400" />
                 <p className="text-sm font-medium">
-                  {project.short_count + project.unmatched_count} line{project.short_count + project.unmatched_count !== 1 ? 's' : ''} need resolving before this project is buildable.
+                  {tn(
+                    '{count} line needs resolving before this project is buildable.',
+                    '{count} lines need resolving before this project is buildable.',
+                    project.short_count + project.unmatched_count,
+                  )}
                 </p>
               </>
             )}
             {project.reserved && project.reserved_at && (
               <Badge variant="outline" className="ml-auto">
-                <Lock className="size-3.5" /> Stock reserved since {new Date(project.reserved_at).toLocaleDateString()}
+                <Lock className="size-3.5" /> {t('Stock reserved since {date}', { date: new Date(project.reserved_at).toLocaleDateString(intlLocale()) })}
               </Badge>
             )}
             {project.builds_count > 0 && project.last_built_at && (
               <p className={`${project.reserved ? '' : 'ml-auto '}text-xs text-muted-foreground`}>
-                Built {project.builds_count} time{project.builds_count !== 1 ? 's' : ''} · last on {new Date(project.last_built_at).toLocaleDateString()}
+                {tn('Built {count} time · last on {date}', 'Built {count} times · last on {date}', project.builds_count, {
+                  date: new Date(project.last_built_at).toLocaleDateString(intlLocale()),
+                })}
               </p>
             )}
           </CardContent>
@@ -223,14 +230,14 @@ export default function ProjectShow({ project, parts }: ProjectShowProps) {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>BOM reference</TableHead>
-                <TableHead>Matched part</TableHead>
-                <TableHead className="text-right">Required</TableHead>
-                <TableHead className="text-right">In stock</TableHead>
+                <TableHead>{t('BOM reference')}</TableHead>
+                <TableHead>{t('Matched part')}</TableHead>
+                <TableHead className="text-right">{t('Required')}</TableHead>
+                <TableHead className="text-right">{t('In stock')}</TableHead>
                 {project.reservations_enabled && (
-                  <TableHead className="text-right" title="Held by projects reserved before this one">Reserved elsewhere</TableHead>
+                  <TableHead className="text-right" title={t('Held by projects reserved before this one')}>{t('Reserved elsewhere')}</TableHead>
                 )}
-                <TableHead>Status</TableHead>
+                <TableHead>{t('Status')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -259,8 +266,8 @@ export default function ProjectShow({ project, parts }: ProjectShowProps) {
                           options={partOptions}
                           value={line.part ? String(line.part.id) : NONE}
                           onValueChange={(value) => changePart(line, value)}
-                          placeholder="Not in inventory"
-                          searchPlaceholder="Search parts…"
+                          placeholder={t('Not in inventory')}
+                          searchPlaceholder={t('Search parts…')}
                           className="min-w-[220px]"
                         />
                         <span className="text-xs text-muted-foreground">{MATCH_LABELS[line.match_type]}</span>
@@ -268,7 +275,7 @@ export default function ProjectShow({ project, parts }: ProjectShowProps) {
                     ) : line.part ? (
                       <span>{line.part.reference} — {line.part.name}</span>
                     ) : (
-                      <span className="text-muted-foreground">Not in inventory</span>
+                      <span className="text-muted-foreground">{t('Not in inventory')}</span>
                     )}
                   </TableCell>
                   <TableCell className="text-right">
@@ -293,15 +300,15 @@ export default function ProjectShow({ project, parts }: ProjectShowProps) {
                   <TableCell>
                     {!line.part ? (
                       <Badge variant="outline" className="bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400">
-                        <XCircle className="size-3.5" /> Not in inventory
+                        <XCircle className="size-3.5" /> {t('Not in inventory')}
                       </Badge>
                     ) : line.available ? (
                       <Badge variant="outline" className="bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400">
-                        <CheckCircle2 className="size-3.5" /> OK
+                        <CheckCircle2 className="size-3.5" /> {t('OK')}
                       </Badge>
                     ) : (
                       <Badge variant="outline" className="bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400">
-                        <AlertTriangle className="size-3.5" /> Short {line.shortfall}
+                        <AlertTriangle className="size-3.5" /> {t('Short {count}', { count: line.shortfall })}
                       </Badge>
                     )}
                   </TableCell>
@@ -316,21 +323,21 @@ export default function ProjectShow({ project, parts }: ProjectShowProps) {
       <AlertDialog open={buildOpen} onOpenChange={setBuildOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Build this kit?</AlertDialogTitle>
+            <AlertDialogTitle>{t('Build this kit?')}</AlertDialogTitle>
             <AlertDialogDescription>
-              This deducts the required quantity of every matched part from stock, recording an outgoing movement for each. This can't be undone automatically.
-              {project.reserved && ' The project\'s stock reservation is released once the kit is built.'}
+              {t('This deducts the required quantity of every matched part from stock, recording an outgoing movement for each. This can\'t be undone automatically.')}
+              {project.reserved && t(' The project\'s stock reservation is released once the kit is built.')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t('Cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
                 router.post(`/projects/${project.id}/build`, { builds_count: project.builds_count }, { preserveScroll: true })
                 setBuildOpen(false)
               }}
             >
-              Deduct stock
+              {t('Deduct stock')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -35,6 +35,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { t, intlLocale, tn } from '@/lib/i18n'
 
 type MovementFilter = 'all' | Movement['movement_type']
 
@@ -89,16 +90,16 @@ interface StockMovementsPageProps {
 }
 
 const TYPE_META: Record<Movement['movement_type'], { label: string; className: string }> = {
-  in: { label: 'In', className: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400' },
-  out: { label: 'Out', className: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400' },
-  adjustment: { label: 'Adjustment', className: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400' },
+  in: { get label() { return t('In') }, className: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400' },
+  out: { get label() { return t('Out') }, className: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400' },
+  adjustment: { get label() { return t('Adjustment') }, className: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400' },
 }
 
 function formatDateTime(iso: string) {
   const d = new Date(iso)
   return {
-    date: d.toLocaleDateString(undefined, { day: '2-digit', month: '2-digit', year: 'numeric' }),
-    time: d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }),
+    date: d.toLocaleDateString(intlLocale(), { day: '2-digit', month: '2-digit', year: 'numeric' }),
+    time: d.toLocaleTimeString(intlLocale(), { hour: '2-digit', minute: '2-digit' }),
   }
 }
 
@@ -164,41 +165,41 @@ export default function StockMovementsIndex({ movements, pagination, filter, sta
 
   const net = stats.inbound - stats.outbound
   const statCards = [
-    { label: 'Inbound', value: `+${stats.inbound.toLocaleString()}`, icon: ArrowDown, className: 'text-emerald-600 dark:text-emerald-400' },
-    { label: 'Outbound', value: `−${stats.outbound.toLocaleString()}`, icon: ArrowUp, className: 'text-red-600 dark:text-red-400' },
-    { label: 'Net balance', value: `${net >= 0 ? '+' : ''}${net.toLocaleString()}`, icon: ArrowLeftRight, className: '' },
-    { label: 'Movements', value: stats.total.toLocaleString(), icon: Package, className: '' },
+    { label: t('Inbound'), value: `+${stats.inbound.toLocaleString(intlLocale())}`, icon: ArrowDown, className: 'text-emerald-600 dark:text-emerald-400' },
+    { label: t('Outbound'), value: `−${stats.outbound.toLocaleString(intlLocale())}`, icon: ArrowUp, className: 'text-red-600 dark:text-red-400' },
+    { label: t('Net balance'), value: `${net >= 0 ? '+' : ''}${net.toLocaleString(intlLocale())}`, icon: ArrowLeftRight, className: '' },
+    { label: t('Movements'), value: stats.total.toLocaleString(intlLocale()), icon: Package, className: '' },
   ]
 
   const tabs = [
-    { value: 'all' as const, label: 'All', count: stats.total },
-    { value: 'in' as const, label: 'Inbound', count: stats.in_count },
-    { value: 'out' as const, label: 'Outbound', count: stats.out_count },
-    { value: 'adjustment' as const, label: 'Adjustments', count: stats.adjustment_count },
+    { value: 'all' as const, label: t('All'), count: stats.total },
+    { value: 'in' as const, label: t('Inbound'), count: stats.in_count },
+    { value: 'out' as const, label: t('Outbound'), count: stats.out_count },
+    { value: 'adjustment' as const, label: t('Adjustments'), count: stats.adjustment_count },
   ]
 
   const soonFilters = () => {
-    toast.info('Advanced filters coming soon', { description: 'Period, project, and user filters aren\'t wired up yet.' })
+    toast.info(t('Advanced filters coming soon'), { description: t('Period, project, and user filters aren\'t wired up yet.') })
   }
 
   return (
     <AppLayout
       header={
-        <PageHeader title="Movements" subtitle="Inbound, outbound, and adjustments">
+        <PageHeader title={t('Movements')} subtitle={t('Inbound, outbound, and adjustments')}>
           <Button variant="outline" size="sm" onClick={exportCsv}>
             <Download className="size-4" />
-            Export CSV
+            {t('Export CSV')}
           </Button>
           {canWrite && (
             <Button size="sm" onClick={openNewDialog}>
               <Plus className="size-4" />
-              New Movement
+              {t('New Movement')}
             </Button>
           )}
         </PageHeader>
       }
     >
-      <Head title="Movements" />
+      <Head title={t('Movements')} />
 
       <div className="space-y-6">
         <FlashMessages />
@@ -242,7 +243,7 @@ export default function StockMovementsIndex({ movements, pagination, filter, sta
             className="h-8 gap-1.5 border border-dashed px-3 font-normal text-muted-foreground has-[>svg]:px-3"
           >
             <Filter className="size-3.5" />
-            Period · Project · User
+            {t('Period · Project · User')}
           </Button>
         </div>
 
@@ -251,14 +252,14 @@ export default function StockMovementsIndex({ movements, pagination, filter, sta
           {movements.length === 0 ? (
             <div className="flex flex-col items-center justify-center p-16 text-center">
               <Package className="size-10 text-muted-foreground" />
-              <h3 className="mt-4 text-lg font-semibold">No movements yet</h3>
+              <h3 className="mt-4 text-lg font-semibold">{t('No movements yet')}</h3>
               <p className="mt-2 text-sm text-muted-foreground">
-                {canWrite ? 'Record your first stock movement to start building the ledger.' : 'No stock movements have been recorded yet.'}
+                {canWrite ? t('Record your first stock movement to start building the ledger.') : t('No stock movements have been recorded yet.')}
               </p>
               {canWrite && (
                 <Button className="mt-4" onClick={openNewDialog}>
                   <Plus className="mr-2 size-4" />
-                  New Movement
+                  {t('New Movement')}
                 </Button>
               )}
             </div>
@@ -268,14 +269,14 @@ export default function StockMovementsIndex({ movements, pagination, filter, sta
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-muted hover:bg-muted">
-                      <TableHead className="py-2">Date</TableHead>
-                      <TableHead className="py-2">Type</TableHead>
-                      <TableHead className="py-2">Reference</TableHead>
-                      <TableHead className="py-2">Reason</TableHead>
-                      <TableHead className="py-2">Location</TableHead>
-                      <TableHead className="py-2">User</TableHead>
-                      <TableHead className="py-2 text-right">Quantity</TableHead>
-                      <TableHead className="py-2 text-right">Stock After</TableHead>
+                      <TableHead className="py-2">{t('Date')}</TableHead>
+                      <TableHead className="py-2">{t('Type')}</TableHead>
+                      <TableHead className="py-2">{t('Reference')}</TableHead>
+                      <TableHead className="py-2">{t('Reason')}</TableHead>
+                      <TableHead className="py-2">{t('Location')}</TableHead>
+                      <TableHead className="py-2">{t('User')}</TableHead>
+                      <TableHead className="py-2 text-right">{t('Quantity')}</TableHead>
+                      <TableHead className="py-2 text-right">{t('Stock After')}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -316,7 +317,7 @@ export default function StockMovementsIndex({ movements, pagination, filter, sta
                             {m.quantity_delta > 0 ? `+${m.quantity_delta}` : m.quantity_delta}
                           </TableCell>
                           <TableCell className="py-2.5 text-right font-mono text-sm text-muted-foreground">
-                            {m.balance_after.toLocaleString()}
+                            {m.balance_after.toLocaleString(intlLocale())}
                           </TableCell>
                         </TableRow>
                       )
@@ -327,14 +328,14 @@ export default function StockMovementsIndex({ movements, pagination, filter, sta
 
               {pagination.page_count > 1 && (
                 <div className="flex items-center justify-between border-t px-4 py-2.5 text-sm text-muted-foreground">
-                  <span>{pagination.total} movement{pagination.total !== 1 ? 's' : ''} · Page {pagination.page}/{pagination.page_count}</span>
+                  <span>{tn('{count} movement', '{count} movements', pagination.total)} · {t('Page {page}/{pages}', { page: pagination.page, pages: pagination.page_count })}</span>
                   <div className="flex gap-2">
                     <Button variant="outline" size="sm" disabled={pagination.page <= 1} onClick={() => navigate({ page: pagination.page - 1 })}>
                       <ChevronLeft className="size-4" />
-                      Previous
+                      {t('Previous')}
                     </Button>
                     <Button variant="outline" size="sm" disabled={pagination.page >= pagination.page_count} onClick={() => navigate({ page: pagination.page + 1 })}>
-                      Next
+                      {t('Next')}
                       <ChevronRight className="size-4" />
                     </Button>
                   </div>
@@ -349,12 +350,12 @@ export default function StockMovementsIndex({ movements, pagination, filter, sta
       <Dialog open={newOpen} onOpenChange={setNewOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>New movement</DialogTitle>
+            <DialogTitle>{t('New movement')}</DialogTitle>
           </DialogHeader>
           <form onSubmit={submitNew} className="flex flex-col gap-4">
             <Field>
               <FieldLabel>
-                <Label>Part</Label>
+                <Label>{t('Part')}</Label>
               </FieldLabel>
               <FieldContent>
                 <Select
@@ -362,7 +363,7 @@ export default function StockMovementsIndex({ movements, pagination, filter, sta
                   onValueChange={(value) => newForm.setData('stock_movement', { ...newForm.data.stock_movement, part_id: value })}
                 >
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select a part" />
+                    <SelectValue placeholder={t('Select a part')} />
                   </SelectTrigger>
                   <SelectContent>
                     {parts.map((part) => (
@@ -375,14 +376,14 @@ export default function StockMovementsIndex({ movements, pagination, filter, sta
             </Field>
             <Field>
               <FieldLabel>
-                <Label>Location</Label>
+                <Label>{t('Location')}</Label>
               </FieldLabel>
               <FieldContent>
                 <StorageLocationSelect
                   locations={storage_locations}
                   value={newForm.data.stock_movement.storage_location_id}
                   onValueChange={(value) => newForm.setData('stock_movement', { ...newForm.data.stock_movement, storage_location_id: value })}
-                  placeholder="Select a location"
+                  placeholder={t('Select a location')}
                   allowCreate
                 />
               </FieldContent>
@@ -391,7 +392,7 @@ export default function StockMovementsIndex({ movements, pagination, filter, sta
             <div className="grid grid-cols-2 gap-4">
               <Field>
                 <FieldLabel>
-                  <Label>Type</Label>
+                  <Label>{t('Type')}</Label>
                 </FieldLabel>
                 <FieldContent>
                   <Select
@@ -402,9 +403,9 @@ export default function StockMovementsIndex({ movements, pagination, filter, sta
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="in">Inbound</SelectItem>
-                      <SelectItem value="out">Outbound</SelectItem>
-                      <SelectItem value="adjustment">Adjustment</SelectItem>
+                      <SelectItem value="in">{t('Inbound')}</SelectItem>
+                      <SelectItem value="out">{t('Outbound')}</SelectItem>
+                      <SelectItem value="adjustment">{t('Adjustment')}</SelectItem>
                     </SelectContent>
                   </Select>
                 </FieldContent>
@@ -412,7 +413,7 @@ export default function StockMovementsIndex({ movements, pagination, filter, sta
               {newForm.data.stock_movement.movement_type === 'adjustment' ? (
                 <Field>
                   <FieldLabel>
-                    <Label>Direction</Label>
+                    <Label>{t('Direction')}</Label>
                   </FieldLabel>
                   <FieldContent>
                     <Select
@@ -423,8 +424,8 @@ export default function StockMovementsIndex({ movements, pagination, filter, sta
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="increase">Increase</SelectItem>
-                        <SelectItem value="decrease">Decrease</SelectItem>
+                        <SelectItem value="increase">{t('Increase')}</SelectItem>
+                        <SelectItem value="decrease">{t('Decrease')}</SelectItem>
                       </SelectContent>
                     </Select>
                   </FieldContent>
@@ -432,7 +433,7 @@ export default function StockMovementsIndex({ movements, pagination, filter, sta
               ) : (
                 <Field>
                   <FieldLabel>
-                    <Label>Quantity</Label>
+                    <Label>{t('Quantity')}</Label>
                   </FieldLabel>
                   <FieldContent>
                     <Input
@@ -448,7 +449,7 @@ export default function StockMovementsIndex({ movements, pagination, filter, sta
             {newForm.data.stock_movement.movement_type === 'adjustment' && (
               <Field>
                 <FieldLabel>
-                  <Label>Quantity</Label>
+                  <Label>{t('Quantity')}</Label>
                 </FieldLabel>
                 <FieldContent>
                   <Input
@@ -465,19 +466,19 @@ export default function StockMovementsIndex({ movements, pagination, filter, sta
             )}
             <Field>
               <FieldLabel>
-                <Label>Reason <span className="font-normal text-muted-foreground">(optional)</span></Label>
+                <Label>{t('Reason')} <span className="font-normal text-muted-foreground">{t('(optional)')}</span></Label>
               </FieldLabel>
               <FieldContent>
                 <Input
-                  placeholder="e.g. Project «  Sensor board v3 »"
+                  placeholder={t('e.g. Project «  Sensor board v3 »')}
                   value={newForm.data.stock_movement.reason}
                   onChange={(e) => newForm.setData('stock_movement', { ...newForm.data.stock_movement, reason: e.target.value })}
                 />
               </FieldContent>
             </Field>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setNewOpen(false)}>Cancel</Button>
-              <Button type="submit" disabled={newForm.processing}>Record movement</Button>
+              <Button type="button" variant="outline" onClick={() => setNewOpen(false)}>{t('Cancel')}</Button>
+              <Button type="submit" disabled={newForm.processing}>{t('Record movement')}</Button>
             </DialogFooter>
           </form>
         </DialogContent>

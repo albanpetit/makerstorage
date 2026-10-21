@@ -20,6 +20,7 @@ import { PartsFilterBar } from '@/components/parts/parts-filter-bar'
 import { PartsTable } from '@/components/parts/parts-table'
 import type { Part, PartsIndexProps } from '@/components/parts/types'
 import { usePartFilters } from '@/components/parts/use-part-filters'
+import { t, tn } from '@/lib/i18n'
 
 export default function PartsIndex({
   parts, filters: listFilters, pagination, facets, total_count, total_units, matching_ids, part_identifiers,
@@ -62,28 +63,28 @@ export default function PartsIndex({
   const exportMatching = () => {
     fetchPartRows({ filters: listFilters })
       .then(exportCsv)
-      .catch(() => toast.error('Could not export the parts.'))
+      .catch(() => toast.error(t('Could not export the parts.')))
   }
 
   return (
     <AppLayout>
-      <Head title="Parts" />
+      <Head title={t('Parts')} />
 
       <div className="-m-4 flex h-[100svh] flex-col">
         {/* Topbar */}
         <div className="flex shrink-0 flex-wrap items-center gap-3 border-b bg-background px-4 py-3 sm:px-5">
           <SidebarTrigger className="-ml-1 md:hidden" />
           <div>
-            <h1 className="text-base font-semibold tracking-tight">Inventory</h1>
+            <h1 className="text-base font-semibold tracking-tight">{t('Inventory')}</h1>
             <p className="text-xs text-muted-foreground">
-              {pagination.total} reference{pagination.total !== 1 ? 's' : ''} · {total_units.toLocaleString()} units in stock
+              {tn('{count} reference', '{count} references', pagination.total)} · {tn('{count} unit in stock', '{count} units in stock', total_units)}
             </p>
           </div>
           <div className="flex-1" />
           <div className="relative w-full sm:w-64">
             <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Reference, value, location…"
+              placeholder={t('Reference, value, location…')}
               className="pl-9"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
@@ -93,17 +94,17 @@ export default function PartsIndex({
           {canWrite && (
             <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
               <Upload className="size-4" />
-              Import CSV
+              {t('Import CSV')}
             </Button>
           )}
           <Button variant="outline" size="sm" onClick={exportMatching}>
             <Download className="size-4" />
-            Export CSV
+            {t('Export CSV')}
           </Button>
           {canWrite && (
             <Button size="sm" onClick={openAddDialog}>
               <Plus className="size-4" />
-              Add Part
+              {t('Add Part')}
             </Button>
           )}
         </div>

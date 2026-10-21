@@ -38,6 +38,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { t, intlLocale } from '@/lib/i18n'
 
 interface ProjectSummary {
   id: number
@@ -58,7 +59,7 @@ interface ProjectsPageProps {
 }
 
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString(undefined, { day: '2-digit', month: '2-digit', year: 'numeric' })
+  return new Date(iso).toLocaleDateString(intlLocale(), { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
 export default function ProjectsIndex({ projects }: ProjectsPageProps) {
@@ -93,11 +94,11 @@ export default function ProjectsIndex({ projects }: ProjectsPageProps) {
   return (
     <AppLayout
       header={
-        <PageHeader title="Projects" subtitle="Import a project BOM and check stock availability">
+        <PageHeader title={t('Projects')} subtitle={t('Import a project BOM and check stock availability')}>
           {canWrite ? (
             <Button size="sm" onClick={() => setOpen(true)}>
               <Plus className="size-4" />
-              New project
+              {t('New project')}
             </Button>
           ) : (
             <ReadOnlyBadge />
@@ -105,7 +106,7 @@ export default function ProjectsIndex({ projects }: ProjectsPageProps) {
         </PageHeader>
       }
     >
-      <Head title="Projects" />
+      <Head title={t('Projects')} />
 
       <div className="space-y-6">
         <FlashMessages />
@@ -116,9 +117,9 @@ export default function ProjectsIndex({ projects }: ProjectsPageProps) {
               <div className="flex size-11 items-center justify-center rounded-xl bg-muted text-muted-foreground">
                 <ClipboardList className="size-[22px]" />
               </div>
-              <p className="font-semibold">No projects yet</p>
+              <p className="font-semibold">{t('No projects yet')}</p>
               <p className="max-w-sm text-sm text-muted-foreground">
-                Upload a bill of materials (CSV, or a KiCad / EasyEDA export) to match each component against your inventory and see what you can build.
+                {t('Upload a bill of materials (CSV, or a KiCad / EasyEDA export) to match each component against your inventory and see what you can build.')}
               </p>
             </CardContent>
           </Card>
@@ -127,12 +128,12 @@ export default function ProjectsIndex({ projects }: ProjectsPageProps) {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Project</TableHead>
-                  <TableHead>Reference</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Availability</TableHead>
-                  <TableHead className="text-right">Lines</TableHead>
-                  <TableHead>Created</TableHead>
+                  <TableHead>{t('Project')}</TableHead>
+                  <TableHead>{t('Reference')}</TableHead>
+                  <TableHead>{t('Status')}</TableHead>
+                  <TableHead>{t('Availability')}</TableHead>
+                  <TableHead className="text-right">{t('Lines')}</TableHead>
+                  <TableHead>{t('Created')}</TableHead>
                   <TableHead className="w-10" />
                 </TableRow>
               </TableHeader>
@@ -147,10 +148,10 @@ export default function ProjectsIndex({ projects }: ProjectsPageProps) {
                     <TableCell className="font-mono text-xs text-muted-foreground">{project.reference}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1.5">
-                        <Badge variant="outline" className="capitalize">{project.status}</Badge>
+                        <Badge variant="outline">{project.status === 'draft' ? t('Draft') : t('Confirmed')}</Badge>
                         {project.reserved && (
-                          <Badge variant="outline" title="Stock reserved for this project">
-                            <Lock className="size-3.5" /> Reserved
+                          <Badge variant="outline" title={t('Stock reserved for this project')}>
+                            <Lock className="size-3.5" /> {t('Reserved')}
                           </Badge>
                         )}
                       </div>
@@ -158,12 +159,12 @@ export default function ProjectsIndex({ projects }: ProjectsPageProps) {
                     <TableCell>
                       {project.buildable ? (
                         <Badge variant="outline" className="bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400">
-                          <CheckCircle2 className="size-3.5" /> Buildable
+                          <CheckCircle2 className="size-3.5" /> {t('Buildable')}
                         </Badge>
                       ) : (
                         <Badge variant="outline" className="bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400">
                           <AlertTriangle className="size-3.5" />
-                          {project.short_count + project.unmatched_count} to resolve
+                          {t('{count} to resolve', { count: project.short_count + project.unmatched_count })}
                         </Badge>
                       )}
                     </TableCell>
@@ -174,7 +175,7 @@ export default function ProjectsIndex({ projects }: ProjectsPageProps) {
                         <Button
                           variant="ghost"
                           size="icon-sm"
-                          aria-label="Delete project"
+                          aria-label={t('Delete project')}
                           onClick={(e) => {
                             e.stopPropagation()
                             setDeleteId(project.id)
@@ -197,27 +198,27 @@ export default function ProjectsIndex({ projects }: ProjectsPageProps) {
         <DialogContent className="sm:max-w-md">
           <form onSubmit={submit}>
             <DialogHeader>
-              <DialogTitle>New project</DialogTitle>
+              <DialogTitle>{t('New project')}</DialogTitle>
               <DialogDescription>
-                Upload a BOM CSV, or a KiCad export (BOM CSV or the netlist XML) or an EasyEDA BOM. Columns are auto-detected (designation, MPN, SKU, value, footprint, quantity); KiCad lines are matched by MPN, supplier part number, then value + footprint. Review the matches before building.
+                {t('Upload a BOM CSV, or a KiCad export (BOM CSV or the netlist XML) or an EasyEDA BOM. Columns are auto-detected (designation, MPN, SKU, value, footprint, quantity); KiCad lines are matched by MPN, supplier part number, then value + footprint. Review the matches before building.')}
               </DialogDescription>
             </DialogHeader>
 
             <div className="space-y-4 py-4">
               <div className="space-y-2">
-                <Label htmlFor="project-name">Project name</Label>
+                <Label htmlFor="project-name">{t('Project name')}</Label>
                 <Input
                   id="project-name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g. Weather station v2"
+                  placeholder={t('e.g. Weather station v2')}
                   autoFocus
                 />
-                <p className="text-xs text-muted-foreground">Optional — defaults to the file name.</p>
+                <p className="text-xs text-muted-foreground">{t('Optional — defaults to the file name.')}</p>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="project-file">BOM file (CSV or KiCad XML)</Label>
+                <Label htmlFor="project-file">{t('BOM file (CSV or KiCad XML)')}</Label>
                 <Input
                   ref={fileInput}
                   id="project-file"
@@ -231,11 +232,11 @@ export default function ProjectsIndex({ projects }: ProjectsPageProps) {
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-                Cancel
+                {t('Cancel')}
               </Button>
               <Button type="submit" disabled={processing || !fileName}>
                 <Upload className="size-4" />
-                Import & match
+                {t('Import & match')}
               </Button>
             </DialogFooter>
           </form>
@@ -246,20 +247,20 @@ export default function ProjectsIndex({ projects }: ProjectsPageProps) {
       <AlertDialog open={deleteId !== null} onOpenChange={(o) => !o && setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete this project?</AlertDialogTitle>
+            <AlertDialogTitle>{t('Delete this project?')}</AlertDialogTitle>
             <AlertDialogDescription>
-              This removes the BOM and its matches. Stock and movements are not affected.
+              {t('This removes the BOM and its matches. Stock and movements are not affected.')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t('Cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
                 if (deleteId !== null) router.delete(`/projects/${deleteId}`, { preserveScroll: true })
                 setDeleteId(null)
               }}
             >
-              Delete
+              {t('Delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
