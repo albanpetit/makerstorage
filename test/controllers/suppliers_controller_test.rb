@@ -100,6 +100,7 @@ class SuppliersControllerTest < ActionDispatch::IntegrationTest
     providers = inertia_props["suppliers"].map { |s| s["catalog_provider"] }
     assert_includes providers, "mouser"
     assert_includes providers, "digikey"
+    assert_includes providers, "lcsc"
   end
 
   test "destroy of a catalog supplier clears the provider's credentials" do
@@ -114,6 +115,18 @@ class SuppliersControllerTest < ActionDispatch::IntegrationTest
     assert_nil org.reload.mouser_api_key
     assert_nil org.mouser_order_api_key, "the Order/Cart API key belongs to the same integration"
     assert_match(/Mouser Electronics/, flash[:notice])
+  end
+
+  test "destroy of the LCSC supplier turns the LCSC lookup off" do
+    user = create_user
+    org = user.organizations.first
+    org.update!(lcsc_enabled: true)
+
+    sign_in user
+    delete supplier_path(org.suppliers.find_by(catalog_provider: "lcsc"))
+
+    refute org.reload.lcsc_enabled?
+    assert_match(/LCSC catalog integration has been disabled/, flash[:notice])
   end
 
   test "a member can't delete a catalog supplier and wipe the integration" do

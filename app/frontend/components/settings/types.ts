@@ -40,6 +40,8 @@ export interface OrganizationSettings {
   mouser_order_api_key_present: boolean
   digikey_configured: boolean
   digikey_account_connected: boolean
+  lcsc_enabled: boolean
+  github_token_present: boolean
   parts_count: number
   ipn_preview: IpnPreview
   free_bags_count: number
@@ -51,6 +53,15 @@ export interface MergeTarget {
   name: string
 }
 
+export interface KicadSettings {
+  enabled: boolean
+  token_created_at: string | null
+  token_last_used_at: string | null
+  root_url: string
+  listed_parts_count: number
+  parts_without_symbol_count: number
+}
+
 export interface SettingsPageProps {
   organization: OrganizationSettings
   merge_targets: MergeTarget[]
@@ -58,6 +69,7 @@ export interface SettingsPageProps {
   ipn_separators: string[]
   timezones: string[]
   email_notifications_available: boolean
+  kicad: KicadSettings
 }
 
 export type NotificationFrequency = 'daily' | 'weekly'
@@ -121,6 +133,8 @@ export interface IntegrationsFormData {
     digikey_client_id: string
     digikey_client_secret: string
     remove_digikey: boolean
+    github_token: string
+    remove_github_token: boolean
   }
 }
 

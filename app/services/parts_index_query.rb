@@ -10,6 +10,12 @@
 # case-insensitive substring match over the reference fields, category,
 # footprint and location names; facet counts are taken after search +
 # category, so each chip shows how many parts it would leave.
+#
+# Parameter filters (`param[<definition id>][min|max]` for number parameters,
+# `param[<id>][values][]` for text ones) keep the parts whose value is in the
+# range or the list. Bounds are typed like part values ("10k", "1/4W") and
+# read in the parameter's unit (ParameterValue); one that doesn't read as a
+# number is ignored and reported as invalid.
 class PartsIndexQuery
   PAGE_SIZE = 50
   SORTS = %w[ref crit qtyDesc qtyAsc priceDesc].freeze
@@ -23,6 +29,8 @@ class PartsIndexQuery
     :id, :name, :mpn, :sku, :ipn, :manufacturer, :value, :package_type,
     :category_id, :category_name, :footprint_name, :supplier_name,
     :location_names, :total_quantity, :min_stock_threshold, :unit_price,
+    # Parameter definition id => [value as typed, numeric value].
+    :parameters,
     keyword_init: true
   ) do
     def reference
@@ -37,7 +45,7 @@ class PartsIndexQuery
     end
 
     def haystack
-      [ name, mpn, sku, ipn, manufacturer, value, category_name, footprint_name, *location_names ]
+      [ name, mpn, sku, ipn, manufacturer, value, category_name, footprint_name, *location_names, *parameters.values.map(&:first) ]
         .compact_blank.join(" ").downcase
     end
   end
@@ -54,6 +62,7 @@ class PartsIndexQuery
     @suppliers = list_param(params[:supplier])
     @sort = SORTS.include?(params[:sort]) ? params[:sort] : "ref"
     @requested_page = params[:page].to_i
+    @parameter_params = hash_param(params[:param]).presence || parameters_list_param(params[:parameters])
   end
 
   def filters
@@ -64,8 +73,28 @@ class PartsIndexQuery
       package: packages,
       footprint: footprints,
       supplier: suppliers,
+      parameters: parameter_filters.map do |filter|
+        definition = filter[:definition]
+        {
+          id: definition.id, name: definition.name, unit: definition.unit, value_type: definition.value_type,
+          min: filter[:min_text], max: filter[:max_text], values: filter[:values],
+          min_display: definition.display(filter[:min_text], filter[:min]),
+          max_display: definition.display(filter[:max_text], filter[:max]),
+          invalid: filter[:invalid]
+        }
+      end,
       sort: sort
     }
+  end
+
+  # The parameters to show as list columns: the selected category's template.
+  def parameter_columns
+    return [] if category_id.nil?
+
+    template = Category.parameter_templates(organization)[category_id] || []
+    template.filter_map { |id| definitions[id] }.map do |definition|
+      { id: definition.id, name: definition.name, unit: definition.unit }
+    end
   end
 
   # Every part of the organization, as light rows in alphabetical order.
@@ -91,7 +120,8 @@ class PartsIndexQuery
       (statuses.empty? || statuses.include?(row.stock_status)) &&
         (packages.empty? || packages.include?(row.package_type)) &&
         (footprints.empty? || footprints.include?(row.footprint_name)) &&
-        (suppliers.empty? || suppliers.include?(row.supplier_name))
+        (suppliers.empty? || suppliers.include?(row.supplier_name)) &&
+        parameter_filters.all? { |filter| parameter_match?(row, filter) }
     end)
   end
 
@@ -130,7 +160,8 @@ class PartsIndexQuery
       end,
       package: counts_by(&:package_type),
       footprint: counts_by(&:footprint_name),
-      supplier: counts_by(&:supplier_name)
+      supplier: counts_by(&:supplier_name),
+      parameters: parameter_facets
     }
   end
 
@@ -140,6 +171,93 @@ class PartsIndexQuery
 
   def list_param(value)
     Array(value).map(&:to_s).compact_blank.uniq
+  end
+
+  def hash_param(value)
+    value = value.to_unsafe_h if value.respond_to?(:to_unsafe_h)
+    value.is_a?(Hash) ? value : {}
+  end
+
+  # The `filters.parameters` list the page sends back for an export (the
+  # shape #filters returns), as `param` reads.
+  def parameters_list_param(value)
+    return {} unless value.is_a?(Array)
+
+    value.filter_map do |filter|
+      filter = hash_param(filter)
+      [ filter["id"].to_s, filter.slice("min", "max", "values") ] if filter["id"].present?
+    end.to_h
+  end
+
+  def definitions
+    @definitions ||= organization.parameter_definitions.index_by(&:id)
+  end
+
+  # The parameter filters asked for, with their bounds read in the
+  # parameter's unit. Unknown parameters and empty filters are left out.
+  def parameter_filters
+    @parameter_filters ||= @parameter_params.filter_map do |id, filter|
+      definition = definitions[id.to_s.to_i]
+      filter = hash_param(filter)
+      next unless definition
+
+      if definition.number?
+        min_text = filter["min"].to_s.strip.presence
+        max_text = filter["max"].to_s.strip.presence
+        next if min_text.nil? && max_text.nil?
+
+        min = min_text && definition.parse(min_text)
+        max = max_text && definition.parse(max_text)
+        { definition: definition, min_text: min_text, max_text: max_text, min: min, max: max,
+          values: [], invalid: (min_text && min.nil?) || (max_text && max.nil?) || false }
+      else
+        values = list_param(filter["values"])
+        next if values.empty?
+
+        { definition: definition, values: values, invalid: false }
+      end
+    end
+  end
+
+  # Floating-point slack when comparing to a bound: "10k" typed in a filter
+  # and "10 kΩ" typed on a part are the same value.
+  EPSILON = 1e-9
+
+  def parameter_match?(row, filter)
+    value, numeric = row.parameters[filter[:definition].id]
+    return false if value.nil?
+
+    if filter[:definition].number?
+      return false if numeric.nil?
+
+      min, max = filter.values_at(:min, :max)
+      (min.nil? || numeric >= min - (min.abs * EPSILON)) && (max.nil? || numeric <= max + (max.abs * EPSILON))
+    else
+      filter[:values].any? { |wanted| wanted.casecmp?(value) }
+    end
+  end
+
+  # The parameters the searched parts have, with how many parts have each:
+  # the observed range for number parameters, the values for text ones.
+  def parameter_facets
+    values_by_id = Hash.new { |hash, id| hash[id] = [] }
+    searched.each { |row| row.parameters.each { |id, pair| values_by_id[id] << pair } }
+    template = category_id ? (Category.parameter_templates(organization)[category_id] || []) : []
+
+    values_by_id.filter_map do |id, pairs|
+      definition = definitions[id] or next
+      facet = { id: id, name: definition.name, unit: definition.unit, value_type: definition.value_type,
+                count: pairs.size, in_template: template.include?(id) }
+      if definition.number?
+        numbers = pairs.filter_map(&:last)
+        facet.merge(min_display: definition.display(nil, numbers.min), max_display: definition.display(nil, numbers.max), values: [])
+      else
+        values = pairs.map(&:first).group_by(&:downcase).values
+          .map { |same| { value: same.first, label: same.first, count: same.size } }
+          .sort_by { |option| option[:label].downcase }
+        facet.merge(values: values)
+      end
+    end.sort_by { |facet| [ facet[:in_template] ? 0 : 1, facet[:name].downcase ] }
   end
 
   # Category chips count every part, not just the filtered ones, so switching
@@ -179,6 +297,9 @@ class PartsIndexQuery
       .group_by(&:first).transform_values { |pairs| pairs.map(&:last) }
     preferred = PartSupplier.preferred.joins(:supplier).where(part_id: part_ids)
       .pluck(:part_id, "suppliers.name").to_h
+    parameters = PartParameter.where(part_id: part_ids)
+      .pluck(:part_id, :parameter_definition_id, :value, :numeric_value)
+      .group_by(&:first).transform_values { |rows| rows.to_h { |_, id, value, numeric| [ id, [ value, numeric ] ] } }
 
     parts.pluck(
       :id, :name, :mpn, :sku, :ipn, :manufacturer, :value, :package_type,
@@ -193,7 +314,8 @@ class PartsIndexQuery
         location_names: locations.fetch(id, []),
         total_quantity: quantities.fetch(id, 0),
         min_stock_threshold: threshold,
-        unit_price: price
+        unit_price: price,
+        parameters: parameters.fetch(id, {})
       )
     end
   end

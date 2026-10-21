@@ -42,6 +42,16 @@ class OrganizationBackupTest < ActiveSupport::TestCase
                               reserved_at: 1.hour.ago)
     @project.project_lines.create!(part: @part, raw_reference: "RC0603-10K", quantity: 4, match_type: "mpn")
     @project.project_lines.create!(raw_reference: "UNKNOWN", quantity: 1, match_type: "none")
+    @project.kicad_files.attach(io: file_fixture("kicad/board/board.kicad_sch").open, filename: "board.kicad_sch",
+                                content_type: Project::KICAD_FILE_TYPE)
+    build = @project.project_builds.create!(user: @owner, quantity: 2, built_at: 1.day.ago, note: "Workshop")
+    StockMovement.create!(organization: @org, part: @part, storage_location: @drawer, movement_type: "out",
+                          quantity_delta: -8, user: @owner, project_build: build)
+
+    @stocktake = @org.stocktakes.create!(storage_location: @room, reference: "ST-1", user: @owner, blind: true)
+    @stocktake.snapshot_stock!
+    @stocktake.count!(@stocktake.stocktake_lines.first, 60, user: @owner)
+    @stocktake.complete!(user: @owner)
 
     @loan = @org.loans.new(borrower: @owner, borrower_name: "Ada", due_on: Date.new(2026, 11, 2))
     @loan.loan_lines.build(part: @part, storage_location: @drawer, quantity: 3)
@@ -83,9 +93,9 @@ class OrganizationBackupTest < ActiveSupport::TestCase
     assert_equal "0603", part.footprint.name
     assert_equal [ "Kit" ], part.tags.map(&:name)
     assert_equal @part.reload.unit_price, part.unit_price
-    assert_equal 67, part.total_quantity
+    assert_equal 57, part.total_quantity
     assert_equal "Farnell", part.preferred_supplier.name
-    assert_equal [ 100, -30, -3 ], org.stock_movements.order(:created_at, :id).pluck(:quantity_delta)
+    assert_equal [ 100, -30, -8, -2, -3 ], org.stock_movements.order(:created_at, :id).pluck(:quantity_delta)
     assert_equal [ nil ], org.stock_movements.distinct.pluck(:user_id)
     assert_equal @org.stock_movements.order(:id).pluck(:created_at).map(&:to_i),
                  org.stock_movements.order(:id).pluck(:created_at).map(&:to_i)
@@ -97,6 +107,21 @@ class OrganizationBackupTest < ActiveSupport::TestCase
     project = org.projects.find_by!(reference: "PRJ-1")
     assert_equal [ part.id, nil ], project.project_lines.order(:id).pluck(:part_id)
     assert_equal @project.reserved_at.to_i, project.reserved_at.to_i
+    restored_build = project.project_builds.sole
+    assert_equal [ 2, "Workshop", nil ], [ restored_build.quantity, restored_build.note, restored_build.user_id ]
+    assert_equal [ -8 ], restored_build.stock_movements.pluck(:quantity_delta)
+
+    stocktake = org.stocktakes.find_by!(reference: "ST-1")
+    assert stocktake.completed?
+    assert stocktake.blind
+    assert_equal "Atelier", stocktake.storage_location.name
+    assert_nil stocktake.user_id
+    assert_nil stocktake.completed_by_id
+    stocktake_line = stocktake.stocktake_lines.sole
+    assert_equal [ part, "Tiroir 1", 62, 60, nil ],
+                 [ stocktake_line.part, stocktake_line.storage_location.name, stocktake_line.expected_quantity, stocktake_line.counted_quantity, stocktake_line.counted_by_id ]
+    assert_equal org.stock_movements.find_by!(movement_type: "adjustment"), stocktake_line.stock_movement
+    assert_equal 57, part.total_quantity, "counted 60, then 3 lent"
 
     assert_not org.notify_overdue_loans
     assert_equal 21, org.default_loan_days
@@ -113,7 +138,9 @@ class OrganizationBackupTest < ActiveSupport::TestCase
     assert org.logo.attached?
     assert_equal [ "photo.png" ], part.images.map { |image| image.filename.to_s }
     assert_equal file_fixture("logo.png").binread, part.images.first.download
-    assert_equal 2, result.files_count
+    assert_equal [ "board.kicad_sch" ], project.kicad_files.map { |file| file.filename.to_s }
+    assert_equal file_fixture("kicad/board/board.kicad_sch").binread, project.kicad_files.first.download
+    assert_equal 3, result.files_count
     assert_empty result.skipped_files
 
     assert_not org.parts.exists?(mpn: "FOREIGN-1")
@@ -147,17 +174,19 @@ class OrganizationBackupTest < ActiveSupport::TestCase
   end
 
   test "the archive leaves out other organizations, members and secrets" do
+    KicadLibrary.issue_token!(@org)
     Zip::File.open_buffer(export_zip(@org)) do |zip|
       data = JSON.parse(zip.read("data.json"))
 
       assert_equal OrganizationBackup::FORMAT, data["format"]
       assert_equal [ "FOREIGN-1" ], [ "FOREIGN-1" ] - data["tables"]["parts"].map { |row| row["mpn"] }
       assert_not data["organization"].key?("mouser_api_key")
+      assert_not data["organization"].key?("kicad_token_digest")
       assert_not data["tables"].key?("organization_memberships")
       assert data["tables"]["stock_movements"].none? { |row| row.key?("user_id") }
       assert data["tables"]["parts"].none? { |row| row.key?("organization_id") }
       assert_includes zip.read("csv/parts.csv"), "RC0603-10K"
-      assert_equal 2, data["attachments"].size
+      assert_equal 3, data["attachments"].size
       data["attachments"].each { |entry| assert zip.find_entry(entry["path"]), entry["path"] }
     end
   end
@@ -240,9 +269,26 @@ class OrganizationBackupTest < ActiveSupport::TestCase
     }))
 
     assert_equal [ "evil.html", "logo.png" ], result.skipped_files.sort
-    assert_equal 0, result.files_count
+    assert_equal 1, result.files_count # the project's KiCad file
     assert_not result.organization.logo.attached?
     assert_not result.organization.parts.first.images.attached?
+  end
+
+  test "parameters, category templates and part values come back" do
+    resistance = @org.parameter_definitions.create!(name: "Resistance", unit: "Ω", description: "Nominal")
+    dielectric = @org.parameter_definitions.create!(name: "Dielectric", value_type: "text")
+    @category.update!(parameter_template: [ resistance.id ])
+    @part.update!(parameter_values: { resistance.id => "10k", dielectric.id => "n/a" })
+
+    org = restore(export_zip(@org)).organization
+
+    restored = org.parameter_definitions.find_by!(name: "Resistance")
+    assert_equal [ "Ω", "number", "Nominal" ], [ restored.unit, restored.value_type, restored.description ]
+    assert_equal [ restored.id ], org.categories.find_by!(name: "Resistors").parameter_template_ids
+    part = org.parts.find_by!(mpn: "RC0603-10K")
+    assert_equal({ "Resistance" => [ "10k", 10_000.0 ], "Dielectric" => [ "n/a", nil ] },
+                 part.part_parameters.includes(:parameter_definition).to_h { |p| [ p.name, [ p.value, p.numeric_value ] ] })
+    assert_equal [ org.id ], ParameterDefinition.where(id: part.part_parameters.select(:parameter_definition_id)).distinct.pluck(:organization_id)
   end
 
   private

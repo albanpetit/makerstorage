@@ -103,6 +103,9 @@ class OrganizationMergeTest < ActiveSupport::TestCase
     order = create_order(organization: @source)
     line = order.order_lines.create!(part: by_mpn, quantity: 5)
     project_line = create_project(organization: @source).project_lines.create!(part: by_sku, quantity: 1)
+    stocktake = @source.stocktakes.create!(storage_location: room, reference: "ST-1")
+    stocktake.snapshot_stock!
+    stocktake.count!(stocktake.stocktake_lines.find_by!(part: by_mpn), 3, user: @owner)
 
     result = merge!
     target_part.reload
@@ -116,6 +119,8 @@ class OrganizationMergeTest < ActiveSupport::TestCase
     assert_ledger_matches(target_part)
     assert_equal target_part, line.reload.part
     assert_equal target_part, project_line.reload.part
+    stocktake_line = stocktake.stocktake_lines.sole
+    assert_equal [ target_part.id, 5, 3 ], [ stocktake_line.part_id, stocktake_line.expected_quantity, stocktake_line.counted_quantity ]
     assert_equal 1, target_part.part_suppliers.where(is_preferred: true).count
     assert_equal 2, target_part.part_suppliers.count
     assert_equal 1, target_part.images.count
@@ -126,15 +131,19 @@ class OrganizationMergeTest < ActiveSupport::TestCase
     create_part(organization: @target, ipn: "CL-00001")
     create_order(organization: @target, reference: "PO-1")
     create_project(organization: @target, reference: "PRJ-1")
+    create_storage_location(organization: @target).then { |shelf| @target.stocktakes.create!(storage_location: shelf, reference: "ST-1") }
 
     zone = create_storage_location(organization: @source, name: "Shelf", code: "s1")
     part = create_part(organization: @source, ipn: "CL-00001")
     kept = create_part(organization: @source, ipn: "CL-00002")
     order = create_order(organization: @source, reference: "PO-1")
     project = create_project(organization: @source, reference: "PRJ-1")
+    stocktake = @source.stocktakes.create!(storage_location: zone, reference: "ST-1")
 
     result = merge!
 
+    assert_equal "ST-1-2", stocktake.reload.reference
+    assert_equal @target.id, stocktake.organization_id
     assert_equal "s1-2", zone.reload.code
     assert_equal "PO-1-2", order.reload.reference
     assert_equal "PRJ-1-2", project.reload.reference
@@ -177,6 +186,35 @@ class OrganizationMergeTest < ActiveSupport::TestCase
     assert_equal "viewer", viewer.role_in(@target)
     assert_not @target.organization_memberships.find_by!(user: viewer).email_notifications
     assert_nil invited.role_in(@target)
+  end
+
+  test "combines parameters with the same name, type and unit, and renames the others" do
+    resistance = @target.parameter_definitions.create!(name: "Resistance", unit: "Ω")
+    @target.parameter_definitions.create!(name: "Gain", unit: "dB")
+    source_resistance = @source.parameter_definitions.create!(name: "resistance", unit: "Ω")
+    source_gain = @source.parameter_definitions.create!(name: "Gain", value_type: "text")
+    source_only = @source.parameter_definitions.create!(name: "Dielectric", value_type: "text")
+
+    target_resistors = create_category(organization: @target, name: "Resistors")
+    target_resistors.update!(parameter_template: [ resistance.id ])
+    source_resistors = create_category(organization: @source, name: "Resistors")
+    source_resistors.update!(parameter_template: [ source_resistance.id, source_only.id ])
+
+    kept = create_part(organization: @target, name: "Kept", mpn: "SAME")
+    kept.update!(parameter_values: { resistance.id => "10k" })
+    folded = create_part(organization: @source, name: "Folded", mpn: "same")
+    folded.update!(parameter_values: { source_resistance.id => "22k", source_only.id => "X7R" })
+    moved = create_part(organization: @source, name: "Moved")
+    moved.update!(parameter_values: { source_resistance.id => "4k7", source_gain.id => "high" })
+
+    merge!
+
+    assert_equal [ "Dielectric", "Gain", "Gain (2)", "Resistance" ], @target.parameter_definitions.alphabetical.pluck(:name)
+    assert_equal [ resistance.id, source_only.id ], target_resistors.reload.parameter_template_ids
+    values = ->(part) { part.reload.part_parameters.includes(:parameter_definition).to_h { |p| [ p.name, p.value ] } }
+    assert_equal({ "Resistance" => "10k", "Dielectric" => "X7R" }, values.(kept), "the target's value wins")
+    assert_equal({ "Resistance" => "4k7", "Gain (2)" => "high" }, values.(moved))
+    assert_not ParameterDefinition.exists?(source_resistance.id)
   end
 
   test "refuses to merge an organization into itself or a personal organization away" do

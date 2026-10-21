@@ -87,6 +87,7 @@ interface Supplier {
 const CATALOG_PROVIDER_LABELS: Record<string, string> = {
   mouser: 'Mouser',
   digikey: 'DigiKey',
+  lcsc: 'LCSC',
 }
 
 interface SuppliersPageProps {
@@ -500,7 +501,9 @@ export default function SuppliersIndex({ suppliers }: SuppliersPageProps) {
               {selected?.catalog_provider && (
                 <span className="mt-2 block font-medium text-destructive">
                   This also disables the {CATALOG_PROVIDER_LABELS[selected.catalog_provider] ?? selected.catalog_provider} catalog
-                  integration and clears its saved API {selected.catalog_provider === 'digikey' ? 'credentials' : 'key'}. You can
+                  integration{selected.catalog_provider === 'lcsc'
+                    ? ''
+                    : ` and clears its saved API ${selected.catalog_provider === 'digikey' ? 'credentials' : 'key'}`}. You can
                   re-enable it later from Settings → Integrations.
                 </span>
               )}

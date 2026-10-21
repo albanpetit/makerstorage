@@ -197,6 +197,13 @@ class McpServerTest < ActiveSupport::TestCase
     assert_equal result[:structuredContent].as_json, JSON.parse(result[:content].first[:text])
   end
 
+  test "get_part lists the part's parameters in their canonical form" do
+    resistance = @org.parameter_definitions.create!(name: "Resistance", unit: "Ω")
+    @r4k7.update!(parameter_values: { resistance.id => "4k7" })
+
+    assert_equal({ "Resistance" => "4.7 kΩ" }, call("get_part", "id" => @r4k7.id)[:parameters])
+  end
+
   private
 
   def stock(part, quantity, location)

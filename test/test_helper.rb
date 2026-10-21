@@ -60,6 +60,46 @@ module ActiveSupport
       Rails.configuration.x.email_notifications = original
     end
 
+    # Stands in for GithubClient: +commits+ maps a ref (nil for the default
+    # branch) to a SHA, +archives+ maps a SHA to the repository's files
+    # ({ "path" => content }), zipped the way GitHub does under one
+    # "<owner>-<repo>-<sha>/" folder. Records the calls in #calls.
+    class FakeGithub
+      attr_reader :calls, :tokens
+
+      def initialize(commits: {}, archives: {}, error: nil)
+        @commits, @archives, @error = commits, archives, error
+        @calls = []
+        @tokens = []
+      end
+
+      def commit_sha(repository, ref)
+        @calls << [ :commit_sha, repository, ref ]
+        raise GithubClient::Error, @error if @error
+
+        @commits.fetch(ref) { raise GithubClient::Error, "Could not find #{repository} at “#{ref}” on GitHub." }
+      end
+
+      def download_archive(repository, sha)
+        @calls << [ :download_archive, repository, sha ]
+        file = Tempfile.new([ "github", ".zip" ], binmode: true)
+        Zip::OutputStream.open(file.path) do |zip|
+          @archives.fetch(sha).each do |name, content|
+            zip.put_next_entry("#{repository.tr('/', '-')}-#{sha.first(7)}/#{name}")
+            zip.write(content)
+          end
+        end
+        yield file.path
+      ensure
+        file&.close!
+      end
+    end
+
+    # Runs the block with GithubClient.new handing out +fake+ (a FakeGithub).
+    def with_fake_github(fake, &block)
+      stub_singleton(GithubClient, :new, ->(token: nil) { fake.tokens << token; fake }, &block)
+    end
+
     def create_organization(name: "Test Org #{SecureRandom.hex(4)}", **attrs)
       Organization.create!(name: name, **attrs)
     end

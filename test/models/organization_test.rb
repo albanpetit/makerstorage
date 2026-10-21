@@ -251,8 +251,13 @@ class OrganizationTest < ActiveSupport::TestCase
     line = create_order(organization: org, reference: "PO-1").order_lines.create!(part: part, quantity: 2)
     line.allocations.create!(storage_location: location, quantity: 2)
     create_project(organization: org).project_lines.create!(part: part, quantity: 1)
+    stocktake = org.stocktakes.create!(storage_location: location, user: user)
+    stocktake.snapshot_stock!
+    stocktake.count!(stocktake.stocktake_lines.sole, 4, user: user)
+    stocktake.complete!(user: user)
 
     assert org.destroy
+    assert_equal 0, Stocktake.where(organization_id: org.id).count
     assert_not Organization.exists?(org.id)
     assert_equal 0, Part.where(organization_id: org.id).count
     assert_equal 0, StockMovement.where(organization_id: org.id).count
@@ -367,12 +372,19 @@ class OrganizationTest < ActiveSupport::TestCase
     parent = create_category(organization: org, name: "Passives")
     part = create_part(organization: org, category: create_category(organization: org, name: "Resistors", parent: parent))
     part.tags << create_tag(organization: org)
+    resistance = org.parameter_definitions.create!(name: "Resistance", unit: "Ω")
+    part.category.update!(parameter_template: [ resistance.id ])
+    part.part_parameters.create!(parameter_definition: resistance, value: "10k")
     supplier = create_supplier(organization: org)
     part.part_suppliers.create!(supplier: supplier)
     part.images.attach(io: file_fixture("logo.png").open, filename: "photo.png", content_type: "image/png")
     org.stock_movements.create!(part: part, storage_location: drawer, movement_type: "in", quantity_delta: 5)
     create_order(organization: org, supplier: supplier, reference: "PO-1").order_lines.create!(part: part, quantity: 2)
     create_project(organization: org).project_lines.create!(part: part, quantity: 1)
+    stocktake = org.stocktakes.create!(storage_location: room)
+    stocktake.snapshot_stock!
+    stocktake.count!(stocktake.stocktake_lines.sole, 3, user: owner)
+    stocktake.complete!(user: owner)
     other = create_organization
     other_part = create_part(organization: other)
 

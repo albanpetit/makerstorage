@@ -7,6 +7,11 @@ class StorageLocation < ApplicationRecord
   has_many :part_storages, dependent: :destroy
   has_many :parts, through: :part_storages
   has_many :stock_movements, dependent: :restrict_with_error
+  # Stocktakes of this zone, and the lines counted in it. A zone that is gone
+  # can't be counted any more; the adjustments those counts wrote stay in the
+  # ledger (and keep the zone from being deleted).
+  has_many :stocktakes, dependent: :destroy
+  has_many :stocktake_lines, dependent: :destroy
   # Purchase-order lines that will receive stock into this zone. Deleting the
   # zone would break their split (allocations must sum to the line quantity),
   # so it's blocked until the order is re-targeted.

@@ -17,7 +17,8 @@ class SettingsController < ApplicationController
       timezones: Organization::TIMEZONES,
       email_notifications_available: NotificationDigest.available?,
       # Danger zone: the other organizations this one can be merged into.
-      merge_targets: merge_targets
+      merge_targets: merge_targets,
+      kicad: serialize_kicad_settings
     }
   end
 
@@ -68,7 +69,41 @@ class SettingsController < ApplicationController
     }
   end
 
+  # A new KiCad library token (replacing any previous one), returned once with
+  # the `.kicad_httplib` file that carries it.
+  def create_kicad_token
+    token = KicadLibrary.issue_token!(current_organization)
+    render json: {
+      token: token,
+      filename: KicadLibrary.library_filename(current_organization),
+      library_file: KicadLibrary.library_file(current_organization, token: token, root_url: kicad_root_url)
+    }
+  end
+
+  def destroy_kicad_token
+    KicadLibrary.revoke_token!(current_organization)
+    redirect_to settings_path, notice: "KiCad library access revoked. KiCad can no longer read your parts."
+  end
+
   private
+
+  # With a trailing slash: KiCad appends the API version ("v1/") to it.
+  def kicad_root_url
+    "#{request.base_url}/kicad/"
+  end
+
+  def serialize_kicad_settings
+    org = current_organization
+    coverage = KicadLibrary.new(org, base_url: request.base_url).coverage
+    {
+      enabled: org.kicad_token_digest.present?,
+      token_created_at: org.kicad_token_created_at&.iso8601,
+      token_last_used_at: org.kicad_token_last_used_at&.iso8601,
+      root_url: kicad_root_url,
+      listed_parts_count: coverage[:listed],
+      parts_without_symbol_count: coverage[:without_symbol]
+    }
+  end
 
   def merge_targets
     return [] if current_organization.personal? || !current_user.owner_of?(current_organization)
@@ -90,6 +125,7 @@ class SettingsController < ApplicationController
     providers = []
     providers << "mouser" if current_organization.mouser_api_key.present?
     providers << "digikey" if current_organization.digikey_configured?
+    providers << "lcsc" if current_organization.lcsc_enabled?
 
     providers.filter_map do |provider|
       _supplier, created = Supplier.ensure_catalog_provider(current_organization, provider)
@@ -108,12 +144,15 @@ class SettingsController < ApplicationController
       :notify_low_stock, :notify_late_orders, :notify_overdue_loans, :notification_frequency,
       :mouser_api_key, :remove_mouser_api_key,
       :mouser_order_api_key, :remove_mouser_order_api_key,
-      :digikey_client_id, :digikey_client_secret, :remove_digikey
+      :digikey_client_id, :digikey_client_secret, :remove_digikey,
+      :lcsc_enabled,
+      :github_token, :remove_github_token
     )
 
     normalize_mouser_api_key(permitted)
     normalize_write_only_key(permitted, :mouser_order_api_key, :remove_mouser_order_api_key)
     normalize_digikey_credentials(permitted)
+    normalize_write_only_key(permitted, :github_token, :remove_github_token)
     permitted
   end
 
@@ -184,6 +223,8 @@ class SettingsController < ApplicationController
       mouser_order_api_key_present: org.mouser_order_api_key.present?,
       digikey_configured: org.digikey_configured?,
       digikey_account_connected: org.digikey_account_connected?,
+      lcsc_enabled: org.lcsc_enabled,
+      github_token_present: org.github_token.present?,
       parts_count: org.total_parts_count,
       ipn_preview: org.ipn_preview(category_code: org.ipn_use_category_code ? "RES" : nil),
       # Box & bag numbering: how many bags are free, and the first few codes.
