@@ -95,6 +95,8 @@ export default function SettingsIndex({
       digikey_client_id: '',
       digikey_client_secret: '',
       remove_digikey: false,
+      github_token: '',
+      remove_github_token: false,
     },
   })
 

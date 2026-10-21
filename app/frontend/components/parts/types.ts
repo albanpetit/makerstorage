@@ -1,4 +1,4 @@
-import type { BagBox, BagOption } from '@/components/part-form/types'
+import type { AddPartPrefill, BagBox, BagOption } from '@/components/part-form/types'
 
 // Prop shapes for the Parts inventory page (PartsController#index), shared by
 // the page and its pieces in this folder.
@@ -114,4 +114,6 @@ export interface PartsIndexProps {
   bag_options: BagOption[] | null
   bag_boxes: BagBox[] | null
   open_add: boolean
+  // Set when the add dialog opens from a scanned supplier label.
+  add_prefill: AddPartPrefill | null
 }

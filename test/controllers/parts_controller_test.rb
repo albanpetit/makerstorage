@@ -376,6 +376,37 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
     assert_equal false, inertia_props["open_add"]
   end
 
+  test "index prefills the add-part modal from a scanned supplier label" do
+    user = create_user
+
+    sign_in user
+    get parts_path(new: 1, prefill: { mpn: " NE555P ", provider: "digikey", supplier_sku: "296-1395-5-ND", quantity: "25", manufacturer: "", lot: "x" })
+    assert_equal({ "mpn" => "NE555P", "provider" => "digikey", "supplier_sku" => "296-1395-5-ND", "quantity" => "25" }, inertia_props["add_prefill"])
+
+    get parts_path(prefill: { mpn: "NE555P" })
+    assert_nil inertia_props["add_prefill"]
+  end
+
+  test "create returns to the scanner on the new part when asked to" do
+    user = create_user
+    org = user.organizations.first
+    category = create_category(organization: org)
+    location = create_storage_location(organization: org)
+
+    sign_in user
+    post parts_path, params: {
+      part: { name: "NE555P", mpn: "NE555P", category_id: category.id },
+      initial_location_id: location.id, initial_quantity: 25, return_to: "scan"
+    }
+
+    part = Part.find_by!(mpn: "NE555P")
+    assert_redirected_to scan_path(code: "part:#{part.id}")
+    assert_equal 25, part.total_quantity
+
+    post parts_path, params: { part: { name: "Other", category_id: category.id }, return_to: "https://evil.example" }
+    assert_redirected_to parts_path
+  end
+
   test "create builds a part from the quick-add modal" do
     user = create_user
     org = user.organizations.first

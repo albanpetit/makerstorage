@@ -374,6 +374,25 @@ class SettingsControllerTest < ActionDispatch::IntegrationTest
     refute organization.key?("mouser_api_key")
   end
 
+  test "the GitHub token is write-only: stored, kept on a blank submit, removed on request" do
+    user = create_user
+    org = user.organizations.first
+    sign_in user
+
+    patch settings_path, params: { organization: { github_token: "  ghp_secret  " } }
+    assert_equal "ghp_secret", org.reload.github_token
+
+    get settings_path
+    assert_equal true, inertia_props.dig("organization", "github_token_present")
+    refute inertia_props["organization"].key?("github_token")
+
+    patch settings_path, params: { organization: { github_token: "" } }
+    assert_equal "ghp_secret", org.reload.github_token
+
+    patch settings_path, params: { organization: { remove_github_token: "true" } }
+    assert_nil org.reload.github_token
+  end
+
   test "update leaves an existing Mouser key untouched on a blank submit" do
     user = create_user
     org = user.organizations.first
@@ -393,6 +412,25 @@ class SettingsControllerTest < ActionDispatch::IntegrationTest
 
     patch settings_path, params: { organization: { remove_mouser_api_key: "true" } }
     assert_nil org.reload.mouser_api_key
+  end
+
+  test "update turns LCSC on, sets up its supplier, and shows the switch state" do
+    user = create_user
+    org = user.organizations.first
+    org.suppliers.find_by(catalog_provider: "lcsc")&.destroy!
+    sign_in user
+
+    patch settings_path, params: { organization: { lcsc_enabled: "true" } }
+
+    assert org.reload.lcsc_enabled?
+    assert org.suppliers.exists?(catalog_provider: "lcsc", name: "LCSC")
+    assert_match(/Added LCSC to your suppliers/, flash[:notice])
+
+    get settings_path
+    assert_equal true, inertia_props.dig("organization", "lcsc_enabled")
+
+    patch settings_path, params: { organization: { lcsc_enabled: "false" } }
+    refute org.reload.lcsc_enabled?
   end
 
   test "update stores DigiKey credentials without echoing the secret back" do

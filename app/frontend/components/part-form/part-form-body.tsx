@@ -96,6 +96,8 @@ export interface PartFormBodyProps {
 
   // Supplier catalog lookup
   supplierLookupEnabled: boolean
+  // A part number to look up as soon as the form shows (from a scanned label).
+  autoLookup?: string | null
   onApplyLookup: (result: LookupResult) => void
   attach: { datasheet_url: string | null; image_url: string | null }
 
@@ -137,6 +139,7 @@ export function PartFormBody({
   bagOptions = null,
   bagBoxes = null,
   supplierLookupEnabled,
+  autoLookup = null,
   onApplyLookup,
   attach,
   imagePreview,
@@ -213,6 +216,7 @@ export function PartFormBody({
       {supplierLookupEnabled && (
         <SupplierLookup
           defaultQuery={part.mpn}
+          autoQuery={autoLookup}
           onApply={onApplyLookup}
           attached={{ datasheet: !!attach.datasheet_url, image: !!attach.image_url }}
         />

@@ -1,0 +1,29 @@
+(kicad_sch
+	(version 20231120)
+	(generator "eeschema")
+	(uuid "33333333-0000-0000-0000-000000000000")
+	(paper "A4")
+	(lib_symbols)
+	(symbol
+		(lib_id "Device:R")
+		(at 100 50 0)
+		(unit 1)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "bbbbbbbb-0000-0000-0000-000000000001")
+		(property "Reference" "R3" (at 0 0 0))
+		(property "Value" "10k" (at 0 0 0))
+		(property "Footprint" "Resistor_SMD:R_0603_1608Metric" (at 0 0 0))
+		(property "Description" "Resistor, \"thick film\"" (at 0 0 0))
+		(instances
+			(project "board"
+				(path "/11111111-0000-0000-0000-000000000000/22222222-0000-0000-0000-000000000001" (reference "R3") (unit 1))
+				(path "/11111111-0000-0000-0000-000000000000/22222222-0000-0000-0000-000000000002" (reference "R103") (unit 1))
+			)
+			(project "other_board"
+				(path "/44444444-0000-0000-0000-000000000000/55555555-0000-0000-0000-000000000001" (reference "R999") (unit 1))
+			)
+		)
+	)
+)

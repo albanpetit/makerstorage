@@ -221,6 +221,16 @@ export function lookupResultPatch(result: LookupResult, part: PartFormData): Par
   }
 }
 
+// What a scanned supplier bag label tells the add-part dialog about a part
+// that isn't in the inventory yet (all optional, as labels vary).
+export interface AddPartPrefill {
+  mpn?: string
+  manufacturer?: string
+  provider?: string
+  supplier_sku?: string
+  quantity?: string
+}
+
 // Box & bag numbering: a bag the part form can put the part in (the free ones,
 // plus the part's own). The server sends null when the org numbers parts
 // another way.
