@@ -152,6 +152,11 @@ class PartsController < ApplicationController
 
     if saved
       attach_remote_datasheet(part)
+      # What the add-part dialog needs to print the new part's label.
+      flash[:created_part] = {
+        id: part.id, name: part.name, ipn: part.ipn, mpn: part.mpn, sku: part.sku, barcode: part.barcode,
+        location_names: part.storage_locations.reload.map(&:name)
+      }
       redirect_to parts_path, notice: "Part created successfully."
     else
       # No flash alert here: the add-part modal renders these errors inline, and

@@ -1,7 +1,13 @@
 import { useForm } from '@inertiajs/react'
 import { FormEvent, useEffect, useMemo, useState } from 'react'
+import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Label } from '@/components/ui/label'
+import { printOnPrinterWithToast, useLabelTarget } from '@/components/print-labels-dialog'
+import { type LabelFormatId, type LabelItem, labelForPart, printLabels } from '@/lib/labels'
+import type { Flash } from '@/types'
 import { LookupResult } from '@/components/supplier-lookup'
 import {
   Dialog,
@@ -25,6 +31,16 @@ import {
   Supplier,
   Tag,
 } from '@/components/part-form/types'
+
+const PRINT_LABEL_STORAGE_KEY = 'makerstorage.printNewPartLabel'
+
+function storedPrintLabel() {
+  try {
+    return window.localStorage.getItem(PRINT_LABEL_STORAGE_KEY) === '1'
+  } catch {
+    return false
+  }
+}
 
 interface AddPartDialogProps {
   open: boolean
@@ -58,6 +74,8 @@ export function AddPartDialog({
   bagBoxes = null,
 }: AddPartDialogProps) {
   const [detailsOpen, setDetailsOpen] = useState(false)
+  const [printLabel, setPrintLabel] = useState(storedPrintLabel)
+  const labelTarget = useLabelTarget(open && printLabel)
   const [suppliersOpen, setSuppliersOpen] = useState(false)
   const suppliersController = usePartSuppliers(suppliers)
 
@@ -125,12 +143,37 @@ export function AddPartDialog({
     onOpenChange(next)
   }
 
+  const choosePrintLabel = (checked: boolean) => {
+    setPrintLabel(checked)
+    try {
+      window.localStorage.setItem(PRINT_LABEL_STORAGE_KEY, checked ? '1' : '0')
+    } catch {
+      // The choice just isn't kept.
+    }
+  }
+
+  // A network printer prints straight away; the browser's print dialog needs a
+  // click of its own (popup blockers refuse a window opened after the save).
+  const printNewPartLabel = (item: LabelItem) => {
+    if (labelTarget.printer) {
+      printOnPrinterWithToast(labelTarget.printer, Promise.resolve([ item ]))
+      return
+    }
+    const format = labelTarget.target as LabelFormatId
+    toast('Part created', {
+      description: `Print the label for ${item.title}?`,
+      action: { label: 'Print label', onClick: () => printLabels([ item ], format, window.open('', '_blank')) },
+    })
+  }
+
   const submit = (e: FormEvent) => {
     e.preventDefault()
     form.post('/parts', {
       preserveScroll: true,
       preserveState: true,
-      onSuccess: () => {
+      onSuccess: (page) => {
+        const created = (page.props.flash as Flash | undefined)?.created_part
+        if (printLabel && created) printNewPartLabel(labelForPart(created))
         resetAll()
         onOpenChange(false)
       },
@@ -178,7 +221,14 @@ export function AddPartDialog({
             onInitialQuantityChange={(value) => setData('initial_quantity', value)}
           />
 
-          <DialogFooter className="border-t px-6 py-4">
+          <DialogFooter className="items-center border-t px-6 py-4">
+            <div className="mr-auto flex items-center gap-2">
+              <Checkbox id="print-new-part-label" checked={printLabel} onCheckedChange={(checked) => choosePrintLabel(checked === true)} />
+              <Label htmlFor="print-new-part-label" className="text-sm font-normal">
+                Print its label
+                {printLabel && labelTarget.printer && <span className="text-muted-foreground"> on {labelTarget.printer.name}</span>}
+              </Label>
+            </div>
             <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>Cancel</Button>
             <Button type="submit" disabled={form.processing}>Add part</Button>
           </DialogFooter>

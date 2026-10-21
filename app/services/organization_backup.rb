@@ -86,7 +86,8 @@ module OrganizationBackup
           references: { "order_line_id" => "order_lines", "storage_location_id" => "storage_locations" }),
     table("projects", Project, ->(org) { org.projects }, enums: { "status" => Project::STATUSES }),
     table("project_lines", ProjectLine, ->(org) { ProjectLine.where(project_id: org.projects.select(:id)) },
-          references: { "project_id" => "projects", "part_id" => "parts" }, enums: { "match_type" => ProjectLine::MATCH_TYPES })
+          references: { "project_id" => "projects", "part_id" => "parts" }, enums: { "match_type" => ProjectLine::MATCH_TYPES }),
+    table("label_printers", LabelPrinter, ->(org) { org.label_printers }, enums: { "protocol" => LabelPrinter::PROTOCOLS })
   ].freeze
 
   TABLES_BY_NAME = TABLES.index_by(&:name).freeze

@@ -1,6 +1,7 @@
 # Merges one organization (the source) into another (the target): every
 # inventory record of the source moves to the target, then the source is
-# deleted. The target keeps its own settings, integrations and logo.
+# deleted. The target keeps its own settings, integrations, label printers
+# and logo.
 #
 #   result = OrganizationMerge.new(source: org_a, target: org_b).merge!
 #

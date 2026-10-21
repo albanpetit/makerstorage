@@ -138,6 +138,11 @@ Rails.application.routes.draw do
 
   resources :members, only: %i[index create update destroy]
 
+  # Network label printers (Settings → Label printers) and direct printing.
+  resources :label_printers, only: %i[index create update destroy] do
+    post :print, on: :member
+  end
+
   resource :settings, only: %i[show update] do
     post :reassign_ipns
     get :reassign_ipns_preview

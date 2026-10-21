@@ -105,5 +105,9 @@ module Makerstorage
     # NotificationDigestJob). Production turns them off without SMTP, and the
     # settings that control them then say mail isn't set up.
     config.x.email_notifications = true
+
+    # Direct printing to network label printers (LabelPrinting::Network). On
+    # unless NETWORK_PRINTING=false, e.g. on a shared instance with no printers.
+    config.x.network_printing = !%w[0 false no off].include?(ENV["NETWORK_PRINTING"].to_s.strip.downcase)
   end
 end

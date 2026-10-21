@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_15_100000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_21_120000) do
   create_table "active_storage_attachments", force: :cascade do |t|
     t.bigint "blob_id", null: false
     t.datetime "created_at", null: false
@@ -65,6 +65,21 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_15_100000) do
     t.index ["mounting_type"], name: "index_footprints_on_mounting_type"
     t.index ["organization_id", "name"], name: "index_footprints_on_organization_id_and_name", unique: true
     t.index ["organization_id"], name: "index_footprints_on_organization_id"
+  end
+
+  create_table "label_printers", force: :cascade do |t|
+    t.integer "organization_id", null: false
+    t.string "name", null: false
+    t.string "protocol", null: false
+    t.string "host", null: false
+    t.integer "port", default: 9100, null: false
+    t.string "media"
+    t.decimal "width_mm", precision: 6, scale: 1
+    t.decimal "length_mm", precision: 6, scale: 1
+    t.integer "dpi"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["organization_id"], name: "index_label_printers_on_organization_id"
   end
 
   create_table "oauth_authorizations", force: :cascade do |t|
@@ -405,6 +420,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_15_100000) do
   add_foreign_key "categories", "categories", column: "parent_id"
   add_foreign_key "categories", "organizations"
   add_foreign_key "footprints", "organizations"
+  add_foreign_key "label_printers", "organizations"
   add_foreign_key "oauth_authorizations", "oauth_clients"
   add_foreign_key "oauth_authorizations", "organizations"
   add_foreign_key "oauth_authorizations", "users"

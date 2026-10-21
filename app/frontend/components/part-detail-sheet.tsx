@@ -2,11 +2,13 @@ import { Link, router, useForm } from '@inertiajs/react'
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
 import {
   ArrowDown, ArrowUp, ArrowLeftRight, Cpu, MapPin,
-  Pencil, Trash2, ExternalLink, Loader2, CircleAlert,
+  Pencil, Printer, Trash2, ExternalLink, Loader2, CircleAlert,
 } from 'lucide-react'
 
 import { usePermissions } from '@/hooks/use-permissions'
 import { EditPartDialog } from '@/components/edit-part-dialog'
+import { PrintLabelsDialog } from '@/components/print-labels-dialog'
+import { labelForPart } from '@/lib/labels'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -53,6 +55,7 @@ interface PartSupplierEntry {
 interface PartDetail {
   id: number
   name: string
+  ipn: string | null
   mpn: string | null
   sku: string | null
   barcode: string | null
@@ -74,6 +77,7 @@ interface PartDetail {
   footprint: { id: number; name: string } | null
   tags: { id: number; name: string; color: string | null }[]
   part_suppliers: PartSupplierEntry[]
+  location_names: string[]
 }
 
 interface StorageEntry {
@@ -186,6 +190,7 @@ export function PartDetailSheet({
   const [payload, setPayload] = useState<PartShowPayload | null>(null)
 
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const [labelOpen, setLabelOpen] = useState(false)
   const [mvtOpen, setMvtOpen] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
 
@@ -572,6 +577,9 @@ export function PartDetailSheet({
                     <ArrowLeftRight className="size-4" />
                     Stock in / out
                   </Button>
+                  <Button variant="outline" onClick={() => setLabelOpen(true)} aria-label="Print label">
+                    <Printer className="size-4" />
+                  </Button>
                   <Button variant="outline" onClick={() => setEditOpen(true)} aria-label="Edit part">
                     <Pencil className="size-4" />
                   </Button>
@@ -681,6 +689,16 @@ export function PartDetailSheet({
       </AlertDialog>
 
       {/* Edit Part modal — options come from the fetched detail payload. */}
+      {part && (
+        <PrintLabelsDialog
+          open={labelOpen}
+          onOpenChange={setLabelOpen}
+          count={1}
+          loadItems={() => Promise.resolve([labelForPart(part)])}
+          title={`Print the label for ${part.name}`}
+        />
+      )}
+
       <EditPartDialog
         partId={editOpen ? partId : null}
         open={editOpen}

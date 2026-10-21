@@ -12,7 +12,7 @@ import { CategorySelect } from '@/components/category-select'
 import { StorageLocationSelect } from '@/components/storage-location-select'
 import { TagPicker } from '@/components/tag-picker'
 import { PrintLabelsDialog } from '@/components/print-labels-dialog'
-import { labelCodeForPart, type LabelItem } from '@/lib/labels'
+import { labelForPart } from '@/lib/labels'
 import {
   Dialog,
   DialogContent,
@@ -40,7 +40,7 @@ import {
 } from '@/components/ui/select'
 
 import { exportCsv } from './csv'
-import { LIFECYCLE_META, locationLabel } from './part-meta'
+import { LIFECYCLE_META } from './part-meta'
 import type { Category, Part, StorageLocationOption, Supplier, Tag } from './types'
 
 interface BulkActionsProps {
@@ -53,19 +53,6 @@ interface BulkActionsProps {
   suppliers: Supplier[]
   tags: Tag[]
   storageLocations: StorageLocationOption[]
-}
-
-function partLabel(part: Part): LabelItem {
-  const title = part.ipn || part.mpn || part.sku || part.name
-  return {
-    code: labelCodeForPart(part),
-    title,
-    lines: [
-      part.name !== title ? part.name : '',
-      part.mpn && part.mpn !== title ? part.mpn : '',
-      locationLabel(part.location_names),
-    ],
-  }
 }
 
 // The dark bar shown while parts are selected, plus the edit + confirmation
@@ -255,7 +242,7 @@ export function BulkActions({
       open={labelsOpen}
       onOpenChange={setLabelsOpen}
       count={selectedCount}
-      loadItems={() => loadSelectedParts().then((parts) => parts.map(partLabel))}
+      loadItems={() => loadSelectedParts().then((parts) => parts.map(labelForPart))}
       title={`Print labels for ${selectedCount} part${plural}`}
     />
 
