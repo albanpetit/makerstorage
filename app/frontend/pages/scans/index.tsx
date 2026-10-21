@@ -1,13 +1,14 @@
 import { Head, Link, router } from '@inertiajs/react'
-import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
-import { Box, Camera, CameraOff, Check, ChevronRight, Cpu, ExternalLink, MapPin, ScanLine } from 'lucide-react'
-import type { IScannerControls } from '@zxing/browser'
+import { FormEvent, useEffect, useMemo, useState } from 'react'
+import { AlertTriangle, Box, Camera, CameraOff, Check, ChevronRight, ClipboardCheck, Cpu, ExternalLink, MapPin, PackageCheck, Plus, ScanLine } from 'lucide-react'
 
 import { AppLayout } from '@/layouts/app-layout'
 import { usePermissions } from '@/hooks/use-permissions'
+import { useBarcodeScanner } from '@/hooks/use-barcode-scanner'
 import { PageHeader } from '@/components/page-header'
 import { FlashMessages } from '@/components/flash-messages'
 import { PartDetailSheet } from '@/components/part-detail-sheet'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -42,11 +43,41 @@ interface ScannedZone {
   children_count: number
   // Stocked parts held directly in the zone, largest quantity first (capped).
   contents: Array<{ id: number; reference: string; name: string; quantity: number }>
+  // The stocktake already counting this zone, if any.
+  stocktake: { id: number; reference: string | null } | null
+}
+
+// The fields read from a distributor's bag label (ECIA DataMatrix or LCSC QR).
+interface SupplierLabel {
+  provider: string | null
+  provider_name: string
+  mpn: string | null
+  supplier_sku: string | null
+  customer_part_number: string | null
+  manufacturer: string | null
+  quantity: number | null
+  order_number: string | null
+  lot: string | null
+  date_code: string | null
+  country_of_origin: string | null
+}
+
+interface SupplierLabelResult {
+  kind: 'supplier_label'
+  label: SupplierLabel
+  // Stamped on the receipt movement (e.g. "DigiKey 84512345").
+  reference: string
+  // The inventory part the label matched, if any.
+  part: ScannedPart | null
+  // The same bag was already received (same part, order and quantity).
+  previous_receipt: { created_at: string; quantity: number; location_name: string } | null
+  open_orders: Array<{ id: number; reference: string | null; quantity: number }>
 }
 
 type ScanResult =
   | { kind: 'part'; part: ScannedPart }
   | { kind: 'location'; location: ScannedZone }
+  | SupplierLabelResult
   | { kind: 'unknown' }
 
 interface RecentScan {
@@ -82,38 +113,6 @@ const QR_GHOST_CELLS: Array<[number, number]> = [
   [0, 4], [2, 4], [3, 4], [5, 4],
   [1, 5], [2, 5], [4, 5], [5, 5],
 ]
-
-// Symbologies we read: QR (zones) plus the common 1D/2D barcodes on part labels.
-const SCAN_FORMATS = [
-  'qr_code', 'data_matrix', 'code_128', 'code_39',
-  'ean_13', 'ean_8', 'upc_a', 'upc_e', 'itf', 'codabar',
-] as const
-
-// Minimal shape of the browser-native BarcodeDetector (not yet in TS DOM libs).
-interface DetectedBarcode {
-  rawValue: string
-}
-interface BarcodeDetectorInstance {
-  detect(source: CanvasImageSource): Promise<DetectedBarcode[]>
-}
-interface BarcodeDetectorConstructor {
-  new (options?: { formats?: string[] }): BarcodeDetectorInstance
-  getSupportedFormats?(): Promise<string[]>
-}
-
-function describeCameraError(err: unknown): string {
-  const e = err as { name?: string; message?: string }
-  if (e?.name === 'NotAllowedError' || e?.name === 'SecurityError') {
-    return 'Camera permission was denied. Allow camera access in your browser and try again.'
-  }
-  if (e?.name === 'NotFoundError' || e?.name === 'OverconstrainedError' || e?.name === 'DevicesNotFoundError') {
-    return 'No camera was found on this device.'
-  }
-  if (e?.name === 'NotReadableError' || e?.name === 'TrackStartError') {
-    return 'The camera is already in use by another application.'
-  }
-  return e?.message || 'Could not start the camera.'
-}
 
 function formatAgo(iso: string) {
   const seconds = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000)
@@ -152,129 +151,32 @@ export default function ScansIndex({ code, result, recent_scans, today_count, al
   const [locationId, setLocationId] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [detailPartId, setDetailPartId] = useState<number | null>(null)
+  const [receiveQuantity, setReceiveQuantity] = useState('')
 
-  const videoRef = useRef<HTMLVideoElement>(null)
-  const controlsRef = useRef<IScannerControls | null>(null)
-  const streamRef = useRef<MediaStream | null>(null)
-  const rafRef = useRef<number | null>(null)
-  // Guards against firing multiple lookups from rapid consecutive detections.
-  const scannedRef = useRef(false)
-  const [cameraActive, setCameraActive] = useState(false)
-  const [cameraStarting, setCameraStarting] = useState(false)
-  const [cameraError, setCameraError] = useState<string | null>(null)
+  const camera = useBarcodeScanner((code) => {
+    router.get('/scan', { code }, { preserveState: true, preserveScroll: true })
+  })
 
-  const stopCamera = () => {
-    if (rafRef.current != null) {
-      cancelAnimationFrame(rafRef.current)
-      rafRef.current = null
-    }
-    controlsRef.current?.stop()
-    controlsRef.current = null
-    streamRef.current?.getTracks().forEach((track) => track.stop())
-    streamRef.current = null
-    if (videoRef.current) videoRef.current.srcObject = null
-    setCameraActive(false)
-  }
-
-  const handleDecoded = (text: string) => {
-    const trimmed = text.trim()
-    if (!trimmed || scannedRef.current) return
-    scannedRef.current = true
-    stopCamera()
-    router.get('/scan', { code: trimmed }, { preserveState: true, preserveScroll: true })
-  }
-
-  const startCamera = async () => {
-    setCameraError(null)
-    if (!navigator.mediaDevices?.getUserMedia) {
-      setCameraError(
-        window.isSecureContext
-          ? 'This browser does not support camera access.'
-          : 'Camera access requires HTTPS. Open the app over https:// (or on localhost) to scan.',
-      )
-      return
-    }
-    setCameraStarting(true)
-    setCameraActive(true)
-    scannedRef.current = false
-
-    const BarcodeDetectorCtor = (window as unknown as { BarcodeDetector?: BarcodeDetectorConstructor }).BarcodeDetector
-
-    try {
-      if (BarcodeDetectorCtor) {
-        // Preferred path: the browser-native detector (Chrome/Android/Edge) is
-        // far faster and more reliable than decoding every frame in JS.
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
-        streamRef.current = stream
-        const video = videoRef.current!
-        video.srcObject = stream
-        await video.play()
-
-        const supported = (await BarcodeDetectorCtor.getSupportedFormats?.()) ?? []
-        const formats = SCAN_FORMATS.filter((f) => supported.length === 0 || supported.includes(f))
-        const detector = new BarcodeDetectorCtor(formats.length ? { formats: [ ...formats ] } : undefined)
-
-        const scan = async () => {
-          if (scannedRef.current || !streamRef.current) return
-          try {
-            const codes = await detector.detect(video)
-            if (codes.length > 0 && codes[0].rawValue) {
-              handleDecoded(codes[0].rawValue)
-              return
-            }
-          } catch {
-            // Transient decode errors (e.g. a not-yet-ready frame) — keep going.
-          }
-          rafRef.current = requestAnimationFrame(scan)
-        }
-        rafRef.current = requestAnimationFrame(scan)
-      } else {
-        // Fallback (Safari/Firefox): ZXing, restricted to the formats we use so
-        // it locks on faster than scanning for every possible symbology.
-        const [{ BrowserMultiFormatReader }, { DecodeHintType, BarcodeFormat }] = await Promise.all([
-          import('@zxing/browser'),
-          import('@zxing/library'),
-        ])
-        const hints = new Map([
-          [ DecodeHintType.POSSIBLE_FORMATS, [
-            BarcodeFormat.QR_CODE, BarcodeFormat.DATA_MATRIX, BarcodeFormat.CODE_128,
-            BarcodeFormat.CODE_39, BarcodeFormat.EAN_13, BarcodeFormat.EAN_8,
-            BarcodeFormat.UPC_A, BarcodeFormat.UPC_E, BarcodeFormat.ITF, BarcodeFormat.CODABAR,
-          ] ],
-        ])
-        const reader = new BrowserMultiFormatReader(hints)
-        controlsRef.current = await reader.decodeFromConstraints(
-          { video: { facingMode: 'environment' } },
-          videoRef.current!,
-          (decoded) => {
-            if (decoded) handleDecoded(decoded.getText())
-          },
-        )
-      }
-    } catch (err) {
-      stopCamera()
-      setCameraError(describeCameraError(err))
-    } finally {
-      setCameraStarting(false)
-    }
-  }
-
-  // Always release the camera when leaving the page.
-  useEffect(() => () => stopCamera(), [])
+  const part = result?.kind === 'part' ? result.part : null
+  const labelResult = result?.kind === 'supplier_label' ? result : null
+  // The part whose zones the zone picker offers: a counted part, or the part a
+  // supplier label matched.
+  const targetPart = part ?? labelResult?.part ?? null
 
   useEffect(() => {
     setDelta(0)
     setLocationId('')
+    setReceiveQuantity(labelResult?.label.quantity ? String(labelResult.label.quantity) : '')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [code])
 
-  const part = result?.kind === 'part' ? result.part : null
   const selectedLocation = useMemo(() => {
-    if (!part) return null
-    return part.locations.find((location) => String(location.id) === locationId)
-      ?? part.locations.find((location) => location.id === preferred_location_id)
-      ?? part.locations[0]
+    if (!targetPart) return null
+    return targetPart.locations.find((location) => String(location.id) === locationId)
+      ?? targetPart.locations.find((location) => location.id === preferred_location_id)
+      ?? targetPart.locations[0]
       ?? null
-  }, [part, locationId, preferred_location_id])
+  }, [targetPart, locationId, preferred_location_id])
 
   const projected = (selectedLocation?.quantity ?? 0) + delta
 
@@ -299,12 +201,50 @@ export default function ScansIndex({ code, result, recent_scans, today_count, al
     })
   }
 
-  const matchLabel = !result ? '—' : result.kind === 'part' ? 'Part' : result.kind === 'location' ? 'Zone' : 'Unknown'
+  const receiveCount = Number.parseInt(receiveQuantity, 10)
+  const canReceive = Number.isInteger(receiveCount) && receiveCount > 0 && !!selectedLocation
+
+  const receiveBag = () => {
+    if (!labelResult?.part || !selectedLocation || !canReceive) return
+    router.post('/scan/receipts', {
+      receipt: {
+        part_id: labelResult.part.id,
+        storage_location_id: selectedLocation.id,
+        quantity: receiveCount,
+        reference: labelResult.reference,
+      },
+    }, {
+      preserveScroll: true,
+      onStart: () => setSubmitting(true),
+      onFinish: () => setSubmitting(false),
+    })
+  }
+
+  // Opens the add-part dialog prefilled from the label; it comes back here
+  // once the part (and its opening stock) is created.
+  const createPartFromLabel = (label: SupplierLabel) => {
+    const prefill = Object.fromEntries(
+      Object.entries({
+        mpn: label.mpn,
+        manufacturer: label.manufacturer,
+        provider: label.provider,
+        supplier_sku: label.supplier_sku,
+        quantity: label.quantity?.toString(),
+      }).filter(([, value]) => value),
+    )
+    router.get('/parts', { new: 1, prefill })
+  }
+
+  const matchLabel = !result ? '—'
+    : result.kind === 'part' ? 'Part'
+    : result.kind === 'location' ? 'Zone'
+    : result.kind === 'supplier_label' ? 'Supplier label'
+    : 'Unknown'
 
   return (
     <AppLayout
       header={
-        <PageHeader title="Scanner" subtitle="Scan a QR code to locate a zone or count a component">
+        <PageHeader title="Scanner" subtitle="Scan a QR code to locate a zone, count a component or receive a supplier bag">
           <span className="inline-flex items-center gap-2 text-xs text-muted-foreground">
             <span className="size-1.5 animate-pulse rounded-full bg-emerald-500" />
             Scanner ready
@@ -323,14 +263,14 @@ export default function ScansIndex({ code, result, recent_scans, today_count, al
             <div className="relative aspect-square overflow-hidden rounded-xl bg-[radial-gradient(circle_at_50%_40%,#1c1c22_0%,#0c0c0e_75%)]">
               {/* Live camera feed — always mounted so the decoder can attach to it */}
               <video
-                ref={videoRef}
-                className={`absolute inset-0 size-full object-cover transition-opacity ${cameraActive ? 'opacity-100' : 'opacity-0'}`}
+                ref={camera.videoRef}
+                className={`absolute inset-0 size-full object-cover transition-opacity ${camera.active ? 'opacity-100' : 'opacity-0'}`}
                 muted
                 playsInline
               />
 
               {/* Framing overlay — only meaningful while the camera is live */}
-              {cameraActive && (
+              {camera.active && (
                 <div className="absolute inset-[14%]">
                   <div className="absolute top-0 left-0 size-8 rounded-tl-lg border-t-[3px] border-l-[3px] border-primary" />
                   <div className="absolute top-0 right-0 size-8 rounded-tr-lg border-t-[3px] border-r-[3px] border-primary" />
@@ -341,7 +281,7 @@ export default function ScansIndex({ code, result, recent_scans, today_count, al
               )}
 
               {/* Idle state — ghost QR + start button */}
-              {!cameraActive && (
+              {!camera.active && (
                 <>
                   <svg
                     viewBox="0 0 6 6"
@@ -354,9 +294,9 @@ export default function ScansIndex({ code, result, recent_scans, today_count, al
                     ))}
                   </svg>
                   <div className="absolute inset-x-0 bottom-4 flex flex-col items-center gap-2 px-4">
-                    <Button type="button" onClick={startCamera} disabled={cameraStarting} className="h-10">
+                    <Button type="button" onClick={camera.start} disabled={camera.starting} className="h-10">
                       <Camera className="size-4" />
-                      {cameraStarting ? 'Starting camera…' : 'Start camera'}
+                      {camera.starting ? 'Starting camera…' : 'Start camera'}
                     </Button>
                     <span className="text-xs text-zinc-400">…or use a hardware scanner / type a code below</span>
                   </div>
@@ -364,11 +304,11 @@ export default function ScansIndex({ code, result, recent_scans, today_count, al
               )}
 
               {/* Stop control while live */}
-              {cameraActive && (
+              {camera.active && (
                 <Button
                   type="button"
                   variant="ghost"
-                  onClick={stopCamera}
+                  onClick={camera.stop}
                   className="absolute top-2.5 right-2.5 h-auto gap-1.5 rounded-lg border border-white/20 bg-black/40 px-2.5 py-1.5 text-xs text-white backdrop-blur hover:bg-black/60 hover:text-white has-[>svg]:px-2.5 dark:hover:bg-black/60"
                 >
                   <CameraOff className="size-3.5" />
@@ -377,9 +317,9 @@ export default function ScansIndex({ code, result, recent_scans, today_count, al
               )}
             </div>
 
-            {cameraError && (
+            {camera.error && (
               <div className="mt-3 rounded-lg border border-red-900/50 bg-red-950/40 px-3 py-2 text-xs text-red-300">
-                {cameraError}
+                {camera.error}
               </div>
             )}
 
@@ -582,6 +522,157 @@ export default function ScansIndex({ code, result, recent_scans, today_count, al
                       Open zone
                     </Link>
                   </Button>
+                  {canWrite && (result.location.stocktake ? (
+                    <Button variant="outline" className="mt-2 w-full" asChild>
+                      <Link href={`/stocktakes/${result.location.stocktake.id}?zone=${result.location.id}`}>
+                        <ClipboardCheck className="size-4" />
+                        Continue stocktake {result.location.stocktake.reference}
+                      </Link>
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      className="mt-2 w-full"
+                      onClick={() => router.post('/stocktakes', { stocktake: { storage_location_id: result.location.id } })}
+                    >
+                      <ClipboardCheck className="size-4" />
+                      Count this zone
+                    </Button>
+                  ))}
+                </CardContent>
+              </Card>
+            )}
+
+            {labelResult && (
+              <Card className="gap-0 overflow-hidden py-0">
+                <ResultCardHeader
+                  tone={labelResult.part ? 'success' : 'error'}
+                  label={labelResult.part ? '✓ Bag matched' : 'New part'}
+                  code={`${labelResult.label.provider_name} label`}
+                />
+                <CardContent className="p-4">
+                  <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                    {([
+                      ['MPN', labelResult.label.mpn],
+                      ['Manufacturer', labelResult.label.manufacturer],
+                      [`${labelResult.label.provider_name} part number`, labelResult.label.supplier_sku],
+                      ['Customer part number', labelResult.label.customer_part_number],
+                      ['Quantity', labelResult.label.quantity?.toLocaleString()],
+                      ['Order', labelResult.label.order_number],
+                      ['Lot', labelResult.label.lot],
+                      ['Date code', labelResult.label.date_code],
+                    ] as Array<[string, string | null | undefined]>).filter(([, value]) => value).map(([term, value]) => (
+                      <div key={term} className="min-w-0">
+                        <dt className="text-[11px] text-muted-foreground">{term}</dt>
+                        <dd className="truncate font-mono text-sm font-semibold">{value}</dd>
+                      </div>
+                    ))}
+                  </dl>
+
+                  {labelResult.part ? (
+                    <>
+                      <div className="mt-4 flex items-start gap-3 rounded-xl border p-3">
+                        <div
+                          className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted"
+                          style={labelResult.part.category?.color ? { backgroundColor: `${labelResult.part.category.color}22`, color: labelResult.part.category.color } : undefined}
+                        >
+                          <Cpu className="size-5" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="font-mono text-sm font-bold">{labelResult.part.reference}</div>
+                          <div className="truncate text-xs text-muted-foreground">{labelResult.part.name}</div>
+                        </div>
+                        <div className="shrink-0 text-right">
+                          <div className="text-[11px] text-muted-foreground">In stock</div>
+                          <div className={`font-mono text-lg font-bold ${STOCK_STATUS_CLASS[labelResult.part.stock_status]}`}>
+                            {labelResult.part.total_quantity.toLocaleString()}
+                          </div>
+                        </div>
+                      </div>
+
+                      {labelResult.previous_receipt && (
+                        <Alert className="mt-3">
+                          <AlertTriangle className="size-4" />
+                          <AlertDescription>
+                            This bag was already received {formatAgo(labelResult.previous_receipt.created_at)} (+{labelResult.previous_receipt.quantity.toLocaleString()} into {labelResult.previous_receipt.location_name}). Receiving it again counts it twice.
+                          </AlertDescription>
+                        </Alert>
+                      )}
+
+                      {labelResult.open_orders.length > 0 && (
+                        <Alert className="mt-3">
+                          <AlertTriangle className="size-4" />
+                          <AlertDescription>
+                            <span>
+                              On open order{labelResult.open_orders.length > 1 ? 's' : ''}{' '}
+                              {labelResult.open_orders.map((order, index) => (
+                                <span key={order.id}>
+                                  {index > 0 && ', '}
+                                  <Link href={`/orders/${order.id}`} className="font-medium text-foreground underline underline-offset-2">
+                                    {order.reference || `#${order.id}`}
+                                  </Link>{' '}
+                                  ({order.quantity.toLocaleString()})
+                                </span>
+                              ))}
+                              . Receiving the bag here doesn't close the order: receive the order instead, or cancel its line, so the stock isn't counted twice.
+                            </span>
+                          </AlertDescription>
+                        </Alert>
+                      )}
+
+                      {canWrite && (labelResult.part.locations.length === 0 ? (
+                        <div className="mt-4 rounded-xl bg-muted p-4 text-center text-sm text-muted-foreground">
+                          No storage zone exists yet.{' '}
+                          <Link href="/storage_locations" className="font-medium text-foreground underline underline-offset-2">
+                            Create one
+                          </Link>{' '}
+                          to receive the bag.
+                        </div>
+                      ) : (
+                        <div className="mt-4 space-y-2">
+                          <StorageLocationSelect
+                            locations={labelResult.part.locations.map((location) => (location.quantity > 0 ? { ...location, hint: location.quantity.toLocaleString() } : location))}
+                            value={String(selectedLocation?.id ?? '')}
+                            onValueChange={setLocationId}
+                            placeholder="Select a location"
+                          />
+                          <div className="flex gap-2">
+                            <Input
+                              type="number"
+                              min={1}
+                              inputMode="numeric"
+                              aria-label="Quantity received"
+                              value={receiveQuantity}
+                              onChange={(e) => setReceiveQuantity(e.target.value)}
+                              className="w-28 font-mono"
+                            />
+                            <Button className="flex-1" disabled={!canReceive || submitting} onClick={receiveBag}>
+                              <PackageCheck className="size-4" />
+                              Receive {canReceive ? receiveCount.toLocaleString() : ''}
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+
+                      <Button variant="outline" className="mt-2 w-full" onClick={() => setDetailPartId(labelResult.part!.id)}>
+                        <ExternalLink className="size-4" />
+                        Open part
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <p className="mt-4 text-sm text-muted-foreground">
+                        No part in the inventory matches this label's part numbers.
+                        {canWrite && ' Create it from the label: its quantity becomes the opening stock.'}
+                      </p>
+                      {canWrite && (
+                        <Button className="mt-3 w-full" onClick={() => createPartFromLabel(labelResult.label)}>
+                          <Plus className="size-4" />
+                          Create part
+                        </Button>
+                      )}
+                    </>
+                  )}
                 </CardContent>
               </Card>
             )}
@@ -590,7 +681,7 @@ export default function ScansIndex({ code, result, recent_scans, today_count, al
               <Card className="gap-0 overflow-hidden py-0">
                 <ResultCardHeader tone="error" label="✗ Unknown code" code={code} />
                 <CardContent className="px-4 py-5 text-sm text-muted-foreground">
-                  No part or storage zone matches this code. Codes are matched against part IPNs, barcodes, SKUs, MPNs, and zone codes.
+                  No part or storage zone matches this code. Codes are matched against part IPNs, barcodes, SKUs, MPNs, zone codes, and DigiKey, Mouser or LCSC bag labels.
                 </CardContent>
               </Card>
             )}
@@ -603,7 +694,7 @@ export default function ScansIndex({ code, result, recent_scans, today_count, al
                   </div>
                   <div className="mt-3 text-sm font-semibold">Waiting for a scan</div>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    The scanned component or zone will appear here with its quick actions.
+                    The scanned component, zone or supplier bag will appear here with its quick actions.
                   </p>
                 </CardContent>
               </Card>

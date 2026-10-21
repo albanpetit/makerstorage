@@ -4,20 +4,18 @@ class ScansController < ApplicationController
   include Auth
 
   before_action :verify_organization_access
-  before_action :verify_organization_writer, only: %i[create_movement]
+  before_action :verify_organization_writer, only: %i[create_movement receive]
 
   # Movements created from the scanner page carry this reason so the
   # "Recent scans" feed can be rebuilt from the ledger without a scan table.
   SCANNER_REASON = "Scanner count"
+  # Bags received by scanning their supplier label (see SupplierLabel).
+  LABEL_REASON = "Received from supplier label"
   RECENT_SCANS_LIMIT = 6
-  # Printed labels fall back to these record-id codes when a part has no IPN,
-  # barcode or SKU, or a zone has no code (see app/frontend/lib/labels.ts).
-  PART_CODE = /\Apart:(\d+)\z/i
-  ZONE_CODE = /\Azone:(\d+)\z/i
   ZONE_CONTENTS_LIMIT = 50
 
   def index
-    code = normalize_code(params[:code])
+    code = ScanCode.normalize(params[:code])
 
     render inertia: "scans/index", props: {
       code: code.presence,
@@ -52,58 +50,117 @@ class ScansController < ApplicationController
     end
   end
 
+  # Receives a scanned supplier bag: one inbound movement of the label's
+  # quantity (editable on the page), stamped with the label's order so a second
+  # scan of the same bag can be flagged.
+  def receive
+    part = current_organization.parts.find(receive_params[:part_id])
+    location = current_organization.storage_locations.find(receive_params[:storage_location_id])
+    quantity = receive_params[:quantity].to_i
+
+    movement = current_organization.stock_movements.build(
+      part: part,
+      storage_location: location,
+      user: current_user,
+      movement_type: "in",
+      quantity_delta: quantity,
+      reason: LABEL_REASON,
+      reference: receive_params[:reference].to_s.strip.first(255).presence
+    )
+
+    if movement.save
+      redirect_to scan_path, notice: "Received #{quantity} × #{part.reference} into #{location.name}."
+    else
+      redirect_back_or_to scan_path, alert: "Failed to receive the bag.", inertia: { errors: inertia_errors(movement, as: :stock_movement) }
+    end
+  end
+
   private
 
   def scan_params
     params.require(:scan).permit(:part_id, :storage_location_id, :quantity_delta)
   end
 
+  def receive_params
+    params.require(:receipt).permit(:part_id, :storage_location_id, :quantity, :reference)
+  end
+
   def lookup(code)
-    if (part = find_part(code))
+    scan = ScanCode.new(current_organization)
+    if (label = SupplierLabel.parse(code))
+      label_lookup(label)
+    elsif (part = scan.part(code))
       { kind: "part", part: serialize_part(part) }
-    elsif (location = find_location(code))
+    elsif (location = scan.location(code))
       { kind: "location", location: serialize_location(location) }
     else
       { kind: "unknown" }
     end
   end
 
-  # Label QR codes hold a link to this page (`https://host/scan?code=MS-00042`)
-  # so a phone's own camera app opens the right record. The in-app camera and
-  # hardware scanners read that link as plain text: keep only its code, from
-  # whichever host printed it.
-  def normalize_code(raw)
-    code = raw.to_s.strip
-    return code unless code.match?(%r{\Ahttps?://}i)
+  def label_lookup(label)
+    part = find_label_part(label)
 
-    uri = URI.parse(code)
-    return code unless uri.path.to_s.chomp("/").end_with?("/scan")
-
-    URI.decode_www_form(uri.query.to_s).to_h["code"].to_s.strip.presence || code
-  rescue URI::InvalidURIError, ArgumentError
-    code
+    {
+      kind: "supplier_label",
+      label: label.as_json,
+      reference: label.movement_reference,
+      part: part && serialize_part(part),
+      previous_receipt: part && previous_receipt(part, label),
+      open_orders: part ? open_orders_for(part) : []
+    }
   end
 
-  # IPNs are matched first: they are unique per organization and what labels
-  # print, whereas an MPN can be shared by several parts.
-  def find_part(code)
+  # A customer part number is what the org typed when ordering, usually its
+  # IPN; then the distributor's own part number, as the part's SKU or a
+  # supplier link's SKU; the MPN last, as it's the least specific.
+  def find_label_part(label)
     parts = current_organization.parts
-    if (match = code.match(PART_CODE))
-      return parts.find_by(id: match[1])
+
+    if label.customer_part_number.present?
+      part = parts.find_by("LOWER(ipn) = ?", label.customer_part_number.downcase)
+      return part if part
     end
 
-    downcased = code.downcase
-    parts.find_by("LOWER(ipn) = ?", downcased) ||
-      parts.where("LOWER(barcode) = :code OR LOWER(sku) = :code OR LOWER(mpn) = :code", code: downcased).first
+    if label.supplier_sku.present?
+      sku = label.supplier_sku.downcase
+      part = parts.find_by("LOWER(sku) = ?", sku) ||
+        parts.joins(:part_suppliers).where("LOWER(part_suppliers.supplier_sku) = ?", sku).first
+      return part if part
+    end
+
+    parts.find_by("LOWER(mpn) = ?", label.mpn.downcase) if label.mpn.present?
   end
 
-  def find_location(code)
-    locations = current_organization.storage_locations
-    if (match = code.match(ZONE_CODE))
-      return locations.find_by(id: match[1])
-    end
+  # The last receipt of this same bag (same part, order and quantity), so the
+  # page can warn before counting it twice. Labels without an order number
+  # can't be told apart and are never flagged.
+  def previous_receipt(part, label)
+    return if label.order_number.blank?
 
-    locations.where("LOWER(code) = ?", code.downcase).first
+    movement = current_organization.stock_movements
+      .where(part: part, reason: LABEL_REASON, reference: label.movement_reference)
+      .then { |scope| label.quantity ? scope.where(quantity_delta: label.quantity) : scope }
+      .includes(:storage_location)
+      .order(created_at: :desc)
+      .first
+    return unless movement
+
+    {
+      created_at: movement.created_at.iso8601,
+      quantity: movement.quantity_delta,
+      location_name: movement.storage_location.name
+    }
+  end
+
+  # Open orders for the part: receiving the bag here doesn't close them, and
+  # receiving the order afterwards would count the bag a second time.
+  def open_orders_for(part)
+    OrderLine.joins(:order)
+      .where(orders: { organization_id: current_organization.id, status: Order::OPEN_STATUSES }, part_id: part.id)
+      .includes(:order)
+      .order(:id)
+      .map { |line| { id: line.order.id, reference: line.order.reference, quantity: line.quantity } }
   end
 
   def serialize_part(part)
@@ -159,12 +216,16 @@ class ScansController < ApplicationController
       parts_count: stored.count,
       total_quantity: location.total_quantity,
       children_count: location.children.count,
-      contents: contents
+      contents: contents,
+      # The count already running over this zone, which "Count this zone" opens
+      # instead of starting a second one.
+      stocktake: current_organization.stocktakes.in_progress.find { |stocktake| stocktake.covers?(location) }
+        &.then { |stocktake| { id: stocktake.id, reference: stocktake.reference } }
     }
   end
 
   def scanner_movements
-    current_organization.stock_movements.where(reason: SCANNER_REASON)
+    current_organization.stock_movements.where(reason: [ SCANNER_REASON, LABEL_REASON ])
   end
 
   def recent_scans

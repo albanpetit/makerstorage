@@ -1,4 +1,4 @@
-import { Head, router, useForm } from '@inertiajs/react'
+import { Head, Link, router, useForm } from '@inertiajs/react'
 import { FormEvent, useMemo, useState } from 'react'
 import { Plus, FolderTree, Pencil, Trash2, ChevronRight } from 'lucide-react'
 
@@ -13,7 +13,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { Field, FieldContent, FieldError, FieldLabel } from '@/components/ui/field'
+import { Field, FieldContent, FieldDescription, FieldError, FieldLabel } from '@/components/ui/field'
 import {
   Select,
   SelectContent,
@@ -48,11 +48,20 @@ interface Category {
   color: string | null
   description: string | null
   parent_id: number | null
+  kicad_symbol: string | null
+  parameter_definition_ids: number[]
   parts_count: number
+}
+
+interface ParameterOption {
+  id: number
+  name: string
+  unit: string | null
 }
 
 interface CategoriesPageProps {
   categories: Category[]
+  parameter_definitions: ParameterOption[]
 }
 
 interface CategoryFormData {
@@ -62,14 +71,17 @@ interface CategoryFormData {
     color: string
     description: string
     parent_id: string
+    kicad_symbol: string
+    // The category's own template, in order (parents' are inherited).
+    parameter_definition_ids: number[]
   }
 }
 
 const EMPTY_FORM: CategoryFormData['category'] = {
-  name: '', code: '', color: '', description: '', parent_id: '',
+  name: '', code: '', color: '', description: '', parent_id: '', kicad_symbol: '', parameter_definition_ids: [],
 }
 
-export default function CategoriesIndex({ categories }: CategoriesPageProps) {
+export default function CategoriesIndex({ categories, parameter_definitions }: CategoriesPageProps) {
   const { canWrite } = usePermissions()
   const [newOpen, setNewOpen] = useState(false)
   const [editId, setEditId] = useState<number | null>(null)
@@ -123,6 +135,19 @@ export default function CategoriesIndex({ categories }: CategoriesPageProps) {
     return parts.join(' › ')
   }
 
+  // Template parameters a category inherits from the parent picked in the form.
+  const inheritedParameterIds = (parentId: string) => {
+    const ids: number[] = []
+    let current = parentId ? byId.get(Number(parentId)) : undefined
+    const seen = new Set<number>()
+    while (current && !seen.has(current.id)) {
+      seen.add(current.id)
+      ids.push(...current.parameter_definition_ids)
+      current = current.parent_id != null ? byId.get(current.parent_id) : undefined
+    }
+    return new Set(ids)
+  }
+
   const parentOptions = useMemo(
     () =>
       categories
@@ -171,6 +196,8 @@ export default function CategoriesIndex({ categories }: CategoriesPageProps) {
       color: category.color || '',
       description: category.description || '',
       parent_id: category.parent_id != null ? String(category.parent_id) : '',
+      kicad_symbol: category.kicad_symbol || '',
+      parameter_definition_ids: category.parameter_definition_ids,
     })
     setEditId(category.id)
   }
@@ -355,6 +382,8 @@ export default function CategoriesIndex({ categories }: CategoriesPageProps) {
             data={newForm.data.category}
             errors={categoryErrors(newForm.errors)}
             parentOptions={parentOptions}
+            parameterDefinitions={parameter_definitions}
+            inheritedParameterIds={inheritedParameterIds(newForm.data.category.parent_id)}
             onChange={(patch) => newForm.setData('category', { ...newForm.data.category, ...patch })}
             onSubmit={submitNew}
             onCancel={() => setNewOpen(false)}
@@ -374,6 +403,8 @@ export default function CategoriesIndex({ categories }: CategoriesPageProps) {
             data={editForm.data.category}
             errors={categoryErrors(editForm.errors)}
             parentOptions={parentOptions}
+            parameterDefinitions={parameter_definitions}
+            inheritedParameterIds={inheritedParameterIds(editForm.data.category.parent_id)}
             onChange={(patch) => editForm.setData('category', { ...editForm.data.category, ...patch })}
             onSubmit={submitEdit}
             onCancel={() => setEditId(null)}
@@ -443,6 +474,7 @@ function categoryErrors(errors: Partial<Record<string, string | string[]>>) {
     name: errors['category.name'],
     code: errors['category.code'],
     parent: errors['category.parent'] ?? errors['category.parent_id'],
+    kicad_symbol: errors['category.kicad_symbol'],
   }
 }
 
@@ -462,8 +494,11 @@ interface CategoryFormProps {
     name?: string | string[]
     code?: string | string[]
     parent?: string | string[]
+    kicad_symbol?: string | string[]
   }
   parentOptions: Array<{ id: number; label: string }>
+  parameterDefinitions: ParameterOption[]
+  inheritedParameterIds: Set<number>
   onChange: (patch: Partial<CategoryFormData['category']>) => void
   onSubmit: (e: FormEvent) => void
   onCancel: () => void
@@ -472,8 +507,13 @@ interface CategoryFormProps {
 }
 
 function CategoryForm({
-  data, errors, parentOptions, onChange, onSubmit, onCancel, processing, submitLabel,
+  data, errors, parentOptions, parameterDefinitions, inheritedParameterIds, onChange, onSubmit, onCancel, processing, submitLabel,
 }: CategoryFormProps) {
+  const toggleParameter = (id: number) => {
+    const ids = data.parameter_definition_ids
+    onChange({ parameter_definition_ids: ids.includes(id) ? ids.filter((x) => x !== id) : [ ...ids, id ] })
+  }
+
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-4">
       <div className="grid grid-cols-3 gap-4">
@@ -539,6 +579,42 @@ function CategoryForm({
 
       <Field>
         <FieldLabel>
+          <Label>Parameters</Label>
+        </FieldLabel>
+        <FieldContent>
+          {parameterDefinitions.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No parameters yet: define them on the <Link href="/parameters" className="underline underline-offset-2">Parameters</Link> page.
+            </p>
+          ) : (
+            <div className="flex flex-wrap gap-1.5">
+              {parameterDefinitions.map((definition) => {
+                const inherited = inheritedParameterIds.has(definition.id)
+                const active = inherited || data.parameter_definition_ids.includes(definition.id)
+                return (
+                  <Button
+                    key={definition.id}
+                    type="button"
+                    size="sm"
+                    variant={active ? 'default' : 'outline'}
+                    disabled={inherited}
+                    title={inherited ? 'Inherited from the parent category' : undefined}
+                    onClick={() => toggleParameter(definition.id)}
+                    className="h-7 rounded-full px-2.5 text-xs shadow-none"
+                  >
+                    {definition.name}
+                    {definition.unit && <span className="opacity-70">{definition.unit}</span>}
+                  </Button>
+                )
+              })}
+            </div>
+          )}
+        </FieldContent>
+        <FieldDescription>The part form proposes these for this category and its sub-categories.</FieldDescription>
+      </Field>
+
+      <Field>
+        <FieldLabel>
           <Label>Description</Label>
         </FieldLabel>
         <FieldContent>
@@ -548,6 +624,24 @@ function CategoryForm({
             onChange={(e) => onChange({ description: e.target.value })}
           />
         </FieldContent>
+      </Field>
+
+      <Field>
+        <FieldLabel>
+          <Label>KiCad symbol</Label>
+        </FieldLabel>
+        <FieldContent>
+          <Input
+            className="font-mono"
+            placeholder="e.g. Device:R"
+            value={data.kicad_symbol}
+            onChange={(e) => onChange({ kicad_symbol: e.target.value })}
+          />
+        </FieldContent>
+        <FieldDescription>
+          Library:Symbol used for this category's parts in the KiCad library. Leave empty to inherit the parent's.
+        </FieldDescription>
+        {errors.kicad_symbol && <FieldError>{errors.kicad_symbol}</FieldError>}
       </Field>
 
       <DialogFooter>
