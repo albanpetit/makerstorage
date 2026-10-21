@@ -81,6 +81,17 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     assert_equal "Restock", movement["reason"]
   end
 
+  test "exposes every dashboard section" do
+    user = create_user
+    sign_in user
+    get root_path
+
+    props = inertia_props
+    %w[stats activity attention category_breakdown low_stock_parts open_orders projects
+       top_consumed recent_movements getting_started].each { |key| assert props.key?(key), "missing #{key}" }
+    assert_equal DashboardSummary::ACTIVITY_DAYS, props["activity"].size
+  end
+
   private
 
   def inertia_props
