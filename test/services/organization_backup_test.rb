@@ -106,6 +106,17 @@ class OrganizationBackupTest < ActiveSupport::TestCase
     assert_equal 1, @other.parts.count
   end
 
+  test "parts marked as not duplicates stay marked" do
+    twin = create_part(organization: @org, category: @category, name: "10k resistor", sku: "RC0603 10K")
+    PartDuplicateDismissal.dismiss!([ @part, twin ])
+
+    org = restore(export_zip(@org)).organization
+
+    assert_empty PartDuplicates.new(org).groups
+    pair = [ org.parts.find_by!(mpn: "RC0603-10K").id, org.parts.find_by!(sku: "RC0603 10K").id ].sort
+    assert_equal [ pair ], PartDuplicateDismissal.where(part_id: org.parts.select(:id)).pluck(:part_id, :other_part_id)
+  end
+
   test "box & bag numbering comes back with each part in its own bag" do
     @org.update!(ipn_generation_mode: "box_bag")
     box = create_storage_location(organization: @org, name: "Box A", location_type: "box", code: "A")

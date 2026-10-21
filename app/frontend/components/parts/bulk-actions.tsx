@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { router } from '@inertiajs/react'
 import { toast } from 'sonner'
 import {
-  Move, Tag as TagIcon, Trash2, Layers, CircleDot, Tags, Truck, Download,
+  Move, Tag as TagIcon, Trash2, Layers, CircleDot, Tags, Truck, Download, Combine,
 } from 'lucide-react'
 
 import { usePermissions } from '@/hooks/use-permissions'
@@ -207,6 +207,8 @@ export function BulkActions({
     { label: 'Supplier', icon: Truck, action: openSupplier },
     { label: 'Labels', icon: TagIcon, action: () => setLabelsOpen(true) },
     { label: 'Export', icon: Download, action: exportSelected },
+    // Opens the duplicates page on the selection, to pick the part to keep.
+    ...(selectedCount > 1 ? [ { label: 'Merge', icon: Combine, action: () => router.get('/parts/duplicates', { part_ids: selected }) } ] : []),
     // Bulk delete is admin-gated server-side (PartsController#bulk_destroy) —
     // hidden here too so members/viewers don't hit a dead-end confirmation
     // dialog for an action the server will always reject.

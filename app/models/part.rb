@@ -27,6 +27,11 @@ class Part < ApplicationRecord
   # leaving a dangling foreign key.
   has_many :project_lines, dependent: nil
 
+  # Pairs marked "not duplicates" (PartDuplicateDismissal), from either side.
+  has_many :duplicate_dismissals, class_name: "PartDuplicateDismissal", dependent: :delete_all
+  has_many :inverse_duplicate_dismissals, class_name: "PartDuplicateDismissal", foreign_key: :other_part_id,
+           inverse_of: :other_part, dependent: :delete_all
+
   # Active Storage for images and datasheets
   has_many_attached :images
   has_one_attached :datasheet

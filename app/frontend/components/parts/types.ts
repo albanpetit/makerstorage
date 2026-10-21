@@ -114,4 +114,6 @@ export interface PartsIndexProps {
   bag_options: BagOption[] | null
   bag_boxes: BagBox[] | null
   open_add: boolean
+  // Groups of parts PartDuplicates pairs (the Duplicates button shows when > 0).
+  duplicate_groups_count: number
 }

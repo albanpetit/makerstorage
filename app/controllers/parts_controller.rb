@@ -59,7 +59,8 @@ class PartsController < ApplicationController
       ipn_manual_entry: current_organization.ipn_generation_mode == "manual",
       bag_options: bag_options,
       bag_boxes: bag_boxes,
-      open_add: params[:new].present?
+      open_add: params[:new].present?,
+      duplicate_groups_count: PartDuplicates.new(current_organization).count
     }
   end
 

@@ -260,27 +260,9 @@ class OrganizationMerge
   end
 
   # Gives +to+ everything hanging off +from+ (left empty, deleted with the
-  # source organization). Stock rows are moved together with the movements
-  # behind them, so each quantity still matches its ledger.
+  # source organization), the way merging duplicate parts does.
   def fold_part(from, to)
-    PartStorage.where(part_id: from).find_each do |storage|
-      existing = PartStorage.find_by(part_id: to, storage_location_id: storage.storage_location_id)
-      if existing
-        existing.update_columns(quantity: existing.quantity + storage.quantity)
-        storage.delete
-      else
-        storage.update_columns(part_id: to)
-      end
-    end
-
-    StockMovement.where(part_id: from).update_all(part_id: to)
-    OrderLine.where(part_id: from).update_all(part_id: to)
-    ProjectLine.where(part_id: from).update_all(part_id: to)
-    repoint_links(PartTag, :part_id, from, to, :tag_id)
-    PartSupplier.where(part_id: from).update_all(is_preferred: false) if PartSupplier.exists?(part_id: to, is_preferred: true)
-    repoint_links(PartSupplier, :part_id, from, to, :supplier_id)
-    move_attachments("Part", from, to, "images")
-    move_attachments("Part", from, to, "datasheet")
+    PartMerge.fold(from, to)
     Part.where(id: from).update_all(bag_id: nil, bag_assigned_at: nil)
   end
 
