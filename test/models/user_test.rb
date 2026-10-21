@@ -51,9 +51,11 @@ class UserTest < ActiveSupport::TestCase
     movement = org.stock_movements.create!(part: create_part(organization: org),
                                            storage_location: create_storage_location(organization: org),
                                            movement_type: "in", quantity_delta: 3, user: user)
+    build = create_project(organization: org).project_builds.create!(user: user, quantity: 1, built_at: Time.current)
 
     assert user.destroy
     assert_nil movement.reload.user_id
+    assert_nil build.reload.user_id
     assert_nil invitation.reload.invited_by_id
   end
 

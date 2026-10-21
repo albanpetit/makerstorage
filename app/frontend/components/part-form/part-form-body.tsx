@@ -32,6 +32,8 @@ import {
   TableRow,
 } from '@/components/ui/table'
 
+import { useParameterDefinitions } from '@/components/parameters/use-parameter-definitions'
+import { PartParametersSection } from './part-parameters-section'
 import { PartSuppliersController } from './use-part-suppliers'
 import {
   BagBox,
@@ -96,6 +98,8 @@ export interface PartFormBodyProps {
 
   // Supplier catalog lookup
   supplierLookupEnabled: boolean
+  // A part number to look up as soon as the form shows (from a scanned label).
+  autoLookup?: string | null
   onApplyLookup: (result: LookupResult) => void
   attach: { datasheet_url: string | null; image_url: string | null }
 
@@ -137,6 +141,7 @@ export function PartFormBody({
   bagOptions = null,
   bagBoxes = null,
   supplierLookupEnabled,
+  autoLookup = null,
   onApplyLookup,
   attach,
   imagePreview,
@@ -163,6 +168,13 @@ export function PartFormBody({
     removePendingSupplier,
     setPreferred,
   } = suppliersController
+
+  // Tolerance / Voltage / Power fields mirror the parameters of those names
+  // (Part#sync_parameter_fields): when the organization has them, the
+  // parameter rows replace the fields.
+  const { definitions } = useParameterDefinitions()
+  const parameterNames = new Set(definitions.map((d) => d.name.toLowerCase()))
+  const showField = (name: string) => !parameterNames.has(name)
 
   // A flat, human-readable list of every validation error so nothing is hidden —
   // fields living inside collapsed sections would otherwise show no error.
@@ -213,6 +225,7 @@ export function PartFormBody({
       {supplierLookupEnabled && (
         <SupplierLookup
           defaultQuery={part.mpn}
+          autoQuery={autoLookup}
           onApply={onApplyLookup}
           attached={{ datasheet: !!attach.datasheet_url, image: !!attach.image_url }}
         />
@@ -431,6 +444,14 @@ export function PartFormBody({
         </Field>
       </div>
 
+      {/* Parameters */}
+      <PartParametersSection
+        categoryId={part.category_id}
+        values={part.parameters}
+        onChange={(parameters) => setPart({ parameters })}
+        error={errors['part.parameters']}
+      />
+
       {/* More details */}
       <Section
         title="More details"
@@ -585,42 +606,48 @@ export function PartFormBody({
               />
             </FieldContent>
           </Field>
-          <Field>
-            <FieldLabel>
-              <Label>Tolerance</Label>
-            </FieldLabel>
-            <FieldContent>
-              <Input
-                placeholder="e.g. 1%, 5%"
-                value={part.tolerance}
-                onChange={(e) => setPart({ tolerance: e.target.value })}
-              />
-            </FieldContent>
-          </Field>
-          <Field>
-            <FieldLabel>
-              <Label>Voltage rating</Label>
-            </FieldLabel>
-            <FieldContent>
-              <Input
-                placeholder="e.g. 50V"
-                value={part.voltage_rating}
-                onChange={(e) => setPart({ voltage_rating: e.target.value })}
-              />
-            </FieldContent>
-          </Field>
-          <Field>
-            <FieldLabel>
-              <Label>Power rating</Label>
-            </FieldLabel>
-            <FieldContent>
-              <Input
-                placeholder="e.g. 0.125W"
-                value={part.power_rating}
-                onChange={(e) => setPart({ power_rating: e.target.value })}
-              />
-            </FieldContent>
-          </Field>
+          {showField('tolerance') && (
+            <Field>
+              <FieldLabel>
+                <Label>Tolerance</Label>
+              </FieldLabel>
+              <FieldContent>
+                <Input
+                  placeholder="e.g. 1%, 5%"
+                  value={part.tolerance}
+                  onChange={(e) => setPart({ tolerance: e.target.value })}
+                />
+              </FieldContent>
+            </Field>
+          )}
+          {showField('voltage rating') && (
+            <Field>
+              <FieldLabel>
+                <Label>Voltage rating</Label>
+              </FieldLabel>
+              <FieldContent>
+                <Input
+                  placeholder="e.g. 50V"
+                  value={part.voltage_rating}
+                  onChange={(e) => setPart({ voltage_rating: e.target.value })}
+                />
+              </FieldContent>
+            </Field>
+          )}
+          {showField('power rating') && (
+            <Field>
+              <FieldLabel>
+                <Label>Power rating</Label>
+              </FieldLabel>
+              <FieldContent>
+                <Input
+                  placeholder="e.g. 0.125W"
+                  value={part.power_rating}
+                  onChange={(e) => setPart({ power_rating: e.target.value })}
+                />
+              </FieldContent>
+            </Field>
+          )}
           <Field>
             <FieldLabel>
               <Label>Target stock</Label>
@@ -644,6 +671,32 @@ export function PartFormBody({
                 placeholder="Special storage or handling instructions"
                 value={part.storage_notes}
                 onChange={(e) => setPart({ storage_notes: e.target.value })}
+              />
+            </FieldContent>
+          </Field>
+          <Field className="col-span-2">
+            <FieldLabel>
+              <Label>KiCad symbol</Label>
+            </FieldLabel>
+            <FieldContent>
+              <Input
+                className="font-mono"
+                placeholder="From the category"
+                value={part.kicad_symbol}
+                onChange={(e) => setPart({ kicad_symbol: e.target.value })}
+              />
+            </FieldContent>
+          </Field>
+          <Field className="col-span-2">
+            <FieldLabel>
+              <Label>KiCad footprint</Label>
+            </FieldLabel>
+            <FieldContent>
+              <Input
+                className="font-mono"
+                placeholder="From the footprint"
+                value={part.kicad_footprint}
+                onChange={(e) => setPart({ kicad_footprint: e.target.value })}
               />
             </FieldContent>
           </Field>

@@ -1,6 +1,6 @@
 import { Head, useForm } from '@inertiajs/react'
 import { useMemo, useState } from 'react'
-import { Bell, Building2, DatabaseBackup, Hash, Package, Printer, ShieldAlert, Plug } from 'lucide-react'
+import { Bell, Building2, CircuitBoard, DatabaseBackup, Hash, Package, Printer, ShieldAlert, Plug } from 'lucide-react'
 
 import { AppLayout } from '@/layouts/app-layout'
 import { PageHeader } from '@/components/page-header'
@@ -12,6 +12,7 @@ import { DangerSection } from '@/components/settings/danger-section'
 import { GeneralSection } from '@/components/settings/general-section'
 import { IntegrationsSection } from '@/components/settings/integrations-section'
 import { InventorySection } from '@/components/settings/inventory-section'
+import { KicadSection } from '@/components/settings/kicad-section'
 import { IpnSection } from '@/components/settings/ipn-section'
 import { NotificationsSection } from '@/components/settings/notifications-section'
 import { PrintersSection } from '@/components/settings/printers-section'
@@ -25,6 +26,7 @@ const SECTIONS = [
   { key: 'inventory', label: 'Inventory', icon: Package },
   { key: 'notifications', label: 'Notifications', icon: Bell },
   { key: 'integrations', label: 'Integrations', icon: Plug },
+  { key: 'kicad', label: 'KiCad library', icon: CircuitBoard },
   { key: 'printers', label: 'Label printers', icon: Printer },
   { key: 'backup', label: 'Backup', icon: DatabaseBackup },
   { key: 'danger', label: 'Danger zone', icon: ShieldAlert },
@@ -39,7 +41,7 @@ function initialSection(): SectionKey {
 }
 
 export default function SettingsIndex({
-  organization, merge_targets, currencies, ipn_separators, timezones, email_notifications_available,
+  organization, merge_targets, currencies, ipn_separators, timezones, email_notifications_available, kicad,
   label_printers, label_printer_media, network_printing_enabled,
 }: SettingsPageProps) {
   const { isOwner } = usePermissions()
@@ -82,6 +84,7 @@ export default function SettingsIndex({
       default_low_stock_threshold: organization.default_low_stock_threshold,
       allow_negative_stock: organization.allow_negative_stock,
       stock_reservations_enabled: organization.stock_reservations_enabled,
+      default_loan_days: organization.default_loan_days,
     },
   })
 
@@ -89,6 +92,7 @@ export default function SettingsIndex({
     organization: {
       notify_low_stock: organization.notify_low_stock,
       notify_late_orders: organization.notify_late_orders,
+      notify_overdue_loans: organization.notify_overdue_loans,
       notification_frequency: organization.notification_frequency,
     },
   })
@@ -102,6 +106,8 @@ export default function SettingsIndex({
       digikey_client_id: '',
       digikey_client_secret: '',
       remove_digikey: false,
+      github_token: '',
+      remove_github_token: false,
     },
   })
 
@@ -155,6 +161,7 @@ export default function SettingsIndex({
 
             {section === 'integrations' && <IntegrationsSection form={integrationsForm} organization={organization} />}
 
+            {section === 'kicad' && <KicadSection kicad={kicad} />}
             {section === 'printers' && (
               <PrintersSection printers={label_printers} media={label_printer_media} enabled={network_printing_enabled} />
             )}

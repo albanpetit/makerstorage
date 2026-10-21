@@ -1,4 +1,5 @@
-import { X } from 'lucide-react'
+import { useState } from 'react'
+import { SlidersHorizontal, X } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -9,6 +10,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 
+import { ParameterFilterDialog } from './parameter-filter-dialog'
 import { SORT_OPTIONS } from './part-meta'
 import type { SortKey } from './types'
 import type { PartFilters } from './use-part-filters'
@@ -49,9 +51,11 @@ interface PartsFilterBarProps {
 // Category chips, sort select, facet groups and active-filter pills above the
 // parts table. Counts come from the server (PartsIndexQuery#facets).
 export function PartsFilterBar({ filters, totalCount }: PartsFilterBarProps) {
-  const { filters: current, facets, setCategory, setSort, toggleFacet, activePills, clearAllFilters } = filters
+  const { filters: current, facets, setCategory, setSort, toggleFacet, setParameterFilter, activePills, clearAllFilters } = filters
   const categoryChips = facets.categories
   const categoryId = current.category
+  const [parameterId, setParameterId] = useState<number | null>(null)
+  const parameterFacet = facets.parameters.find((facet) => facet.id === parameterId) ?? null
 
   return (
     <div className="flex shrink-0 flex-col gap-2 border-b bg-background px-5 py-3">
@@ -102,7 +106,37 @@ export function PartsFilterBar({ filters, totalCount }: PartsFilterBarProps) {
         <FacetGroup label="Package" options={facets.package} active={current.package} onToggle={(v) => toggleFacet('package', v)} />
         <FacetGroup label="Footprint" options={facets.footprint} active={current.footprint} onToggle={(v) => toggleFacet('footprint', v)} />
         <FacetGroup label="Supplier" options={facets.supplier} active={current.supplier} onToggle={(v) => toggleFacet('supplier', v)} />
+        {facets.parameters.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-xs font-medium text-muted-foreground">Parameters</span>
+            {facets.parameters.map((facet) => {
+              const active = current.parameters.some((filter) => filter.id === facet.id)
+              return (
+                <Button
+                  key={facet.id}
+                  variant={active ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setParameterId(facet.id)}
+                  className={`h-7 gap-1 rounded-md border px-2 text-xs shadow-none ${active ? 'border-primary' : ''}`}
+                >
+                  <SlidersHorizontal className="size-3" />
+                  {facet.name} <span className="opacity-75">({facet.count})</span>
+                </Button>
+              )
+            })}
+          </div>
+        )}
       </div>
+
+      <ParameterFilterDialog
+        facet={parameterFacet}
+        current={current.parameters.find((filter) => filter.id === parameterId)}
+        onOpenChange={(open) => !open && setParameterId(null)}
+        onApply={(filter) => {
+          if (parameterId != null) setParameterFilter(parameterId, filter)
+          setParameterId(null)
+        }}
+      />
 
       {/* Active filter pills */}
       {activePills.length > 0 && (

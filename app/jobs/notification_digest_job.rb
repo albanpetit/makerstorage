@@ -1,4 +1,4 @@
-# Mails each organization's low-stock / late-order digest (NotificationDigest)
+# Mails each organization's low-stock / late-order / overdue-loan digest (NotificationDigest)
 # to its members. Runs hourly (config/recurring.yml) and sends to an
 # organization once its local time passes 8am, once per day or per week as set
 # in Settings → Notifications. Nothing is sent when the install has no SMTP.
@@ -8,7 +8,8 @@ class NotificationDigestJob < ApplicationJob
   def perform(now: Time.current)
     return unless NotificationDigest.available?
 
-    Organization.where(notify_low_stock: true).or(Organization.where(notify_late_orders: true)).find_each do |organization|
+    Organization.where(notify_low_stock: true).or(Organization.where(notify_late_orders: true))
+      .or(Organization.where(notify_overdue_loans: true)).find_each do |organization|
       next unless organization.notification_digest_due?(now)
 
       deliver(organization, now)

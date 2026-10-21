@@ -26,5 +26,15 @@ Late orders (<%= @digest.late_orders.size %>)
 And <%= @digest.late_orders.size - NotificationDigest::LIMIT %> more.
 <% end -%>
 <% end -%>
+<% if @digest.overdue_loans.any? %>
+
+Overdue loans (<%= @digest.overdue_loans.size %>)
+<% @digest.overdue_loans.first(NotificationDigest::LIMIT).each do |item| -%>
+- <%= item.reference.presence || "Loan ##{item.loan_id}" %> (<%= item.borrower_name %>, <%= pluralize(item.outstanding, "item") %>): <%= pluralize(item.days_late, "day") %> late
+<% end -%>
+<% if @digest.overdue_loans.size > NotificationDigest::LIMIT -%>
+And <%= @digest.overdue_loans.size - NotificationDigest::LIMIT %> more.
+<% end -%>
+<% end -%>
 
 Open alerts: <%= alerts_url(organization_id: @organization.id) %>

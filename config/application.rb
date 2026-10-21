@@ -52,7 +52,7 @@ module Makerstorage
   # supplier catalogs' image CDNs. Part#image_source_url only accepts these and
   # the Content-Security-Policy's img-src lists them, so a part can't make every
   # member's browser load an image from an arbitrary server.
-  SUPPLIER_IMAGE_HOSTS = %w[mouser.com digikey.com].freeze
+  SUPPLIER_IMAGE_HOSTS = %w[mouser.com digikey.com lcsc.com].freeze
 
   # HTTPS is opt-in (FORCE_SSL): LAN installs often serve plain HTTP.
   def self.force_ssl_from_env?

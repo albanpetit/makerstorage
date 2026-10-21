@@ -4,16 +4,22 @@ class ProjectsController < ApplicationController
   include Auth
 
   before_action :verify_organization_access
-  before_action :verify_organization_writer, only: %i[create confirm reserve release create_purchase_orders build destroy]
-  before_action :set_project, only: %i[show confirm reserve release create_purchase_orders build destroy]
+  before_action :verify_organization_writer, only: %i[create update duplicate confirm reserve release create_purchase_orders build destroy]
+  before_action :set_project, only: %i[show update duplicate confirm reserve release create_purchase_orders build destroy]
+
+  # Most kits one build can deduct at once.
+  MAX_BUILD_KITS = 1_000
+  # Builds listed on the project page, newest first.
+  BUILD_HISTORY_LIMIT = 50
 
   def index
     projects = current_organization.projects
-      .includes(project_lines: { part: :part_storages })
+      .includes(:kicad_files_attachments, project_lines: { part: :part_storages })
       .recent
 
     render inertia: "projects/index", props: {
-      projects: projects.map { |project| serialize_project_summary(project) }
+      projects: projects.map { |project| serialize_project_summary(project) },
+      github_token_configured: current_organization.github_token.present?
     }
   end
 
@@ -28,8 +34,12 @@ class ProjectsController < ApplicationController
   end
 
   def create
+    uploads = Array(params[:files]).select { |upload| upload.respond_to?(:original_filename) }
+    return create_from_kicad_files(uploads) if uploads.any?
+    return create_from_github if params[:repository].present?
+
     file = params[:file]
-    return redirect_to(projects_path, alert: "Please choose a BOM file to import.") unless file
+    return create_empty unless file
     return redirect_to(projects_path, alert: BomParser.too_large_message) if BomParser.too_large?(file)
 
     name = params[:name].presence || File.basename(file.original_filename.to_s, ".*").presence || "Untitled project"
@@ -67,6 +77,28 @@ class ProjectsController < ApplicationController
     redirect_to project_path(project), notice: "Imported #{project.project_lines.size} BOM lines. Review the matches below."
   rescue ActiveRecord::RecordInvalid
     redirect_to projects_path, alert: project.errors.full_messages.to_sentence.presence || "Could not import that BOM."
+  end
+
+  # Name, description and revision label; the lines are edited one by one.
+  def update
+    if @project.update(params.require(:project).permit(:name, :description, :revision))
+      redirect_to project_path(@project), notice: "Project updated."
+    else
+      redirect_to project_path(@project),
+        alert: @project.errors.full_messages.to_sentence,
+        inertia: { errors: inertia_errors(@project, as: :project) }
+    end
+  end
+
+  # Copies the project and its lines into a new draft labelled with the next
+  # revision (or the one typed), to start revision B without touching A.
+  def duplicate
+    revision = params[:revision].to_s.strip.presence || @project.next_revision
+    copy = @project.duplicate_as_revision(revision: revision)
+    copy.save_with_generated_reference! { Project.next_reference(current_organization) }
+    redirect_to project_path(copy), notice: "Revision #{copy.revision} created from #{@project.reference || @project.name}."
+  rescue ActiveRecord::RecordInvalid
+    redirect_to project_path(@project), alert: copy.errors.full_messages.to_sentence.presence || "Could not duplicate this project."
   end
 
   # Confirming also reserves the BOM when the organization uses reservations.
@@ -148,27 +180,40 @@ class ProjectsController < ApplicationController
     redirect_to project_path(@project), alert: "No purchase order was created: #{e.record.errors.full_messages.to_sentence}."
   end
 
-  # Consumes the required quantity of every matched line from stock, recording an
-  # "out" movement per source location. Only allowed when the project is fully
-  # buildable, so we never leave a kit half-deducted.
+  # Consumes the required quantity of every matched line from stock, for
+  # +kits+ copies of the project (1 by default), recording an "out" movement per
+  # source location and a ProjectBuild those movements point at. Only allowed
+  # when the project is fully buildable for that many kits, so we never leave a
+  # kit half-deducted.
   #
   # Building the same kit again is legitimate, but a double click or a replayed
   # request must not deduct it twice. The page posts the builds_count it showed;
   # the build only goes ahead if bumping that exact count succeeds — an atomic
   # compare-and-increment, so a second, stale submission matches no row.
   def build
-    unless @project.buildable?
-      redirect_to project_path(@project), alert: "This project isn't buildable yet — resolve shortfalls and unmatched lines first."
+    kits = params[:kits].to_s.presence&.to_i || 1
+    unless kits.between?(1, MAX_BUILD_KITS)
+      redirect_to project_path(@project), alert: "Build between 1 and #{MAX_BUILD_KITS} kits at a time."
       return
     end
 
-    required = @project.required_by_part
+    unless @project.buildable?(kits: kits)
+      message = kits == 1 ? "This project isn't buildable yet — resolve shortfalls and unmatched lines first." : "There isn't enough stock to build #{kits} kits."
+      redirect_to project_path(@project), alert: message
+      return
+    end
+
+    required = @project.required_by_part(kits: kits)
     built = ActiveRecord::Base.transaction do
+      now = Time.current
       claimed = Project.where(id: @project.id, builds_count: params[:builds_count].to_s.presence&.to_i)
-        .update_all([ "builds_count = builds_count + 1, last_built_at = ?, updated_at = ?", Time.current, Time.current ])
+        .update_all([ "builds_count = builds_count + ?, last_built_at = ?, updated_at = ?", kits, now, now ])
       raise ActiveRecord::Rollback if claimed.zero?
 
-      required.each { |part, quantity| deduct_part_stock(part, quantity) }
+      build = @project.project_builds.create!(
+        user: current_user, quantity: kits, built_at: now, note: params[:note].to_s.strip.presence
+      )
+      required.each { |part, quantity| deduct_part_stock(part, quantity, build) }
       # The build consumed what was reserved; reserve again for another kit.
       @project.release_reservation!
       true
@@ -179,7 +224,8 @@ class ProjectsController < ApplicationController
       return
     end
 
-    redirect_to project_path(@project), notice: "Stock deducted for #{required.size} reference#{'s' if required.size != 1}."
+    kit_text = kits == 1 ? "" : " (#{kits} kits)"
+    redirect_to project_path(@project), notice: "Stock deducted for #{required.size} reference#{'s' if required.size != 1}#{kit_text}."
   rescue ActiveRecord::RecordInvalid => e
     redirect_to project_path(@project), alert: "Could not deduct stock: #{e.record.errors.full_messages.to_sentence}."
   end
@@ -191,16 +237,78 @@ class ProjectsController < ApplicationController
 
   private
 
+  # A project made from its KiCad files (loose or zipped): they are attached,
+  # and the BOM is read from the schematics among them.
+  def create_from_kicad_files(uploads)
+    if (error = ProjectKicadFiles.upload_error(uploads))
+      return redirect_to(projects_path, alert: error)
+    end
+
+    lines = ProjectKicadFiles.bom_lines(ProjectKicadFiles.upload_files(uploads))
+    filenames = uploads.map(&:original_filename)
+    project = current_organization.projects.new(
+      name: params[:name].presence || ProjectKicadFiles.project_name(filenames) || "Untitled project", status: "draft"
+    )
+    project.build_bom_lines(lines)
+    project.kicad_files.attach(ProjectKicadFiles.attachables(uploads))
+    project.save_with_generated_reference! { Project.next_reference(current_organization) }
+
+    notice =
+      if lines.any?
+        "Imported #{project.project_lines.size} BOM lines from the schematic. Review the matches below."
+      else
+        "Project created with its files. No schematic (.kicad_sch) among them, so the BOM is empty."
+      end
+    redirect_to project_path(project), notice: notice
+  rescue ProjectKicadFiles::Unreadable => e
+    redirect_to projects_path, alert: e.message
+  rescue ActiveRecord::RecordInvalid
+    redirect_to projects_path, alert: project.errors.full_messages.to_sentence.presence || "Could not create that project."
+  end
+
+  # A project started by hand: a name and no BOM yet; lines are added on its page.
+  def create_empty
+    name = params[:name].to_s.strip
+    return redirect_to(projects_path, alert: "Give the project a name, or choose a BOM file to import.") if name.blank?
+
+    project = current_organization.projects.new(
+      name: name, description: params[:description].to_s.strip.presence, revision: params[:revision].to_s.strip.presence, status: "draft"
+    )
+    project.save_with_generated_reference! { Project.next_reference(current_organization) }
+    redirect_to project_path(project), notice: "Project created. Add its parts below."
+  rescue ActiveRecord::RecordInvalid
+    redirect_to projects_path, alert: project.errors.full_messages.to_sentence
+  end
+
+  # A project linked to a GitHub repository, made with the KiCad files and BOM
+  # fetched from it. Nothing is kept when the fetch fails.
+  def create_from_github
+    attributes = ProjectGithubController.link_attributes(params)
+    project = current_organization.projects.new(status: "draft", **attributes)
+    project.name = params[:name].presence || project.github_path&.split("/")&.last || project.github_repository.to_s.split("/").last
+    return redirect_to(projects_path, alert: project.errors.full_messages.to_sentence) unless project.valid?
+
+    flash = nil
+    ActiveRecord::Base.transaction do
+      project.save_with_generated_reference! { Project.next_reference(current_organization) }
+      flash = ProjectGithubController.sync_flash(project)
+      raise ActiveRecord::Rollback if flash[:alert]
+    end
+    return redirect_to(projects_path, alert: flash[:alert]) if flash[:alert]
+
+    redirect_to project_path(project), notice: flash[:notice]
+  end
+
   def set_project
     @project = current_organization.projects
-      .includes(project_lines: { part: [ :part_storages, { part_suppliers: :supplier } ] })
+      .includes({ kicad_files_attachments: :blob }, project_lines: { part: [ :part_storages, { part_suppliers: :supplier } ] })
       .find(params[:id])
   end
 
   # Draws +quantity+ of +part+ down across its positive-stock locations,
   # emitting an "out" StockMovement for each source touched. Called once per
   # part, so the preloaded storage quantities are still current.
-  def deduct_part_stock(part, quantity)
+  def deduct_part_stock(part, quantity, build)
     remaining = quantity
 
     part.part_storages.select { |ps| ps.quantity.positive? }.each do |storage|
@@ -209,7 +317,8 @@ class ProjectsController < ApplicationController
       take = [ storage.quantity, remaining ].min
       current_organization.stock_movements.create!(
         part: part, storage_location: storage.storage_location, user: current_user,
-        movement_type: "out", quantity_delta: -take, reason: "Build #{@project.reference}"
+        movement_type: "out", quantity_delta: -take, reason: "Build #{@project.reference}",
+        project_build: build
       )
       remaining -= take
     end
@@ -220,6 +329,7 @@ class ProjectsController < ApplicationController
       id: project.id,
       name: project.name,
       reference: project.reference,
+      revision: project.revision,
       status: project.status,
       reserved: project.reserving?,
       line_count: project.project_lines.size,
@@ -227,7 +337,9 @@ class ProjectsController < ApplicationController
       short_count: project.short_lines.size,
       unmatched_count: project.unmatched_lines.size,
       checked_at: project.checked_at&.iso8601,
-      created_at: project.created_at.iso8601
+      created_at: project.created_at.iso8601,
+      file_count: project.kicad_files.size,
+      github_repository: project.github_repository
     }
   end
 
@@ -236,7 +348,10 @@ class ProjectsController < ApplicationController
     {
       id: project.id,
       name: project.name,
+      description: project.description,
       reference: project.reference,
+      revision: project.revision,
+      next_revision: project.next_revision,
       status: project.status,
       reservations_enabled: current_organization.stock_reservations_enabled,
       reserved: project.reserving?,
@@ -247,8 +362,60 @@ class ProjectsController < ApplicationController
       checked_at: project.checked_at&.iso8601,
       builds_count: project.builds_count,
       last_built_at: project.last_built_at&.iso8601,
-      lines: project.project_lines.map { |line| serialize_line(project, line, shortfalls) }
+      builds: serialize_builds(project),
+      lines: project.project_lines.map { |line| serialize_line(project, line, shortfalls) },
+      files: project.kicad_files.map { |file| serialize_file(file) },
+      files_have_schematics: ProjectKicadFiles.schematics?(project.kicad_files.map { |file| file.filename.to_s }),
+      github: serialize_github(project),
+      github_token_configured: current_organization.github_token.present?
     }
+  end
+
+  def serialize_github(project)
+    return unless project.github_linked?
+
+    {
+      repository: project.github_repository,
+      ref: project.github_ref,
+      path: project.github_path,
+      location: project.github_location,
+      url: project.github_url,
+      synced_sha: project.github_synced_sha,
+      synced_at: project.github_synced_at&.iso8601,
+      commit_url: project.github_synced_sha && "https://github.com/#{project.github_repository}/commit/#{project.github_synced_sha}"
+    }
+  end
+
+  def serialize_file(file)
+    {
+      id: file.id,
+      filename: file.filename.to_s,
+      byte_size: file.byte_size,
+      created_at: file.created_at.iso8601,
+      url: stored_file_path_for(file),
+      from_github: ProjectGithubSync.snapshot?(file)
+    }
+  end
+
+  # The latest builds with who built them and how many units of how many
+  # references they took out of stock.
+  def serialize_builds(project)
+    builds = project.project_builds.recent.includes(:user).limit(BUILD_HISTORY_LIMIT).to_a
+    totals = StockMovement.where(project_build_id: builds.map(&:id)).group(:project_build_id)
+      .pluck(:project_build_id, Arel.sql("COUNT(DISTINCT part_id)"), Arel.sql("-SUM(quantity_delta)"))
+      .to_h { |id, references, units| [ id, { references: references, units: units } ] }
+
+    builds.map do |build|
+      {
+        id: build.id,
+        quantity: build.quantity,
+        built_at: build.built_at.iso8601,
+        note: build.note,
+        user: build.user && "#{build.user.firstname} #{build.user.lastname}".strip,
+        references: totals.dig(build.id, :references) || 0,
+        units: totals.dig(build.id, :units) || 0
+      }
+    end
   end
 
   # Shortfall and availability come from the project-wide per-part totals, so a

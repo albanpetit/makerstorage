@@ -32,6 +32,8 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { CategorySelect } from '@/components/category-select'
+import { PartParametersSection } from '@/components/part-form/part-parameters-section'
+import { partPayload, type PartParameterValue } from '@/components/part-form/types'
 import { TagPicker } from '@/components/tag-picker'
 import { SupplierLookup, LookupResult } from '@/components/supplier-lookup'
 import {
@@ -102,6 +104,7 @@ interface Part {
   footprint_id: number | null
   tag_ids: number[]
   part_suppliers: PartSupplier[]
+  parameters: PartParameterValue[]
 }
 
 interface EditPartProps {
@@ -145,6 +148,7 @@ export default function EditPart({ part, categories, footprints, suppliers, tags
       rohs_compliant: part.rohs_compliant,
       storage_notes: part.storage_notes || '',
       tag_ids: part.tag_ids,
+      parameters: Object.fromEntries(part.parameters.map((p) => [String(p.id), p.value])) as Record<string, string | null>,
     },
   })
   const { data, setData, processing, errors } = form
@@ -152,6 +156,7 @@ export default function EditPart({ part, categories, footprints, suppliers, tags
   // Fold the catalog asset URLs into the payload right before it goes over the wire.
   form.transform((payload) => ({
     ...payload,
+    part: partPayload(payload.part),
     datasheet_url: attach.datasheet_url,
     image_url: attach.image_url,
   }))
@@ -550,6 +555,14 @@ export default function EditPart({ part, categories, footprints, suppliers, tags
                   </div>
                 </Field>
               </FieldGroup>
+              <div className="mt-4">
+                <PartParametersSection
+                  categoryId={data.part.category_id}
+                  values={data.part.parameters}
+                  onChange={(parameters) => setData('part', { ...data.part, parameters })}
+                  error={(errors as unknown as Record<string, string>)['part.parameters']}
+                />
+              </div>
             </CardContent>
           </Card>
 

@@ -43,6 +43,26 @@
   <% end %>
 <% end %>
 
+<% if @digest.overdue_loans.any? %>
+  <h2 style="margin: 24px 0 8px 0; font-size: 15px; font-weight: 600; color: #09090b;">Overdue loans (<%= @digest.overdue_loans.size %>)</h2>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="font-size: 14px; border-collapse: collapse;">
+    <% @digest.overdue_loans.first(NotificationDigest::LIMIT).each do |item| %>
+      <tr>
+        <td style="padding: 6px 0; border-bottom: 1px solid #e4e4e7;">
+          <a href="<%= loan_url(item.loan_id, organization_id: @organization.id) %>" style="color: #09090b; text-decoration: none;"><%= item.reference.presence || "Loan ##{item.loan_id}" %></a>
+          <span style="color: #71717a;"> &middot; <%= item.borrower_name %> &middot; <%= pluralize(item.outstanding, "item") %></span>
+        </td>
+        <td align="right" style="padding: 6px 0; border-bottom: 1px solid #e4e4e7; white-space: nowrap; color: #dc2626;">
+          <%= pluralize(item.days_late, "day") %> late
+        </td>
+      </tr>
+    <% end %>
+  </table>
+  <% if @digest.overdue_loans.size > NotificationDigest::LIMIT %>
+    <p style="margin: 8px 0 0 0; font-size: 13px; color: #71717a;">And <%= @digest.overdue_loans.size - NotificationDigest::LIMIT %> more.</p>
+  <% end %>
+<% end %>
+
 <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin: 24px 0 0 0;">
   <tr>
     <td style="border-radius: 8px; background-color: #facc15;">
