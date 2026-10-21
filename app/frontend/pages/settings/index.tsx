@@ -1,6 +1,6 @@
 import { Head, useForm } from '@inertiajs/react'
 import { useMemo, useState } from 'react'
-import { Bell, Building2, DatabaseBackup, Hash, Package, ShieldAlert, Plug } from 'lucide-react'
+import { Bell, Building2, CircuitBoard, DatabaseBackup, Hash, Package, ShieldAlert, Plug } from 'lucide-react'
 
 import { AppLayout } from '@/layouts/app-layout'
 import { PageHeader } from '@/components/page-header'
@@ -12,6 +12,7 @@ import { DangerSection } from '@/components/settings/danger-section'
 import { GeneralSection } from '@/components/settings/general-section'
 import { IntegrationsSection } from '@/components/settings/integrations-section'
 import { InventorySection } from '@/components/settings/inventory-section'
+import { KicadSection } from '@/components/settings/kicad-section'
 import { IpnSection } from '@/components/settings/ipn-section'
 import { NotificationsSection } from '@/components/settings/notifications-section'
 import type {
@@ -24,6 +25,7 @@ const SECTIONS = [
   { key: 'inventory', label: 'Inventory', icon: Package },
   { key: 'notifications', label: 'Notifications', icon: Bell },
   { key: 'integrations', label: 'Integrations', icon: Plug },
+  { key: 'kicad', label: 'KiCad library', icon: CircuitBoard },
   { key: 'backup', label: 'Backup', icon: DatabaseBackup },
   { key: 'danger', label: 'Danger zone', icon: ShieldAlert },
 ] as const
@@ -31,7 +33,7 @@ const SECTIONS = [
 type SectionKey = (typeof SECTIONS)[number]['key']
 
 export default function SettingsIndex({
-  organization, merge_targets, currencies, ipn_separators, timezones, email_notifications_available,
+  organization, merge_targets, currencies, ipn_separators, timezones, email_notifications_available, kicad,
 }: SettingsPageProps) {
   const { isOwner } = usePermissions()
   const [section, setSection] = useState<SectionKey>('general')
@@ -93,6 +95,8 @@ export default function SettingsIndex({
       digikey_client_id: '',
       digikey_client_secret: '',
       remove_digikey: false,
+      github_token: '',
+      remove_github_token: false,
     },
   })
 
@@ -145,6 +149,8 @@ export default function SettingsIndex({
             )}
 
             {section === 'integrations' && <IntegrationsSection form={integrationsForm} organization={organization} />}
+
+            {section === 'kicad' && <KicadSection kicad={kicad} />}
 
             {section === 'backup' && <BackupSection organization={organization} />}
 

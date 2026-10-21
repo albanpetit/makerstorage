@@ -82,6 +82,17 @@ class FootprintsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "Through-hole", footprint.mounting_type
   end
 
+  test "update sets the KiCad footprint" do
+    user = create_user
+    footprint = create_footprint(organization: user.organizations.first, name: "0603")
+
+    sign_in user
+    patch footprint_path(footprint), params: { footprint: { name: "0603", kicad_footprint: "Resistor_SMD:R_0603_1608Metric" } }
+
+    assert_redirected_to footprints_path
+    assert_equal "Resistor_SMD:R_0603_1608Metric", footprint.reload.kicad_footprint
+  end
+
   test "destroy removes a footprint" do
     user = create_user
     org = user.organizations.first

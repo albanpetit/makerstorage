@@ -27,6 +27,8 @@ class Organization < ApplicationRecord
   has_many :parts, dependent: :destroy
   has_many :storage_locations, dependent: :destroy
   has_many :categories, dependent: :destroy
+  # After parts and categories, whose parameters and templates point at them.
+  has_many :parameter_definitions, dependent: :destroy
   has_many :footprints, dependent: :destroy
   has_many :tags, dependent: :destroy
   has_many :suppliers, dependent: :destroy
@@ -43,6 +45,8 @@ class Organization < ApplicationRecord
   encrypts :digikey_client_secret
   encrypts :digikey_access_token
   encrypts :digikey_refresh_token
+  # GitHub token for projects linked to a private repository (see GithubClient)
+  encrypts :github_token
 
   # Constants
   IPN_SEPARATORS = %w[- . _ /].freeze
@@ -85,10 +89,10 @@ class Organization < ApplicationRecord
   # Methods - Reset
   #
   # The inventory associations a reset clears, in the destroy order above.
-  DATA_ASSOCIATIONS = %i[stocktakes stock_movements projects orders parts storage_locations categories footprints tags suppliers].freeze
+  DATA_ASSOCIATIONS = %i[stocktakes stock_movements projects orders parts storage_locations categories parameter_definitions footprints tags suppliers].freeze
 
   # Deletes every inventory record (stocktakes, movements, projects, orders, parts, zones,
-  # categories, footprints, tags, suppliers) and keeps the organization itself:
+  # categories, parameters, footprints, tags, suppliers) and keeps the organization itself:
   # its settings, integrations, logo and members. The IPN counter starts over
   # and the catalog suppliers are seeded again, as for a new organization.
   # Returns the number of parts removed.
@@ -252,10 +256,10 @@ class Organization < ApplicationRecord
   end
 
   # Methods - Supplier catalog integration
-  # Whether an external supplier catalog (Mouser, DigiKey, ...) can be queried
+  # Whether an external supplier catalog (Mouser, DigiKey, LCSC) can be queried
   # for this org.
   def supplier_lookup_configured?
-    mouser_api_key.present? || digikey_configured?
+    mouser_api_key.present? || digikey_configured? || lcsc_enabled?
   end
 
   # DigiKey needs both halves of the OAuth2 client-credentials pair to work.

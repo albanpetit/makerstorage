@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_20_140000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_21_190000) do
   create_table "active_storage_attachments", force: :cascade do |t|
     t.bigint "blob_id", null: false
     t.datetime "created_at", null: false
@@ -49,10 +49,22 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_20_140000) do
     t.integer "organization_id", null: false
     t.integer "parent_id"
     t.datetime "updated_at", null: false
+    t.string "kicad_symbol"
     t.index "organization_id, LOWER(name)", name: "index_categories_on_organization_id_and_lower_name", unique: true
     t.index ["organization_id", "code"], name: "index_categories_on_organization_id_and_code"
     t.index ["organization_id"], name: "index_categories_on_organization_id"
     t.index ["parent_id"], name: "index_categories_on_parent_id"
+  end
+
+  create_table "category_parameters", force: :cascade do |t|
+    t.integer "category_id", null: false
+    t.integer "parameter_definition_id", null: false
+    t.integer "position", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["category_id", "parameter_definition_id"], name: "index_category_parameters_on_category_and_definition", unique: true
+    t.index ["category_id"], name: "index_category_parameters_on_category_id"
+    t.index ["parameter_definition_id"], name: "index_category_parameters_on_parameter_definition_id"
   end
 
   create_table "footprints", force: :cascade do |t|
@@ -62,6 +74,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_20_140000) do
     t.string "name", null: false
     t.integer "organization_id", null: false
     t.datetime "updated_at", null: false
+    t.string "kicad_footprint"
     t.index ["mounting_type"], name: "index_footprints_on_mounting_type"
     t.index ["organization_id", "name"], name: "index_footprints_on_organization_id_and_name", unique: true
     t.index ["organization_id"], name: "index_footprints_on_organization_id"
@@ -194,8 +207,39 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_20_140000) do
     t.string "notification_frequency", default: "daily", null: false
     t.date "notifications_sent_on"
     t.boolean "stock_reservations_enabled", default: true, null: false
+    t.boolean "lcsc_enabled", default: false, null: false
+    t.string "kicad_token_digest"
+    t.datetime "kicad_token_created_at"
+    t.datetime "kicad_token_last_used_at"
+    t.string "github_token"
     t.index ["email"], name: "index_organizations_on_email"
+    t.index ["kicad_token_digest"], name: "index_organizations_on_kicad_token_digest", unique: true
     t.index ["name"], name: "index_organizations_on_name"
+  end
+
+  create_table "parameter_definitions", force: :cascade do |t|
+    t.integer "organization_id", null: false
+    t.string "name", null: false
+    t.string "value_type", default: "number", null: false
+    t.string "unit"
+    t.text "description"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index "organization_id, LOWER(name)", name: "index_parameter_definitions_on_organization_id_and_lower_name", unique: true
+    t.index ["organization_id"], name: "index_parameter_definitions_on_organization_id"
+  end
+
+  create_table "part_parameters", force: :cascade do |t|
+    t.integer "part_id", null: false
+    t.integer "parameter_definition_id", null: false
+    t.string "value", null: false
+    t.float "numeric_value"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["parameter_definition_id", "numeric_value"], name: "index_part_parameters_on_definition_and_numeric_value"
+    t.index ["parameter_definition_id"], name: "index_part_parameters_on_parameter_definition_id"
+    t.index ["part_id", "parameter_definition_id"], name: "index_part_parameters_on_part_and_definition", unique: true
+    t.index ["part_id"], name: "index_part_parameters_on_part_id"
   end
 
   create_table "part_storages", force: :cascade do |t|
@@ -265,6 +309,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_20_140000) do
     t.string "ipn"
     t.integer "bag_id"
     t.datetime "bag_assigned_at"
+    t.string "kicad_symbol"
+    t.string "kicad_footprint"
     t.index ["bag_id"], name: "index_parts_on_bag_id", unique: true, where: "bag_id IS NOT NULL"
     t.index ["category_id"], name: "index_parts_on_category_id"
     t.index ["footprint_id"], name: "index_parts_on_footprint_id"
@@ -277,6 +323,18 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_20_140000) do
     t.index ["organization_id"], name: "index_parts_on_organization_id"
     t.index ["status"], name: "index_parts_on_status"
     t.index ["value"], name: "index_parts_on_value"
+  end
+
+  create_table "project_builds", force: :cascade do |t|
+    t.integer "project_id", null: false
+    t.integer "user_id"
+    t.integer "quantity", default: 1, null: false
+    t.datetime "built_at", null: false
+    t.string "note"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["project_id"], name: "index_project_builds_on_project_id"
+    t.index ["user_id"], name: "index_project_builds_on_user_id"
   end
 
   create_table "project_lines", force: :cascade do |t|
@@ -307,6 +365,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_20_140000) do
     t.integer "builds_count", default: 0, null: false
     t.datetime "last_built_at"
     t.datetime "reserved_at"
+    t.string "revision"
+    t.string "github_repository"
+    t.string "github_ref"
+    t.string "github_path"
+    t.string "github_synced_sha"
+    t.datetime "github_synced_at"
     t.index ["organization_id", "reference"], name: "index_projects_on_organization_id_and_reference", unique: true, where: "reference IS NOT NULL AND reference != ''"
     t.index ["organization_id"], name: "index_projects_on_organization_id"
   end
@@ -322,10 +386,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_20_140000) do
     t.integer "storage_location_id", null: false
     t.datetime "updated_at", null: false
     t.integer "user_id"
+    t.integer "project_build_id"
     t.index ["created_at"], name: "index_stock_movements_on_created_at"
     t.index ["movement_type"], name: "index_stock_movements_on_movement_type"
     t.index ["organization_id"], name: "index_stock_movements_on_organization_id"
     t.index ["part_id"], name: "index_stock_movements_on_part_id"
+    t.index ["project_build_id"], name: "index_stock_movements_on_project_build_id"
     t.index ["storage_location_id"], name: "index_stock_movements_on_storage_location_id"
     t.index ["user_id"], name: "index_stock_movements_on_user_id"
   end
@@ -444,6 +510,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_20_140000) do
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "categories", "categories", column: "parent_id"
   add_foreign_key "categories", "organizations"
+  add_foreign_key "category_parameters", "categories"
+  add_foreign_key "category_parameters", "parameter_definitions"
   add_foreign_key "footprints", "organizations"
   add_foreign_key "oauth_authorizations", "oauth_clients"
   add_foreign_key "oauth_authorizations", "organizations"
@@ -457,6 +525,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_20_140000) do
   add_foreign_key "organization_memberships", "organizations"
   add_foreign_key "organization_memberships", "users"
   add_foreign_key "organization_memberships", "users", column: "invited_by_id"
+  add_foreign_key "parameter_definitions", "organizations"
+  add_foreign_key "part_parameters", "parameter_definitions"
+  add_foreign_key "part_parameters", "parts"
   add_foreign_key "part_storages", "parts"
   add_foreign_key "part_storages", "storage_locations"
   add_foreign_key "part_suppliers", "parts"
@@ -467,11 +538,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_20_140000) do
   add_foreign_key "parts", "footprints"
   add_foreign_key "parts", "organizations"
   add_foreign_key "parts", "storage_locations", column: "bag_id"
+  add_foreign_key "project_builds", "projects"
+  add_foreign_key "project_builds", "users"
   add_foreign_key "project_lines", "parts"
   add_foreign_key "project_lines", "projects"
   add_foreign_key "projects", "organizations"
   add_foreign_key "stock_movements", "organizations"
   add_foreign_key "stock_movements", "parts"
+  add_foreign_key "stock_movements", "project_builds"
   add_foreign_key "stock_movements", "storage_locations"
   add_foreign_key "stock_movements", "users"
   add_foreign_key "stocktake_lines", "parts"

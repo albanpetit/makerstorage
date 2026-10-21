@@ -1,4 +1,4 @@
-import type { BagBox, BagOption } from '@/components/part-form/types'
+import type { AddPartPrefill, BagBox, BagOption } from '@/components/part-form/types'
 
 // Prop shapes for the Parts inventory page (PartsController#index), shared by
 // the page and its pieces in this folder.
@@ -31,6 +31,8 @@ export interface Part {
     id: number
     name: string
   } | null
+  // Parameter values; `display` is the canonical form ("4.7 kΩ").
+  parameters: { id: number; name: string; value: string; display: string }[]
 }
 
 export interface Category {
@@ -69,7 +71,38 @@ export interface PartListFilters {
   package: string[]
   footprint: string[]
   supplier: string[]
+  parameters: ParameterFilter[]
   sort: SortKey
+}
+
+// A parameter filter as PartsIndexQuery read it: a range (as typed, and in
+// canonical form) for number parameters, values for text ones. `invalid`
+// when a bound didn't read as a number in the unit.
+export interface ParameterFilter {
+  id: number
+  name: string
+  unit: string | null
+  value_type: 'number' | 'text'
+  min?: string | null
+  max?: string | null
+  min_display?: string | null
+  max_display?: string | null
+  values: string[]
+  invalid: boolean
+}
+
+// A parameter the searched parts have: how many, their range (number) or
+// their values (text). `in_template` for the selected category's template.
+export interface ParameterFacet {
+  id: number
+  name: string
+  unit: string | null
+  value_type: 'number' | 'text'
+  count: number
+  in_template: boolean
+  min_display?: string | null
+  max_display?: string | null
+  values: FacetOption[]
 }
 
 export interface FacetOption {
@@ -84,6 +117,7 @@ export interface PartListFacets {
   package: FacetOption[]
   footprint: FacetOption[]
   supplier: FacetOption[]
+  parameters: ParameterFacet[]
 }
 
 export interface PartListPagination {
@@ -99,6 +133,8 @@ export interface PartsIndexProps {
   filters: PartListFilters
   pagination: PartListPagination
   facets: PartListFacets
+  // The selected category's template parameters, shown as columns.
+  parameter_columns: { id: number; name: string; unit: string | null }[]
   total_count: number
   total_units: number
   matching_ids: number[]
@@ -114,4 +150,6 @@ export interface PartsIndexProps {
   bag_options: BagOption[] | null
   bag_boxes: BagBox[] | null
   open_add: boolean
+  // Set when the add dialog opens from a scanned supplier label.
+  add_prefill: AddPartPrefill | null
 }

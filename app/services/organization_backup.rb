@@ -10,8 +10,8 @@
 #
 # Left out on purpose: members and users (accounts belong to an install, not to
 # an organization), the encrypted supplier API keys and DigiKey tokens (secrets,
-# encrypted with the install's own keys), and the author of each stock movement
-# and stocktake.
+# encrypted with the install's own keys), and the author of each stock movement,
+# project build and stocktake.
 #
 # A restore always creates a new organization owned by the importing user, so
 # it never merges into (or overwrites) existing data. Every reference in the
@@ -38,6 +38,7 @@ module OrganizationBackup
     ipn_generation_mode ipn_charset ipn_prefix ipn_separator ipn_digits ipn_use_category_code ipn_next_sequence
     default_low_stock_threshold allow_negative_stock stock_reservations_enabled
     notify_low_stock notify_late_orders notification_frequency
+    lcsc_enabled
   ].freeze
 
   Table = Data.define(:name, :model, :scope, :references, :excluded, :enums) do
@@ -62,6 +63,10 @@ module OrganizationBackup
   # itself, for the category and zone trees).
   TABLES = [
     table("categories", Category, ->(org) { org.categories }, references: { "parent_id" => "categories" }),
+    table("parameter_definitions", ParameterDefinition, ->(org) { org.parameter_definitions },
+          enums: { "value_type" => ParameterDefinition::VALUE_TYPES }),
+    table("category_parameters", CategoryParameter, ->(org) { CategoryParameter.where(category_id: org.categories.select(:id)) },
+          references: { "category_id" => "categories", "parameter_definition_id" => "parameter_definitions" }),
     table("footprints", Footprint, ->(org) { org.footprints }, enums: { "mounting_type" => Footprint::MOUNTING_TYPES }),
     table("tags", Tag, ->(org) { org.tags }),
     table("suppliers", Supplier, ->(org) { org.suppliers }, enums: { "catalog_provider" => Supplier::CATALOG_PROVIDERS }),
@@ -70,15 +75,14 @@ module OrganizationBackup
     table("parts", Part, ->(org) { org.parts },
           references: { "category_id" => "categories", "footprint_id" => "footprints", "bag_id" => "storage_locations" },
           enums: { "status" => Part::STATUSES, "unit" => Part::UNITS }),
+    table("part_parameters", PartParameter, ->(org) { PartParameter.where(part_id: org.parts.select(:id)) },
+          references: { "part_id" => "parts", "parameter_definition_id" => "parameter_definitions" }),
     table("part_tags", PartTag, ->(org) { PartTag.where(part_id: org.parts.select(:id)) },
           references: { "part_id" => "parts", "tag_id" => "tags" }),
     table("part_suppliers", PartSupplier, ->(org) { PartSupplier.where(part_id: org.parts.select(:id)) },
           references: { "part_id" => "parts", "supplier_id" => "suppliers" }),
     table("part_storages", PartStorage, ->(org) { PartStorage.where(part_id: org.parts.select(:id)) },
           references: { "part_id" => "parts", "storage_location_id" => "storage_locations" }),
-    table("stock_movements", StockMovement, ->(org) { org.stock_movements },
-          references: { "part_id" => "parts", "storage_location_id" => "storage_locations" },
-          excluded: %w[user_id], enums: { "movement_type" => StockMovement::MOVEMENT_TYPES }),
     table("orders", Order, ->(org) { org.orders }, references: { "supplier_id" => "suppliers" }, enums: { "status" => Order::STATUSES }),
     table("order_lines", OrderLine, ->(org) { OrderLine.where(order_id: org.orders.select(:id)) },
           references: { "order_id" => "orders", "part_id" => "parts" }),
@@ -88,6 +92,13 @@ module OrganizationBackup
     table("projects", Project, ->(org) { org.projects }, enums: { "status" => Project::STATUSES }),
     table("project_lines", ProjectLine, ->(org) { ProjectLine.where(project_id: org.projects.select(:id)) },
           references: { "project_id" => "projects", "part_id" => "parts" }, enums: { "match_type" => ProjectLine::MATCH_TYPES }),
+    table("project_builds", ProjectBuild, ->(org) { ProjectBuild.where(project_id: org.projects.select(:id)) },
+          references: { "project_id" => "projects" }, excluded: %w[user_id]),
+    # A movement can point at the project build that wrote it, and a stocktake
+    # line at the adjustment it wrote.
+    table("stock_movements", StockMovement, ->(org) { org.stock_movements },
+          references: { "part_id" => "parts", "storage_location_id" => "storage_locations", "project_build_id" => "project_builds" },
+          excluded: %w[user_id], enums: { "movement_type" => StockMovement::MOVEMENT_TYPES }),
     table("stocktakes", Stocktake, ->(org) { org.stocktakes },
           references: { "storage_location_id" => "storage_locations" },
           excluded: %w[user_id completed_by_id], enums: { "status" => Stocktake::STATUSES }),

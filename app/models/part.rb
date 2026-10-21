@@ -23,6 +23,11 @@ class Part < ApplicationRecord
   has_many :order_lines, dependent: :restrict_with_error
   has_many :orders, through: :order_lines
 
+  # Technical parameters ("Resistance: 4k7"). Saved with the part; their
+  # errors are reported on :parameters (see #parameters_must_be_valid).
+  has_many :part_parameters, dependent: :destroy, autosave: true, validate: false, inverse_of: :part
+  has_many :parameter_definitions, through: :part_parameters
+
   # BOM lines matched to this part. Deleting the part un-matches them (back to
   # "none", like an unresolved import line) rather than blocking the delete or
   # leaving a dangling foreign key.
@@ -53,6 +58,9 @@ class Part < ApplicationRecord
   # Box & bag mode: take the requested bag, or the first free one for a new
   # part, and stamp its code as the IPN. Before save so it also covers edits.
   before_save :claim_bag
+  # Keeps the Tolerance / Voltage / Power fields and the Value in step with
+  # the matching parameters.
+  before_save :sync_parameter_fields
   # Declared after the restrict_with_error associations above, so it only runs
   # once the part is actually allowed to go.
   before_destroy :unmatch_project_lines
@@ -64,6 +72,11 @@ class Part < ApplicationRecord
   validates :barcode, uniqueness: { scope: :organization_id, case_sensitive: false }, allow_blank: true
   validates :ipn, uniqueness: { scope: :organization_id, case_sensitive: false }, allow_blank: true
   validates :status, presence: true, inclusion: { in: STATUSES }
+  # KiCad overrides of the category's symbol and the footprint's KiCad
+  # footprint (see KicadLibrary).
+  normalizes :kicad_symbol, :kicad_footprint, with: ->(value) { value.strip.presence }
+  validates :kicad_symbol, :kicad_footprint, format: { with: KicadLibrary::REFERENCE_FORMAT, message: KicadLibrary::REFERENCE_MESSAGE },
+    length: { maximum: 255 }, allow_blank: true
   validates :unit, presence: true, inclusion: { in: UNITS }
   validates :unit_price, numericality: { greater_than_or_equal_to: 0 }, allow_nil: true
   validates :min_stock_threshold, numericality: { greater_than_or_equal_to: 0, less_than_or_equal_to: MAX_INTEGER }
@@ -78,6 +91,7 @@ class Part < ApplicationRecord
   validate :category_must_belong_to_same_organization
   validate :footprint_must_belong_to_same_organization
   validate :bag_must_be_free, if: -> { bag_id.present? && will_save_change_to_bag_id? }
+  validate :parameters_must_be_valid
 
   # Scopes
   scope :active, -> { where(status: "active") }
@@ -239,7 +253,121 @@ class Part < ApplicationRecord
     update_columns(bag_id: nil, bag_assigned_at: nil, ipn: ipn.to_s.casecmp?(bag.code.to_s) ? nil : ipn)
   end
 
+  # Methods - Parameters
+  #
+  # Sets parameter values from a { parameter definition id => text } hash
+  # (the part form's). Only the listed parameters change; a blank text removes
+  # one. Saved with the part; another organization's parameter fails its
+  # validation (callers keep to the organization's ids, see PartsController).
+  def parameter_values=(values)
+    values = values.to_h.transform_keys(&:to_i)
+    definitions = ParameterDefinition.where(id: values.keys).index_by(&:id)
+
+    values.each do |definition_id, text|
+      definition = definitions[definition_id] or next
+      existing = part_parameters.find { |parameter| parameter.parameter_definition_id == definition_id }
+      text = text.to_s.strip
+
+      if text.empty?
+        existing&.mark_for_destruction
+      elsif existing
+        existing.value = text
+      else
+        part_parameters.build(parameter_definition: definition, value: text)
+      end
+    end
+  end
+
+  # Creates the parameters this part's Value, Tolerance, Voltage and Power
+  # fields provide and that it doesn't have yet (installing the standard
+  # parameters on existing parts). Returns how many it created.
+  def fill_parameters_from_fields!
+    parameter_sources.count do |definition, text|
+      next false if part_parameters.any? { |parameter| parameter.parameter_definition_id == definition.id }
+
+      part_parameters.create(parameter_definition: definition, value: text).persisted?
+    end
+  end
+
   private
+
+  # [definition, text] for each parameter a field of this part provides: the
+  # Tolerance / Voltage / Power fields for the parameters of those names, and
+  # the Value for the first Ω, F or H parameter of the category's template it
+  # reads as (a resistor's "4k7"). Only values the parameter accepts.
+  def parameter_sources(fields: ParameterDefinition::FIELD_PARAMETERS.keys, value: true)
+    return [] if organization.nil?
+
+    names = ParameterDefinition::FIELD_PARAMETERS.slice(*fields)
+    by_name = names.any? ? organization.parameter_definitions.where("LOWER(name) IN (?)", names.values.map(&:downcase)).index_by { |d| d.name.downcase } : {}
+    sources = names.filter_map do |field, name|
+      definition = by_name[name.downcase]
+      text = self[field].to_s.strip
+      [ definition, text ] if definition && text.present? && (!definition.number? || definition.parse(text))
+    end
+
+    if value && self.value.present? && category
+      definitions = organization.parameter_definitions.where(id: category.parameter_template_ids, value_type: "number", unit: ParameterDefinition::VALUE_UNITS).index_by(&:id)
+      match = category.parameter_template_ids.filter_map { |id| definitions[id] }.find { |definition| definition.parse(self.value) }
+      sources << [ match, self.value.strip ] if match
+    end
+    sources
+  end
+
+  # Before save, both ways: a parameter changed in this save (the form) wins
+  # and is copied to its field; otherwise a changed field (catalog lookup, CSV
+  # import, older forms) updates its parameter. A changed Value updates its
+  # template parameter but nothing writes the Value back.
+  def sync_parameter_fields
+    return if organization.nil?
+
+    touched = part_parameters.loaded? ? part_parameters.select { |p| p.new_record? || p.changed? || p.marked_for_destruction? } : []
+    touched_ids = touched.map(&:parameter_definition_id)
+
+    ParameterDefinition::FIELD_PARAMETERS.each do |field, name|
+      parameter = touched.find { |p| p.parameter_definition.name.casecmp?(name) } or next
+      self[field] = parameter.marked_for_destruction? ? nil : field_text(parameter)
+    end
+
+    changed_fields = ParameterDefinition::FIELD_PARAMETERS.keys.select { |field| will_save_change_to_attribute?(field) }
+    value_changed = will_save_change_to_value? || will_save_change_to_category_id?
+    return if changed_fields.empty? && !value_changed
+
+    sources = parameter_sources(fields: changed_fields, value: value_changed)
+    sources.each do |definition, text|
+      next if touched_ids.include?(definition.id)
+
+      existing = part_parameters.find { |p| p.parameter_definition_id == definition.id }
+      existing ? existing.value = text : part_parameters.build(parameter_definition: definition, value: text)
+    end
+
+    # A field emptied removes its parameter (the Value never does).
+    changed_fields.each do |field|
+      next if self[field].present?
+
+      name = ParameterDefinition::FIELD_PARAMETERS[field]
+      part_parameters.each do |p|
+        p.mark_for_destruction if p.persisted? && touched_ids.exclude?(p.parameter_definition_id) && p.parameter_definition.name.casecmp?(name)
+      end
+    end
+  end
+
+  # A parameter's value as its field shows it: a bare number gets its unit
+  # ("5" → "5%"), anything else stays as typed ("1/4W").
+  def field_text(parameter)
+    text = parameter.value.to_s.strip
+    definition = parameter.parameter_definition
+    text.match?(/\d\z/) ? definition.display(text, definition.parse(text)) : text
+  end
+
+  def parameters_must_be_valid
+    part_parameters.each do |parameter|
+      next if parameter.marked_for_destruction? || parameter.valid?
+
+      label = parameter.parameter_definition&.name || "Parameter"
+      parameter.errors.each { |error| errors.add(:parameters, "#{label}: #{error.message}") }
+    end
+  end
 
   def unmatch_project_lines
     project_lines.update_all(part_id: nil, match_type: "none", updated_at: Time.current)

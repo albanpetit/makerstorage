@@ -10,13 +10,17 @@ class CategoriesController < ApplicationController
 
   def index
     categories = current_organization.categories
+      .preload(:category_parameters)
       .left_joins(:parts)
       .select("categories.*, COUNT(parts.id) AS parts_count")
       .group("categories.id")
       .alphabetical
 
     render inertia: "categories/index", props: {
-      categories: categories.map { |category| serialize_category(category) }
+      categories: categories.map { |category| serialize_category(category) },
+      parameter_definitions: current_organization.parameter_definitions.alphabetical.map do |definition|
+        { id: definition.id, name: definition.name, unit: definition.unit }
+      end
     }
   end
 
@@ -98,7 +102,15 @@ class CategoriesController < ApplicationController
   end
 
   def category_params
-    params.require(:category).permit(:name, :code, :color, :description, :parent_id)
+    permitted = params.require(:category).permit(:name, :code, :color, :description, :parent_id, :kicad_symbol, parameter_definition_ids: [])
+    # Through-association ids are looked up across every organization: keep
+    # this one's parameters, in the order given (the template's order).
+    if permitted.key?(:parameter_definition_ids)
+      ids = Array(permitted.delete(:parameter_definition_ids)).compact_blank.map(&:to_i).uniq
+      owned = current_organization.parameter_definitions.where(id: ids).pluck(:id).to_set
+      permitted[:parameter_template] = ids.select { |id| owned.include?(id) }
+    end
+    permitted
   end
 
   def serialize_category(category)
@@ -109,6 +121,8 @@ class CategoriesController < ApplicationController
       color: category.color,
       description: category.description,
       parent_id: category.parent_id,
+      kicad_symbol: category.kicad_symbol,
+      parameter_definition_ids: category.category_parameters.map(&:parameter_definition_id),
       parts_count: category.attributes["parts_count"] || 0
     }
   end

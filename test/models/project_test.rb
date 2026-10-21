@@ -165,6 +165,139 @@ class ProjectTest < ActiveSupport::TestCase
     assert_not project.reserving?
   end
 
+  test "kicad_content_type types KiCad files and archives by name, and nothing else" do
+    assert_equal Project::KICAD_FILE_TYPE, Project.kicad_content_type("Board.KiCad_Sch")
+    assert_equal Project::KICAD_FILE_TYPE, Project.kicad_content_type("libs/fp-lib-table")
+    assert_equal Project::ZIP_TYPE, Project.kicad_content_type("board.zip")
+    assert_nil Project.kicad_content_type("board.pdf")
+    assert_nil Project.kicad_content_type("kicad_sch")
+  end
+
+  test "kicad files must be KiCad files or ZIP archives" do
+    project = create_project(organization: @org)
+    project.kicad_files.attach(io: StringIO.new("<html>"), filename: "board.html", content_type: "text/html")
+
+    assert_not project.valid?
+    assert_includes project.errors[:kicad_files].join, "must be a"
+  end
+
+  test "replace_bom! keeps hand-picked parts on the same components and drops the review" do
+    part = create_part(organization: @org)
+    project = create_project(organization: @org, status: "confirmed", reserved_at: Time.current, checked_at: Time.current)
+    project.project_lines.create!(part: part, value: "10k", footprint: "R_0603", quantity: 1, match_type: "manual")
+
+    project.replace_bom!([
+      { designation: "10k", value: "10K", footprint: "r_0603", designators: "R1, R2", quantity: 2 },
+      { designation: "Mystery", value: "MYST", footprint: nil, designators: "U9", quantity: 1 }
+    ])
+
+    project.reload
+    assert_equal [ "draft", nil, nil ], [ project.status, project.reserved_at, project.checked_at ]
+    assert_equal [ [ "10K", part, "manual", 2 ], [ "MYST", nil, "none", 1 ] ],
+      project.project_lines.order(:id).map { |l| [ l.value, l.part, l.match_type, l.quantity ] }
+  end
+
+  test "revision is optional and at most 20 characters" do
+    assert Project.new(organization: @org, name: "Kit", revision: nil).valid?
+    assert_not Project.new(organization: @org, name: "Kit", revision: "x" * 21).valid?
+  end
+
+  test "next_revision follows the label and skips ones the same name already uses" do
+    project = create_project(organization: @org, name: "Badge")
+    assert_equal "B", project.next_revision, "no label counts as A"
+
+    project.update!(revision: "v2")
+    assert_equal "v3", project.next_revision
+
+    project.update!(revision: "A")
+    create_project(organization: @org, name: "Badge", revision: "B")
+    create_project(organization: @org, name: "Other", revision: "C")
+    assert_equal "C", project.next_revision
+  end
+
+  test "duplicate_as_revision copies the lines into a new draft and leaves the original alone" do
+    part = create_part(organization: @org)
+    project = create_project(organization: @org, name: "Badge", description: "Conference badge", revision: "A",
+                             status: "confirmed", reserved_at: Time.current, builds_count: 3)
+    project.project_lines.create!(part: part, quantity: 2, match_type: "mpn", raw_reference: "MPN-1", designators: "R1, R2")
+    project.project_lines.create!(designation: "Mystery", quantity: 1, match_type: "none")
+
+    copy = project.duplicate_as_revision
+    copy.save_with_generated_reference! { Project.next_reference(@org) }
+
+    assert_equal [ "Badge", "Conference badge", "B", "draft", nil, 0 ],
+                 [ copy.name, copy.description, copy.revision, copy.status, copy.reserved_at, copy.builds_count ]
+    assert_equal [ [ part.id, 2, "mpn", "MPN-1", "R1, R2" ], [ nil, 1, "none", nil, nil ] ],
+                 copy.project_lines.order(:id).pluck(:part_id, :quantity, :match_type, :raw_reference, :designators)
+    assert_equal 2, project.project_lines.count
+    assert_not_equal project.reference, copy.reference
+  end
+
+  test "duplicate_as_revision keeps the design files, sharing their blobs, and the github link" do
+    project = create_project(organization: @org, name: "Badge", github_repository: "maker/badge", github_path: "hw",
+                             github_synced_sha: "a" * 40)
+    project.kicad_files.attach(io: file_fixture("kicad/board/board.kicad_sch").open, filename: "board.kicad_sch",
+                               content_type: Project::KICAD_FILE_TYPE)
+
+    copy = project.duplicate_as_revision
+    copy.save_with_generated_reference! { Project.next_reference(@org) }
+
+    assert_equal project.kicad_files.map(&:blob_id), copy.reload.kicad_files.map(&:blob_id)
+    assert_equal [ "maker/badge", "hw", "a" * 40 ], [ copy.github_repository, copy.github_path, copy.github_synced_sha ]
+    copy.destroy!
+    assert project.reload.kicad_files.attached?, "the original keeps its files"
+  end
+
+  test "buildable? and shortfall_by_part scale with the number of kits" do
+    part = create_part(organization: @org)
+    stock(part, 10)
+    project = create_project(organization: @org)
+    project.project_lines.create!(part: part, quantity: 3, match_type: "manual")
+
+    assert project.buildable?(kits: 3)
+    assert_not project.buildable?(kits: 4)
+    assert_equal({ part => 2 }, project.shortfall_by_part(kits: 4))
+  end
+
+  test "deleting a project keeps the movements its builds wrote, unlinked" do
+    part = create_part(organization: @org)
+    stock(part, 10)
+    project = create_project(organization: @org)
+    build = project.project_builds.create!(quantity: 1, built_at: Time.current)
+    movement = StockMovement.create!(organization: @org, part: part, storage_location: part.part_storages.first.storage_location,
+                                     movement_type: "out", quantity_delta: -2, project_build: build)
+
+    project.destroy!
+
+    assert_nil movement.reload.project_build_id
+    assert_not ProjectBuild.exists?(build.id)
+  end
+
+  test "github link fields are normalized and validated" do
+    org = create_organization
+    project = create_project(organization: org, github_repository: " maker/rover.git ", github_ref: " ", github_path: "./hw/main/")
+    assert_equal [ "maker/rover", nil, "hw/main" ], [ project.github_repository, project.github_ref, project.github_path ]
+    assert project.github_linked?
+    assert_equal "maker/rover/hw/main", project.github_location
+    assert_equal "https://github.com/maker/rover/tree/HEAD/hw/main", project.github_url
+
+    project.github_ref = "v2"
+    project.github_path = nil
+    assert_equal "maker/rover@v2", project.github_location
+    assert_equal "https://github.com/maker/rover/tree/v2", project.github_url
+
+    project.assign_attributes(github_repository: "rover", github_ref: "a b", github_path: "hw/../../etc")
+    refute project.valid?
+    assert_equal %i[github_path github_ref github_repository], project.errors.attribute_names.sort
+  end
+
+  test "unlink_github! clears the link" do
+    project = create_project(organization: create_organization, github_repository: "maker/rover", github_synced_sha: "a" * 40)
+    project.unlink_github!
+    refute project.reload.github_linked?
+    assert_nil project.github_synced_sha
+  end
+
   private
 
   def reserving_project(quantities, reserved_at: Time.current)

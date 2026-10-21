@@ -60,6 +60,7 @@ class PartTest < ActiveSupport::TestCase
   test "supplier_image_url keeps supplier hosts, upgrades http and drops everything else" do
     assert_equal "https://www.mouser.com/images/x.jpg?v=1", Part.supplier_image_url("http://www.mouser.com/images/x.jpg?v=1")
     assert_equal "https://mm.digikey.com/a.jpg", Part.supplier_image_url("https://MM.DigiKey.com/a.jpg")
+    assert_equal "https://assets.lcsc.com/images/lcsc/900x900/a.jpg", Part.supplier_image_url("https://assets.lcsc.com/images/lcsc/900x900/a.jpg")
     assert_nil Part.supplier_image_url("https://evilmouser.com/a.jpg")
     assert_nil Part.supplier_image_url("https://user:pass@www.mouser.com/a.jpg")
     assert_nil Part.supplier_image_url("ftp://www.mouser.com/a.jpg")

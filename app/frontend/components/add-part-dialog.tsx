@@ -1,5 +1,5 @@
 import { useForm } from '@inertiajs/react'
-import { FormEvent, useEffect, useMemo, useState } from 'react'
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { LookupResult } from '@/components/supplier-lookup'
@@ -15,12 +15,14 @@ import {
 import { PartFormBody } from '@/components/part-form/part-form-body'
 import { usePartSuppliers } from '@/components/part-form/use-part-suppliers'
 import {
+  AddPartPrefill,
   BagBox,
   BagOption,
   Category,
   EMPTY_PART,
   Footprint,
   lookupResultPatch,
+  partPayload,
   StorageLocationOption,
   Supplier,
   Tag,
@@ -42,6 +44,9 @@ interface AddPartDialogProps {
   bagOptions?: BagOption[] | null
   // ...and the boxes a new bag can be opened in.
   bagBoxes?: BagBox[] | null
+  // Opened from a scanned supplier label: what the label says about the part.
+  // The dialog then returns to the scanner once the part is created.
+  prefill?: AddPartPrefill | null
 }
 
 export function AddPartDialog({
@@ -56,6 +61,7 @@ export function AddPartDialog({
   ipnManualEntry = false,
   bagOptions = null,
   bagBoxes = null,
+  prefill = null,
 }: AddPartDialogProps) {
   const [detailsOpen, setDetailsOpen] = useState(false)
   const [suppliersOpen, setSuppliersOpen] = useState(false)
@@ -87,14 +93,41 @@ export function AddPartDialog({
   })
   const { data, setData } = form
 
+  // The label prefill only applies to the dialog it opened; closing it (or
+  // creating the part) returns to a blank form.
+  const [activePrefill, setActivePrefill] = useState(prefill)
+  const prefillApplied = useRef(false)
+  useEffect(() => {
+    if (!open || !activePrefill || prefillApplied.current) return
+    prefillApplied.current = true
+    setData({
+      ...data,
+      part: {
+        ...data.part,
+        name: activePrefill.mpn || data.part.name,
+        mpn: activePrefill.mpn || data.part.mpn,
+        manufacturer: activePrefill.manufacturer || data.part.manufacturer,
+      },
+      initial_quantity: activePrefill.quantity || data.initial_quantity,
+    })
+    if (activePrefill.provider && activePrefill.supplier_sku) {
+      suppliersController.applySupplierFromResult(
+        { provider: activePrefill.provider, supplier_sku: activePrefill.supplier_sku } as LookupResult,
+        () => setSuppliersOpen(true),
+      )
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, activePrefill])
+
   // Fold the pending suppliers and catalog asset URLs into the payload right
   // before it goes over the wire.
   form.transform((payload) => ({
     ...payload,
     datasheet_url: attach.datasheet_url,
     image_url: attach.image_url,
+    ...(activePrefill ? { return_to: 'scan' } : {}),
     part: {
-      ...payload.part,
+      ...partPayload(payload.part),
       ...(imageFile ? { images: [imageFile] } : {}),
       part_suppliers_attributes: suppliersController.suppliersAttributes(),
     },
@@ -110,6 +143,7 @@ export function AddPartDialog({
     setSuppliersOpen(false)
     setAttach({ datasheet_url: null, image_url: null })
     setImageFile(null)
+    setActivePrefill(null)
   }
 
   // Prefill the form from a chosen catalog match.
@@ -160,6 +194,7 @@ export function AddPartDialog({
             bagOptions={bagOptions}
             bagBoxes={bagBoxes}
             supplierLookupEnabled={supplierLookupEnabled}
+            autoLookup={activePrefill?.mpn ?? null}
             onApplyLookup={applyResult}
             attach={attach}
             imagePreview={imagePreview}

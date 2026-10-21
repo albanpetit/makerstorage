@@ -27,6 +27,7 @@ class User < ApplicationRecord
   # Rows that merely reference the user as an author keep existing (the ledger
   # and memberships outlive the account) with the reference cleared.
   has_many :stock_movements, dependent: :nullify
+  has_many :project_builds, dependent: :nullify
   has_many :sent_invitations, class_name: "OrganizationMembership", foreign_key: :invited_by_id,
            inverse_of: :invited_by, dependent: :nullify
   has_many :stocktakes, dependent: :nullify

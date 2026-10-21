@@ -42,6 +42,8 @@ class PartsController < ApplicationController
       filters: query.filters,
       pagination: query.pagination,
       facets: query.facets,
+      # Parameters shown as columns: the selected category's template.
+      parameter_columns: query.parameter_columns,
       total_count: query.total_count,
       total_units: query.total_units,
       # Every matching id, so "select all matching" and the "hidden by filters"
@@ -59,7 +61,8 @@ class PartsController < ApplicationController
       ipn_manual_entry: current_organization.ipn_generation_mode == "manual",
       bag_options: bag_options,
       bag_boxes: bag_boxes,
-      open_add: params[:new].present?
+      open_add: params[:new].present?,
+      add_prefill: add_prefill
     }
   end
 
@@ -152,7 +155,13 @@ class PartsController < ApplicationController
 
     if saved
       attach_remote_datasheet(part)
-      redirect_to parts_path, notice: "Part created successfully."
+      # Created from a scanned supplier label: back to the scanner, on the new
+      # part, ready for the next bag.
+      if params[:return_to] == "scan"
+        redirect_to scan_path(code: "part:#{part.id}"), notice: "Part created successfully."
+      else
+        redirect_to parts_path, notice: "Part created successfully."
+      end
     else
       # No flash alert here: the add-part modal renders these errors inline, and
       # a page-level alert would surface behind the still-open dialog instead.
@@ -162,7 +171,7 @@ class PartsController < ApplicationController
     end
   end
 
-  # Queries the organization's configured supplier catalog (Mouser, ...) for a
+  # Queries the organization's configured supplier catalogs (Mouser, DigiKey, LCSC) for a
   # manufacturer part number and returns normalized matches as JSON for the
   # add-part dialog to prefill from. Async fetch, not an Inertia visit.
   def lookup
@@ -172,7 +181,7 @@ class PartsController < ApplicationController
     results = SupplierCatalog.lookup(current_organization, mpn: mpn)
     render json: { results: results.map(&:as_json) }
   rescue SupplierCatalog::NotConfiguredError
-    render json: { error: "No supplier catalog is configured. Add a Mouser or DigiKey key in Settings." }, status: :unprocessable_entity
+    render json: { error: "No supplier catalog is configured. Add a Mouser or DigiKey key, or turn on LCSC, in Settings." }, status: :unprocessable_entity
   rescue SupplierCatalog::LookupError => e
     render json: { error: e.message }, status: :bad_gateway
   end
@@ -597,6 +606,15 @@ class PartsController < ApplicationController
     AttachRemotePartAssetsJob.perform_later(part, datasheet_url: datasheet_url) if datasheet_url
   end
 
+  # What a scanned supplier label knows about a part that isn't in the
+  # inventory yet (see ScansController#label_lookup), to prefill the add dialog.
+  def add_prefill
+    return unless params[:new].present? && params[:prefill].is_a?(ActionController::Parameters)
+
+    prefill = params[:prefill].permit(:mpn, :manufacturer, :provider, :supplier_sku, :quantity).to_h
+    prefill.transform_values { |value| value.to_s.strip.first(255) }.compact_blank.presence
+  end
+
   def set_part
     @part = current_organization.parts.find(params[:id])
   end
@@ -684,8 +702,11 @@ class PartsController < ApplicationController
       :category_id, :footprint_id,
       :unit_price, :min_stock_threshold, :target_stock,
       :status, :rohs_compliant, :storage_notes,
+      :kicad_symbol, :kicad_footprint,
       images: [],
       tag_ids: [],
+      # Parameter definition id => value ("" removes it).
+      parameter_values: {},
       part_suppliers_attributes: [
         :id, :supplier_id, :supplier_sku, :unit_price, :lead_time_days,
         :url, :is_preferred, :notes, :_destroy
@@ -695,6 +716,12 @@ class PartsController < ApplicationController
     # foreign tag then fails PartTag's validation as an exception (a 500). Keep
     # only this organization's tags.
     permitted[:tag_ids] = current_organization.tags.where(id: permitted[:tag_ids]).pluck(:id) if permitted.key?(:tag_ids)
+    # Same for parameters: drop ids that aren't this organization's.
+    if permitted.key?(:parameter_values)
+      values = permitted[:parameter_values].to_h
+      owned = current_organization.parameter_definitions.where(id: values.keys.map(&:to_i)).pluck(:id).to_set
+      permitted[:parameter_values] = values.select { |id, _| owned.include?(id.to_i) }
+    end
     # In box & bag mode the IPN is the bag's code: pick the bag, not the IPN.
     # Other modes don't use bags at all.
     if box_bag_mode?
@@ -727,7 +754,8 @@ class PartsController < ApplicationController
   # the order given, with the associations serialize_part reads preloaded.
   def serialize_parts_in_order(ids)
     parts = current_organization.parts.where(id: ids)
-      .includes(:category, :footprint, :tags, :part_storages, :storage_locations, part_suppliers: :supplier)
+      .includes(:category, :footprint, :tags, :part_storages, :storage_locations, part_suppliers: :supplier,
+                part_parameters: :parameter_definition)
       .with_attached_images
       .index_by(&:id)
     ids.filter_map { |id| parts[id] }.map { |part| serialize_part(part) }
@@ -762,8 +790,15 @@ class PartsController < ApplicationController
       location_names: part.storage_locations.map(&:name),
       supplier_name: part.part_suppliers.find(&:is_preferred)&.supplier&.name,
       category: part.category ? { id: part.category.id, name: part.category.name, color: part.category.color } : nil,
-      footprint: part.footprint ? { id: part.footprint.id, name: part.footprint.name } : nil
+      footprint: part.footprint ? { id: part.footprint.id, name: part.footprint.name } : nil,
+      parameters: serialize_part_parameters(part)
     }
+  end
+
+  def serialize_part_parameters(part)
+    part.part_parameters.sort_by { |parameter| parameter.name.downcase }.map do |parameter|
+      { id: parameter.parameter_definition_id, name: parameter.name, value: parameter.value, display: parameter.display_value }
+    end
   end
 
   # Confirmed projects holding this part (empty when reservations are off).
@@ -788,6 +823,8 @@ class PartsController < ApplicationController
       lead_time_days: part.lead_time_days,
       rohs_compliant: part.rohs_compliant,
       storage_notes: part.storage_notes,
+      kicad_symbol: part.kicad_symbol,
+      kicad_footprint: part.kicad_footprint,
       category_id: part.category_id,
       footprint_id: part.footprint_id,
       bag_id: part.bag_id,
