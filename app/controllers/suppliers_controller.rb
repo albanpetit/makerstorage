@@ -61,6 +61,8 @@ class SuppliersController < ApplicationController
         digikey_client_id: nil, digikey_client_secret: nil,
         digikey_access_token: nil, digikey_refresh_token: nil, digikey_token_expires_at: nil
       )
+    when "lcsc"
+      current_organization.update!(lcsc_enabled: false)
     end
   end
 
@@ -75,7 +77,7 @@ class SuppliersController < ApplicationController
     @supplier = current_organization.suppliers.find(params[:id])
   end
 
-  # Deleting a catalog supplier (Mouser, DigiKey) also disconnects its
+  # Deleting a catalog supplier (Mouser, DigiKey, LCSC) also disconnects its
   # integration and clears the organization's credentials, which only admins
   # may manage (see SettingsController).
   def verify_catalog_supplier_authority

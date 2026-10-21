@@ -90,4 +90,46 @@ class PartsIndexQueryTest < ActiveSupport::TestCase
     assert_equal [ mine.id ], query.matching_ids
     assert_empty query(search: "foreign").matching_ids
   end
+  test "filters on parameter ranges and values, and searches parameter values" do
+    resistance = @org.parameter_definitions.create!(name: "Resistance", unit: "Ω")
+    dielectric = @org.parameter_definitions.create!(name: "Dielectric", value_type: "text")
+    @resistors.update!(parameter_template: [ resistance.id ])
+    r1k = create_part(organization: @org, category: @resistors, name: "R1k", value: "1k")
+    r10k = create_part(organization: @org, category: @resistors, name: "R10k", value: "10 kΩ")
+    r47k = create_part(organization: @org, category: @resistors, name: "R47k", value: "47k")
+    c1 = create_part(organization: @org, category: @caps, name: "C1")
+    c1.update!(parameter_values: { dielectric.id => "X7R" })
+    c2 = create_part(organization: @org, category: @caps, name: "C2")
+    c2.update!(parameter_values: { dielectric.id => "C0G" })
+
+    id = resistance.id.to_s
+    assert_equal [ r10k.id, r47k.id ].sort, query(param: { id => { min: "10k" } }).matching_ids.sort
+    assert_equal [ r10k.id ], query(param: { id => { min: "4k7", max: "10000" } }).matching_ids
+    assert_equal [ r1k.id, r10k.id ].sort, query(param: { id => { max: "10k" } }).matching_ids.sort, "a bound is inclusive"
+    assert_equal [ c1.id ], query(param: { dielectric.id.to_s => { values: [ "x7r" ] } }).matching_ids
+    assert_equal [ c1.id ], query(search: "x7r").matching_ids
+
+    invalid = query(param: { id => { min: "lots" } })
+    assert_equal [ r10k.id, r1k.id, r47k.id ].sort, invalid.matching_ids.sort, "a bound that doesn't read is ignored"
+    assert invalid.filters[:parameters].sole[:invalid]
+
+    assert_equal 5, query(param: { "999999" => { min: "1" } }).matching_ids.size, "an unknown parameter is ignored"
+  end
+
+  test "parameter facets follow search and category; columns follow the category's template" do
+    resistance = @org.parameter_definitions.create!(name: "Resistance", unit: "Ω")
+    dielectric = @org.parameter_definitions.create!(name: "Dielectric", value_type: "text")
+    @resistors.update!(parameter_template: [ resistance.id ])
+    create_part(organization: @org, category: @resistors, name: "R1k", value: "1k")
+    create_part(organization: @org, category: @resistors, name: "R47k", value: "47k")
+    create_part(organization: @org, category: @caps, name: "C1").update!(parameter_values: { dielectric.id => "X7R" })
+
+    facets = query(category: @resistors.id.to_s).facets[:parameters]
+    assert_equal [ [ resistance.id, 2, "1 kΩ", "47 kΩ", true ] ],
+                 facets.map { |f| f.values_at(:id, :count, :min_display, :max_display, :in_template) }
+    assert_equal [ { value: "X7R", label: "X7R", count: 1 } ], query(category: @caps.id.to_s).facets[:parameters].sole[:values]
+
+    assert_equal [ { id: resistance.id, name: "Resistance", unit: "Ω" } ], query(category: @resistors.id.to_s).parameter_columns
+    assert_empty query.parameter_columns
+  end
 end

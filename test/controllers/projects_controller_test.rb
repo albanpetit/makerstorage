@@ -96,13 +96,161 @@ class ProjectsControllerTest < ActionDispatch::IntegrationTest
     assert_match(/KiCad/, flash[:alert])
   end
 
-  test "create without a file re-prompts" do
+  test "create without a file or a name re-prompts" do
     sign_in @user
     assert_no_difference -> { Project.count } do
-      post projects_path, params: { name: "Nope" }
+      post projects_path, params: { name: "  " }
     end
     assert_redirected_to projects_path
-    assert_match(/choose a BOM file/i, flash[:alert])
+    assert_match(/name/i, flash[:alert])
+  end
+
+  test "create with only a name starts an empty draft project" do
+    sign_in @user
+    assert_difference -> { Project.count } => 1, -> { ProjectLine.count } => 0 do
+      post projects_path, params: { name: "Weather station", revision: "A" }
+    end
+
+    project = Project.order(:id).last
+    assert_redirected_to project_path(project)
+    assert_equal [ "Weather station", "A", "draft", @org.id ], [ project.name, project.revision, project.status, project.organization_id ]
+    assert_match(/\APRJ-/, project.reference)
+  end
+
+  test "update renames the project and sets its revision and description" do
+    project = build_project([ @cap, 1, "sku" ])
+
+    sign_in @user
+    patch project_path(project), params: { project: { name: "Badge", revision: "B", description: "For the open day" } }
+
+    assert_redirected_to project_path(project)
+    assert_equal [ "Badge", "B", "For the open day" ], project.reload.values_at(:name, :revision, :description)
+  end
+
+  test "update reports an invalid name" do
+    project = build_project([ @cap, 1, "sku" ])
+
+    sign_in @user
+    patch project_path(project), params: { project: { name: "x" } }
+
+    assert_match(/name/i, flash[:alert])
+    assert_not_equal "x", project.reload.name
+  end
+
+  test "viewers cannot edit or duplicate a project" do
+    project = build_project([ @cap, 1, "sku" ])
+    viewer = create_user
+    OrganizationMembership.create!(organization: @org, user: viewer, role: "viewer")
+    sign_in viewer
+    post "/organizations/#{@org.id}/switch"
+
+    patch project_path(project), params: { project: { name: "Hacked" } }
+    assert_no_difference -> { Project.count } do
+      post duplicate_project_path(project)
+    end
+    assert_not_equal "Hacked", project.reload.name
+  end
+
+  test "duplicate copies the project and its lines as the next revision" do
+    project = build_project([ @cap, 4, "sku" ], [ nil, 1, "none" ])
+    project.update!(name: "Badge", revision: "A", status: "confirmed")
+
+    sign_in @user
+    assert_difference -> { Project.count } => 1, -> { ProjectLine.count } => 2 do
+      post duplicate_project_path(project)
+    end
+
+    copy = Project.order(:id).last
+    assert_redirected_to project_path(copy)
+    assert_equal [ "Badge", "B", "draft" ], [ copy.name, copy.revision, copy.status ]
+    assert_equal [ [ @cap.id, 4 ], [ nil, 1 ] ], copy.project_lines.order(:id).pluck(:part_id, :quantity)
+    assert_equal "confirmed", project.reload.status
+  end
+
+  test "duplicate takes the revision typed on the page" do
+    project = build_project([ @cap, 4, "sku" ])
+
+    sign_in @user
+    post duplicate_project_path(project), params: { revision: "v2" }
+
+    assert_equal "v2", Project.order(:id).last.revision
+  end
+
+  test "duplicating another organization's project is not found" do
+    other = create_project(organization: create_organization)
+    sign_in @user
+    assert_no_difference -> { Project.count } do
+      post duplicate_project_path(other)
+    end
+    assert_response :not_found
+  end
+
+  test "project_line create adds an inventory part by hand" do
+    project = create_project(organization: @org)
+
+    sign_in @user
+    assert_difference -> { project.project_lines.count } => 1 do
+      post project_project_lines_path(project), params: { project_line: { part_id: @resistor.id, quantity: 3, designators: "R1-R3" } }
+    end
+
+    line = project.project_lines.sole
+    assert_redirected_to project_path(project)
+    assert_equal [ @resistor, "manual", 3, "R1-R3", "RC0805-10K", "Resistor 10k" ],
+                 [ line.part, line.match_type, line.quantity, line.designators, line.raw_reference, line.designation ]
+  end
+
+  test "project_line create adds a component that isn't in the inventory" do
+    project = create_project(organization: @org)
+
+    sign_in @user
+    post project_project_lines_path(project), params: { project_line: { part_id: "", designation: "ESP32-C3 module", quantity: 1 } }
+
+    line = project.project_lines.sole
+    assert_nil line.part
+    assert_equal [ "none", "ESP32-C3 module" ], [ line.match_type, line.designation ]
+
+    get project_path(project)
+    assert_equal 1, inertia_props["project"]["unmatched_count"]
+  end
+
+  test "project_line create needs a part or a designation" do
+    project = create_project(organization: @org)
+
+    sign_in @user
+    assert_no_difference -> { ProjectLine.count } do
+      post project_project_lines_path(project), params: { project_line: { part_id: "", designation: " ", quantity: 1 } }
+    end
+    assert_match(/designation/i, flash[:alert])
+  end
+
+  test "project_line create ignores another organization's part" do
+    project = create_project(organization: @org)
+    foreign = create_part(organization: create_organization, name: "Foreign")
+
+    sign_in @user
+    assert_no_difference -> { ProjectLine.count } do
+      post project_project_lines_path(project), params: { project_line: { part_id: foreign.id, quantity: 1 } }
+    end
+  end
+
+  test "project_line create on another organization's project is not found" do
+    other = create_project(organization: create_organization)
+
+    sign_in @user
+    assert_no_difference -> { ProjectLine.count } do
+      post project_project_lines_path(other), params: { project_line: { designation: "X", quantity: 1 } }
+    end
+    assert_response :not_found
+  end
+
+  test "project_line create reports an invalid quantity" do
+    project = create_project(organization: @org)
+
+    sign_in @user
+    assert_no_difference -> { ProjectLine.count } do
+      post project_project_lines_path(project), params: { project_line: { designation: "X", quantity: 0 } }
+    end
+    assert_match(/quantity/i, flash[:alert])
   end
 
   test "show serializes availability and a part pick-list" do
@@ -346,6 +494,50 @@ class ProjectsControllerTest < ActionDispatch::IntegrationTest
     assert_match(/1 reference\b/, flash[:notice])
   end
 
+  test "build records who built how many kits, and links the movements to it" do
+    project = build_project([ @cap, 30, "sku" ]) # stock 100
+
+    sign_in @user
+    assert_difference -> { ProjectBuild.count } => 1 do
+      post build_project_path(project), params: { builds_count: 0, kits: 3, note: "Open day" }
+    end
+
+    build = project.project_builds.sole
+    assert_equal [ 3, "Open day", @user ], [ build.quantity, build.note, build.user ]
+    assert_equal [ -90 ], build.stock_movements.pluck(:quantity_delta)
+    assert_equal 10, PartStorage.find_by(part: @cap, storage_location: @location).quantity
+    assert_equal 3, project.reload.builds_count
+    assert_match(/3 kits/, flash[:notice])
+
+    get project_path(project)
+    history = inertia_props["project"]["builds"]
+    assert_equal 1, history.size
+    assert_equal [ 3, 90, 1, "Open day", "Test User" ], history.first.values_at("quantity", "units", "references", "note", "user")
+  end
+
+  test "build refuses more kits than the stock covers" do
+    project = build_project([ @cap, 30, "sku" ]) # stock 100
+
+    sign_in @user
+    assert_no_difference [ "StockMovement.count", "ProjectBuild.count" ] do
+      post build_project_path(project), params: { builds_count: 0, kits: 4 }
+    end
+    assert_match(/enough stock to build 4 kits/i, flash[:alert])
+    assert_equal 0, project.reload.builds_count
+  end
+
+  test "build refuses a kit count out of range" do
+    project = build_project([ @cap, 1, "sku" ])
+
+    sign_in @user
+    [ 0, -2, ProjectsController::MAX_BUILD_KITS + 1 ].each do |kits|
+      assert_no_difference -> { StockMovement.count } do
+        post build_project_path(project), params: { builds_count: 0, kits: kits }
+      end
+    end
+    assert_match(/between 1 and/i, flash[:alert])
+  end
+
   test "build is blocked when a part's lines together exceed its stock" do
     project = build_project([ @resistor, 3, "mpn" ], [ @resistor, 3, "manual" ]) # stock 5, needs 6
 
@@ -410,7 +602,7 @@ class ProjectsControllerTest < ActionDispatch::IntegrationTest
     assert_equal 1, project.reload.builds_count
     assert project.last_built_at
 
-    assert_no_difference -> { StockMovement.count } do
+    assert_no_difference [ "StockMovement.count", "ProjectBuild.count" ] do
       post build_project_path(project), params: { builds_count: 0 }
     end
     assert_match(/already built/i, flash[:alert])
@@ -455,6 +647,7 @@ class ProjectsControllerTest < ActionDispatch::IntegrationTest
 
     assert_match(/could not deduct/i, flash[:alert])
     assert_equal 0, project.reload.builds_count
+    assert_equal 0, project.project_builds.count
     assert_equal 100, PartStorage.find_by(part: @cap, storage_location: @location).quantity
   end
 

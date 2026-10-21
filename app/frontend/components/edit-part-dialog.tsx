@@ -24,6 +24,7 @@ import {
   BagOption,
   FullPart,
   lookupResultPatch,
+  partPayload,
   Supplier,
   Tag,
   toFormPart,
@@ -128,7 +129,7 @@ export function EditPartDialog({
     datasheet_url: attach.datasheet_url,
     image_url: attach.image_url,
     part: {
-      ...payload.part,
+      ...partPayload(payload.part),
       ...(imageFile ? { images: [imageFile] } : {}),
       part_suppliers_attributes: suppliersController.suppliersAttributes(),
     },

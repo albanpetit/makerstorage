@@ -4,6 +4,8 @@ en:
   activerecord:
     errors:
       messages:
+        already_counted: 'is already being counted in %{stocktake}: complete or discard it first'
+        another_part: must be another part
         attachment_size: must be smaller than %{size}
         attachment_type: must be a %{types} file
         bag_codes_taken: 'would give bags codes already in use: %{codes}'
@@ -16,21 +18,37 @@ en:
         box_code_needed: can't be blank while the box holds bags
         descendant_parent: cannot be a descendant of this category
         image_host: must be an https image from a supplier catalog (%{hosts})
+        more_than_lent: Can't return or write off more than was lent
         needs_active_owner: Organization must have at least one active owner
         needs_owner: Organization must have at least one owner
         negative_for_outgoing: must be negative for an outgoing movement
         negative_stock: would result in negative stock at this location
+        no_loan_lines: Add at least one item to lend
+        not_a_number_value: “%{value}” is not a number
+        not_a_value_in_unit: “%{value}” is not a value in %{unit}
+        not_in_stocktake: isn't part of this stocktake
         not_users_organization: must be one of the user's organizations
+        or_designation_required: or a designation is required
         order_status_final: can't change once the order is %{status}
+        organization_member: must be a member of this organization
         own_parent: cannot be itself
         positive_for_incoming: must be positive for an incoming movement
+        printer_port: must be a printer port (9100–9109 or 6101)
         received_only_by_marking: can only become received by marking the order received
         redirect_uris_insecure: must be https URIs, or http on localhost
         redirect_uris_missing: must list at least one URI
         redirect_uris_too_many: can list at most %{count} URIs
         same_organization: must belong to the same organization
+        same_organization_as_category: must belong to the same organization as the category
         same_organization_as_part: must belong to the same organization as the part
+        too_many_files: can't be more than %{count} files
         under_own_subzone: cannot be moved under one of its own sub-zones
+        values_not_in_unit:
+          one: '%{count} value of %{name} is not a number in %{unit} (%{examples}).'
+          other: '%{count} values of %{name} are not a number in %{unit} (%{examples}).'
+        values_not_numbers:
+          one: '%{count} value of %{name} is not a number (%{examples}).'
+          other: '%{count} values of %{name} are not a number (%{examples}).'
   errors:
     backup:
       data_too_large: '%{file} is too large.'
@@ -59,6 +77,55 @@ en:
       order_api_unreadable: DigiKey Order API returned an unreadable response
       token_unreadable: DigiKey returned an unreadable token response
       unreachable: 'Could not reach DigiKey: %{error}'
+    github:
+      file_too_large: '%{name} is too large to keep.'
+      files_too_large: The KiCad files in %{location} are too large to keep (over %{size} zipped).
+      forbidden: GitHub refused access to %{repository}.
+      forbidden_with_token: 'GitHub refused access to %{repository}: check that the token can read its contents.'
+      no_kicad_files: No KiCad files in %{location}.
+      not_found: Could not find %{repository} on GitHub%{hint}.
+      not_linked: This project isn't linked to a GitHub repository.
+      private_hint: (a private repository needs a GitHub token in Settings → Integrations)
+      rate_limited: GitHub's rate limit is reached. Try again later.
+      rate_limited_without_token: 'GitHub''s rate limit is reached (60 requests an hour without a token: add one in Settings → Integrations). Try again later.'
+      ref_not_found: Could not find %{repository} at “%{ref}” on GitHub. Check the repository and the branch, tag or commit%{hint}.
+      status: GitHub returned %{code} for %{repository}.
+      token_rejected: GitHub rejected the token. Check it in Settings → Integrations.
+      too_large: '%{repository} is too large to download (over %{size}).'
+      too_many_files: '%{repository} has too many files to read.'
+      too_many_kicad_files: '%{location} holds more than %{count} KiCad files.'
+      unexpected_answer: GitHub returned an unexpected answer for %{repository}.
+      unexpected_redirect: GitHub redirected the download somewhere unexpected.
+      unreachable: 'Could not reach GitHub: %{error}'
+      unreadable_archive: Could not read the archive GitHub sent for %{repository}.
+    kicad_files:
+      not_a_schematic: '%{name} isn''t a KiCad schematic this version can read (KiCad 6 or later).'
+      not_a_zip: Could not open %{name} as a ZIP archive.
+      not_kicad: '%{name} isn''t a KiCad file: attach .kicad_pro, .kicad_sch, .kicad_pcb… files or a ZIP of the project.'
+      too_large: '%{name} is too large (the limit is %{size}).'
+      too_large_for_bom: '%{name} is too large to read the BOM from.'
+      too_many: 'A project holds at most %{count} files: ZIP the project folder instead.'
+      zip_too_many: '%{name} has too many files.'
+    label_printing:
+      bad_port: Port %{port} isn't a printer port (%{first}–%{last} or %{other}).
+      disabled: Network printing is turned off on this server.
+      host_not_found: '%{host} could not be found on the network.'
+      not_local: '%{host} isn''t a local network address (10.x, 172.16–31.x, 192.168.x).'
+      unreachable: Could not reach the printer at %{host}:%{port} (%{error}).
+    lcsc:
+      failed: 'LCSC search failed: %{error}'
+      refused: LCSC refused the search (HTTP %{code}). LCSC has no public API, so its catalog may block or change these requests.
+      unreachable: 'Could not reach LCSC: %{error}'
+      unreadable: LCSC returned an unreadable response.
+      unreadable_changed: LCSC returned an unreadable response. Its catalog may have changed; LCSC has no public API.
+    loans:
+      closed: This loan is already closed.
+      enter_quantity: Enter a quantity to settle.
+      not_on_loan: That item isn't on this loan.
+      only_outstanding: Only %{count} of %{reference} still out.
+      pick_return_zone: Pick a storage zone to return %{reference} to.
+      positive: Quantities must be positive.
+      zone_other_organization: That storage zone isn't in this organization.
     mouser:
       api_key_rejected: Mouser rejected the API key. Check it in Settings → Integrations (it must be a Search API key).
       api_status: Mouser API returned %{code}
@@ -72,6 +139,14 @@ en:
       into_itself: An organization can't be merged into itself.
       personal: A personal organization can't be merged into another one.
       source_not_deleted: '%{name} could not be deleted once its data was moved.'
+    part_merge:
+      failed: 'The parts could not be merged: %{error}'
+      other_organization: Parts of another organization can't be merged.
+      pick_one: Pick at least one other part to merge.
+      units: Parts counted in different units (%{units}) can't be merged.
+    stocktakes:
+      already_completed: This stocktake is already completed.
+      another: another stocktake
     supplier_catalog:
       not_configured: No supplier catalog is configured for this organization
   flash:
@@ -123,6 +198,21 @@ en:
       confirm_your_email_address_to_answer: Confirm your email address to answer invitations.
       invitation_to_declined: Invitation to %{organization_name} declined.
       you_joined: You joined %{organization_name}.
+    label_printers:
+      add_failed: Failed to add the printer.
+      added: Printer "%{name}" added.
+      removed: Printer "%{name}" removed.
+      update_failed: Failed to update the printer.
+      updated: Printer updated.
+    loans:
+      check_items: check the items and quantities.
+      closed: 'Everything is back: loan closed.'
+      item: Item
+      not_enough_stock: '%{reference}: not enough stock in %{zone}'
+      not_recorded: 'The loan wasn''t recorded: %{errors}'
+      recorded: 'Loan %{reference} recorded: items taken out of stock.'
+      return_recorded: Return recorded.
+      updated: Loan updated.
     members:
       choose_a_valid_role: Choose a valid role.
       failed_to_add_member: Failed to add member.
@@ -218,6 +308,43 @@ en:
       you_can_t_delete_your_only: You can't delete your only organization.
       you_must_be_an_owner_of: You must be an owner of "%{organization_name}" to do this.
       you_must_be_an_owner_to: You must be an owner to delete an organization.
+    parameter_definitions:
+      categories_templated:
+        one: '%{count} category given a template'
+        other: '%{count} categories given a template'
+      created: Parameter "%{name}" created.
+      deleted: Parameter "%{name}" deleted.
+      deleted_with_values:
+        one: Parameter "%{name}" deleted with its %{count} part value.
+        other: Parameter "%{name}" deleted with its %{count} part values.
+      parameters_added:
+        one: '%{count} parameter added'
+        other: '%{count} parameters added'
+      standard_failed: 'Could not add the standard parameters: %{errors}'
+      standard_installed: '%{added}, %{categories}, %{values} filled in from existing fields.'
+      updated: Parameter updated.
+      values_filled:
+        one: '%{count} part value'
+        other: '%{count} part values'
+    part_duplicates:
+      dismissed: '%{count} parts won''t be suggested as duplicates of each other again.'
+      merged:
+        one: Merged %{count} part into %{name}.
+        other: Merged %{count} parts into %{name}.
+      moved: Moved %{items}.
+      moved_movements:
+        one: '%{count} movement'
+        other: '%{count} movements'
+      moved_order_lines:
+        one: '%{count} order line'
+        other: '%{count} order lines'
+      moved_project_lines:
+        one: '%{count} project line'
+        other: '%{count} project lines'
+      moved_stock_rows:
+        one: '%{count} stock row'
+        other: '%{count} stock rows'
+      pick_two: Pick at least two parts.
     part_suppliers:
       supplier_added_successfully: Supplier added successfully.
       supplier_removed_successfully: Supplier removed successfully.
@@ -249,7 +376,7 @@ en:
       could_not_parse_that_file_as: Could not parse that file as CSV.
       enter_a_part_number_to_search: Enter a part number to search.
       import_complete_created_updated_skipped: 'Import complete: %{created} created, %{updated} updated, %{skipped} skipped.'
-      no_supplier_catalog_is_configured_add: No supplier catalog is configured. Add a Mouser or DigiKey key in Settings.
+      no_supplier_catalog_is_configured_add: No supplier catalog is configured. Add a Mouser or DigiKey key, or turn on LCSC, in Settings.
       no_supplier_was_assigned: 'No supplier was assigned: %{errors}.'
       part_created_successfully: Part created successfully.
       part_deleted_successfully: Part deleted successfully.
@@ -270,30 +397,62 @@ en:
       notifications_on: Email notifications on for %{organization}.
       password_updated_successfully: Password updated successfully.
       profile_updated_successfully: Profile updated successfully.
+    project_files:
+      added:
+        one: Added %{count} file.
+        other: Added %{count} files.
+      bom_updated:
+        one: 'BOM updated from the schematic: %{count} line. Review the matches below.'
+        other: 'BOM updated from the schematic: %{count} lines. Review the matches below.'
+      choose_files: Please choose files to add.
+      imported_lines:
+        one: Imported %{count} BOM line from the schematic.
+        other: Imported %{count} BOM lines from the schematic.
+      no_schematic: No schematic (.kicad_sch) with components among this project's files.
+      removed: '%{name} removed.'
+    project_github:
+      bom_unchanged: The BOM hasn't changed.
+      enter_repository: Enter a GitHub repository (owner/name or its URL).
+      fetched:
+        one: Fetched %{count} KiCad file from %{location} (%{sha}).
+        other: Fetched %{count} KiCad files from %{location} (%{sha}).
+      no_schematic: No schematic with components among them, so the BOM is unchanged.
+      unlinked: Unlinked from GitHub. The files fetched so far stay with the project.
+      up_to_date: Already up to date with %{location} (%{sha}).
     project_lines:
+      added: Line added.
       line_removed: Line removed.
       line_updated: Line updated.
     projects:
+      build_kits_between: Build between 1 and %{max} kits at a time.
       could_not_deduct_stock: 'Could not deduct stock: %{errors}.'
       could_not_import_that_bom: Could not import that BOM.
       could_not_parse_that_file_as: Could not parse that file as CSV.
       could_not_read_that_file_as: Could not read that file as a KiCad BOM (XML).
+      created_empty: Project created. Add its parts below.
       imported_bom_lines_review_the_matches: Imported %{project_lines_count} BOM lines. Review the matches below.
       matches_confirmed: Matches confirmed.
       matches_confirmed_and_stock_reserved: Matches confirmed and stock reserved.
+      name_or_file: Give the project a name, or choose a BOM file to import.
       no_purchase_order_was_created: 'No purchase order was created: %{errors}.'
+      not_enough_stock_for_kits: There isn't enough stock to build %{kits} kits.
       nothing_left_to_order_short_parts: 'Nothing left to order: short parts have no preferred supplier or are already on open purchase orders.'
       only_a_confirmed_project_can_reserve: Only a confirmed project can reserve stock, with reservations turned on in Settings.
       please_choose_a_bom_file_to: Please choose a BOM file to import.
       project_deleted: Project deleted.
       reservation_released: Reservation released.
+      revision_created: Revision %{revision} created from %{source}.
       stock_deducted:
         one: Stock deducted for %{count} reference.
         other: Stock deducted for %{count} references.
+      stock_deducted_kits:
+        one: Stock deducted for %{count} reference (%{kits} kits).
+        other: Stock deducted for %{count} references (%{kits} kits).
       stock_reserved_for_this_project: Stock reserved for this project.
       that_file_has_no_usable_bom: That file has no usable BOM rows.
       this_kit_was_already_built_from: This kit was already built from this page. Reload to build another one.
       this_project_isn_t_buildable_yet: This project isn't buildable yet — resolve shortfalls and unmatched lines first.
+      updated: Project updated.
     purchase_orders_created:
       one: Created %{count} purchase order for %{references}.
       other: Created %{count} purchase orders for %{references}.
@@ -301,6 +460,8 @@ en:
       one: '%{count} reference'
       other: '%{count} references'
     scans:
+      bag_receive_failed: Failed to receive the bag.
+      bag_received: Received %{quantity} × %{reference} into %{zone}.
       failed_to_record_movement: Failed to record movement.
       movement_recorded_successfully: Movement recorded successfully.
     settings:
@@ -309,11 +470,33 @@ en:
       ipns_reassigned:
         one: Updated the IPN of %{count} part.
         other: Updated the IPN of %{count} parts.
+      kicad_token_revoked: KiCad library access revoked. KiCad can no longer read your parts.
       settings_updated_successfully: Settings updated successfully.
       turn_on_an_automatic_numbering_mode: Turn on an automatic numbering mode before reassigning IPNs.
     stock_movements:
       failed_to_record_movement: Failed to record movement.
       movement_recorded_successfully: Movement recorded successfully.
+    stocktakes:
+      adjust_detail: '%{reference} in %{zone}: '
+      completed_adjusted:
+        one: 'Stocktake completed: %{count} adjustment recorded.'
+        other: 'Stocktake completed: %{count} adjustments recorded.'
+      completed_kept: A completed stocktake is kept with the adjustments it made.
+      completed_matched: 'Stocktake completed: stock matched the count.'
+      could_not_add_part: 'Could not add that part: %{errors}.'
+      could_not_save_count: 'Could not save that count: %{errors}.'
+      could_not_start: 'Could not start the stocktake: %{errors}.'
+      counting: Counting %{zone}.
+      discarded: Stocktake %{reference} discarded.
+      no_match: No part or zone matches "%{code}".
+      nothing_adjusted: Nothing was adjusted (%{detail}%{errors}). Recount that line and try again.
+      part_added: '%{reference} added to the count.'
+      pick_zone: Pick the zone to count.
+      several_zones: '%{reference} is stocked in several zones of this count: scan or pick the zone first.'
+      started:
+        one: 'Stocktake %{reference} started: %{count} line to count.'
+        other: 'Stocktake %{reference} started: %{count} lines to count.'
+      zone_not_in_stocktake: '%{zone} isn''t part of this stocktake.'
     storage_locations:
       add_between_and_bags_at_a: Add between 1 and %{max} bags at a time.
       bag_added: Added 1 bag (%{code}).
@@ -378,11 +561,16 @@ en:
 
         Turn it off from your profile: %{url}'
       intro: Hello %{name}, here is what needs attention as of %{date}.
+      items:
+        one: '%{count} item'
+        other: '%{count} items'
       late_orders: Late orders (%{count})
+      loan: 'Loan #%{id}'
       low_stock: Low stock (%{count})
       more: And %{count} more.
       open_alerts: Open alerts
       order: 'Order #%{id}'
+      overdue_loans: Overdue loans (%{count})
       profile: profile
       subject: '%{organization}: %{counts}'
       subject_late_orders:
@@ -391,6 +579,9 @@ en:
       subject_low_stock:
         one: '%{count} low-stock part'
         other: '%{count} low-stock parts'
+      subject_overdue_loans:
+        one: '%{count} overdue loan'
+        other: '%{count} overdue loans'
       title: '%{organization} alerts'
     email_changed:
       being_changed: We're letting you know that the email address on your Makerstorage account is being changed to %{email}.
@@ -419,6 +610,10 @@ en:
     pending: pending
     received: received
     shipped: shipped
+  part_duplicates:
+    same_category: Same category, value and footprint
+    same_name: Same name, value and footprint
+    same_part_number: Same part number “%{code}”
   part_statuses:
     active: active
     discontinued: discontinued

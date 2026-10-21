@@ -55,12 +55,14 @@ interface PartsTableProps {
   onAddPart: () => void
   onShowPart: (id: number) => void
   onEditPart: (id: number) => void
+  // Parameters shown as extra columns (the selected category's template).
+  parameterColumns?: { id: number; name: string; unit: string | null }[]
 }
 
 // The paginated parts table with row/page selection, or an empty state.
 export function PartsTable({
   parts, totalCount, matchingIds, pagination, selected, onSelectedChange,
-  onPageChange, onAddPart, onShowPart, onEditPart,
+  onPageChange, onAddPart, onShowPart, onEditPart, parameterColumns = [],
 }: PartsTableProps) {
   const { canWrite } = usePermissions()
 
@@ -127,6 +129,9 @@ export function PartsTable({
               <TableHead className="py-2">{t('IPN')}</TableHead>
               <TableHead className="py-2">{t('Category')}</TableHead>
               <TableHead className="py-2">{t('Value')}</TableHead>
+              {parameterColumns.map((column) => (
+                <TableHead key={`param-${column.id}`} className="py-2">{column.name}</TableHead>
+              ))}
               <TableHead className="py-2">{t('Package')}</TableHead>
               <TableHead className="py-2">{t('Location')}</TableHead>
               <TableHead className="py-2">{t('Supplier')}</TableHead>
@@ -137,7 +142,7 @@ export function PartsTable({
             </TableRow>
             {pageAllSelected && !allFilteredSelected && total > pageIds.length && (
               <TableRow className="bg-muted hover:bg-muted">
-                <TableHead colSpan={12} className="py-1.5 text-center text-xs font-normal text-muted-foreground">
+                <TableHead colSpan={12 + parameterColumns.length} className="py-1.5 text-center text-xs font-normal text-muted-foreground">
                   {t('All {count} parts on this page are selected.', { count: pageIds.length })}{' '}
                   <Button
                     type="button"
@@ -202,6 +207,11 @@ export function PartsTable({
                   <TableCell className="py-2.5 font-mono text-sm font-medium">
                     {part.value || <span className="font-sans text-muted-foreground">-</span>}
                   </TableCell>
+                  {parameterColumns.map((column) => (
+                    <TableCell key={`param-${column.id}`} className="py-2.5 font-mono text-sm whitespace-nowrap">
+                      {part.parameters.find((parameter) => parameter.id === column.id)?.display ?? <span className="font-sans text-muted-foreground">-</span>}
+                    </TableCell>
+                  ))}
                   <TableCell className="py-2.5 font-mono text-sm text-muted-foreground">
                     {part.package_type || '-'}
                   </TableCell>

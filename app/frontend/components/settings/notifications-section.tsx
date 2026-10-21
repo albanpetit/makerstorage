@@ -58,6 +58,13 @@ export function NotificationsSection({ form, available }: { form: NotificationsF
             </div>
             <Switch checked={data.notify_late_orders} onCheckedChange={(checked) => set({ notify_late_orders: checked })} />
           </div>
+          <div className="flex items-center justify-between gap-4 py-3">
+            <div>
+              <div className="text-sm font-medium">{t('Overdue loans')}</div>
+              <div className="text-xs text-muted-foreground">{t('Tools and parts not returned by their due date.')}</div>
+            </div>
+            <Switch checked={data.notify_overdue_loans} onCheckedChange={(checked) => set({ notify_overdue_loans: checked })} />
+          </div>
           <div className="flex items-center justify-between gap-4 py-3 last:pb-0">
             <div>
               <div className="text-sm font-medium">{t('Frequency')}</div>
@@ -66,7 +73,7 @@ export function NotificationsSection({ form, available }: { form: NotificationsF
             <Select
               value={data.notification_frequency}
               onValueChange={(value) => set({ notification_frequency: value as NotificationFrequency })}
-              disabled={!data.notify_low_stock && !data.notify_late_orders}
+              disabled={!data.notify_low_stock && !data.notify_late_orders && !data.notify_overdue_loans}
             >
               <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
               <SelectContent>

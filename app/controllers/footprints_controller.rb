@@ -53,7 +53,7 @@ class FootprintsController < ApplicationController
   end
 
   def footprint_params
-    params.require(:footprint).permit(:name, :description, :mounting_type)
+    params.require(:footprint).permit(:name, :description, :mounting_type, :kicad_footprint)
   end
 
   def serialize_footprint(footprint)
@@ -62,6 +62,7 @@ class FootprintsController < ApplicationController
       name: footprint.name,
       description: footprint.description,
       mounting_type: footprint.mounting_type,
+      kicad_footprint: footprint.kicad_footprint,
       parts_count: footprint.attributes["parts_count"] || 0
     }
   end

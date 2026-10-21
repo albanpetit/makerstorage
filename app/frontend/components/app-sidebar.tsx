@@ -8,12 +8,15 @@ import {
   Box,
   Cpu,
   Tag,
+  SlidersHorizontal,
   ScanLine,
   ArrowLeftRight,
   Truck,
   ShoppingCart,
   AlertTriangle,
   ClipboardList,
+  ClipboardCheck,
+  HandHelping,
   Users,
   Settings,
   ChevronUp,
@@ -71,12 +74,15 @@ const navigationItems = [
   { get title() { return t('Categories') }, url: '/categories', icon: FolderTree },
   { get title() { return t('Footprints') }, url: '/footprints', icon: Cpu },
   { get title() { return t('Tags') }, url: '/tags', icon: Tag },
+  { get title() { return t('Parameters') }, url: '/parameters', icon: SlidersHorizontal },
   { get title() { return t('Storage Zones') }, url: '/storage_locations', icon: Box },
   { get title() { return t('Scanner') }, url: '/scan', icon: ScanLine },
   { get title() { return t('Movements') }, url: '/stock_movements', icon: ArrowLeftRight },
+  { get title() { return t('Stocktakes') }, url: '/stocktakes', icon: ClipboardCheck },
   { get title() { return t('Suppliers') }, url: '/suppliers', icon: Truck },
   { get title() { return t('Orders') }, url: '/orders', icon: ShoppingCart },
   { get title() { return t('Projects') }, url: '/projects', icon: ClipboardList },
+  { get title() { return t('Loans') }, url: '/loans', icon: HandHelping, badgeKey: 'loans' as const },
   { get title() { return t('Alerts') }, url: '/alerts', icon: AlertTriangle, badgeKey: 'alerts' as const },
   { get title() { return t('Members & Roles') }, url: '/members', icon: Users },
   { get title() { return t('Settings') }, url: '/settings', icon: Settings, adminOnly: true },
@@ -134,6 +140,7 @@ interface PageProps {
     current_organization?: CurrentOrganization
     organizations?: Organization[]
     alerts_count?: number
+    overdue_loans_count?: number
     is_organization_admin?: boolean
     pending_invitations_count?: number
   }
@@ -147,6 +154,7 @@ export function AppSidebar() {
   const currentOrganization = auth?.current_organization
   const organizations = auth?.organizations || []
   const alertsCount = auth?.alerts_count || 0
+  const overdueLoansCount = auth?.overdue_loans_count || 0
   const pendingInvitationsCount = auth?.pending_invitations_count || 0
   const isOrganizationAdmin = auth?.is_organization_admin || false
   const visibleNavigationItems = navigationItems.filter((item) => !item.adminOnly || isOrganizationAdmin)
@@ -282,6 +290,11 @@ export function AppSidebar() {
                   {item.badgeKey === 'alerts' && alertsCount > 0 && (
                     <SidebarMenuBadge className="bg-destructive/15 text-destructive">
                       {alertsCount}
+                    </SidebarMenuBadge>
+                  )}
+                  {item.badgeKey === 'loans' && overdueLoansCount > 0 && (
+                    <SidebarMenuBadge className="bg-destructive/15 text-destructive" title={t('Overdue loans')}>
+                      {overdueLoansCount}
                     </SidebarMenuBadge>
                   )}
                 </SidebarMenuItem>

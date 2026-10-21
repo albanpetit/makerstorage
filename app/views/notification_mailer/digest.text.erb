@@ -24,5 +24,15 @@
 <%= t("mail.digest.more", count: @digest.late_orders.size - NotificationDigest::LIMIT) %>
 <% end -%>
 <% end -%>
+<% if @digest.overdue_loans.any? %>
+
+<%= t("mail.digest.overdue_loans", count: @digest.overdue_loans.size) %>
+<% @digest.overdue_loans.first(NotificationDigest::LIMIT).each do |item| -%>
+- <%= item.reference.presence || t("mail.digest.loan", id: item.loan_id) %> (<%= item.borrower_name %>, <%= t("mail.digest.items", count: item.outstanding) %>): <%= t("mail.digest.days_late", count: item.days_late) %>
+<% end -%>
+<% if @digest.overdue_loans.size > NotificationDigest::LIMIT -%>
+<%= t("mail.digest.more", count: @digest.overdue_loans.size - NotificationDigest::LIMIT) %>
+<% end -%>
+<% end -%>
 
 <%= t("mail.digest.open_alerts") %>: <%= alerts_url(organization_id: @organization.id) %>

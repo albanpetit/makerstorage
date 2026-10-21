@@ -4,7 +4,7 @@ require "net/http"
 require "openssl"
 
 # Looks up electronic-component data from external supplier catalogs (Mouser,
-# DigiKey, and future providers) by manufacturer part number, returning
+# DigiKey, LCSC) by manufacturer part number, returning
 # normalized results that map onto our Part model.
 #
 #   SupplierCatalog.lookup(organization, mpn: "RC0805FR-0710KL")
@@ -137,6 +137,7 @@ module SupplierCatalog
         client_secret: organization.digikey_client_secret
       )
     end
+    providers << Lcsc.new(currency: organization.currency) if organization.lcsc_enabled?
     providers
   end
 

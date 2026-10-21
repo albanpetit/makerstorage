@@ -19,15 +19,22 @@ class Organization < ApplicationRecord
   # restrict deletion while movements, order lines, allocations, or orders still
   # point at them, so the records doing the pointing must go first — otherwise
   # destroying a populated organization silently returns false.
+  # Stocktake lines point at the adjustments they wrote: they go first.
+  has_many :stocktakes, dependent: :destroy
   has_many :stock_movements, dependent: :destroy
   has_many :projects, dependent: :destroy
+  has_many :loans, dependent: :destroy
   has_many :orders, dependent: :destroy
   has_many :parts, dependent: :destroy
   has_many :storage_locations, dependent: :destroy
   has_many :categories, dependent: :destroy
+  # After parts and categories, whose parameters and templates point at them.
+  has_many :parameter_definitions, dependent: :destroy
   has_many :footprints, dependent: :destroy
   has_many :tags, dependent: :destroy
   has_many :suppliers, dependent: :destroy
+  # Settings rather than inventory: kept by a reset, not carried by a merge.
+  has_many :label_printers, dependent: :destroy
 
   # Active Storage
   has_one_attached :logo
@@ -41,6 +48,8 @@ class Organization < ApplicationRecord
   encrypts :digikey_client_secret
   encrypts :digikey_access_token
   encrypts :digikey_refresh_token
+  # GitHub token for projects linked to a private repository (see GithubClient)
+  encrypts :github_token
 
   # Constants
   IPN_SEPARATORS = %w[- . _ /].freeze
@@ -68,6 +77,7 @@ class Organization < ApplicationRecord
   validates :timezone, inclusion: { in: TIMEZONES }
   validates :default_low_stock_threshold, numericality: { only_integer: true, greater_than_or_equal_to: 0, less_than_or_equal_to: MAX_INTEGER }
   validates :notification_frequency, inclusion: { in: NOTIFICATION_FREQUENCIES }
+  validates :default_loan_days, numericality: { only_integer: true, greater_than: 0, less_than_or_equal_to: Loan::MAX_DAYS }
 
   # Callbacks
   validate :must_have_at_least_one_owner, on: :update
@@ -83,10 +93,10 @@ class Organization < ApplicationRecord
   # Methods - Reset
   #
   # The inventory associations a reset clears, in the destroy order above.
-  DATA_ASSOCIATIONS = %i[stock_movements projects orders parts storage_locations categories footprints tags suppliers].freeze
+  DATA_ASSOCIATIONS = %i[stocktakes stock_movements projects loans orders parts storage_locations categories parameter_definitions footprints tags suppliers].freeze
 
-  # Deletes every inventory record (movements, projects, orders, parts, zones,
-  # categories, footprints, tags, suppliers) and keeps the organization itself:
+  # Deletes every inventory record (stocktakes, movements, projects, loans, orders, parts, zones,
+  # categories, parameters, footprints, tags, suppliers) and keeps the organization itself:
   # its settings, integrations, logo and members. The IPN counter starts over
   # and the catalog suppliers are seeded again, as for a new organization.
   # Returns the number of parts removed.
@@ -250,10 +260,10 @@ class Organization < ApplicationRecord
   end
 
   # Methods - Supplier catalog integration
-  # Whether an external supplier catalog (Mouser, DigiKey, ...) can be queried
+  # Whether an external supplier catalog (Mouser, DigiKey, LCSC) can be queried
   # for this org.
   def supplier_lookup_configured?
-    mouser_api_key.present? || digikey_configured?
+    mouser_api_key.present? || digikey_configured? || lcsc_enabled?
   end
 
   # DigiKey needs both halves of the OAuth2 client-credentials pair to work.
@@ -277,7 +287,7 @@ class Organization < ApplicationRecord
   #
   # Whether any alert type is switched on for this organization.
   def email_notifications_enabled?
-    notify_low_stock || notify_late_orders
+    notify_low_stock || notify_late_orders || notify_overdue_loans
   end
 
   # Whether this period's digest is still to be sent at `now`: from 8am local

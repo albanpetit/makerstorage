@@ -1,6 +1,7 @@
 # Merges one organization (the source) into another (the target): every
 # inventory record of the source moves to the target, then the source is
-# deleted. The target keeps its own settings, integrations and logo.
+# deleted. The target keeps its own settings, integrations, label printers
+# and logo.
 #
 #   result = OrganizationMerge.new(source: org_a, target: org_b).merge!
 #
@@ -11,6 +12,10 @@
 #   categories   same name (any case) as a target category: the target's is
 #                kept and the source's parts and sub-categories move under it;
 #                a code already used in the target is cleared
+#   parameters   same name (any case), type and unit: the target's is kept,
+#                with the source's part values and category templates (a part
+#                or category that has both keeps the target's); same name but
+#                another type or unit: moved and renamed ("Gain (2)")
 #   footprints   same name: the target's is kept
 #   tags         same name: the target's is kept
 #   suppliers    same catalog provider (Mouser, DigiKey) or same name (any
@@ -25,7 +30,8 @@
 #                suppliers and files of both; the target's details are kept
 #   IPNs         a moved part whose IPN is already taken gets a new one from the
 #                target's numbering (left blank in manual and box & bag modes)
-#   references   an order or project reference already used gets a suffix
+#   references   an order, project, stocktake or loan reference already used
+#                gets a suffix
 #   members      the source's members join the target with their role (owners
 #                as admins); members already there keep theirs
 #
@@ -51,11 +57,19 @@ class OrganizationMerge
       source.lock!
 
       category_ids = merge_categories
+      parameter_ids = merge_parameter_definitions
       footprint_ids = merge_by_name(Footprint)
       tag_ids = merge_by_name(Tag)
       supplier_ids = merge_suppliers
 
-      category_ids.each { |from, to| Part.where(category_id: from).update_all(category_id: to) }
+      parameter_ids.each do |from, to|
+        repoint_links(CategoryParameter, :parameter_definition_id, from, to, :category_id)
+        repoint_links(PartParameter, :parameter_definition_id, from, to, :part_id)
+      end
+      category_ids.each do |from, to|
+        Part.where(category_id: from).update_all(category_id: to)
+        repoint_links(CategoryParameter, :category_id, from, to, :parameter_definition_id)
+      end
       footprint_ids.each do |from, to|
         Part.where(footprint_id: from).update_all(footprint_id: to)
         move_attachments("Footprint", from, to, "image")
@@ -72,6 +86,8 @@ class OrganizationMerge
       StockMovement.where(organization_id: source.id).update_all(organization_id: target.id)
       move_with_references(Order)
       move_with_references(Project)
+      move_with_references(Stocktake)
+      move_with_references(Loan)
       members_added = add_members
 
       source.reload.destroy!
@@ -113,6 +129,34 @@ class OrganizationMerge
 
     merged.each do |from, to|
       Category.where(parent_id: from, organization_id: target.id).update_all(parent_id: to)
+    end
+    merged
+  end
+
+  # Moves the source parameters with no namesake in the target, renaming
+  # those whose namesake has another type or unit, and returns the others as
+  # source id => target id.
+  def merge_parameter_definitions
+    existing = target.parameter_definitions.pluck(:name, :id, :value_type, :unit)
+      .to_h { |name, id, type, unit| [ name.downcase, [ id, type, unit ] ] }
+    taken = existing.keys.to_set
+    merged = {}
+
+    source.parameter_definitions.order(:id).pluck(:id, :name, :value_type, :unit).each do |id, name, type, unit|
+      match_id, match_type, match_unit = existing[name.downcase]
+      if match_id && match_type == type && match_unit.to_s == unit.to_s
+        merged[id] = match_id
+        next
+      end
+
+      updates = { organization_id: target.id }
+      if taken.include?(name.downcase)
+        suffix = 2
+        suffix += 1 while taken.include?("#{name} (#{suffix})".downcase)
+        updates[:name] = "#{name} (#{suffix})"
+      end
+      taken << (updates[:name] || name).downcase
+      ParameterDefinition.where(id: id).update_all(updates)
     end
     merged
   end
@@ -260,29 +304,12 @@ class OrganizationMerge
   end
 
   # Gives +to+ everything hanging off +from+ (left empty, deleted with the
-  # source organization). Stock rows are moved together with the movements
-  # behind them, so each quantity still matches its ledger.
+  # source organization), the way merging duplicate parts does.
   def fold_part(from, to)
-    PartStorage.where(part_id: from).find_each do |storage|
-      existing = PartStorage.find_by(part_id: to, storage_location_id: storage.storage_location_id)
-      if existing
-        existing.update_columns(quantity: existing.quantity + storage.quantity)
-        storage.delete
-      else
-        storage.update_columns(part_id: to)
-      end
-    end
-
-    StockMovement.where(part_id: from).update_all(part_id: to)
-    OrderLine.where(part_id: from).update_all(part_id: to)
-    ProjectLine.where(part_id: from).update_all(part_id: to)
-    repoint_links(PartTag, :part_id, from, to, :tag_id)
-    PartSupplier.where(part_id: from).update_all(is_preferred: false) if PartSupplier.exists?(part_id: to, is_preferred: true)
-    repoint_links(PartSupplier, :part_id, from, to, :supplier_id)
-    move_attachments("Part", from, to, "images")
-    move_attachments("Part", from, to, "datasheet")
+    PartMerge.fold(from, to)
     Part.where(id: from).update_all(bag_id: nil, bag_assigned_at: nil)
   end
+
 
   # New IPNs from the target's numbering for the moved parts whose IPN was
   # taken. Manual and box & bag modes have nothing to draw from: those parts

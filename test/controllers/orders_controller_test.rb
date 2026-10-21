@@ -25,8 +25,11 @@ class OrdersControllerTest < ActionDispatch::IntegrationTest
 
   test "create builds a pending order with an auto-generated reference" do
     sign_in @user
-    assert_difference -> { Order.count } => 1 do
-      post orders_path, params: { order: { supplier_id: @supplier.id } }
+    # Midday UTC: the same date in the organization's time zone.
+    travel_to Time.utc(2026, 10, 8, 12, 0) do
+      assert_difference -> { Order.count } => 1 do
+        post orders_path, params: { order: { supplier_id: @supplier.id } }
+      end
     end
 
     order = Order.order(:created_at).last
@@ -34,7 +37,7 @@ class OrdersControllerTest < ActionDispatch::IntegrationTest
     assert_equal "pending", order.status
     assert_equal @supplier, order.supplier
     assert_match(/\APO-/, order.reference)
-    assert_equal Date.current, order.ordered_at
+    assert_equal Date.new(2026, 10, 8), order.ordered_at
   end
 
   test "create dates the order in the organization's time zone, not the server's" do

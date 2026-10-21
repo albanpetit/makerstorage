@@ -2,11 +2,13 @@ import { Link, router, useForm } from '@inertiajs/react'
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
 import {
   ArrowDown, ArrowUp, ArrowLeftRight, Cpu, MapPin,
-  Pencil, Trash2, ExternalLink, Loader2, CircleAlert,
+  Pencil, Printer, Trash2, ExternalLink, Loader2, CircleAlert, HandHelping,
 } from 'lucide-react'
 
 import { usePermissions } from '@/hooks/use-permissions'
 import { EditPartDialog } from '@/components/edit-part-dialog'
+import { PrintLabelsDialog } from '@/components/print-labels-dialog'
+import { labelForPart } from '@/lib/labels'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -55,6 +57,7 @@ interface PartSupplierEntry {
 interface PartDetail {
   id: number
   name: string
+  ipn: string | null
   mpn: string | null
   sku: string | null
   barcode: string | null
@@ -76,6 +79,8 @@ interface PartDetail {
   footprint: { id: number; name: string } | null
   tags: { id: number; name: string; color: string | null }[]
   part_suppliers: PartSupplierEntry[]
+  parameters: { id: number; name: string; value: string; display: string }[]
+  location_names: string[]
 }
 
 interface StorageEntry {
@@ -100,6 +105,15 @@ interface ReservationEntry {
   reference: string | null
   name: string
   quantity: number
+}
+
+interface LoanEntry {
+  loan_id: number
+  reference: string | null
+  borrower_name: string
+  quantity: number
+  due_on: string | null
+  overdue: boolean
 }
 
 interface Category {
@@ -132,6 +146,7 @@ interface PartShowPayload {
   storages: StorageEntry[]
   movements: MovementEntry[]
   reservations: ReservationEntry[]
+  loans: LoanEntry[]
   storage_locations: StorageLocationOption[]
   categories: Category[]
   footprints: Footprint[]
@@ -163,6 +178,11 @@ function partRef(part: PartDetail): string {
   return part.mpn || part.sku || part.name
 }
 
+// A calendar day ("2026-10-20"), read as local midnight so it doesn't shift.
+function formatDay(day: string) {
+  return new Date(`${day}T00:00:00`).toLocaleDateString(undefined, { day: '2-digit', month: '2-digit' })
+}
+
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString(intlLocale(), { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
@@ -188,6 +208,7 @@ export function PartDetailSheet({
   const [payload, setPayload] = useState<PartShowPayload | null>(null)
 
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const [labelOpen, setLabelOpen] = useState(false)
   const [mvtOpen, setMvtOpen] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
 
@@ -297,9 +318,12 @@ export function PartDetailSheet({
   if (part) {
     if (part.manufacturer) specs.push([t('Manufacturer'), part.manufacturer])
     if (part.value) specs.push([t('Value'), part.value])
-    if (part.tolerance) specs.push([t('Tolerance'), part.tolerance])
-    if (part.voltage_rating) specs.push([t('Voltage rating'), part.voltage_rating])
-    if (part.power_rating) specs.push([t('Power rating'), part.power_rating])
+    // Parameters, then the older fields a parameter doesn't already show.
+    part.parameters.forEach((parameter) => specs.push([parameter.name, parameter.display]))
+    const named = new Set(part.parameters.map((parameter) => parameter.name.toLowerCase()))
+    if (part.tolerance && !named.has('tolerance')) specs.push([t('Tolerance'), part.tolerance])
+    if (part.voltage_rating && !named.has('voltage rating')) specs.push([t('Voltage rating'), part.voltage_rating])
+    if (part.power_rating && !named.has('power rating')) specs.push([t('Power rating'), part.power_rating])
     if (part.package_type) specs.push([t('Package'), part.package_type])
     if (part.footprint) specs.push([t('Footprint'), part.footprint.name])
     if (part.barcode) specs.push([t('Barcode'), part.barcode])
@@ -437,6 +461,14 @@ export function PartDetailSheet({
                         <ArrowUp className="size-4" />
                         {t('Stock out')}
                       </Button>
+                      {part.total_quantity > 0 && (
+                        <Button variant="outline" className="flex-1" asChild>
+                          <Link href={`/loans?part_id=${part.id}`}>
+                            <HandHelping className="size-4" />
+                            {t('Lend')}
+                          </Link>
+                        </Button>
+                      )}
                     </div>
                   )}
                 </div>
@@ -458,6 +490,36 @@ export function PartDetailSheet({
                             {reservation.name}
                           </Link>
                           <span className="shrink-0 font-mono text-sm font-semibold">{reservation.quantity}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Loans */}
+                {payload.loans.length > 0 && (
+                  <div>
+                    <div className="mb-2 flex items-center justify-between">
+                      <h3 className="text-sm font-semibold">{t('On loan')}</h3>
+                      <span className="font-mono text-xs text-muted-foreground">
+                        {t('{count} out', { count: payload.loans.reduce((sum, l) => sum + l.quantity, 0) })}
+                      </span>
+                    </div>
+                    <div className="space-y-2.5 rounded-lg border p-3">
+                      {payload.loans.map((loan) => (
+                        <div key={loan.loan_id} className="flex items-center justify-between gap-2 text-sm">
+                          <Link href={`/loans/${loan.loan_id}`} className="min-w-0 truncate hover:underline">
+                            {loan.reference && <span className="mr-1.5 font-mono text-xs text-muted-foreground">{loan.reference}</span>}
+                            {loan.borrower_name}
+                          </Link>
+                          <span className="flex shrink-0 items-center gap-2">
+                            {loan.due_on && (
+                              <span className={`text-xs ${loan.overdue ? 'font-medium text-destructive' : 'text-muted-foreground'}`}>
+                                {loan.overdue ? 'overdue' : `due ${formatDay(loan.due_on)}`}
+                              </span>
+                            )}
+                            <span className="font-mono text-sm font-semibold">{loan.quantity}</span>
+                          </span>
                         </div>
                       ))}
                     </div>
@@ -574,6 +636,9 @@ export function PartDetailSheet({
                     <ArrowLeftRight className="size-4" />
                     {t('Stock in / out')}
                   </Button>
+                  <Button variant="outline" onClick={() => setLabelOpen(true)} aria-label={t('Print label')}>
+                    <Printer className="size-4" />
+                  </Button>
                   <Button variant="outline" onClick={() => setEditOpen(true)} aria-label={t('Edit part')}>
                     <Pencil className="size-4" />
                   </Button>
@@ -685,6 +750,16 @@ export function PartDetailSheet({
       </AlertDialog>
 
       {/* Edit Part modal — options come from the fetched detail payload. */}
+      {part && (
+        <PrintLabelsDialog
+          open={labelOpen}
+          onOpenChange={setLabelOpen}
+          count={1}
+          loadItems={() => Promise.resolve([labelForPart(part)])}
+          title={t('Print the label for {name}', { name: part.name })}
+        />
+      )}
+
       <EditPartDialog
         partId={editOpen ? partId : null}
         open={editOpen}

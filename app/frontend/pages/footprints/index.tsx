@@ -12,7 +12,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { Field, FieldContent, FieldError, FieldLabel } from '@/components/ui/field'
+import { Field, FieldContent, FieldDescription, FieldError, FieldLabel } from '@/components/ui/field'
 import {
   Table,
   TableBody,
@@ -61,6 +61,7 @@ interface Footprint {
   name: string
   description: string | null
   mounting_type: string | null
+  kicad_footprint: string | null
   parts_count: number
 }
 
@@ -74,11 +75,12 @@ interface FootprintFormData {
     name: string
     description: string
     mounting_type: string
+    kicad_footprint: string
   }
 }
 
 const EMPTY_FORM: FootprintFormData['footprint'] = {
-  name: '', description: '', mounting_type: '',
+  name: '', description: '', mounting_type: '', kicad_footprint: '',
 }
 
 export default function FootprintsIndex({ footprints, mounting_types }: FootprintsPageProps) {
@@ -125,6 +127,7 @@ export default function FootprintsIndex({ footprints, mounting_types }: Footprin
       name: footprint.name,
       description: footprint.description || '',
       mounting_type: footprint.mounting_type || '',
+      kicad_footprint: footprint.kicad_footprint || '',
     })
     setEditId(footprint.id)
   }
@@ -272,6 +275,7 @@ export default function FootprintsIndex({ footprints, mounting_types }: Footprin
               name: newForm.errors['footprint.name'],
               mounting_type: newForm.errors['footprint.mounting_type'],
               description: newForm.errors['footprint.description'],
+              kicad_footprint: newForm.errors['footprint.kicad_footprint'],
             }}
             mountingTypes={mounting_types}
             onChange={(patch) => newForm.setData('footprint', { ...newForm.data.footprint, ...patch })}
@@ -295,6 +299,7 @@ export default function FootprintsIndex({ footprints, mounting_types }: Footprin
               name: editForm.errors['footprint.name'],
               mounting_type: editForm.errors['footprint.mounting_type'],
               description: editForm.errors['footprint.description'],
+              kicad_footprint: editForm.errors['footprint.kicad_footprint'],
             }}
             mountingTypes={mounting_types}
             onChange={(patch) => editForm.setData('footprint', { ...editForm.data.footprint, ...patch })}
@@ -340,6 +345,7 @@ interface FootprintFormProps {
     name?: string | string[]
     mounting_type?: string | string[]
     description?: string | string[]
+    kicad_footprint?: string | string[]
   }
   mountingTypes: string[]
   onChange: (patch: Partial<FootprintFormData['footprint']>) => void
@@ -401,6 +407,21 @@ function FootprintForm({
           />
         </FieldContent>
         {errors.description && <FieldError>{errors.description}</FieldError>}
+      </Field>
+      <Field>
+        <FieldLabel>
+          <Label>{t('KiCad footprint')}</Label>
+        </FieldLabel>
+        <FieldContent>
+          <Input
+            className="font-mono"
+            placeholder={t('e.g. Resistor_SMD:R_0805_2012Metric')}
+            value={data.kicad_footprint}
+            onChange={(e) => onChange({ kicad_footprint: e.target.value })}
+          />
+        </FieldContent>
+        <FieldDescription>{t('Library:Footprint, given to parts placed from the KiCad library.')}</FieldDescription>
+        {errors.kicad_footprint && <FieldError>{errors.kicad_footprint}</FieldError>}
       </Field>
       <DialogFooter>
         <Button type="button" variant="outline" onClick={onCancel}>{t('Cancel')}</Button>

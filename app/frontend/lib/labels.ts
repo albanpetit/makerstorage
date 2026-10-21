@@ -5,6 +5,7 @@
 // the in-app scanner / hardware scanners resolve the same link (ScansController
 // keeps only its `code`, whatever host printed it).
 
+import { locationLabel } from '@/components/parts/part-meta'
 import { html, printDocument } from '@/lib/print-document'
 import { t } from '@/lib/i18n'
 
@@ -32,8 +33,11 @@ export const LABEL_FORMATS = {
     sheet: { cols: 3, rows: 8, pageWidth: 210, pageHeight: 297 },
   },
   'brother-62x29': { name: 'Brother DK-11209 · 62 × 29 mm', width: 62, height: 29 },
+  'brother-90x29': { name: 'Brother DK-11201 · 90 × 29 mm', width: 90, height: 29 },
   'dymo-54x25': { name: 'Dymo 11352 · 54 × 25 mm', width: 54, height: 25 },
+  'dymo-57x32': { name: 'Dymo 30334 · 57 × 32 mm', width: 57, height: 32 },
   'dymo-89x36': { name: 'Dymo 99012 · 89 × 36 mm', width: 89, height: 36 },
+  'thermal-51x25': { name: 'Zebra / thermal 2 × 1 in · 51 × 25 mm', width: 51, height: 25 },
 } satisfies Record<string, LabelFormat>
 
 export type LabelFormatId = keyof typeof LABEL_FORMATS
@@ -51,6 +55,29 @@ export function labelCodeForPart(part: { id: number; ipn: string | null; barcode
   return part.ipn || part.barcode || part.sku || `part:${part.id}`
 }
 
+// The label of a part: its IPN (else MPN, SKU or name) as the title, then its
+// name, MPN and location when they add something.
+export function labelForPart(part: {
+  id: number
+  name: string
+  ipn: string | null
+  mpn: string | null
+  sku: string | null
+  barcode: string | null
+  location_names: string[]
+}): LabelItem {
+  const title = part.ipn || part.mpn || part.sku || part.name
+  return {
+    code: labelCodeForPart(part),
+    title,
+    lines: [
+      part.name !== title ? part.name : '',
+      part.mpn && part.mpn !== title ? part.mpn : '',
+      locationLabel(part.location_names),
+    ],
+  }
+}
+
 export function labelCodeForZone(zone: { id: number; code: string | null }): string {
   return zone.code || `zone:${zone.id}`
 }
@@ -59,15 +86,23 @@ export function scanUrl(code: string): string {
   return `${window.location.origin}/scan?code=${encodeURIComponent(code)}`
 }
 
-type ZxingLibrary = typeof import('@zxing/library')
+export type ZxingLibrary = typeof import('@zxing/library')
 
-// The QR symbol as an SVG path of dark modules, one unit per module, with a
-// four-module quiet zone, the minimum the QR spec (and ZXing) expects.
-function qrSvg(zxing: ZxingLibrary, text: string, sizeMm: number) {
+// Quiet zone around a QR symbol, in modules: the minimum the QR spec (and
+// ZXing) expects.
+export const QR_QUIET_MODULES = 4
+
+export function qrMatrix(zxing: ZxingLibrary, text: string) {
   const { QRCodeEncoder, QRCodeDecoderErrorCorrectionLevel } = zxing
-  const matrix = QRCodeEncoder.encode(text, QRCodeDecoderErrorCorrectionLevel.M).getMatrix()
+  return QRCodeEncoder.encode(text, QRCodeDecoderErrorCorrectionLevel.M).getMatrix()
+}
+
+// The QR symbol as an SVG path of dark modules, one unit per module, with the
+// quiet zone around it.
+function qrSvg(zxing: ZxingLibrary, text: string, sizeMm: number) {
+  const matrix = qrMatrix(zxing, text)
   const modules = matrix.getWidth()
-  const quiet = 4
+  const quiet = QR_QUIET_MODULES
   let path = ''
   for (let y = 0; y < modules; y++) {
     for (let x = 0; x < modules; x++) {

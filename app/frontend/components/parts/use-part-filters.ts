@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { router } from '@inertiajs/react'
 
-import type { PartListFacets, PartListFilters } from './types'
+import type { ParameterFilter, PartListFacets, PartListFilters } from './types'
 import { t } from '@/lib/i18n'
 
 type FacetKey = 'status' | 'package' | 'footprint' | 'supplier'
@@ -16,9 +16,31 @@ function toParams(filters: PartListFilters, page: number) {
     ...(filters.package.length ? { package: filters.package } : {}),
     ...(filters.footprint.length ? { footprint: filters.footprint } : {}),
     ...(filters.supplier.length ? { supplier: filters.supplier } : {}),
+    ...(filters.parameters.length ? { param: parameterParams(filters.parameters) } : {}),
     ...(filters.sort !== 'ref' ? { sort: filters.sort } : {}),
     ...(page > 1 ? { page } : {}),
   }
+}
+
+// `param[<id>][min|max]` / `param[<id>][values][]`, as PartsIndexQuery reads them.
+function parameterParams(filters: ParameterFilter[]) {
+  return Object.fromEntries(
+    filters.map((filter) => [
+      filter.id,
+      filter.value_type === 'text'
+        ? { values: filter.values }
+        : { ...(filter.min ? { min: filter.min } : {}), ...(filter.max ? { max: filter.max } : {}) },
+    ]),
+  )
+}
+
+// What a filter pill says: "Resistance: 1 kΩ – 47 kΩ", "Power rating ≥ 250 mW".
+function parameterLabel(filter: ParameterFilter) {
+  if (filter.value_type === 'text') return `${filter.name}: ${filter.values.join(', ')}`
+  const min = filter.min_display ?? filter.min
+  const max = filter.max_display ?? filter.max
+  const range = min && max ? `: ${min} – ${max}` : min ? ` ≥ ${min}` : ` ≤ ${max}`
+  return `${filter.name}${range}${filter.invalid ? ' (not understood)' : ''}`
 }
 
 // The inventory list's search, category, facet and sort state. Filtering runs
@@ -51,6 +73,12 @@ export function usePartFilters(filters: PartListFilters, facets: PartListFacets)
     visit({ [key]: list.includes(value) ? list.filter((v) => v !== value) : [ ...list, value ] })
   }
 
+  // Replaces (or with null removes) the filter on one parameter.
+  const setParameterFilter = (id: number, filter: ParameterFilter | null) => {
+    const others = filters.parameters.filter((existing) => existing.id !== id)
+    visit({ parameters: filter ? [ ...others, filter ] : others })
+  }
+
   const setCategory = (category: number | null) => visit({ category })
   const setSort = (sort: PartListFilters['sort']) => visit({ sort })
   const goToPage = (page: number) => visit({}, page)
@@ -64,7 +92,7 @@ export function usePartFilters(filters: PartListFilters, facets: PartListFacets)
   const clearAllFilters = () => {
     setQuery('')
     queryRef.current = ''
-    visit({ search: '', category: null, status: [], package: [], footprint: [], supplier: [] })
+    visit({ search: '', category: null, status: [], package: [], footprint: [], supplier: [], parameters: [] })
   }
 
   const facetLabel = (key: FacetKey, value: string) =>
@@ -79,9 +107,11 @@ export function usePartFilters(filters: PartListFilters, facets: PartListFacets)
     activePills.push({ key: 'q', label: t('Search: “{query}”', { query: filters.search }), remove: clearSearch })
   }
   filters.status.forEach((v) => activePills.push({ key: `status-${v}`, label: facetLabel('status', v), remove: () => toggleFacet('status', v) }))
-  filters.package.forEach((v) => activePills.push({ key: `pkg-${v}`, label: `Package: ${v}`, remove: () => toggleFacet('package', v) }))
-  filters.footprint.forEach((v) => activePills.push({ key: `fp-${v}`, label: `Footprint: ${v}`, remove: () => toggleFacet('footprint', v) }))
+  filters.package.forEach((v) => activePills.push({ key: `pkg-${v}`, label: t('Package: {name}', { name: v }), remove: () => toggleFacet('package', v) }))
+  filters.footprint.forEach((v) => activePills.push({ key: `fp-${v}`, label: t('Footprint: {name}', { name: v }), remove: () => toggleFacet('footprint', v) }))
   filters.supplier.forEach((v) => activePills.push({ key: `sup-${v}`, label: v, remove: () => toggleFacet('supplier', v) }))
+  filters.parameters.forEach((filter) =>
+    activePills.push({ key: `param-${filter.id}`, label: parameterLabel(filter), remove: () => setParameterFilter(filter.id, null) }))
 
   return {
     filters,
@@ -91,6 +121,7 @@ export function usePartFilters(filters: PartListFilters, facets: PartListFacets)
     setCategory,
     setSort,
     toggleFacet,
+    setParameterFilter,
     goToPage,
     activePills,
     clearAllFilters,

@@ -1,12 +1,13 @@
-import { Head } from '@inertiajs/react'
+import { Head, Link } from '@inertiajs/react'
 import { useMemo, useRef, useState } from 'react'
-import { Plus, Search, Download, Upload } from 'lucide-react'
+import { Plus, Search, Download, Upload, Copy } from 'lucide-react'
 
 import { AppLayout } from '@/layouts/app-layout'
 import { SidebarTrigger } from '@/components/ui/sidebar'
 import { usePermissions } from '@/hooks/use-permissions'
 import { ReadOnlyBadge } from '@/components/read-only-badge'
 import { FlashMessages } from '@/components/flash-messages'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { AddPartDialog } from '@/components/add-part-dialog'
@@ -23,8 +24,9 @@ import { usePartFilters } from '@/components/parts/use-part-filters'
 import { t, tn } from '@/lib/i18n'
 
 export default function PartsIndex({
-  parts, filters: listFilters, pagination, facets, total_count, total_units, matching_ids, part_identifiers,
-  categories, footprints, suppliers, tags, storage_locations, supplier_lookup_enabled, ipn_manual_entry, bag_options, bag_boxes, open_add,
+  parts, filters: listFilters, pagination, facets, parameter_columns, total_count, total_units, matching_ids, part_identifiers,
+  categories, footprints, suppliers, tags, storage_locations, supplier_lookup_enabled, ipn_manual_entry, bag_options, bag_boxes, open_add, add_prefill,
+  duplicate_groups_count,
 }: PartsIndexProps) {
   const { canWrite } = usePermissions()
   const filters = usePartFilters(listFilters, facets)
@@ -91,6 +93,15 @@ export default function PartsIndex({
             />
           </div>
           <ReadOnlyBadge />
+          {duplicate_groups_count > 0 && (
+            <Button variant="outline" size="sm" asChild>
+              <Link href="/parts/duplicates">
+                <Copy className="size-4" />
+                {t('Duplicates')}
+                <Badge variant="secondary" className="ml-0.5 px-1.5">{duplicate_groups_count}</Badge>
+              </Link>
+            </Button>
+          )}
           {canWrite && (
             <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
               <Upload className="size-4" />
@@ -137,6 +148,7 @@ export default function PartsIndex({
           onAddPart={openAddDialog}
           onShowPart={setDetailPartId}
           onEditPart={setEditPartId}
+          parameterColumns={parameter_columns}
         />
       </div>
 
@@ -153,6 +165,7 @@ export default function PartsIndex({
         ipnManualEntry={ipn_manual_entry}
         bagOptions={bag_options}
         bagBoxes={bag_boxes}
+        prefill={add_prefill}
       />
 
       {/* Edit Part modal */}

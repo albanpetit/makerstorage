@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
 import { Field, FieldContent, FieldError, FieldLabel } from '@/components/ui/field'
 
 import type { IntegrationsForm, OrganizationSettings } from './types'
@@ -16,7 +17,8 @@ interface IntegrationsSectionProps {
   organization: OrganizationSettings
 }
 
-// Mouser and DigiKey credentials (write-only) and the DigiKey account link.
+// Mouser, DigiKey and GitHub credentials (write-only), the DigiKey account
+// link, and the LCSC switch (no key: LCSC's catalog is queried without an account).
 export function IntegrationsSection({ form, organization }: IntegrationsSectionProps) {
   const origin = typeof window !== 'undefined' ? window.location.origin : ''
 
@@ -28,6 +30,8 @@ export function IntegrationsSection({ form, organization }: IntegrationsSectionP
     digikey_client_id: '',
     digikey_client_secret: '',
     remove_digikey: false,
+    github_token: '',
+    remove_github_token: false,
   })
 
   const submitIntegrations = (e: FormEvent) => {
@@ -40,7 +44,7 @@ export function IntegrationsSection({ form, organization }: IntegrationsSectionP
 
   // Stage a one-off removal flag for a single provider, submit, then clear the
   // form back to its neutral (write-only) state regardless of outcome.
-  const removeProvider = (flag: 'remove_mouser_api_key' | 'remove_mouser_order_api_key' | 'remove_digikey') => {
+  const removeProvider = (flag: 'remove_mouser_api_key' | 'remove_mouser_order_api_key' | 'remove_digikey' | 'remove_github_token') => {
     form.transform((data) => ({
       organization: { ...data.organization, [flag]: true },
     }))
@@ -53,12 +57,18 @@ export function IntegrationsSection({ form, organization }: IntegrationsSectionP
     })
   }
 
+  // LCSC has nothing to type in, so its switch saves straight away (outside the
+  // credentials form, whose fields it would otherwise reset).
+  const toggleLcsc = (enabled: boolean) => {
+    router.patch('/settings', { organization: { lcsc_enabled: enabled } }, { preserveScroll: true })
+  }
+
   return (
     <form onSubmit={submitIntegrations} className="space-y-4">
       <div>
         <h2 className="text-lg font-semibold">{t('Integrations')}</h2>
         <p className="max-w-xl text-sm text-muted-foreground">
-          {t('Connect external supplier catalogs to look up component data by part number.')}
+          {t('Connect external supplier catalogs to look up component data by part number, and GitHub to fetch projects\' KiCad files.')}
         </p>
       </div>
 
@@ -284,6 +294,92 @@ export function IntegrationsSection({ form, organization }: IntegrationsSectionP
               !form.data.organization.digikey_client_secret.trim()
             }
           >
+            {t('Save')}
+          </Button>
+        </CardFooter>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>LCSC Electronics</CardTitle>
+          <CardDescription>
+            {t('Fetch a component\'s details, datasheet and image from LCSC by part number or LCSC code (e.g. C2040) when adding a part. No account or key needed.')}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <div className="text-sm font-medium">{t('Search LCSC')}</div>
+              <div className="text-xs text-muted-foreground">
+                {t('Turning it on sets up an “LCSC” supplier (if it doesn’t exist yet) so looked-up part numbers link to it.')}
+              </div>
+            </div>
+            <Switch
+              aria-label={t('Search LCSC')}
+              checked={organization.lcsc_enabled}
+              onCheckedChange={toggleLcsc}
+            />
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {t('LCSC only offers its official API to approved partners, so this uses the search behind lcsc.com, which LCSC may change or block at any time. Prices are in US dollars: they only fill a part\'s unit price when your organization\'s currency is USD.')}
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>GitHub</CardTitle>
+          <CardDescription>
+            {tx('Projects can be linked to a GitHub repository to fetch their KiCad files and BOM. Public repositories work without a token. For private ones (or to lift GitHub\'s limit of 60 requests an hour), create a {link} with read-only access to the repositories\' contents.', {
+              link: (
+                <a
+                  href="https://github.com/settings/personal-access-tokens/new"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium text-primary underline underline-offset-2"
+                >
+                  {t('fine-grained personal access token')}
+                </a>
+              ),
+            })}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {organization.github_token_present && (
+            <div className="flex items-center gap-2 rounded-md border border-green-600/30 bg-green-600/10 px-3 py-2 text-sm text-green-700 dark:text-green-400">
+              <CircleCheck className="size-4 shrink-0" />
+              {t('A token is configured. Enter a new token below to replace it.')}
+            </div>
+          )}
+          <Field>
+            <FieldLabel><Label>{t('Personal access token')}</Label></FieldLabel>
+            <FieldContent>
+              <Input
+                type="password"
+                autoComplete="off"
+                placeholder={organization.github_token_present ? '••••••••••••••••' : 'github_pat_…'}
+                value={form.data.organization.github_token}
+                onChange={(e) => form.setData('organization', {
+                  ...form.data.organization,
+                  github_token: e.target.value,
+                })}
+              />
+            </FieldContent>
+            {form.errors['organization.github_token'] && (
+              <FieldError>{form.errors['organization.github_token']}</FieldError>
+            )}
+          </Field>
+          <p className="text-xs text-muted-foreground">
+            {t('The token is shared by every project of this organization and only ever sent to api.github.com.')}
+          </p>
+        </CardContent>
+        <CardFooter className="justify-end gap-2 border-t">
+          {organization.github_token_present && (
+            <Button type="button" variant="outline" onClick={() => removeProvider('remove_github_token')} disabled={form.processing}>
+              {t('Remove token')}
+            </Button>
+          )}
+          <Button type="submit" disabled={form.processing || !form.data.organization.github_token.trim()}>
             {t('Save')}
           </Button>
         </CardFooter>

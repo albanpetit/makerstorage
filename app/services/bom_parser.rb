@@ -124,6 +124,17 @@ module BomParser
     lines
   end
 
+  # Identifies the component a BOM line (a parsed hash or a ProjectLine)
+  # describes, so a re-import can recognise it: value, footprint and part
+  # number, or the designation when there is neither.
+  def line_key(line)
+    line = { value: line.value, footprint: line.footprint, mpn: line.raw_reference, designation: line.designation } if line.is_a?(ProjectLine)
+    reference = line[:mpn].presence || line[:sku]
+    key = [ line[:value], line[:footprint], reference ]
+    key = [ nil, nil, nil, line[:designation] ] if key.all?(&:blank?)
+    key.map { |part| part.to_s.strip.downcase }
+  end
+
   # Resolves one parsed BOM line; see BomParser::Matcher (build one per import
   # to resolve many lines).
   def match(organization, line)

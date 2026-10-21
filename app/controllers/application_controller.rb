@@ -24,6 +24,7 @@ class ApplicationController < ActionController::Base
         # the number of organizations.
         organizations: current_user.organizations.with_attached_logo.order(:name).map { |org| serialize_organization(org) },
         alerts_count: current_organization&.low_stock_parts_count || 0,
+        overdue_loans_count: current_organization ? current_organization.loans.overdue_on(current_organization.local_date).count : 0,
         is_organization_admin: current_organization ? current_user.admin_of?(current_organization) : false,
         is_organization_writer: current_organization ? current_user.writer_of?(current_organization) : false,
         organization_role: current_organization ? current_user.role_in(current_organization) : nil,
@@ -101,6 +102,17 @@ class ApplicationController < ActionController::Base
       name: org.name,
       logo_url: org.logo.attached? ? stored_file_path_for(org.logo) : nil
     }
+  end
+
+  # The email digest links to alerts and loans with their organization, so a
+  # member of several lands on what they were mailed about. Ignored for an
+  # organization the user doesn't belong to.
+  def switch_to_linked_organization
+    organization = current_user.organizations.find_by(id: params[:organization_id]) if params[:organization_id].present?
+    return unless organization
+
+    session[:current_organization_id] = organization.id
+    @current_organization = organization
   end
 
   # Verify user has access to current organization

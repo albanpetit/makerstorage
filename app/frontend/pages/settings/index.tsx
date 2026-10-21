@@ -1,6 +1,6 @@
 import { Head, useForm } from '@inertiajs/react'
 import { useMemo, useState } from 'react'
-import { Bell, Building2, DatabaseBackup, Hash, Package, ShieldAlert, Plug } from 'lucide-react'
+import { Bell, Building2, CircuitBoard, DatabaseBackup, Hash, Package, Printer, ShieldAlert, Plug } from 'lucide-react'
 
 import { AppLayout } from '@/layouts/app-layout'
 import { PageHeader } from '@/components/page-header'
@@ -12,8 +12,10 @@ import { DangerSection } from '@/components/settings/danger-section'
 import { GeneralSection } from '@/components/settings/general-section'
 import { IntegrationsSection } from '@/components/settings/integrations-section'
 import { InventorySection } from '@/components/settings/inventory-section'
+import { KicadSection } from '@/components/settings/kicad-section'
 import { IpnSection } from '@/components/settings/ipn-section'
 import { NotificationsSection } from '@/components/settings/notifications-section'
+import { PrintersSection } from '@/components/settings/printers-section'
 import type {
   GeneralFormData, IntegrationsFormData, InventoryFormData, IpnFormData, NotificationsFormData, SettingsPageProps,
 } from '@/components/settings/types'
@@ -25,17 +27,26 @@ const SECTIONS = [
   { key: 'inventory', get label() { return t('Inventory') }, icon: Package },
   { key: 'notifications', get label() { return t('Notifications') }, icon: Bell },
   { key: 'integrations', get label() { return t('Integrations') }, icon: Plug },
+  { key: 'kicad', get label() { return t('KiCad library') }, icon: CircuitBoard },
+  { key: 'printers', get label() { return t('Label printers') }, icon: Printer },
   { key: 'backup', get label() { return t('Backup') }, icon: DatabaseBackup },
   { key: 'danger', get label() { return t('Danger zone') }, icon: ShieldAlert },
 ] as const
 
 type SectionKey = (typeof SECTIONS)[number]['key']
 
+// ?section=printers opens that section (e.g. after adding a printer).
+function initialSection(): SectionKey {
+  const requested = new URLSearchParams(window.location.search).get('section')
+  return SECTIONS.find((s) => s.key === requested)?.key ?? 'general'
+}
+
 export default function SettingsIndex({
-  organization, merge_targets, currencies, ipn_separators, timezones, email_notifications_available,
+  organization, merge_targets, currencies, ipn_separators, timezones, email_notifications_available, kicad,
+  label_printers, label_printer_media, network_printing_enabled,
 }: SettingsPageProps) {
   const { isOwner } = usePermissions()
-  const [section, setSection] = useState<SectionKey>('general')
+  const [section, setSection] = useState<SectionKey>(initialSection)
 
   const sections = useMemo(() => SECTIONS.filter((s) => s.key !== 'danger' || isOwner), [isOwner])
 
@@ -74,6 +85,7 @@ export default function SettingsIndex({
       default_low_stock_threshold: organization.default_low_stock_threshold,
       allow_negative_stock: organization.allow_negative_stock,
       stock_reservations_enabled: organization.stock_reservations_enabled,
+      default_loan_days: organization.default_loan_days,
     },
   })
 
@@ -81,6 +93,7 @@ export default function SettingsIndex({
     organization: {
       notify_low_stock: organization.notify_low_stock,
       notify_late_orders: organization.notify_late_orders,
+      notify_overdue_loans: organization.notify_overdue_loans,
       notification_frequency: organization.notification_frequency,
     },
   })
@@ -94,6 +107,8 @@ export default function SettingsIndex({
       digikey_client_id: '',
       digikey_client_secret: '',
       remove_digikey: false,
+      github_token: '',
+      remove_github_token: false,
     },
   })
 
@@ -146,6 +161,11 @@ export default function SettingsIndex({
             )}
 
             {section === 'integrations' && <IntegrationsSection form={integrationsForm} organization={organization} />}
+
+            {section === 'kicad' && <KicadSection kicad={kicad} />}
+            {section === 'printers' && (
+              <PrintersSection printers={label_printers} media={label_printer_media} enabled={network_printing_enabled} />
+            )}
 
             {section === 'backup' && <BackupSection organization={organization} />}
 

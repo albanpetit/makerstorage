@@ -5,6 +5,7 @@ require "csv"
 class StockMovementsController < ApplicationController
   include Auth
   include OptionListSerializers
+  include CsvText
 
   before_action :verify_organization_access
   before_action :verify_organization_writer, only: %i[create]
@@ -87,12 +88,6 @@ class StockMovementsController < ApplicationController
 
   def movement_params
     params.require(:stock_movement).permit(:part_id, :storage_location_id, :movement_type, :reason)
-  end
-
-  # User-entered text starting with = + - @ (or a tab/CR) is run as a formula
-  # when the export is opened in a spreadsheet; a leading quote neutralizes it.
-  def csv_text(value)
-    value.to_s.match?(/\A[=+\-@\t\r]/) ? "'#{value}" : value
   end
 
   def filter_type

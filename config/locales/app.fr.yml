@@ -4,6 +4,8 @@ fr:
   activerecord:
     errors:
       messages:
+        already_counted: 'est déjà en cours de comptage dans %{stocktake} : terminez-le ou abandonnez-le d’abord'
+        another_part: doit être un autre composant
         attachment_size: doit faire moins de %{size}
         attachment_type: doit être un fichier %{types}
         bag_codes_taken: 'donnerait aux sachets des codes déjà utilisés : %{codes}'
@@ -16,21 +18,37 @@ fr:
         box_code_needed: doit être rempli tant que la boîte contient des sachets
         descendant_parent: ne peut pas être une sous-catégorie de cette catégorie
         image_host: doit être une image https d'un catalogue fournisseur (%{hosts})
+        more_than_lent: Impossible de rendre ou de passer en perte plus que ce qui a été prêté
         needs_active_owner: L'organisation doit avoir au moins un propriétaire actif
         needs_owner: L'organisation doit avoir au moins un propriétaire
         negative_for_outgoing: doit être négative pour une sortie
         negative_stock: rendrait le stock négatif à cet emplacement
+        no_loan_lines: Ajoutez au moins un article à prêter
+        not_a_number_value: « %{value} » n’est pas un nombre
+        not_a_value_in_unit: « %{value} » n’est pas une valeur en %{unit}
+        not_in_stocktake: ne fait pas partie de ce comptage
         not_users_organization: doit être l'une des organisations de l'utilisateur
+        or_designation_required: ou une désignation est obligatoire
         order_status_final: ne peut plus changer une fois la commande %{status}
+        organization_member: doit être membre de cette organisation
         own_parent: ne peut pas être elle-même
         positive_for_incoming: doit être positive pour une entrée
+        printer_port: doit être un port d’imprimante (9100–9109 ou 6101)
         received_only_by_marking: ne peut devenir « reçue » qu'en marquant la commande comme reçue
         redirect_uris_insecure: doit contenir des URI https, ou http sur localhost
         redirect_uris_missing: doit contenir au moins une URI
         redirect_uris_too_many: peut contenir au plus %{count} URI
         same_organization: doit appartenir à la même organisation
+        same_organization_as_category: doit appartenir à la même organisation que la catégorie
         same_organization_as_part: doit appartenir à la même organisation que le composant
+        too_many_files: ne peuvent pas dépasser %{count} fichiers
         under_own_subzone: ne peut pas être déplacée sous l'une de ses propres sous-zones
+        values_not_in_unit:
+          one: '%{count} valeur de %{name} n’est pas un nombre en %{unit} (%{examples}).'
+          other: '%{count} valeurs de %{name} ne sont pas des nombres en %{unit} (%{examples}).'
+        values_not_numbers:
+          one: '%{count} valeur de %{name} n’est pas un nombre (%{examples}).'
+          other: '%{count} valeurs de %{name} ne sont pas des nombres (%{examples}).'
   attributes:
     bag: Sachet
     barcode: Code-barres
@@ -123,6 +141,55 @@ fr:
       order_api_unreadable: L'API DigiKey Order a renvoyé une réponse illisible
       token_unreadable: DigiKey a renvoyé un jeton illisible
       unreachable: 'Impossible de joindre DigiKey : %{error}'
+    github:
+      file_too_large: '%{name} est trop volumineux pour être conservé.'
+      files_too_large: Les fichiers KiCad de %{location} sont trop volumineux pour être conservés (plus de %{size} compressés).
+      forbidden: GitHub a refusé l’accès à %{repository}.
+      forbidden_with_token: 'GitHub a refusé l’accès à %{repository} : vérifiez que le jeton peut lire son contenu.'
+      no_kicad_files: Aucun fichier KiCad dans %{location}.
+      not_found: Impossible de trouver %{repository} sur GitHub%{hint}.
+      not_linked: Ce projet n’est pas lié à un dépôt GitHub.
+      private_hint: (un dépôt privé nécessite un jeton GitHub dans Réglages → Intégrations)
+      rate_limited: La limite de requêtes GitHub est atteinte. Réessayez plus tard.
+      rate_limited_without_token: 'La limite de requêtes GitHub est atteinte (60 requêtes par heure sans jeton : ajoutez-en un dans Réglages → Intégrations). Réessayez plus tard.'
+      ref_not_found: Impossible de trouver %{repository} à « %{ref} » sur GitHub. Vérifiez le dépôt et la branche, le tag ou le commit%{hint}.
+      status: GitHub a renvoyé %{code} pour %{repository}.
+      token_rejected: GitHub a refusé le jeton. Vérifiez-le dans Réglages → Intégrations.
+      too_large: '%{repository} est trop volumineux pour être téléchargé (plus de %{size}).'
+      too_many_files: '%{repository} contient trop de fichiers à lire.'
+      too_many_kicad_files: '%{location} contient plus de %{count} fichiers KiCad.'
+      unexpected_answer: GitHub a renvoyé une réponse inattendue pour %{repository}.
+      unexpected_redirect: GitHub a redirigé le téléchargement vers une adresse inattendue.
+      unreachable: 'Impossible de joindre GitHub : %{error}'
+      unreadable_archive: Impossible de lire l’archive envoyée par GitHub pour %{repository}.
+    kicad_files:
+      not_a_schematic: '%{name} n’est pas un schéma KiCad que cette version sait lire (KiCad 6 ou plus récent).'
+      not_a_zip: Impossible d’ouvrir %{name} comme archive ZIP.
+      not_kicad: '%{name} n’est pas un fichier KiCad : joignez des fichiers .kicad_pro, .kicad_sch, .kicad_pcb… ou un ZIP du projet.'
+      too_large: '%{name} est trop volumineux (la limite est de %{size}).'
+      too_large_for_bom: '%{name} est trop volumineux pour en lire la nomenclature.'
+      too_many: 'Un projet contient au plus %{count} fichiers : compressez plutôt le dossier du projet en ZIP.'
+      zip_too_many: '%{name} contient trop de fichiers.'
+    label_printing:
+      bad_port: Le port %{port} n’est pas un port d’imprimante (%{first}–%{last} ou %{other}).
+      disabled: L’impression réseau est désactivée sur ce serveur.
+      host_not_found: '%{host} est introuvable sur le réseau.'
+      not_local: '%{host} n’est pas une adresse du réseau local (10.x, 172.16–31.x, 192.168.x).'
+      unreachable: Impossible de joindre l’imprimante à %{host}:%{port} (%{error}).
+    lcsc:
+      failed: 'La recherche LCSC a échoué : %{error}'
+      refused: LCSC a refusé la recherche (HTTP %{code}). LCSC n’a pas d’API publique, son catalogue peut donc bloquer ou modifier ces requêtes.
+      unreachable: 'Impossible de joindre LCSC : %{error}'
+      unreadable: LCSC a renvoyé une réponse illisible.
+      unreadable_changed: LCSC a renvoyé une réponse illisible. Son catalogue a peut-être changé ; LCSC n’a pas d’API publique.
+    loans:
+      closed: Ce prêt est déjà clôturé.
+      enter_quantity: Saisissez une quantité à régler.
+      not_on_loan: Cet article ne fait pas partie de ce prêt.
+      only_outstanding: Seulement %{count} de %{reference} encore dehors.
+      pick_return_zone: Choisissez une zone de stockage où remettre %{reference}.
+      positive: Les quantités doivent être positives.
+      zone_other_organization: Cette zone de stockage n’appartient pas à cette organisation.
     mouser:
       api_key_rejected: Mouser a refusé la clé d'API. Vérifiez-la dans Réglages → Intégrations (ce doit être une clé Search API).
       api_status: L'API Mouser a répondu %{code}
@@ -136,6 +203,14 @@ fr:
       into_itself: Une organisation ne peut pas être fusionnée avec elle-même.
       personal: Une organisation personnelle ne peut pas être fusionnée dans une autre.
       source_not_deleted: '%{name} n''a pas pu être supprimée une fois ses données déplacées.'
+    part_merge:
+      failed: 'Les composants n’ont pas pu être fusionnés : %{error}'
+      other_organization: Les composants d’une autre organisation ne peuvent pas être fusionnés.
+      pick_one: Choisissez au moins un autre composant à fusionner.
+      units: Des composants comptés dans des unités différentes (%{units}) ne peuvent pas être fusionnés.
+    stocktakes:
+      already_completed: Ce comptage est déjà terminé.
+      another: un autre comptage
     supplier_catalog:
       not_configured: Aucun catalogue fournisseur n'est configuré pour cette organisation
   flash:
@@ -187,6 +262,21 @@ fr:
       confirm_your_email_address_to_answer: Confirmez votre adresse e-mail pour répondre aux invitations.
       invitation_to_declined: Invitation à %{organization_name} refusée.
       you_joined: Vous avez rejoint %{organization_name}.
+    label_printers:
+      add_failed: Échec de l’ajout de l’imprimante.
+      added: Imprimante « %{name} » ajoutée.
+      removed: Imprimante « %{name} » retirée.
+      update_failed: Échec de la mise à jour de l’imprimante.
+      updated: Imprimante mise à jour.
+    loans:
+      check_items: vérifiez les articles et les quantités.
+      closed: 'Tout est revenu : prêt clôturé.'
+      item: Article
+      not_enough_stock: '%{reference} : stock insuffisant dans %{zone}'
+      not_recorded: 'Le prêt n’a pas été enregistré : %{errors}'
+      recorded: 'Prêt %{reference} enregistré : articles sortis du stock.'
+      return_recorded: Retour enregistré.
+      updated: Prêt mis à jour.
     members:
       choose_a_valid_role: Choisissez un rôle valide.
       failed_to_add_member: Impossible d'ajouter le membre.
@@ -282,6 +372,43 @@ fr:
       you_can_t_delete_your_only: Vous ne pouvez pas supprimer votre seule organisation.
       you_must_be_an_owner_of: Vous devez être propriétaire de « %{organization_name} » pour faire cela.
       you_must_be_an_owner_to: Vous devez être propriétaire pour supprimer une organisation.
+    parameter_definitions:
+      categories_templated:
+        one: '%{count} catégorie dotée d’un modèle'
+        other: '%{count} catégories dotées d’un modèle'
+      created: Paramètre « %{name} » créé.
+      deleted: Paramètre « %{name} » supprimé.
+      deleted_with_values:
+        one: Paramètre « %{name} » supprimé avec sa %{count} valeur de composant.
+        other: Paramètre « %{name} » supprimé avec ses %{count} valeurs de composants.
+      parameters_added:
+        one: '%{count} paramètre ajouté'
+        other: '%{count} paramètres ajoutés'
+      standard_failed: 'Impossible d’ajouter les paramètres standard : %{errors}'
+      standard_installed: '%{added}, %{categories}, %{values} à partir des champs existants.'
+      updated: Paramètre mis à jour.
+      values_filled:
+        one: '%{count} valeur de composant remplie'
+        other: '%{count} valeurs de composants remplies'
+    part_duplicates:
+      dismissed: Ces %{count} composants ne seront plus proposés comme doublons les uns des autres.
+      merged:
+        one: '%{count} composant fusionné dans %{name}.'
+        other: '%{count} composants fusionnés dans %{name}.'
+      moved: 'Déplacés : %{items}.'
+      moved_movements:
+        one: '%{count} mouvement'
+        other: '%{count} mouvements'
+      moved_order_lines:
+        one: '%{count} ligne de commande'
+        other: '%{count} lignes de commande'
+      moved_project_lines:
+        one: '%{count} ligne de projet'
+        other: '%{count} lignes de projet'
+      moved_stock_rows:
+        one: '%{count} ligne de stock'
+        other: '%{count} lignes de stock'
+      pick_two: Choisissez au moins deux composants.
     part_suppliers:
       supplier_added_successfully: Fournisseur ajouté.
       supplier_removed_successfully: Fournisseur retiré.
@@ -313,7 +440,7 @@ fr:
       could_not_parse_that_file_as: Impossible de lire ce fichier comme un CSV.
       enter_a_part_number_to_search: Saisissez une référence à rechercher.
       import_complete_created_updated_skipped: 'Import terminé : %{created} créé(s), %{updated} mis à jour, %{skipped} ignoré(s).'
-      no_supplier_catalog_is_configured_add: Aucun catalogue fournisseur n'est configuré. Ajoutez une clé Mouser ou DigiKey dans les Réglages.
+      no_supplier_catalog_is_configured_add: Aucun catalogue fournisseur n’est configuré. Ajoutez une clé Mouser ou DigiKey, ou activez LCSC, dans les Réglages.
       no_supplier_was_assigned: 'Aucun fournisseur n''a été affecté : %{errors}.'
       part_created_successfully: Composant créé.
       part_deleted_successfully: Composant supprimé.
@@ -334,30 +461,62 @@ fr:
       notifications_on: Notifications par e-mail activées pour %{organization}.
       password_updated_successfully: Mot de passe mis à jour.
       profile_updated_successfully: Profil mis à jour.
+    project_files:
+      added:
+        one: '%{count} fichier ajouté.'
+        other: '%{count} fichiers ajoutés.'
+      bom_updated:
+        one: 'Nomenclature mise à jour depuis le schéma : %{count} ligne. Vérifiez les correspondances ci-dessous.'
+        other: 'Nomenclature mise à jour depuis le schéma : %{count} lignes. Vérifiez les correspondances ci-dessous.'
+      choose_files: Choisissez les fichiers à ajouter.
+      imported_lines:
+        one: '%{count} ligne de nomenclature importée depuis le schéma.'
+        other: '%{count} lignes de nomenclature importées depuis le schéma.'
+      no_schematic: Aucun schéma (.kicad_sch) avec des composants parmi les fichiers de ce projet.
+      removed: '%{name} retiré.'
+    project_github:
+      bom_unchanged: La nomenclature n’a pas changé.
+      enter_repository: Saisissez un dépôt GitHub (propriétaire/nom ou son URL).
+      fetched:
+        one: '%{count} fichier KiCad récupéré depuis %{location} (%{sha}).'
+        other: '%{count} fichiers KiCad récupérés depuis %{location} (%{sha}).'
+      no_schematic: Aucun schéma avec des composants parmi eux, la nomenclature est donc inchangée.
+      unlinked: Délié de GitHub. Les fichiers déjà récupérés restent dans le projet.
+      up_to_date: Déjà à jour avec %{location} (%{sha}).
     project_lines:
+      added: Ligne ajoutée.
       line_removed: Ligne supprimée.
       line_updated: Ligne mise à jour.
     projects:
+      build_kits_between: Fabriquez entre 1 et %{max} kits à la fois.
       could_not_deduct_stock: 'Impossible de déduire le stock : %{errors}.'
       could_not_import_that_bom: Impossible d'importer cette nomenclature.
       could_not_parse_that_file_as: Impossible de lire ce fichier comme un CSV.
       could_not_read_that_file_as: Impossible de lire ce fichier comme une nomenclature KiCad (XML).
+      created_empty: Projet créé. Ajoutez ses composants ci-dessous.
       imported_bom_lines_review_the_matches: '%{project_lines_count} lignes de nomenclature importées. Vérifiez les correspondances ci-dessous.'
       matches_confirmed: Correspondances confirmées.
       matches_confirmed_and_stock_reserved: Correspondances confirmées et stock réservé.
+      name_or_file: Donnez un nom au projet, ou choisissez un fichier de nomenclature à importer.
       no_purchase_order_was_created: 'Aucune commande n''a été créée : %{errors}.'
+      not_enough_stock_for_kits: Il n’y a pas assez de stock pour fabriquer %{kits} kits.
       nothing_left_to_order_short_parts: 'Plus rien à commander : les composants manquants n''ont pas de fournisseur préféré ou sont déjà sur des commandes en cours.'
       only_a_confirmed_project_can_reserve: Seul un projet confirmé peut réserver du stock, avec les réservations activées dans les Réglages.
       please_choose_a_bom_file_to: Choisissez un fichier de nomenclature à importer.
       project_deleted: Projet supprimé.
       reservation_released: Réservation libérée.
+      revision_created: Révision %{revision} créée à partir de %{source}.
       stock_deducted:
         one: Stock déduit pour %{count} référence.
         other: Stock déduit pour %{count} références.
+      stock_deducted_kits:
+        one: Stock déduit pour %{count} référence (%{kits} kits).
+        other: Stock déduit pour %{count} références (%{kits} kits).
       stock_reserved_for_this_project: Stock réservé pour ce projet.
       that_file_has_no_usable_bom: Ce fichier ne contient aucune ligne de nomenclature exploitable.
       this_kit_was_already_built_from: Ce kit a déjà été assemblé depuis cette page. Rechargez-la pour en assembler un autre.
       this_project_isn_t_buildable_yet: 'Ce projet n''est pas encore assemblable : réglez d''abord les manques et les lignes non associées.'
+      updated: Projet mis à jour.
     purchase_orders_created:
       one: '%{count} commande créée pour %{references}.'
       other: '%{count} commandes créées pour %{references}.'
@@ -365,6 +524,8 @@ fr:
       one: '%{count} référence'
       other: '%{count} références'
     scans:
+      bag_receive_failed: Échec de la réception du sachet.
+      bag_received: '%{quantity} × %{reference} réceptionné dans %{zone}.'
       failed_to_record_movement: Impossible d'enregistrer le mouvement.
       movement_recorded_successfully: Mouvement enregistré.
     settings:
@@ -373,11 +534,33 @@ fr:
       ipns_reassigned:
         one: IPN de %{count} composant mis à jour.
         other: IPN de %{count} composants mis à jour.
+      kicad_token_revoked: Accès à la bibliothèque KiCad révoqué. KiCad ne peut plus lire vos composants.
       settings_updated_successfully: Réglages mis à jour.
       turn_on_an_automatic_numbering_mode: Activez un mode de numérotation automatique avant de réattribuer les IPN.
     stock_movements:
       failed_to_record_movement: Impossible d'enregistrer le mouvement.
       movement_recorded_successfully: Mouvement enregistré.
+    stocktakes:
+      adjust_detail: '%{reference} dans %{zone} : '
+      completed_adjusted:
+        one: 'Comptage terminé : %{count} ajustement enregistré.'
+        other: 'Comptage terminé : %{count} ajustements enregistrés.'
+      completed_kept: Un comptage terminé est conservé avec les ajustements qu’il a faits.
+      completed_matched: 'Comptage terminé : le stock correspondait au comptage.'
+      could_not_add_part: 'Impossible d’ajouter ce composant : %{errors}.'
+      could_not_save_count: 'Impossible d’enregistrer ce compte : %{errors}.'
+      could_not_start: 'Impossible de commencer le comptage : %{errors}.'
+      counting: Comptage de %{zone}.
+      discarded: Comptage %{reference} abandonné.
+      no_match: Aucun composant ni aucune zone ne correspond à « %{code} ».
+      nothing_adjusted: Rien n’a été ajusté (%{detail}%{errors}). Recomptez cette ligne et réessayez.
+      part_added: '%{reference} ajouté au comptage.'
+      pick_zone: Choisissez la zone à compter.
+      several_zones: '%{reference} est stocké dans plusieurs zones de ce comptage : scannez ou choisissez d’abord la zone.'
+      started:
+        one: 'Comptage %{reference} commencé : %{count} ligne à compter.'
+        other: 'Comptage %{reference} commencé : %{count} lignes à compter.'
+      zone_not_in_stocktake: '%{zone} ne fait pas partie de ce comptage.'
     storage_locations:
       add_between_and_bags_at_a: Ajoutez entre 1 et %{max} sachets à la fois.
       bag_added: 1 sachet ajouté (%{code}).
@@ -442,11 +625,16 @@ fr:
 
         Désactivez-le depuis votre profil : %{url}'
       intro: Bonjour %{name}, voici ce qui demande votre attention au %{date}.
+      items:
+        one: '%{count} article'
+        other: '%{count} articles'
       late_orders: Commandes en retard (%{count})
+      loan: Prêt n° %{id}
       low_stock: Stock bas (%{count})
       more: Et %{count} de plus.
       open_alerts: Voir les alertes
       order: Commande n° %{id}
+      overdue_loans: Prêts en retard (%{count})
       profile: profil
       subject: '%{organization} : %{counts}'
       subject_late_orders:
@@ -455,6 +643,9 @@ fr:
       subject_low_stock:
         one: '%{count} composant en stock bas'
         other: '%{count} composants en stock bas'
+      subject_overdue_loans:
+        one: '%{count} prêt en retard'
+        other: '%{count} prêts en retard'
       title: Alertes %{organization}
     email_changed:
       being_changed: Nous vous informons que l'adresse e-mail de votre compte Makerstorage est en train d'être remplacée par %{email}.
@@ -483,6 +674,10 @@ fr:
     pending: en attente
     received: reçue
     shipped: expédiée
+  part_duplicates:
+    same_category: Même catégorie, valeur et empreinte
+    same_name: Même nom, valeur et empreinte
+    same_part_number: Même référence « %{code} »
   part_statuses:
     active: actif
     discontinued: arrêté
