@@ -355,7 +355,10 @@ export default function Dashboard({
   return (
     <AppLayout
       header={
-        <PageHeader title={firstname ? `${greeting()}, ${firstname}` : 'Dashboard'} subtitle="Here's what's happening in your inventory">
+        <PageHeader
+          title="Dashboard"
+          subtitle={`${greeting()}${firstname ? `, ${firstname}` : ''}. Here's what's happening in your inventory.`}
+        >
           <GlobalSearch />
           <Button size="sm" variant="outline" asChild>
             <Link href="/scan">
