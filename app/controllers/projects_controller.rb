@@ -29,7 +29,7 @@ class ProjectsController < ApplicationController
 
   def create
     file = params[:file]
-    return redirect_to(projects_path, alert: "Please choose a BOM file to import.") unless file
+    return redirect_to(projects_path, alert: t("flash.projects.please_choose_a_bom_file_to")) unless file
     return redirect_to(projects_path, alert: BomParser.too_large_message) if BomParser.too_large?(file)
 
     name = params[:name].presence || File.basename(file.original_filename.to_s, ".*").presence || "Untitled project"
@@ -37,13 +37,13 @@ class ProjectsController < ApplicationController
     begin
       lines = BomParser.parse(file.path)
     rescue CSV::MalformedCSVError
-      return redirect_to(projects_path, alert: "Could not parse that file as CSV.")
+      return redirect_to(projects_path, alert: t("flash.projects.could_not_parse_that_file_as"))
     rescue Nokogiri::XML::SyntaxError, BomParser::Kicad::NotANetlist
-      return redirect_to(projects_path, alert: "Could not read that file as a KiCad BOM (XML).")
+      return redirect_to(projects_path, alert: t("flash.projects.could_not_read_that_file_as"))
     end
 
     if lines.empty?
-      return redirect_to(projects_path, alert: "That file has no usable BOM rows.")
+      return redirect_to(projects_path, alert: t("flash.projects.that_file_has_no_usable_bom"))
     end
 
     project = current_organization.projects.new(name: name, status: "draft")
@@ -64,31 +64,31 @@ class ProjectsController < ApplicationController
     end
 
     project.save_with_generated_reference! { Project.next_reference(current_organization) }
-    redirect_to project_path(project), notice: "Imported #{project.project_lines.size} BOM lines. Review the matches below."
+    redirect_to project_path(project), notice: t("flash.projects.imported_bom_lines_review_the_matches", project_lines_count: project.project_lines.size)
   rescue ActiveRecord::RecordInvalid
-    redirect_to projects_path, alert: project.errors.full_messages.to_sentence.presence || "Could not import that BOM."
+    redirect_to projects_path, alert: project.errors.full_messages.to_sentence.presence || t("flash.projects.could_not_import_that_bom")
   end
 
   # Confirming also reserves the BOM when the organization uses reservations.
   def confirm
     reserve = current_organization.stock_reservations_enabled
     @project.update!(status: "confirmed", checked_at: Time.current, reserved_at: (Time.current if reserve))
-    redirect_to project_path(@project), notice: reserve ? "Matches confirmed and stock reserved." : "Matches confirmed."
+    redirect_to project_path(@project), notice: reserve ? t("flash.projects.matches_confirmed_and_stock_reserved") : t("flash.projects.matches_confirmed")
   end
 
   def reserve
     unless current_organization.stock_reservations_enabled && @project.confirmed?
-      redirect_to project_path(@project), alert: "Only a confirmed project can reserve stock, with reservations turned on in Settings."
+      redirect_to project_path(@project), alert: t("flash.projects.only_a_confirmed_project_can_reserve")
       return
     end
 
     @project.reserve!
-    redirect_to project_path(@project), notice: "Stock reserved for this project."
+    redirect_to project_path(@project), notice: t("flash.projects.stock_reserved_for_this_project")
   end
 
   def release
     @project.release_reservation!
-    redirect_to project_path(@project), notice: "Reservation released."
+    redirect_to project_path(@project), notice: t("flash.projects.reservation_released")
   end
 
   # Orders each short part's missing quantity (summed across its BOM lines),
@@ -112,7 +112,7 @@ class ProjectsController < ApplicationController
     end
 
     if candidates.empty?
-      redirect_to project_path(@project), alert: "Nothing left to order: short parts have no preferred supplier or are already on open purchase orders."
+      redirect_to project_path(@project), alert: t("flash.projects.nothing_left_to_order_short_parts")
       return
     end
 
@@ -143,9 +143,9 @@ class ProjectsController < ApplicationController
 
     references = grouped.values.flatten.size
     redirect_to project_path(@project),
-      notice: "Created #{created} purchase order#{'s' if created != 1} for #{references} reference#{'s' if references != 1}."
+      notice: t("flash.purchase_orders_created", count: created, references: t("flash.references", count: references))
   rescue ActiveRecord::RecordInvalid => e
-    redirect_to project_path(@project), alert: "No purchase order was created: #{e.record.errors.full_messages.to_sentence}."
+    redirect_to project_path(@project), alert: t("flash.projects.no_purchase_order_was_created", errors: e.record.errors.full_messages.to_sentence)
   end
 
   # Consumes the required quantity of every matched line from stock, recording an
@@ -158,7 +158,7 @@ class ProjectsController < ApplicationController
   # compare-and-increment, so a second, stale submission matches no row.
   def build
     unless @project.buildable?
-      redirect_to project_path(@project), alert: "This project isn't buildable yet — resolve shortfalls and unmatched lines first."
+      redirect_to project_path(@project), alert: t("flash.projects.this_project_isn_t_buildable_yet")
       return
     end
 
@@ -175,18 +175,18 @@ class ProjectsController < ApplicationController
     end
 
     unless built
-      redirect_to project_path(@project), alert: "This kit was already built from this page. Reload to build another one."
+      redirect_to project_path(@project), alert: t("flash.projects.this_kit_was_already_built_from")
       return
     end
 
-    redirect_to project_path(@project), notice: "Stock deducted for #{required.size} reference#{'s' if required.size != 1}."
+    redirect_to project_path(@project), notice: t("flash.projects.stock_deducted", count: required.size)
   rescue ActiveRecord::RecordInvalid => e
-    redirect_to project_path(@project), alert: "Could not deduct stock: #{e.record.errors.full_messages.to_sentence}."
+    redirect_to project_path(@project), alert: t("flash.projects.could_not_deduct_stock", errors: e.record.errors.full_messages.to_sentence)
   end
 
   def destroy
     @project.destroy!
-    redirect_to projects_path, notice: "Project deleted."
+    redirect_to projects_path, notice: t("flash.projects.project_deleted")
   end
 
   private

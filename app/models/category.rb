@@ -72,7 +72,7 @@ class Category < ApplicationRecord
 
   def cannot_be_its_own_parent
     if id.present? && parent_id == id
-      errors.add(:parent_id, "cannot be itself")
+      errors.add(:parent_id, :own_parent)
     end
   end
 
@@ -86,7 +86,7 @@ class Category < ApplicationRecord
     ancestor_id = parent_id
     while ancestor_id
       if ancestor_id == id
-        errors.add(:parent, "cannot be a descendant of this category")
+        errors.add(:parent, :descendant_parent)
         break
       end
       ancestor_id = self.class.where(id: ancestor_id).pick(:parent_id)
@@ -95,7 +95,7 @@ class Category < ApplicationRecord
 
   def parent_must_belong_to_same_organization
     if parent.present? && parent.organization_id != organization_id
-      errors.add(:parent, "must belong to the same organization")
+      errors.add(:parent, :same_organization)
     end
   end
 end

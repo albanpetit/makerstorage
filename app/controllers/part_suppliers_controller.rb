@@ -12,7 +12,7 @@ class PartSuppliersController < ApplicationController
     @part_supplier = @part.part_suppliers.build(part_supplier_params)
 
     if @part_supplier.save
-      redirect_to edit_part_path(@part), notice: "Supplier added successfully."
+      redirect_to edit_part_path(@part), notice: t("flash.part_suppliers.supplier_added_successfully")
     else
       redirect_to edit_part_path(@part), alert: @part_supplier.errors.full_messages.join(", ")
     end
@@ -20,7 +20,7 @@ class PartSuppliersController < ApplicationController
 
   def update
     if @part_supplier.update(part_supplier_params)
-      redirect_to edit_part_path(@part), notice: "Supplier updated successfully."
+      redirect_to edit_part_path(@part), notice: t("flash.part_suppliers.supplier_updated_successfully")
     else
       redirect_to edit_part_path(@part), alert: @part_supplier.errors.full_messages.join(", ")
     end
@@ -28,7 +28,7 @@ class PartSuppliersController < ApplicationController
 
   def destroy
     @part_supplier.destroy
-    redirect_to edit_part_path(@part), notice: "Supplier removed successfully."
+    redirect_to edit_part_path(@part), notice: t("flash.part_suppliers.supplier_removed_successfully")
   end
 
   def set_preferred

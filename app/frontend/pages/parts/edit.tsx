@@ -43,7 +43,8 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
-import { t } from '@/lib/i18n'
+import { t, tn } from '@/lib/i18n'
+import { mountingTypeLabel } from '@/lib/mounting-types'
 
 interface Category {
   id: number
@@ -410,7 +411,7 @@ export default function EditPart({ part, categories, footprints, suppliers, tags
                         {footprints.map((footprint) => (
                           <SelectItem key={footprint.id} value={footprint.id.toString()}>
                             {footprint.name}
-                            {footprint.mounting_type && ` (${footprint.mounting_type})`}
+                            {footprint.mounting_type && ` (${mountingTypeLabel(footprint.mounting_type)})`}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -824,7 +825,7 @@ export default function EditPart({ part, categories, footprints, suppliers, tags
                           {ps.unit_price != null ? `$${ps.unit_price.toFixed(2)}` : '-'}
                         </TableCell>
                         <TableCell className="text-right">
-                          {ps.lead_time_days != null ? `${ps.lead_time_days} days` : '-'}
+                          {ps.lead_time_days != null ? tn('{count} day', '{count} days', ps.lead_time_days) : '-'}
                         </TableCell>
                         <TableCell>
                           {ps.is_preferred && (

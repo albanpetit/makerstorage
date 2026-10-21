@@ -43,7 +43,8 @@ import {
   StorageLocationOption,
   Tag,
 } from './types'
-import { t } from '@/lib/i18n'
+import { t, tn } from '@/lib/i18n'
+import { mountingTypeLabel } from '@/lib/mounting-types'
 
 // Lightweight disclosure section — no Radix Collapsible in the library, so a
 // button + conditional render.
@@ -547,7 +548,7 @@ export function PartFormBody({
                   {footprints.map((footprint) => (
                     <SelectItem key={footprint.id} value={footprint.id.toString()}>
                       {footprint.name}
-                      {footprint.mounting_type && ` (${footprint.mounting_type})`}
+                      {footprint.mounting_type && ` (${mountingTypeLabel(footprint.mounting_type)})`}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -666,7 +667,7 @@ export function PartFormBody({
       {/* Suppliers */}
       <Section
         title={t('Suppliers')}
-        description={pendingSuppliers.length > 0 ? `${pendingSuppliers.length} linked` : t('Link suppliers (optional)')}
+        description={pendingSuppliers.length > 0 ? tn('{count} linked', '{count} linked', pendingSuppliers.length) : t('Link suppliers (optional)')}
         open={suppliersOpen}
         onToggle={() => setSuppliersOpen((v) => !v)}
       >

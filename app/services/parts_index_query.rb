@@ -13,11 +13,8 @@
 class PartsIndexQuery
   PAGE_SIZE = 50
   SORTS = %w[ref crit qtyDesc qtyAsc priceDesc].freeze
-  STOCK_STATUSES = {
-    "out" => "Out of stock",
-    "low" => "Low stock",
-    "ok" => "In stock"
-  }.freeze
+  # Labels under stock_statuses.* in config/locales.
+  STOCK_STATUSES = %w[out low ok].freeze
 
   Row = Struct.new(
     :id, :name, :mpn, :sku, :ipn, :manufacturer, :value, :package_type,
@@ -48,7 +45,7 @@ class PartsIndexQuery
     @organization = organization
     @search = params[:search].to_s.strip
     @category_id = params[:category].presence&.to_i
-    @statuses = list_param(params[:status]) & STOCK_STATUSES.keys
+    @statuses = list_param(params[:status]) & STOCK_STATUSES
     @packages = list_param(params[:package])
     @footprints = list_param(params[:footprint])
     @suppliers = list_param(params[:supplier])
@@ -124,9 +121,9 @@ class PartsIndexQuery
   def facets
     {
       categories: category_chips,
-      status: STOCK_STATUSES.filter_map do |key, label|
+      status: STOCK_STATUSES.filter_map do |key|
         count = searched.count { |row| row.stock_status == key }
-        { value: key, label: label, count: count } if count.positive?
+        { value: key, label: I18n.t("stock_statuses.#{key}"), count: count } if count.positive?
       end,
       package: counts_by(&:package_type),
       footprint: counts_by(&:footprint_name),

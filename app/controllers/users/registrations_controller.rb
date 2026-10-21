@@ -5,7 +5,7 @@ class Users::RegistrationsController < Devise::RegistrationsController
   # for an onboarding workshop signing up together from one shared IP.
   RATE_LIMIT = 50
   rate_limit to: RATE_LIMIT, within: 1.hour, only: :create, store: AUTH_RATE_LIMIT_STORE,
-             with: -> { redirect_to new_user_registration_path, alert: "Too many sign-ups from this network. Please try again later." }
+             with: -> { redirect_to new_user_registration_path, alert: t("flash.users_registrations.too_many_sign_ups_from_this") }
   before_action :configure_sign_up_params, only: [ :create ]
 
   # GET /signup

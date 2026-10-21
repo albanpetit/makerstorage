@@ -217,7 +217,7 @@ export function AppSidebar() {
                     </span>
                     <span className="truncate text-xs text-muted-foreground">
                       {currentOrganization
-                        ? `Team · ${currentOrganization.member_count} member${currentOrganization.member_count !== 1 ? 's' : ''}`
+                        ? tn('Team · {count} member', 'Team · {count} members', currentOrganization.member_count)
                         : t('No organization')}
                     </span>
                   </div>

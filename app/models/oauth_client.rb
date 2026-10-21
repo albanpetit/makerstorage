@@ -62,11 +62,11 @@ class OauthClient < ApplicationRecord
   def redirect_uris_must_be_safe
     uris = Array(redirect_uris)
     if uris.empty?
-      errors.add(:redirect_uris, "must list at least one URI")
+      errors.add(:redirect_uris, :redirect_uris_missing)
     elsif uris.size > MAX_REDIRECT_URIS
-      errors.add(:redirect_uris, "can list at most #{MAX_REDIRECT_URIS} URIs")
+      errors.add(:redirect_uris, :redirect_uris_too_many, count: MAX_REDIRECT_URIS)
     elsif !uris.all? { |uri| uri.is_a?(String) && self.class.safe_redirect_uri?(uri) }
-      errors.add(:redirect_uris, "must be https URIs, or http on localhost")
+      errors.add(:redirect_uris, :redirect_uris_insecure)
     end
   end
 end

@@ -16,7 +16,7 @@ class PartStorage < ApplicationRecord
 
   def storage_location_must_belong_to_same_organization
     if part.present? && storage_location.present? && storage_location.organization_id != part.organization_id
-      errors.add(:storage_location, "must belong to the same organization as the part")
+      errors.add(:storage_location, :same_organization_as_part)
     end
   end
 end

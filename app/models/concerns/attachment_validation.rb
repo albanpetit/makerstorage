@@ -29,10 +29,10 @@ module AttachmentValidation
         blobs = attached.respond_to?(:blobs) ? attached.blobs : [ attached.blob ]
         blobs.each do |blob|
           unless content_types.include?(blob.content_type)
-            errors.add(name, "must be a #{AttachmentValidation.describe(content_types)} file")
+            errors.add(name, :attachment_type, types: AttachmentValidation.describe(content_types))
           end
           if blob.byte_size > max_size
-            errors.add(name, "must be smaller than #{ActiveSupport::NumberHelper.number_to_human_size(max_size)}")
+            errors.add(name, :attachment_size, size: ActiveSupport::NumberHelper.number_to_human_size(max_size))
           end
         end
       end

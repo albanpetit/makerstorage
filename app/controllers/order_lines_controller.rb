@@ -15,7 +15,7 @@ class OrderLinesController < ApplicationController
   def create
     part = current_organization.parts.find_by(id: params.dig(:order_line, :part_id))
     unless part
-      redirect_to order_path(@order), alert: "Choose a part to add to this order."
+      redirect_to order_path(@order), alert: t("flash.order_lines.choose_a_part_to_add_to")
       return
     end
 
@@ -28,9 +28,9 @@ class OrderLinesController < ApplicationController
 
     if line.save
       @order.recalculate_total!
-      redirect_to order_path(@order), notice: "Added #{part.reference} to the order."
+      redirect_to order_path(@order), notice: t("flash.order_lines.added_to_the_order", reference: part.reference)
     else
-      redirect_to order_path(@order), alert: line.errors.full_messages.to_sentence.presence || "Could not add that part."
+      redirect_to order_path(@order), alert: line.errors.full_messages.to_sentence.presence || t("flash.order_lines.could_not_add_that_part")
     end
   end
 
@@ -47,18 +47,18 @@ class OrderLinesController < ApplicationController
     end
 
     @order.recalculate_total!
-    redirect_to order_path(@order), notice: "Line updated."
+    redirect_to order_path(@order), notice: t("flash.order_lines.line_updated")
   rescue AllocationError => e
     redirect_to order_path(@order), alert: e.message
   rescue ActiveRecord::RecordInvalid => e
-    redirect_to order_path(@order), alert: e.record.errors.full_messages.to_sentence.presence || "Could not update that line."
+    redirect_to order_path(@order), alert: e.record.errors.full_messages.to_sentence.presence || t("flash.order_lines.could_not_update_that_line")
   end
 
   def destroy
     line = @order.order_lines.find(params[:id])
     line.destroy
     @order.recalculate_total!
-    redirect_to order_path(@order), notice: "Line removed."
+    redirect_to order_path(@order), notice: t("flash.order_lines.line_removed")
   end
 
   # Adds a component discovered through a supplier-catalog search. The part is
@@ -68,7 +68,7 @@ class OrderLinesController < ApplicationController
   def catalog
     category = current_organization.categories.find_by(id: params[:category_id])
     unless category
-      redirect_to order_path(@order), alert: "Choose a category for the new component."
+      redirect_to order_path(@order), alert: t("flash.order_lines.choose_a_category_for_the_new")
       return
     end
 
@@ -86,9 +86,9 @@ class OrderLinesController < ApplicationController
       @order.recalculate_total!
     end
 
-    redirect_to order_path(@order), notice: "Added #{part.reference} to the order."
+    redirect_to order_path(@order), notice: t("flash.order_lines.added_to_the_order", reference: part.reference)
   rescue ActiveRecord::RecordInvalid => e
-    fallback = e.record.is_a?(Part) ? "Could not create the component." : "Could not add that component."
+    fallback = e.record.is_a?(Part) ? t("flash.order_lines.could_not_create_the_component") : t("flash.order_lines.could_not_add_that_component")
     redirect_to order_path(@order), alert: e.record.errors.full_messages.to_sentence.presence || fallback
   end
 
@@ -115,7 +115,7 @@ class OrderLinesController < ApplicationController
   def ensure_editable
     return if @order.editable?
 
-    redirect_to order_path(@order), alert: "This order is #{@order.status} and can no longer be edited."
+    redirect_to order_path(@order), alert: t("flash.order_lines.this_order_is_and_can_no", status: t("order_statuses.#{@order.status}"))
   end
 
   def line_params
@@ -147,12 +147,12 @@ class OrderLinesController < ApplicationController
     end
 
     unless allocs.sum { |a| a[:quantity] } == line.quantity
-      raise AllocationError, "The storage split must add up to the line quantity (#{line.quantity})."
+      raise AllocationError, t("flash.order_lines.the_storage_split_must_add_up", quantity: line.quantity)
     end
 
     ids = allocs.map { |a| a[:storage_location_id].to_s }.uniq
     known = current_organization.storage_locations.where(id: ids).pluck(:id).map(&:to_s)
-    raise AllocationError, "A chosen storage zone doesn't belong to this organization." unless (ids - known).empty?
+    raise AllocationError, t("flash.order_lines.a_chosen_storage_zone_doesn_t") unless (ids - known).empty?
 
     line.allocations.destroy_all
     allocs.each { |a| line.allocations.create!(storage_location_id: a[:storage_location_id], quantity: a[:quantity]) }

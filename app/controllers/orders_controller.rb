@@ -47,7 +47,7 @@ class OrdersController < ApplicationController
   def create
     supplier = current_organization.suppliers.find_by(id: order_params[:supplier_id])
     unless supplier
-      redirect_to orders_path, alert: "Choose a supplier to create an order."
+      redirect_to orders_path, alert: t("flash.orders.choose_a_supplier_to_create_an")
       return
     end
 
@@ -65,13 +65,13 @@ class OrdersController < ApplicationController
       end
 
     if saved
-      redirect_to order_path(order), notice: "Order #{order.reference} created."
+      redirect_to order_path(order), notice: t("flash.orders.order_created", reference: order.reference)
     else
-      redirect_to orders_path, alert: order.errors.full_messages.to_sentence.presence || "Could not create order.",
+      redirect_to orders_path, alert: order.errors.full_messages.to_sentence.presence || t("flash.orders.could_not_create_order"),
         inertia: { errors: inertia_errors(order, as: :order) }
     end
   rescue ActiveRecord::RecordInvalid
-    redirect_to orders_path, alert: order.errors.full_messages.to_sentence.presence || "Could not create order.",
+    redirect_to orders_path, alert: order.errors.full_messages.to_sentence.presence || t("flash.orders.could_not_create_order"),
       inertia: { errors: inertia_errors(order, as: :order) }
   end
 
@@ -80,46 +80,46 @@ class OrdersController < ApplicationController
     # it): the page hides Edit, and a crafted request mustn't rewrite its
     # supplier, reference, or dates either.
     unless @order.editable?
-      redirect_to order_path(@order), alert: "This order is #{@order.status} and can no longer be edited."
+      redirect_to order_path(@order), alert: t("flash.orders.this_order_is_and_can_no", status: t("order_statuses.#{@order.status}"))
       return
     end
 
     # Receiving credits stock, so it must go through #advance — never a plain
     # attribute write that would skip the ledger update.
     if order_params[:status] == "received"
-      redirect_to order_path(@order), alert: "Use “Mark received” to receive an order so stock is credited."
+      redirect_to order_path(@order), alert: t("flash.orders.use_mark_received_to_receive_an")
       return
     end
 
     if @order.update(order_params)
-      redirect_to order_path(@order), notice: "Order updated."
+      redirect_to order_path(@order), notice: t("flash.orders.order_updated")
     else
-      redirect_to order_path(@order), alert: @order.errors.full_messages.to_sentence.presence || "Could not update order.",
+      redirect_to order_path(@order), alert: @order.errors.full_messages.to_sentence.presence || t("flash.orders.could_not_update_order"),
         inertia: { errors: inertia_errors(@order, as: :order) }
     end
   end
 
   def destroy
     @order.destroy!
-    redirect_to orders_path, notice: "Order deleted."
+    redirect_to orders_path, notice: t("flash.orders.order_deleted")
   end
 
   def advance
     result = @order.advance!(user: current_user)
 
     unless result.advanced
-      redirect_to order_path(@order), alert: "This order is already received or cancelled."
+      redirect_to order_path(@order), alert: t("flash.orders.this_order_is_already_received_or")
       return
     end
 
     if result.skipped.any?
       redirect_to order_path(@order),
-        notice: "Order #{@order.reference} marked as received.",
-        alert: "No stock was recorded for #{result.skipped.to_sentence} — #{result.skipped.one? ? 'it has' : 'they have'} no storage location. Add a location and record the movement manually."
+        notice: t("flash.orders.order_marked_as_received", reference: @order.reference),
+        alert: t("flash.orders.no_stock_recorded", count: result.skipped.size, parts: result.skipped.to_sentence)
       return
     end
 
-    redirect_to order_path(@order), notice: "Order #{@order.reference} marked as #{result.status}."
+    redirect_to order_path(@order), notice: t("flash.orders.order_marked_as", reference: @order.reference, status: t("order_statuses.#{result.status}"))
   end
 
   # Pulls a project's BOM into this order. Each matched line becomes (or tops up)
@@ -128,7 +128,7 @@ class OrdersController < ApplicationController
   # they're surfaced as a warning rather than silently dropped.
   def import_project
     unless @order.editable?
-      redirect_to order_path(@order), alert: "This order is #{@order.status} and can no longer be edited."
+      redirect_to order_path(@order), alert: t("flash.orders.this_order_is_and_can_no", status: t("order_statuses.#{@order.status}"))
       return
     end
 
@@ -156,20 +156,20 @@ class OrdersController < ApplicationController
     end
 
     if added.zero?
-      redirect_to order_path(@order), alert: "Nothing to import from #{project.name} — no matched line needed ordering."
+      redirect_to order_path(@order), alert: t("flash.orders.nothing_to_import_from_no_matched", project_name: project.name)
       return
     end
 
     skipped = project.unmatched_lines.size
-    notice = "Imported #{added} line#{'s' if added != 1} from #{project.name}."
+    notice = t("flash.orders.imported_from_project", count: added, project: project.name)
     if skipped.positive?
       redirect_to order_path(@order), notice: notice,
-        alert: "#{skipped} BOM line#{'s' if skipped != 1} had no matching part and #{skipped == 1 ? 'was' : 'were'} skipped."
+        alert: t("flash.orders.unmatched_bom_lines_skipped", count: skipped)
     else
       redirect_to order_path(@order), notice: notice
     end
   rescue ActiveRecord::RecordInvalid => e
-    redirect_to order_path(@order), alert: "Nothing was imported: #{e.record.errors.full_messages.to_sentence}."
+    redirect_to order_path(@order), alert: t("flash.orders.nothing_was_imported", errors: e.record.errors.full_messages.to_sentence)
   end
 
   # Bulk-presets a single target storage zone for every line: each line gets one
@@ -177,13 +177,13 @@ class OrdersController < ApplicationController
   # split. Operators then override special cases per line.
   def assign_storage
     unless @order.editable?
-      redirect_to order_path(@order), alert: "This order is #{@order.status} and can no longer be edited."
+      redirect_to order_path(@order), alert: t("flash.orders.this_order_is_and_can_no", status: t("order_statuses.#{@order.status}"))
       return
     end
 
     location = current_organization.storage_locations.find_by(id: params[:storage_location_id])
     unless location
-      redirect_to order_path(@order), alert: "Choose a storage zone to assign."
+      redirect_to order_path(@order), alert: t("flash.orders.choose_a_storage_zone_to_assign")
       return
     end
 
@@ -195,7 +195,7 @@ class OrdersController < ApplicationController
     end
 
     count = @order.order_lines.size
-    redirect_to order_path(@order), notice: "Storage zone set for #{count} line#{'s' if count != 1}."
+    redirect_to order_path(@order), notice: t("flash.orders.storage_zone_set", count: count)
   end
 
   # Pushes this order's lines to a Mouser cart via the Order/Cart API, returning
@@ -204,7 +204,7 @@ class OrdersController < ApplicationController
   def push_to_cart
     client = SupplierCatalog.mouser_order_client(current_organization)
     unless client
-      redirect_to order_path(@order), alert: "Add a Mouser Order API key in Settings → Integrations to build a cart."
+      redirect_to order_path(@order), alert: t("flash.orders.add_a_mouser_order_api_key")
       return
     end
 
@@ -216,18 +216,20 @@ class OrdersController < ApplicationController
     items = skus.filter_map { |line, sku| { supplier_sku: sku, quantity: line.quantity } if sku.present? }
 
     if items.empty?
-      redirect_to order_path(@order), alert: "No line has a Mouser part number. Add components via a Mouser catalog search first."
+      redirect_to order_path(@order), alert: t("flash.orders.no_line_has_a_mouser_part")
       return
     end
 
     cart = client.create_cart(items, currency: current_organization.currency)
 
-    notice = "Built a Mouser cart with #{items.size} line#{'s' if items.size != 1}"
-    notice += " totalling #{cart.merchandise_total} #{cart.currency}" if cart.merchandise_total.present?
-    notice += "."
-    notice += " Checkout: #{cart.checkout_url}" if cart.checkout_url.present?
+    notice = if cart.merchandise_total.present?
+      t("flash.orders.mouser_cart_built_with_total", count: items.size, total: "#{cart.merchandise_total} #{cart.currency}")
+    else
+      t("flash.orders.mouser_cart_built", count: items.size)
+    end
+    notice += t("flash.orders.checkout", checkout_url: cart.checkout_url) if cart.checkout_url.present?
     skipped = skus.count { |_line, sku| sku.blank? }
-    notice += " #{skipped} line#{'s' if skipped != 1} without a Mouser part number were skipped." if skipped.positive?
+    notice += t("flash.orders.lines_without_mouser_number_skipped", count: skipped) if skipped.positive?
 
     redirect_to order_path(@order), notice: notice
   rescue SupplierCatalog::LookupError => e
@@ -247,7 +249,7 @@ class OrdersController < ApplicationController
 
     number = params[:order_number].to_s.strip
     if number.blank?
-      redirect_to orders_path, alert: "Enter an order number to import."
+      redirect_to orders_path, alert: t("flash.orders.enter_an_order_number_to_import")
       return
     end
 
@@ -267,11 +269,11 @@ class OrdersController < ApplicationController
     end
 
     order = build_imported_order(supplier, result, reference, label)
-    redirect_to order_path(order), notice: "Imported #{label} order #{reference} with #{result.lines.size} line#{'s' if result.lines.size != 1}."
+    redirect_to order_path(order), notice: t("flash.orders.supplier_order_imported", count: result.lines.size, supplier: label, reference: reference)
   rescue SupplierCatalog::LookupError => e
     redirect_to orders_path, alert: e.message
   rescue ActiveRecord::RecordInvalid => e
-    redirect_to orders_path, alert: "Could not import that order: #{e.record.errors.full_messages.to_sentence}."
+    redirect_to orders_path, alert: t("flash.orders.could_not_import_that_order", errors: e.record.errors.full_messages.to_sentence)
   end
 
   private
@@ -285,9 +287,9 @@ class OrdersController < ApplicationController
 
   def order_client_missing_message(provider)
     if provider == "digikey"
-      "Connect your DigiKey account in Settings → Integrations to import orders."
+      t("flash.orders.connect_your_digikey_account_in_settings")
     else
-      "Add a Mouser Order API key in Settings → Integrations to import orders."
+      t("flash.orders.add_a_mouser_order_api_key_2")
     end
   end
 

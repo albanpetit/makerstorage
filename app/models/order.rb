@@ -169,15 +169,15 @@ class Order < ApplicationRecord
   # through #advance!, which is what records the stock receipt.
   def status_transition_must_be_allowed
     if status_was.in?(%w[received cancelled])
-      errors.add(:status, "can't change once the order is #{status_was}")
+      errors.add(:status, :order_status_final, status: I18n.t("order_statuses.#{status_was}"))
     elsif received? && !@advancing
-      errors.add(:status, "can only become received by marking the order received")
+      errors.add(:status, :received_only_by_marking)
     end
   end
 
   def supplier_must_belong_to_same_organization
     if supplier.present? && supplier.organization_id != organization_id
-      errors.add(:supplier, "must belong to the same organization")
+      errors.add(:supplier, :same_organization)
     end
   end
 end

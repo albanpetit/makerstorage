@@ -34,7 +34,7 @@ class PartSupplier < ApplicationRecord
     return unless part && supplier
 
     if supplier.organization_id != part.organization_id
-      errors.add(:supplier, "must belong to the same organization")
+      errors.add(:supplier, :same_organization)
     end
   end
 

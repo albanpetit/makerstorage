@@ -39,9 +39,9 @@ class CategoriesController < ApplicationController
       end
       format.html do
         if saved
-          redirect_back_or_to categories_path, notice: "Category \"#{category.name}\" created."
+          redirect_back_or_to categories_path, notice: t("flash.categories.category_created", category_name: category.name)
         else
-          redirect_back_or_to categories_path, alert: "Failed to create category.", inertia: { errors: inertia_errors(category, as: :category) }
+          redirect_back_or_to categories_path, alert: t("flash.categories.failed_to_create_category"), inertia: { errors: inertia_errors(category, as: :category) }
         end
       end
     end
@@ -49,9 +49,9 @@ class CategoriesController < ApplicationController
 
   def update
     if @category.update(category_params)
-      redirect_to categories_path, notice: "Category updated successfully."
+      redirect_to categories_path, notice: t("flash.categories.category_updated_successfully")
     else
-      redirect_back_or_to categories_path, alert: "Failed to update category.", inertia: { errors: inertia_errors(@category, as: :category) }
+      redirect_back_or_to categories_path, alert: t("flash.categories.failed_to_update_category"), inertia: { errors: inertia_errors(@category, as: :category) }
     end
   end
 
@@ -63,7 +63,7 @@ class CategoriesController < ApplicationController
       target = reassignment_target(affected_ids)
       unless target
         redirect_to categories_path,
-          alert: "Select another category to move this category's parts to before deleting."
+          alert: t("flash.categories.select_another_category_to_move_this")
         return
       end
 
@@ -74,9 +74,9 @@ class CategoriesController < ApplicationController
       end
 
       redirect_to categories_path,
-        notice: "Category deleted. #{moved} part#{'s' unless moved == 1} moved to \"#{target.name}\"."
+        notice: t("flash.categories.deleted_and_moved", count: moved, category: target.name)
     elsif @category.destroy
-      redirect_to categories_path, notice: "Category deleted successfully."
+      redirect_to categories_path, notice: t("flash.categories.category_deleted_successfully")
     else
       redirect_to categories_path, alert: @category.errors.full_messages.to_sentence
     end

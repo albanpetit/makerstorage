@@ -7,7 +7,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { typeMeta } from './zone-meta'
 import type { StorageLocationRecord } from './types'
 import type { ZoneTree } from './use-zone-tree'
-import { t } from '@/lib/i18n'
+import { t, tn } from '@/lib/i18n'
 
 interface SubZoneGridProps {
   subZones: StorageLocationRecord[]
@@ -49,8 +49,8 @@ export function SubZoneGrid({ subZones, tree, onSelect, onAddHere }: SubZoneGrid
                     <div className="truncate text-sm font-semibold">{z.name}</div>
                     <div className="text-xs text-muted-foreground">
                       {meta.label}
-                      {childCount > 0 && ` · ${childCount} sub-zone${childCount > 1 ? 's' : ''}`}
-                      {` · ${agg.refs} ref${agg.refs !== 1 ? 's' : ''}`}
+                      {childCount > 0 && ` · ${tn('{count} sub-zone', '{count} sub-zones', childCount)}`}
+                      {` · ${tn('{count} ref', '{count} refs', agg.refs)}`}
                     </div>
                   </div>
                   <ArrowUpRight className="size-4 shrink-0 text-muted-foreground" />

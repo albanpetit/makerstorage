@@ -26,7 +26,7 @@ class ProjectLinesController < ApplicationController
     end
 
     if @line.update(attributes)
-      redirect_to project_path(@line.project), notice: "Line updated."
+      redirect_to project_path(@line.project), notice: t("flash.project_lines.line_updated")
     else
       redirect_to project_path(@line.project),
         alert: @line.errors.full_messages.to_sentence,
@@ -37,7 +37,7 @@ class ProjectLinesController < ApplicationController
   def destroy
     project = @line.project
     @line.destroy!
-    redirect_to project_path(project), notice: "Line removed."
+    redirect_to project_path(project), notice: t("flash.project_lines.line_removed")
   end
 
   private

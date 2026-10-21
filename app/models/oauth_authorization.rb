@@ -135,6 +135,6 @@ class OauthAuthorization < ApplicationRecord
   def user_must_be_member_of_organization
     return if user.nil? || organization.nil? || user.member_of_organization?(organization.id)
 
-    errors.add(:organization, "must be one of the user's organizations")
+    errors.add(:organization, :not_users_organization)
   end
 end

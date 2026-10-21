@@ -341,7 +341,7 @@ class Organization < ApplicationRecord
     renames = storage_locations.bags.includes(:parent, :bag_occupant).select { |bag| bag.parent&.box? }
       .to_h { |bag| [ bag, StorageLocation.bag_code(bag.parent.code, bag.position, ipn_separator) ] }
     clashes = bag_code_clashes(renames)
-    errors.add(:ipn_separator, "would give bags codes already in use: #{clashes.to_sentence}") if clashes.any?
+    errors.add(:ipn_separator, :bag_codes_taken, codes: clashes.to_sentence) if clashes.any?
   end
 
   # Counts the rows of a grouped/HAVING scope (e.g. `low_stock`, which groups by
@@ -435,7 +435,7 @@ class Organization < ApplicationRecord
 
   def must_have_at_least_one_owner
     if organization_memberships.owners.count.zero?
-      errors.add(:base, "Organization must have at least one owner")
+      errors.add(:base, :needs_owner)
     end
   end
 end

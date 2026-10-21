@@ -88,6 +88,12 @@ class User < ApplicationRecord
 
   private
 
+  # Account emails go out in the language the user picked, else in the one of
+  # the request that triggered them (their browser's).
+  def send_devise_notification(notification, *args)
+    I18n.with_locale(locale || I18n.locale) { super }
+  end
+
   # Automatically create a personal organization when the user is created
   def create_personal_organization
     organization = Organization.create!(

@@ -46,16 +46,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { t, tn, tx } from '@/lib/i18n'
-
-// Mounting types are stored in English (Footprint::MOUNTING_TYPES).
-function mountingTypeLabel(type: string) {
-  switch (type) {
-    case 'SMD': return t('SMD')
-    case 'Through-hole': return t('Through-hole')
-    case 'Both': return t('Both')
-    default: return type
-  }
-}
+import { mountingTypeLabel } from '@/lib/mounting-types'
 
 const MOUNTING_TYPE_META: Record<string, string> = {
   SMD: 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400',

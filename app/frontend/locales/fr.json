@@ -157,6 +157,7 @@
   "Category *": "Catégorie *",
   "Category + sequence": "Catégorie + séquence",
   "Category and physical characteristics": "Catégorie et caractéristiques physiques",
+  "Category: {name}": "Catégorie : {name}",
   "Change": "Changer",
   "Change role": "Changer de rôle",
   "Change the numbering format?": "Changer le format de numérotation ?",
@@ -238,6 +239,7 @@
   "Create another category first so these parts have somewhere to go.": "Créez d’abord une autre catégorie où déplacer ces composants.",
   "Create category": "Créer la catégorie",
   "Create category \"{name}\"": "Créer la catégorie « {name} »",
+  "Create new…": "Créer…",
   "Create one": "Créez-en une",
   "Create order": "Créer la commande",
   "Create organization": "Créer une organisation",
@@ -246,6 +248,7 @@
   "Create your first zone to start organizing your inventory.": "Créez une première zone pour commencer à organiser votre inventaire.",
   "Create zone": "Créer la zone",
   "Create zone \"{name}\"": "Créer la zone « {name} »",
+  "Create “{query}”": "Créer « {query} »",
   "Created": "Créé",
   "Creates a new organization from a backup archive, with you as its owner. Existing organizations are left untouched; invite members again once it's restored.": "Crée une nouvelle organisation à partir d’une archive de sauvegarde, dont vous êtes propriétaire. Les organisations existantes ne sont pas modifiées ; réinvitez les membres une fois la restauration faite.",
   "Creates {code}.": "Crée {code}.",
@@ -838,6 +841,7 @@
   "Search parts…": "Rechercher un composant…",
   "Search timezones…": "Rechercher un fuseau horaire…",
   "Search zones or codes…": "Rechercher une zone ou un code…",
+  "Search: “{query}”": "Recherche : « {query} »",
   "Searching…": "Recherche…",
   "Search…": "Rechercher…",
   "See all →": "Tout voir →",
@@ -945,6 +949,10 @@
   "Target Stock": "Stock cible",
   "Target stock": "Stock cible",
   "Team members": "Membres de l’équipe",
+  "Team · {count} members": {
+    "one": "Équipe · {count} membre",
+    "other": "Équipe · {count} membres"
+  },
   "Technical Specifications": "Caractéristiques techniques",
   "Text placed at the start of every reference.": "Texte placé au début de chaque référence.",
   "The IPN (Internal Part Number) is the unique identifier assigned to every new component.": "L’IPN (référence interne) est l’identifiant unique attribué à chaque nouveau composant.",
@@ -1097,6 +1105,10 @@
     "one": "{count} sachet est libre.",
     "other": "{count} sachets sont libres."
   },
+  "{count} days": {
+    "one": "{count} jour",
+    "other": "{count} jours"
+  },
   "{count} digits": "{count} chiffres",
   "{count} invitations": {
     "one": "{count} invitation",
@@ -1110,6 +1122,10 @@
   "{count} lines need resolving before this project is buildable.": {
     "one": "{count} ligne à résoudre avant de pouvoir assembler ce projet.",
     "other": "{count} lignes à résoudre avant de pouvoir assembler ce projet."
+  },
+  "{count} linked": {
+    "one": "{count} associé",
+    "other": "{count} associés"
   },
   "{count} matches — select one:": "{count} résultats — choisissez-en un :",
   "{count} members": {
@@ -1129,6 +1145,10 @@
     "one": "{count} composant",
     "other": "{count} composants"
   },
+  "{count} parts exported": {
+    "one": "{count} composant exporté",
+    "other": "{count} composants exportés"
+  },
   "{count} pending invitations": {
     "one": "{count} invitation en attente",
     "other": "{count} invitations en attente"
@@ -1140,6 +1160,10 @@
   "{count} references below threshold": {
     "one": "{count} référence sous le seuil",
     "other": "{count} références sous le seuil"
+  },
+  "{count} refs": {
+    "one": "{count} réf.",
+    "other": "{count} réf."
   },
   "{count} rows": {
     "one": "{count} ligne",

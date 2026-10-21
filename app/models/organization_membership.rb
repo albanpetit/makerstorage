@@ -86,7 +86,7 @@ class OrganizationMembership < ApplicationRecord
     return if organization&.being_destroyed
     return unless owner? && grants_access? && no_other_active_owner?
 
-    errors.add(:base, "Organization must have at least one active owner")
+    errors.add(:base, :needs_active_owner)
     throw :abort
   end
 
@@ -97,7 +97,7 @@ class OrganizationMembership < ApplicationRecord
     was_active_owner = role_in_database == "owner" && active_in_database && !pending_invitation?
     return unless was_active_owner && !(owner? && grants_access?) && no_other_active_owner?
 
-    errors.add(role_changed? ? :role : :active, "Organization must have at least one active owner")
+    errors.add(role_changed? ? :role : :active, :needs_active_owner)
   end
 
   def no_other_active_owner?

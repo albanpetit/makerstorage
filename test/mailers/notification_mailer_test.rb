@@ -23,4 +23,22 @@ class NotificationMailerTest < ActionMailer::TestCase
       assert_not_includes body, "an account action was requested"
     end
   end
+
+  test "digest is written in the member's language" do
+    org = create_organization(name: "Fablab Amiens")
+    user = create_user(firstname: "Ada", locale: "fr")
+    create_part(organization: org, name: "LM358 op-amp", min_stock_threshold: 5)
+    create_order(organization: org, reference: "PO-7", status: "shipped", expected_delivery: Date.new(2026, 10, 10))
+
+    mail = NotificationMailer.digest(user: user, digest: NotificationDigest.new(org, date: Date.new(2026, 10, 12)))
+
+    assert_equal "Fablab Amiens : 1 composant en stock bas et 1 commande en retard", mail.subject
+    [ mail.html_part.body.to_s, mail.text_part.body.to_s ].each do |body|
+      assert_includes body, "Bonjour Ada"
+      assert_includes body, "12 octobre 2026"
+      assert_includes body, "2 jours de retard"
+    end
+    assert_includes mail.html_part.body.to_s, '<html lang="fr"'
+    assert_equal :en, I18n.locale
+  end
 end

@@ -63,7 +63,7 @@ function Combobox({
   disabled,
   id,
   onCreate,
-  createLabel = (query) => (query ? `Create "${query}"` : "Create new…"),
+  createLabel = (query) => (query ? t("Create “{query}”", { query }) : t("Create new…")),
 }: ComboboxProps) {
   const [open, setOpen] = React.useState(false)
   const [query, setQuery] = React.useState("")

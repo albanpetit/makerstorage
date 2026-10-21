@@ -109,9 +109,9 @@ class ApplicationController < ActionController::Base
     # needs an organization too, so sending them there would loop forever. The
     # profile page doesn't, and its sidebar offers "Create organization".
     if current_organization.nil?
-      redirect_to profile_path, alert: "You're not an active member of any organization. Create one, or ask an admin to reactivate your access."
+      redirect_to profile_path, alert: t("flash.application.you_re_not_an_active_member")
     elsif !current_user.member_of_organization?(current_organization.id)
-      redirect_to root_path, alert: "You don't have access to this organization"
+      redirect_to root_path, alert: t("flash.application.you_don_t_have_access_to")
     end
   end
 
@@ -119,7 +119,7 @@ class ApplicationController < ActionController::Base
   def verify_organization_writer
     return if current_organization && current_user.writer_of?(current_organization)
 
-    message = "Your role is read-only for this organization."
+    message = t("flash.application.your_role_is_read_only_for")
     if request.format.json?
       render json: { error: message }, status: :forbidden
     else
@@ -130,14 +130,14 @@ class ApplicationController < ActionController::Base
   # Verify user is admin/owner of current organization (for sensitive operations)
   def verify_organization_admin
     unless current_organization && current_user.admin_of?(current_organization)
-      redirect_to root_path, alert: "You don't have admin access to this organization"
+      redirect_to root_path, alert: t("flash.application.you_don_t_have_admin_access")
     end
   end
 
   # Verify user is owner of current organization (for critical operations)
   def verify_organization_owner
     unless current_organization && current_user.owner_of?(current_organization)
-      redirect_to root_path, alert: "You must be an owner to perform this action"
+      redirect_to root_path, alert: t("flash.application.you_must_be_an_owner_to")
     end
   end
 end

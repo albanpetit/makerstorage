@@ -32,7 +32,7 @@ class ProjectLine < ApplicationRecord
 
   def part_must_belong_to_same_organization
     if part.present? && part.organization_id != project&.organization_id
-      errors.add(:part, "must belong to the same organization")
+      errors.add(:part, :same_organization)
     end
   end
 end

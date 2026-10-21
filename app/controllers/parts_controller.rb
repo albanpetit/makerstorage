@@ -152,7 +152,7 @@ class PartsController < ApplicationController
 
     if saved
       attach_remote_datasheet(part)
-      redirect_to parts_path, notice: "Part created successfully."
+      redirect_to parts_path, notice: t("flash.parts.part_created_successfully")
     else
       # No flash alert here: the add-part modal renders these errors inline, and
       # a page-level alert would surface behind the still-open dialog instead.
@@ -167,12 +167,12 @@ class PartsController < ApplicationController
   # add-part dialog to prefill from. Async fetch, not an Inertia visit.
   def lookup
     mpn = params[:mpn].to_s.strip
-    return render(json: { error: "Enter a part number to search." }, status: :unprocessable_entity) if mpn.blank?
+    return render(json: { error: t("flash.parts.enter_a_part_number_to_search") }, status: :unprocessable_entity) if mpn.blank?
 
     results = SupplierCatalog.lookup(current_organization, mpn: mpn)
     render json: { results: results.map(&:as_json) }
   rescue SupplierCatalog::NotConfiguredError
-    render json: { error: "No supplier catalog is configured. Add a Mouser or DigiKey key in Settings." }, status: :unprocessable_entity
+    render json: { error: t("flash.parts.no_supplier_catalog_is_configured_add") }, status: :unprocessable_entity
   rescue SupplierCatalog::LookupError => e
     render json: { error: e.message }, status: :bad_gateway
   end
@@ -201,7 +201,7 @@ class PartsController < ApplicationController
       attach_remote_datasheet(@part)
       # Return to wherever the edit was launched (list, detail, or the standalone
       # edit page) so the modal flow stays put instead of navigating away.
-      redirect_back_or_to edit_part_path(@part), notice: "Part updated successfully."
+      redirect_back_or_to edit_part_path(@part), notice: t("flash.parts.part_updated_successfully")
     else
       # No page-level alert: the edit modal renders these errors inline, and one
       # would otherwise surface behind the still-open dialog.
@@ -211,7 +211,7 @@ class PartsController < ApplicationController
 
   def destroy
     if @part.destroy
-      redirect_to parts_path, notice: "Part deleted successfully."
+      redirect_to parts_path, notice: t("flash.parts.part_deleted_successfully")
     else
       redirect_back_or_to parts_path, alert: @part.errors.full_messages.to_sentence
     end
@@ -222,19 +222,19 @@ class PartsController < ApplicationController
   # matching out/in ledger movements. Parts with no positive stock are left as-is.
   def bulk_move
     parts = current_organization.parts.where(id: bulk_part_ids).includes(part_storages: :storage_location)
-    return bulk_error("Select at least one part.") if parts.empty?
+    return bulk_error(t("flash.parts.select_at_least_one_part")) if parts.empty?
 
     destination = current_organization.storage_locations.find_by(id: params[:storage_location_id])
-    return bulk_error("Choose a destination location.") unless destination
+    return bulk_error(t("flash.parts.choose_a_destination_location")) unless destination
 
     moved = parts.count { |part| relocate_part_stock(part, destination) }
 
-    redirect_back_or_to parts_path, notice: "Relocated stock for #{moved} #{'part'.pluralize(moved)} to #{destination.name}."
+    redirect_back_or_to parts_path, notice: t("flash.parts.bulk_moved", count: moved, location: destination.name)
   end
 
   def bulk_destroy
     parts = current_organization.parts.where(id: bulk_part_ids)
-    return bulk_error("Select at least one part.") if parts.empty?
+    return bulk_error(t("flash.parts.select_at_least_one_part")) if parts.empty?
 
     destroyed = parts.select { |part| part.destroy }
     skipped = parts.size - destroyed.size
@@ -247,40 +247,40 @@ class PartsController < ApplicationController
 
   def bulk_update_category
     parts = current_organization.parts.where(id: bulk_part_ids)
-    return bulk_error("Select at least one part.") if parts.empty?
+    return bulk_error(t("flash.parts.select_at_least_one_part")) if parts.empty?
 
     category = current_organization.categories.find_by(id: params[:category_id])
-    return bulk_error("Choose a category.") unless category
+    return bulk_error(t("flash.parts.choose_a_category")) unless category
 
     updated = parts.update_all(category_id: category.id)
-    redirect_back_or_to parts_path, notice: "Set category to #{category.name} for #{updated} #{'part'.pluralize(updated)}."
+    redirect_back_or_to parts_path, notice: t("flash.parts.bulk_category", count: updated, category: category.name)
   end
 
   def bulk_update_status
     parts = current_organization.parts.where(id: bulk_part_ids)
-    return bulk_error("Select at least one part.") if parts.empty?
+    return bulk_error(t("flash.parts.select_at_least_one_part")) if parts.empty?
 
     status = params[:status].to_s
-    return bulk_error("Choose a valid status.") unless Part::STATUSES.include?(status)
+    return bulk_error(t("flash.parts.choose_a_valid_status")) unless Part::STATUSES.include?(status)
 
     updated = parts.update_all(status: status)
-    redirect_back_or_to parts_path, notice: "Set status to #{status} for #{updated} #{'part'.pluralize(updated)}."
+    redirect_back_or_to parts_path, notice: t("flash.parts.bulk_status", count: updated, status: t("part_statuses.#{status}"))
   end
 
   # Adds or removes the given tags on every selected part. Tags already present
   # (add) or already absent (remove) on a given part are simply left alone.
   def bulk_update_tags
     parts = current_organization.parts.where(id: bulk_part_ids)
-    return bulk_error("Select at least one part.") if parts.empty?
+    return bulk_error(t("flash.parts.select_at_least_one_part")) if parts.empty?
 
     tag_ids = current_organization.tags.where(id: Array(params[:tag_ids])).pluck(:id)
-    return bulk_error("Choose at least one tag.") if tag_ids.empty?
+    return bulk_error(t("flash.parts.choose_at_least_one_tag")) if tag_ids.empty?
 
     part_ids = parts.pluck(:id)
 
     if params[:mode] == "remove"
       PartTag.where(part_id: part_ids, tag_id: tag_ids).delete_all
-      redirect_back_or_to parts_path, notice: "Removed #{tag_ids.size} #{'tag'.pluralize(tag_ids.size)} from #{part_ids.size} #{'part'.pluralize(part_ids.size)}."
+      redirect_back_or_to parts_path, notice: t("flash.parts.bulk_tags_removed", count: part_ids.size, tags: t("flash.parts.tags", count: tag_ids.size))
     else
       # Single query for existing links instead of a per-part tag_ids lookup,
       # then a single bulk insert for whatever's missing.
@@ -290,7 +290,7 @@ class PartsController < ApplicationController
           .map { |tag_id| { part_id: part_id, tag_id: tag_id } }
       end
       PartTag.insert_all(rows) if rows.any?
-      redirect_back_or_to parts_path, notice: "Added #{tag_ids.size} #{'tag'.pluralize(tag_ids.size)} to #{part_ids.size} #{'part'.pluralize(part_ids.size)}."
+      redirect_back_or_to parts_path, notice: t("flash.parts.bulk_tags_added", count: part_ids.size, tags: t("flash.parts.tags", count: tag_ids.size))
     end
   end
 
@@ -299,10 +299,10 @@ class PartsController < ApplicationController
   # Part#sync_unit_price_from_preferred! keeps unit_price in step).
   def bulk_assign_supplier
     parts = current_organization.parts.where(id: bulk_part_ids).includes(:part_suppliers)
-    return bulk_error("Select at least one part.") if parts.empty?
+    return bulk_error(t("flash.parts.select_at_least_one_part")) if parts.empty?
 
     supplier = current_organization.suppliers.find_by(id: params[:supplier_id])
-    return bulk_error("Choose a supplier.") unless supplier
+    return bulk_error(t("flash.parts.choose_a_supplier")) unless supplier
 
     ActiveRecord::Base.transaction do
       parts.each do |part|
@@ -312,14 +312,14 @@ class PartsController < ApplicationController
       end
     end
 
-    redirect_back_or_to parts_path, notice: "Assigned #{supplier.name} as preferred supplier for #{parts.size} #{'part'.pluralize(parts.size)}."
+    redirect_back_or_to parts_path, notice: t("flash.parts.bulk_supplier", count: parts.size, supplier: supplier.name)
   rescue ActiveRecord::RecordInvalid => e
-    bulk_error("No supplier was assigned: #{e.record.errors.full_messages.to_sentence}.")
+    bulk_error(t("flash.parts.no_supplier_was_assigned", errors: e.record.errors.full_messages.to_sentence))
   end
 
   def import
     file = params[:file]
-    return redirect_to(parts_path, alert: "Please choose a CSV file to import.") unless file
+    return redirect_to(parts_path, alert: t("flash.parts.please_choose_a_csv_file_to")) unless file
     return redirect_to(parts_path, alert: BomParser.too_large_message) if BomParser.too_large?(file)
 
     created = 0
@@ -373,10 +373,10 @@ class PartsController < ApplicationController
         end
       end
     rescue CSV::MalformedCSVError
-      return redirect_to(parts_path, alert: "Could not parse that file as CSV.")
+      return redirect_to(parts_path, alert: t("flash.parts.could_not_parse_that_file_as"))
     end
 
-    redirect_to parts_path, notice: "Import complete: #{created} created, #{updated} updated, #{skipped} skipped."
+    redirect_to parts_path, notice: t("flash.parts.import_complete_created_updated_skipped", created: created, updated: updated, skipped: skipped)
   end
 
   private
@@ -562,7 +562,7 @@ class PartsController < ApplicationController
   def assign_initial_stock(part)
     quantity = params[:initial_quantity].to_i
     return if quantity <= 0
-    raise InitialStockError, "Quantity is too large" if quantity > ApplicationRecord::MAX_INTEGER
+    raise InitialStockError, t("flash.parts.quantity_is_too_large") if quantity > ApplicationRecord::MAX_INTEGER
 
     location = if params[:initial_location_id].present?
       current_organization.storage_locations.find_by(id: params[:initial_location_id])

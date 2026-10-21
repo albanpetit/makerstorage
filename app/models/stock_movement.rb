@@ -46,21 +46,21 @@ class StockMovement < ApplicationRecord
     return if quantity_delta.nil?
 
     if movement_type == "in" && quantity_delta <= 0
-      errors.add(:quantity_delta, "must be positive for an incoming movement")
+      errors.add(:quantity_delta, :positive_for_incoming)
     elsif movement_type == "out" && quantity_delta >= 0
-      errors.add(:quantity_delta, "must be negative for an outgoing movement")
+      errors.add(:quantity_delta, :negative_for_outgoing)
     end
   end
 
   def storage_location_must_belong_to_same_organization
     if storage_location.present? && storage_location.organization_id != organization_id
-      errors.add(:storage_location, "must belong to the same organization")
+      errors.add(:storage_location, :same_organization)
     end
   end
 
   def part_must_belong_to_same_organization
     if part.present? && part.organization_id != organization_id
-      errors.add(:part, "must belong to the same organization")
+      errors.add(:part, :same_organization)
     end
   end
 
@@ -72,7 +72,7 @@ class StockMovement < ApplicationRecord
 
     occupant = storage_location.bag_occupant
     if occupant && occupant.id != part_id
-      errors.add(:storage_location, "#{storage_location.code} is #{occupant.name}'s bag: pick another bag")
+      errors.add(:storage_location, :bag_held_by, code: storage_location.code, part: occupant.name)
     end
   end
 
@@ -84,7 +84,7 @@ class StockMovement < ApplicationRecord
 
     current_quantity = PartStorage.find_by(part: part, storage_location: storage_location)&.quantity || 0
     if current_quantity + quantity_delta < 0
-      errors.add(:quantity_delta, "would result in negative stock at this location")
+      errors.add(:quantity_delta, :negative_stock)
     end
   end
 
@@ -106,7 +106,7 @@ class StockMovement < ApplicationRecord
     scope = scope.where("quantity + ? >= 0", quantity_delta) unless organization&.allow_negative_stock
 
     if scope.update_all([ "quantity = quantity + ?", quantity_delta ]).zero?
-      errors.add(:quantity_delta, "would result in negative stock at this location")
+      errors.add(:quantity_delta, :negative_stock)
       raise ActiveRecord::RecordInvalid, self
     end
   end

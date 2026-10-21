@@ -30,7 +30,7 @@ class IpnReassignSystemTest < ApplicationSystemTestCase
       assert_no_text "LM358 op-amp"
 
       find("#clear-unbagged").click
-      assert_text "2 of 2 parts will change, 1 of them losing their reference"
+      assert_text "2 of 2 parts will change. 1 of them loses its reference."
       assert_text "LM358 op-amp"
       find("#clear-unbagged").click
       assert_text "1 of 2 parts will change"

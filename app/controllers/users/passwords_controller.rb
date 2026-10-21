@@ -5,7 +5,7 @@ class Users::PasswordsController < Devise::PasswordsController
   # (allowing for many members behind one shared makerspace IP).
   RATE_LIMIT = 20
   rate_limit to: RATE_LIMIT, within: 15.minutes, only: :create, store: AUTH_RATE_LIMIT_STORE,
-             with: -> { redirect_to new_user_password_path, alert: "Too many reset requests. Please wait a few minutes and try again." }
+             with: -> { redirect_to new_user_password_path, alert: t("flash.users_passwords.too_many_reset_requests_please_wait") }
   # GET /forgot-password
   def new
     render inertia: "auth/forgot-password", props: {}
@@ -17,7 +17,7 @@ class Users::PasswordsController < Devise::PasswordsController
   # do this too, but also hides the "account locked" sign-in message.)
   def create
     if resource_params[:email].blank?
-      redirect_to new_user_password_path, alert: "Enter your email address."
+      redirect_to new_user_password_path, alert: t("flash.users_passwords.enter_your_email_address")
       return
     end
 

@@ -77,9 +77,9 @@ class StockMovementsController < ApplicationController
     movement.quantity_delta = signed_quantity
 
     if movement.save
-      redirect_back_or_to stock_movements_path, notice: "Movement recorded successfully."
+      redirect_back_or_to stock_movements_path, notice: t("flash.stock_movements.movement_recorded_successfully")
     else
-      redirect_back_or_to stock_movements_path, alert: "Failed to record movement.", inertia: { errors: inertia_errors(movement, as: :stock_movement) }
+      redirect_back_or_to stock_movements_path, alert: t("flash.stock_movements.failed_to_record_movement"), inertia: { errors: inertia_errors(movement, as: :stock_movement) }
     end
   end
 

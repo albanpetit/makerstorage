@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<html lang="<%= I18n.locale %>" xmlns="http://www.w3.org/1999/xhtml">
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -38,11 +38,11 @@
             <!-- Footer -->
             <tr>
               <td style="padding: 24px 8px 8px 8px; font-size: 12px; line-height: 1.6; color: #a1a1aa;">
-                <p style="margin: 0 0 4px 0;">Makerstorage &middot; Electronics-parts inventory for makerspaces.</p>
+                <p style="margin: 0 0 4px 0;">Makerstorage &middot; <%= t("mail.tagline") %></p>
                 <% if content_for?(:mailer_footer) %>
                   <p style="margin: 0;"><%= yield :mailer_footer %></p>
                 <% else %>
-                  <p style="margin: 0;">You received this email because an account action was requested. If it wasn&#39;t you, you can safely ignore this message.</p>
+                  <p style="margin: 0;"><%= t("mail.account_footer") %></p>
                 <% end %>
               </td>
             </tr>

@@ -42,8 +42,8 @@ class OrganizationMerge
   end
 
   def merge!
-    raise Error, "An organization can't be merged into itself." if source.id == target.id
-    raise Error, "A personal organization can't be merged into another one." if source.personal?
+    raise Error, I18n.t("errors.organization_merge.into_itself") if source.id == target.id
+    raise Error, I18n.t("errors.organization_merge.personal") if source.personal?
 
     @codes_renamed = 0
     result = ActiveRecord::Base.transaction do
@@ -83,7 +83,7 @@ class OrganizationMerge
     target.reload
     result
   rescue ActiveRecord::RecordNotDestroyed
-    raise Error, "#{source.name} could not be deleted once its data was moved."
+    raise Error, I18n.t("errors.organization_merge.source_not_deleted", name: source.name)
   end
 
   private

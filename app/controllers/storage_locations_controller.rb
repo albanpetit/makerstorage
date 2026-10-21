@@ -40,7 +40,7 @@ class StorageLocationsController < ApplicationController
       end
       format.html do
         if saved
-          redirect_to storage_locations_path, notice: "Storage zone created successfully."
+          redirect_to storage_locations_path, notice: t("flash.storage_locations.storage_zone_created_successfully")
         else
           redirect_to storage_locations_path, alert: location.errors.full_messages.to_sentence, inertia: { errors: inertia_errors(location, as: :storage_location) }
         end
@@ -50,7 +50,7 @@ class StorageLocationsController < ApplicationController
 
   def update
     if @storage_location.update(storage_location_params)
-      redirect_to storage_locations_path, notice: "Storage zone updated successfully."
+      redirect_to storage_locations_path, notice: t("flash.storage_locations.storage_zone_updated_successfully")
     else
       redirect_to storage_locations_path, alert: @storage_location.errors.full_messages.to_sentence, inertia: { errors: inertia_errors(@storage_location, as: :storage_location) }
     end
@@ -58,12 +58,12 @@ class StorageLocationsController < ApplicationController
 
   def destroy
     if @storage_location.has_children?
-      redirect_to storage_locations_path, alert: "Cannot delete a zone that contains sub-zones."
+      redirect_to storage_locations_path, alert: t("flash.storage_locations.cannot_delete_a_zone_that_contains")
       return
     end
 
     if @storage_location.destroy
-      redirect_to storage_locations_path, notice: "Storage zone deleted successfully."
+      redirect_to storage_locations_path, notice: t("flash.storage_locations.storage_zone_deleted_successfully")
     else
       redirect_to storage_locations_path, alert: @storage_location.errors.full_messages.to_sentence
     end
@@ -73,15 +73,15 @@ class StorageLocationsController < ApplicationController
   def add_bags
     count = params[:count].to_i
     unless @storage_location.box?
-      return redirect_to storage_locations_path(zone: @storage_location.id), alert: "Only a box can hold bags."
+      return redirect_to storage_locations_path(zone: @storage_location.id), alert: t("flash.storage_locations.only_a_box_can_hold_bags")
     end
     unless count.between?(1, MAX_BAGS_PER_REQUEST)
-      return redirect_to storage_locations_path(zone: @storage_location.id), alert: "Add between 1 and #{MAX_BAGS_PER_REQUEST} bags at a time."
+      return redirect_to storage_locations_path(zone: @storage_location.id), alert: t("flash.storage_locations.add_between_and_bags_at_a", max: MAX_BAGS_PER_REQUEST)
     end
 
     bags = @storage_location.add_bags!(count)
     redirect_to storage_locations_path(zone: @storage_location.id),
-      notice: "Added #{count} #{'bag'.pluralize(count)} (#{[ bags.first.code, bags.last.code ].uniq.join(' to ')})."
+      notice: bags.one? ? t("flash.storage_locations.bag_added", code: bags.first.code) : t("flash.storage_locations.bags_added", count: count, first: bags.first.code, last: bags.last.code)
   rescue ActiveRecord::RecordInvalid => e
     redirect_to storage_locations_path(zone: @storage_location.id), alert: e.record.errors.full_messages.to_sentence
   end
@@ -96,10 +96,10 @@ class StorageLocationsController < ApplicationController
     to = current_organization.storage_locations.find_by(id: params[:to_location_id])
 
     if from.nil? || to.nil?
-      return redirect_back_or_to(storage_locations_path, alert: "Unknown storage zone.")
+      return redirect_back_or_to(storage_locations_path, alert: t("flash.storage_locations.unknown_storage_zone"))
     end
     if from.id == to.id
-      return redirect_back_or_to(storage_locations_path, alert: "Pick a different destination zone.")
+      return redirect_back_or_to(storage_locations_path, alert: t("flash.storage_locations.pick_a_different_destination_zone"))
     end
 
     moves = Array(params[:moves]).filter_map do |raw|
@@ -110,7 +110,7 @@ class StorageLocationsController < ApplicationController
     end
 
     if moves.empty?
-      return redirect_back_or_to(storage_locations_path, alert: "No components selected to move.")
+      return redirect_back_or_to(storage_locations_path, alert: t("flash.storage_locations.no_components_selected_to_move"))
     end
 
     error = nil
@@ -118,7 +118,7 @@ class StorageLocationsController < ApplicationController
       moves.each do |move|
         available = PartStorage.find_by(part: move[:part], storage_location: from)&.quantity || 0
         if move[:quantity] <= 0 || move[:quantity] > available
-          error = "#{move[:part].reference}: can't move #{move[:quantity]} (only #{available} in #{from.name})."
+          error = t("flash.storage_locations.cannot_move_quantity", reference: move[:part].reference, quantity: move[:quantity], available: available, zone: from.name)
           raise ActiveRecord::Rollback
         end
 
@@ -133,7 +133,7 @@ class StorageLocationsController < ApplicationController
 
         unless outgoing.save && incoming.save
           error = (outgoing.errors.full_messages + incoming.errors.full_messages).to_sentence.presence ||
-                  "Could not move #{move[:part].reference}."
+                  t("flash.storage_locations.could_not_move", reference: move[:part].reference)
           raise ActiveRecord::Rollback
         end
       end
@@ -143,7 +143,7 @@ class StorageLocationsController < ApplicationController
       redirect_back_or_to(storage_locations_path, alert: error)
     else
       count = moves.size
-      redirect_back_or_to(storage_locations_path, notice: "Moved #{count} component#{'s' unless count == 1} to #{to.name}.")
+      redirect_back_or_to(storage_locations_path, notice: t("flash.storage_locations.components_moved", count: count, zone: to.name))
     end
   end
 

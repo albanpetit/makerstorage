@@ -13,7 +13,7 @@ module Oauth
 
     def authorize
       unless current_organization.digikey_configured?
-        redirect_to settings_path, alert: "Add your DigiKey Client ID and Secret before connecting an account."
+        redirect_to settings_path, alert: t("flash.oauth_digikey.add_your_digikey_client_id_and")
         return
       end
 
@@ -35,17 +35,17 @@ module Oauth
       started_in = session.delete(:digikey_oauth_organization_id)
 
       if params[:error].present?
-        redirect_to settings_path, alert: "DigiKey authorization was cancelled."
+        redirect_to settings_path, alert: t("flash.oauth_digikey.digikey_authorization_was_cancelled")
         return
       end
 
       if expected.blank? || params[:state] != expected
-        redirect_to settings_path, alert: "DigiKey authorization could not be verified. Please try connecting again."
+        redirect_to settings_path, alert: t("flash.oauth_digikey.digikey_authorization_could_not_be_verified")
         return
       end
 
       if started_in != current_organization.id
-        redirect_to settings_path, alert: "You switched organization during the DigiKey connection. Please connect again from this organization."
+        redirect_to settings_path, alert: t("flash.oauth_digikey.you_switched_organization_during_the_digikey")
         return
       end
 
@@ -62,7 +62,7 @@ module Oauth
         digikey_token_expires_at: Time.current + tokens["expires_in"].to_i.seconds
       )
 
-      redirect_to settings_path, notice: "DigiKey account connected."
+      redirect_to settings_path, notice: t("flash.oauth_digikey.digikey_account_connected")
     rescue SupplierCatalog::LookupError => e
       redirect_to settings_path, alert: e.message
     end
@@ -73,7 +73,7 @@ module Oauth
         digikey_refresh_token: nil,
         digikey_token_expires_at: nil
       )
-      redirect_to settings_path, notice: "DigiKey account disconnected."
+      redirect_to settings_path, notice: t("flash.oauth_digikey.digikey_account_disconnected")
     end
   end
 end

@@ -64,6 +64,16 @@ class CategoryTest < ActiveSupport::TestCase
     assert_includes category.errors[:parent_id], "cannot be itself"
   end
 
+  test "validation errors are translated" do
+    category = create_category(organization: @org)
+    category.parent_id = category.id
+
+    I18n.with_locale(:fr) do
+      assert_not category.valid?
+      assert_includes category.errors.full_messages, "Parent ne peut pas être elle-même"
+    end
+  end
+
   test "parent must belong to the same organization" do
     other_org = create_organization
     parent = create_category(organization: other_org)

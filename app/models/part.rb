@@ -325,29 +325,29 @@ class Part < ApplicationRecord
 
   def bag_must_be_free
     if bag.nil? || bag.organization_id != organization_id || !bag.bag?
-      errors.add(:bag, "must be a bag of this organization")
+      errors.add(:bag, :bag_other_organization)
     elsif organization && !organization.free_bags(for_part: self).exists?(id: bag.id)
-      errors.add(:bag, "#{bag.code} is already holding another part")
+      errors.add(:bag, :bag_taken, code: bag.code)
     elsif organization.parts.where("LOWER(ipn) = ?", bag.code.to_s.downcase).where.not(id: id).where.not(bag_id: bag.id).exists?
-      errors.add(:bag, "#{bag.code} is already another part's IPN")
+      errors.add(:bag, :bag_is_other_ipn, code: bag.code)
     end
   end
 
   def image_source_url_must_be_supplier_image
     return if image_source_url.blank? || image_source_url == self.class.supplier_image_url(image_source_url)
 
-    errors.add(:image_source_url, "must be an https image from a supplier catalog (#{Makerstorage::SUPPLIER_IMAGE_HOSTS.to_sentence})")
+    errors.add(:image_source_url, :image_host, hosts: Makerstorage::SUPPLIER_IMAGE_HOSTS.to_sentence)
   end
 
   def category_must_belong_to_same_organization
     if category.present? && category.organization_id != organization_id
-      errors.add(:category, "must belong to the same organization")
+      errors.add(:category, :same_organization)
     end
   end
 
   def footprint_must_belong_to_same_organization
     if footprint.present? && footprint.organization_id != organization_id
-      errors.add(:footprint, "must belong to the same organization")
+      errors.add(:footprint, :same_organization)
     end
   end
 end

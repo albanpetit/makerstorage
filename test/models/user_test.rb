@@ -100,4 +100,32 @@ class UserTest < ActiveSupport::TestCase
     with_email_verification(false) { other.update!(email: "fourth@example.com") }
     assert_equal "fourth@example.com", other.reload.email
   end
+
+  test "locale is empty (follow the browser) or an available locale" do
+    user = create_user
+    assert_nil user.locale
+
+    user.locale = "fr"
+    assert user.valid?
+    user.locale = "de"
+    assert_not user.valid?
+    assert user.errors.of_kind?(:locale, :inclusion)
+  end
+
+  test "account emails go out in the user's language" do
+    user = create_user(locale: "fr")
+
+    mail = I18n.with_locale(:en) { user.send_reset_password_instructions && ActionMailer::Base.deliveries.last }
+
+    assert_equal "Instructions pour changer le mot de passe", mail.subject
+    assert_includes mail.text_part.body.to_s, "Réinitialisez votre mot de passe"
+  end
+
+  test "account emails of a user without a language follow the request's" do
+    user = create_user
+
+    mail = I18n.with_locale(:fr) { user.send_reset_password_instructions && ActionMailer::Base.deliveries.last }
+
+    assert_includes mail.text_part.body.to_s, "Réinitialisez votre mot de passe"
+  end
 end

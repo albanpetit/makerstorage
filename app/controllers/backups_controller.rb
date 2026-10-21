@@ -13,7 +13,7 @@ class BackupsController < ApplicationController
   # when addresses are verified.
   before_action :verify_confirmed_email, only: :import
   rate_limit to: IMPORT_RATE_LIMIT = 5, within: 1.hour, only: :import, by: -> { current_user.id }, store: AUTH_RATE_LIMIT_STORE,
-             with: -> { redirect_back_or_to settings_path, alert: "Too many restores. Please try again later." }
+             with: -> { redirect_back_or_to settings_path, alert: t("flash.backups.too_many_restores_please_try_again") }
 
   # The archive is built in a temporary file and streamed from disk (the file
   # is deleted once the response is sent), so a large organization doesn't
@@ -36,19 +36,19 @@ class BackupsController < ApplicationController
 
   def import
     file = params[:file]
-    return redirect_back_or_to(settings_path, alert: "Please choose a backup file to restore.") unless file.respond_to?(:path)
+    return redirect_back_or_to(settings_path, alert: t("flash.backups.please_choose_a_backup_file_to")) unless file.respond_to?(:path)
 
     result = OrganizationBackup::Importer.new(file.path, user: current_user, name: params[:name]).import!
     session[:current_organization_id] = result.organization.id
 
-    notice = "Restored \"#{result.organization.name}\" (#{result.records_count} #{'record'.pluralize(result.records_count)}, " \
-             "#{result.files_count} #{'file'.pluralize(result.files_count)})."
+    notice = t("flash.backups.restored", name: result.organization.name,
+      records: t("flash.backups.records", count: result.records_count), files: t("flash.backups.files", count: result.files_count))
     if result.skipped_files.any?
-      notice += " Skipped #{result.skipped_files.size} #{'file'.pluralize(result.skipped_files.size)} that couldn't be restored."
+      notice += t("flash.backups.skipped_files", count: result.skipped_files.size)
     end
     redirect_to settings_path, notice: notice
   rescue OrganizationBackup::Error => e
-    redirect_back_or_to settings_path, alert: "Could not restore the backup. #{e.message}"
+    redirect_back_or_to settings_path, alert: t("flash.backups.could_not_restore_the_backup", message: e.message)
   end
 
   private
@@ -80,6 +80,6 @@ class BackupsController < ApplicationController
   def verify_confirmed_email
     return if !User.email_verification? || current_user.confirmed?
 
-    redirect_back_or_to settings_path, alert: "Confirm your email address before restoring a backup."
+    redirect_back_or_to settings_path, alert: t("flash.backups.confirm_your_email_address_before_restoring")
   end
 end

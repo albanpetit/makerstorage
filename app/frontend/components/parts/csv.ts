@@ -1,7 +1,7 @@
 import { toast } from 'sonner'
 
 import type { Part, PartListFilters } from './types'
-import { t } from '@/lib/i18n'
+import { t, tn } from '@/lib/i18n'
 
 // Text starting with = + - @ (or a tab/CR) is run as a formula by Excel and
 // friends, so user-entered fields get a leading quote. Plain numbers (e.g. a
@@ -50,7 +50,7 @@ export function exportCsv(parts: Part[]) {
   link.click()
   URL.revokeObjectURL(url)
 
-  toast.success(`${parts.length} part${parts.length !== 1 ? 's' : ''} exported`, {
+  toast.success(tn('{count} part exported', '{count} parts exported', parts.length), {
     description: link.download,
   })
 }
