@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
 import { Field, FieldContent, FieldError, FieldLabel } from '@/components/ui/field'
 
 import type { IntegrationsForm, OrganizationSettings } from './types'
@@ -15,7 +16,8 @@ interface IntegrationsSectionProps {
   organization: OrganizationSettings
 }
 
-// Mouser and DigiKey credentials (write-only) and the DigiKey account link.
+// Mouser and DigiKey credentials (write-only), the DigiKey account link, and
+// the LCSC switch (no key: LCSC's catalog is queried without an account).
 export function IntegrationsSection({ form, organization }: IntegrationsSectionProps) {
   const origin = typeof window !== 'undefined' ? window.location.origin : ''
 
@@ -50,6 +52,12 @@ export function IntegrationsSection({ form, organization }: IntegrationsSectionP
         form.transform((data) => data)
       },
     })
+  }
+
+  // LCSC has nothing to type in, so its switch saves straight away (outside the
+  // credentials form, whose fields it would otherwise reset).
+  const toggleLcsc = (enabled: boolean) => {
+    router.patch('/settings', { organization: { lcsc_enabled: enabled } }, { preserveScroll: true })
   }
 
   return (
@@ -287,6 +295,36 @@ export function IntegrationsSection({ form, organization }: IntegrationsSectionP
             Save
           </Button>
         </CardFooter>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>LCSC Electronics</CardTitle>
+          <CardDescription>
+            Fetch a component's details, datasheet and image from LCSC by part number or LCSC code (e.g. C2040)
+            when adding a part. No account or key needed.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <div className="text-sm font-medium">Search LCSC</div>
+              <div className="text-xs text-muted-foreground">
+                Turning it on sets up an “LCSC” supplier (if it doesn’t exist yet) so looked-up part numbers link to it.
+              </div>
+            </div>
+            <Switch
+              aria-label="Search LCSC"
+              checked={organization.lcsc_enabled}
+              onCheckedChange={toggleLcsc}
+            />
+          </div>
+          <p className="text-xs text-muted-foreground">
+            LCSC only offers its official API to approved partners, so this uses the search behind lcsc.com, which
+            LCSC may change or block at any time. Prices are in US dollars: they only fill a part's unit price when
+            your organization's currency is USD.
+          </p>
+        </CardContent>
       </Card>
     </form>
   )
