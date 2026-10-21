@@ -350,7 +350,180 @@ class ScansControllerTest < ActionDispatch::IntegrationTest
     assert_response :not_found
   end
 
+  test "index matches a supplier bag label by the supplier part number" do
+    user = create_user
+    org = user.organizations.first
+    supplier = create_supplier(organization: org, name: "DigiKey")
+    part = create_part(organization: org, mpn: "SN74HC595N-OTHER")
+    PartSupplier.create!(part: part, supplier: supplier, supplier_sku: "296-1395-5-ND")
+    create_part(organization: org, mpn: "SN74HC595N")
+
+    sign_in user
+    get scan_path, params: { code: digikey_label }
+    assert_response :success
+
+    result = inertia_props["result"]
+    assert_equal "supplier_label", result["kind"]
+    assert_equal part.id, result["part"]["id"]
+    assert_equal "SN74HC595N", result["label"]["mpn"]
+    assert_equal 25, result["label"]["quantity"]
+    assert_equal "DigiKey 84512345", result["reference"]
+    assert_nil result["previous_receipt"]
+    assert_empty result["open_orders"]
+  end
+
+  test "index matches a supplier bag label by customer part number, then sku, then mpn" do
+    user = create_user
+    org = user.organizations.first
+    by_mpn = create_part(organization: org, mpn: "SN74HC595N")
+
+    sign_in user
+    get scan_path, params: { code: digikey_label }
+    assert_equal by_mpn.id, inertia_props["result"]["part"]["id"]
+
+    by_sku = create_part(organization: org, sku: "296-1395-5-nd")
+    get scan_path, params: { code: digikey_label }
+    assert_equal by_sku.id, inertia_props["result"]["part"]["id"]
+
+    by_ipn = create_part(organization: org, ipn: "MS-00042")
+    get scan_path, params: { code: digikey_label(customer: "MS-00042") }
+    assert_equal by_ipn.id, inertia_props["result"]["part"]["id"]
+  end
+
+  test "index returns an unmatched supplier label so the part can be created" do
+    user = create_user
+    org = user.organizations.first
+    other_org = create_organization
+    create_part(organization: other_org, mpn: "SN74HC595N")
+    create_part(organization: org, name: "Unrelated")
+
+    sign_in user
+    get scan_path, params: { code: digikey_label }
+
+    result = inertia_props["result"]
+    assert_equal "supplier_label", result["kind"]
+    assert_nil result["part"]
+    assert_equal "296-1395-5-ND", result["label"]["supplier_sku"]
+  end
+
+  test "index flags a supplier bag that was already received and the part's open orders" do
+    user = create_user
+    org = user.organizations.first
+    part = create_part(organization: org, mpn: "SN74HC595N")
+    location = create_storage_location(organization: org, name: "Drawer A1")
+    StockMovement.create!(organization: org, part: part, storage_location: location, movement_type: "in",
+      quantity_delta: 25, reason: ScansController::LABEL_REASON, reference: "DigiKey 84512345")
+    order = create_order(organization: org, reference: "PO-1")
+    order.order_lines.create!(part: part, quantity: 25)
+    received = create_order(organization: org, reference: "PO-2")
+    received.order_lines.create!(part: part, quantity: 5)
+    received.update_column(:status, "cancelled")
+
+    sign_in user
+    get scan_path, params: { code: digikey_label }
+
+    result = inertia_props["result"]
+    assert_equal 25, result["previous_receipt"]["quantity"]
+    assert_equal "Drawer A1", result["previous_receipt"]["location_name"]
+    assert_equal [ { "id" => order.id, "reference" => "PO-1", "quantity" => 25 } ], result["open_orders"]
+
+    get scan_path, params: { code: digikey_label(order: "99999") }
+    assert_nil inertia_props["result"]["previous_receipt"]
+  end
+
+  test "receive credits a scanned bag to the chosen zone" do
+    user = create_user
+    org = user.organizations.first
+    part = create_part(organization: org, mpn: "SN74HC595N")
+    location = create_storage_location(organization: org, name: "Drawer A1")
+
+    sign_in user
+    assert_difference -> { StockMovement.count } => 1 do
+      post scan_receipts_path, params: {
+        receipt: { part_id: part.id, storage_location_id: location.id, quantity: 25, reference: "DigiKey 84512345" }
+      }
+    end
+
+    assert_redirected_to scan_path
+    movement = StockMovement.last
+    assert_equal "in", movement.movement_type
+    assert_equal 25, movement.quantity_delta
+    assert_equal ScansController::LABEL_REASON, movement.reason
+    assert_equal "DigiKey 84512345", movement.reference
+    assert_equal user, movement.user
+    assert_equal 25, PartStorage.find_by(part: part, storage_location: location).quantity
+
+    get scan_path
+    assert_equal [ movement.id ], inertia_props["recent_scans"].map { |scan| scan["id"] }
+    assert_equal 1, inertia_props["today_count"]
+  end
+
+  test "receive refuses a quantity that isn't positive" do
+    user = create_user
+    org = user.organizations.first
+    part = create_part(organization: org)
+    location = create_storage_location(organization: org)
+
+    sign_in user
+    [ 0, -5 ].each do |quantity|
+      assert_no_difference -> { StockMovement.count } do
+        post scan_receipts_path, params: {
+          receipt: { part_id: part.id, storage_location_id: location.id, quantity: quantity }
+        }
+      end
+      assert_equal "Failed to receive the bag.", flash[:alert]
+    end
+    assert_nil PartStorage.find_by(part: part, storage_location: location)
+  end
+
+  test "receive returns not found for another organization's part or zone" do
+    user = create_user
+    org = user.organizations.first
+    other_org = create_organization
+    part = create_part(organization: org)
+    location = create_storage_location(organization: org)
+
+    foreign_part = create_part(organization: other_org)
+    foreign_zone = create_storage_location(organization: other_org)
+
+    [ [ foreign_part, location ], [ part, foreign_zone ] ].each do |target_part, target_zone|
+      sign_in user
+      assert_no_difference -> { StockMovement.count } do
+        post scan_receipts_path, params: {
+          receipt: { part_id: target_part.id, storage_location_id: target_zone.id, quantity: 5 }
+        }
+      end
+      assert_response :not_found
+    end
+  end
+
+  test "viewers cannot receive a bag" do
+    user = create_user
+    org = user.organizations.first
+    part = create_part(organization: org)
+    location = create_storage_location(organization: org)
+    viewer = create_user
+    OrganizationMembership.create!(organization: org, user: viewer, role: "viewer")
+
+    sign_in viewer
+    post "/organizations/#{org.id}/switch"
+    assert_no_difference -> { StockMovement.count } do
+      post scan_receipts_path, params: {
+        receipt: { part_id: part.id, storage_location_id: location.id, quantity: 5 }
+      }
+    end
+    assert_match(/read-only/i, flash[:alert])
+  end
+
   private
+
+  def digikey_label(customer: "296-1395-5-ND", order: "84512345")
+    gs = SupplierLabel::GS
+    rs = SupplierLabel::RS
+    fields = [ "P#{customer}", "1PSN74HC595N", "K", "1K#{order}", "Q25", "12Z4389236" ]
+    fields.insert(1, "30P296-1395-5-ND") unless customer.end_with?("-ND")
+    "[)>#{rs}06#{gs}#{fields.join(gs)}#{rs}#{SupplierLabel::EOT}"
+  end
 
   def inertia_props
     JSON.parse(@response.body[/data-page="app" type="application\/json"[^>]*>(.*?)<\/script>/m, 1])["props"]

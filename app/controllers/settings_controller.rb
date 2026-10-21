@@ -90,6 +90,7 @@ class SettingsController < ApplicationController
     providers = []
     providers << "mouser" if current_organization.mouser_api_key.present?
     providers << "digikey" if current_organization.digikey_configured?
+    providers << "lcsc" if current_organization.lcsc_enabled?
 
     providers.filter_map do |provider|
       _supplier, created = Supplier.ensure_catalog_provider(current_organization, provider)
@@ -109,6 +110,7 @@ class SettingsController < ApplicationController
       :mouser_api_key, :remove_mouser_api_key,
       :mouser_order_api_key, :remove_mouser_order_api_key,
       :digikey_client_id, :digikey_client_secret, :remove_digikey,
+      :lcsc_enabled,
       :github_token, :remove_github_token
     )
 
@@ -185,6 +187,7 @@ class SettingsController < ApplicationController
       mouser_order_api_key_present: org.mouser_order_api_key.present?,
       digikey_configured: org.digikey_configured?,
       digikey_account_connected: org.digikey_account_connected?,
+      lcsc_enabled: org.lcsc_enabled,
       github_token_present: org.github_token.present?,
       parts_count: org.total_parts_count,
       ipn_preview: org.ipn_preview(category_code: org.ipn_use_category_code ? "RES" : nil),

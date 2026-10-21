@@ -38,6 +38,7 @@ export interface OrganizationSettings {
   mouser_order_api_key_present: boolean
   digikey_configured: boolean
   digikey_account_connected: boolean
+  lcsc_enabled: boolean
   github_token_present: boolean
   parts_count: number
   ipn_preview: IpnPreview

@@ -194,6 +194,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_21_190000) do
     t.string "notification_frequency", default: "daily", null: false
     t.date "notifications_sent_on"
     t.boolean "stock_reservations_enabled", default: true, null: false
+    t.boolean "lcsc_enabled", default: false, null: false
     t.string "github_token"
     t.index ["email"], name: "index_organizations_on_email"
     t.index ["name"], name: "index_organizations_on_name"
@@ -280,6 +281,18 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_21_190000) do
     t.index ["value"], name: "index_parts_on_value"
   end
 
+  create_table "project_builds", force: :cascade do |t|
+    t.integer "project_id", null: false
+    t.integer "user_id"
+    t.integer "quantity", default: 1, null: false
+    t.datetime "built_at", null: false
+    t.string "note"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["project_id"], name: "index_project_builds_on_project_id"
+    t.index ["user_id"], name: "index_project_builds_on_user_id"
+  end
+
   create_table "project_lines", force: :cascade do |t|
     t.integer "project_id", null: false
     t.integer "part_id"
@@ -308,6 +321,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_21_190000) do
     t.integer "builds_count", default: 0, null: false
     t.datetime "last_built_at"
     t.datetime "reserved_at"
+    t.string "revision"
     t.string "github_repository"
     t.string "github_ref"
     t.string "github_path"
@@ -328,10 +342,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_21_190000) do
     t.integer "storage_location_id", null: false
     t.datetime "updated_at", null: false
     t.integer "user_id"
+    t.integer "project_build_id"
     t.index ["created_at"], name: "index_stock_movements_on_created_at"
     t.index ["movement_type"], name: "index_stock_movements_on_movement_type"
     t.index ["organization_id"], name: "index_stock_movements_on_organization_id"
     t.index ["part_id"], name: "index_stock_movements_on_part_id"
+    t.index ["project_build_id"], name: "index_stock_movements_on_project_build_id"
     t.index ["storage_location_id"], name: "index_stock_movements_on_storage_location_id"
     t.index ["user_id"], name: "index_stock_movements_on_user_id"
   end
@@ -433,11 +449,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_21_190000) do
   add_foreign_key "parts", "footprints"
   add_foreign_key "parts", "organizations"
   add_foreign_key "parts", "storage_locations", column: "bag_id"
+  add_foreign_key "project_builds", "projects"
+  add_foreign_key "project_builds", "users"
   add_foreign_key "project_lines", "parts"
   add_foreign_key "project_lines", "projects"
   add_foreign_key "projects", "organizations"
   add_foreign_key "stock_movements", "organizations"
   add_foreign_key "stock_movements", "parts"
+  add_foreign_key "stock_movements", "project_builds"
   add_foreign_key "stock_movements", "storage_locations"
   add_foreign_key "stock_movements", "users"
   add_foreign_key "storage_locations", "organizations"

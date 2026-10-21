@@ -26,6 +26,21 @@ class SupplierCatalogTest < ActiveSupport::TestCase
     assert_equal [ SupplierCatalog::Mouser, SupplierCatalog::Digikey ], SupplierCatalog.providers_for(org).map(&:class)
   end
 
+  test "providers_for includes LCSC once it is turned on, with the org's currency" do
+    org = create_organization(lcsc_enabled: true, currency: "USD")
+    providers = SupplierCatalog.providers_for(org)
+
+    assert_equal [ SupplierCatalog::Lcsc ], providers.map(&:class)
+    assert_equal "USD", providers.first.instance_variable_get(:@currency)
+    assert org.supplier_lookup_configured?
+  end
+
+  test "LCSC is off by default" do
+    org = create_organization
+    refute org.lcsc_enabled?
+    refute org.supplier_lookup_configured?
+  end
+
   test "lookup merges results from every configured provider" do
     org = create_organization(mouser_api_key: "abc123", digikey_client_id: "cid", digikey_client_secret: "csecret")
     mouser = fake_provider([ "from-mouser" ])

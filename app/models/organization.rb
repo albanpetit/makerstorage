@@ -252,10 +252,10 @@ class Organization < ApplicationRecord
   end
 
   # Methods - Supplier catalog integration
-  # Whether an external supplier catalog (Mouser, DigiKey, ...) can be queried
+  # Whether an external supplier catalog (Mouser, DigiKey, LCSC) can be queried
   # for this org.
   def supplier_lookup_configured?
-    mouser_api_key.present? || digikey_configured?
+    mouser_api_key.present? || digikey_configured? || lcsc_enabled?
   end
 
   # DigiKey needs both halves of the OAuth2 client-credentials pair to work.

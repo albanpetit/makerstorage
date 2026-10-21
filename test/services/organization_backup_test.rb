@@ -43,6 +43,9 @@ class OrganizationBackupTest < ActiveSupport::TestCase
     @project.project_lines.create!(raw_reference: "UNKNOWN", quantity: 1, match_type: "none")
     @project.kicad_files.attach(io: file_fixture("kicad/board/board.kicad_sch").open, filename: "board.kicad_sch",
                                 content_type: Project::KICAD_FILE_TYPE)
+    build = @project.project_builds.create!(user: @owner, quantity: 2, built_at: 1.day.ago, note: "Workshop")
+    StockMovement.create!(organization: @org, part: @part, storage_location: @drawer, movement_type: "out",
+                          quantity_delta: -8, user: @owner, project_build: build)
 
     # Another tenant's data must stay out of the archive.
     @other = create_organization(name: "Other Lab")
@@ -79,9 +82,9 @@ class OrganizationBackupTest < ActiveSupport::TestCase
     assert_equal "0603", part.footprint.name
     assert_equal [ "Kit" ], part.tags.map(&:name)
     assert_equal @part.reload.unit_price, part.unit_price
-    assert_equal 70, part.total_quantity
+    assert_equal 62, part.total_quantity
     assert_equal "Farnell", part.preferred_supplier.name
-    assert_equal [ 100, -30 ], org.stock_movements.order(:created_at).pluck(:quantity_delta)
+    assert_equal [ 100, -30, -8 ], org.stock_movements.order(:created_at, :id).pluck(:quantity_delta)
     assert_equal [ nil ], org.stock_movements.distinct.pluck(:user_id)
     assert_equal @org.stock_movements.order(:id).pluck(:created_at).map(&:to_i),
                  org.stock_movements.order(:id).pluck(:created_at).map(&:to_i)
@@ -93,6 +96,9 @@ class OrganizationBackupTest < ActiveSupport::TestCase
     project = org.projects.find_by!(reference: "PRJ-1")
     assert_equal [ part.id, nil ], project.project_lines.order(:id).pluck(:part_id)
     assert_equal @project.reserved_at.to_i, project.reserved_at.to_i
+    restored_build = project.project_builds.sole
+    assert_equal [ 2, "Workshop", nil ], [ restored_build.quantity, restored_build.note, restored_build.user_id ]
+    assert_equal [ -8 ], restored_build.stock_movements.pluck(:quantity_delta)
 
     assert_equal 1, org.suppliers.where(catalog_provider: "mouser").count
     assert_equal "Account 1234", org.suppliers.find_by!(catalog_provider: "mouser").notes
