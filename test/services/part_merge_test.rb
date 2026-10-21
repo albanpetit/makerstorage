@@ -54,6 +54,38 @@ class PartMergeTest < ActiveSupport::TestCase
     assert_equal 1, result.project_lines
   end
 
+  test "moves stocktake lines, loan lines and parameters, combining what both parts share" do
+    keep = create_part(organization: @org, category: @category, name: "10k resistor", kicad_symbol: "Device:R")
+    duplicate = create_part(organization: @org, category: @category, name: "10K", kicad_footprint: "Resistor_SMD:R_0603_1608Metric")
+    stock_in(keep, @drawer, 10)
+    stock_in(duplicate, @drawer, 5)
+    stock_in(duplicate, @shelf, 4)
+
+    stocktake = @org.stocktakes.create!(storage_location: @drawer, reference: "ST-1", user: @user)
+    stocktake.snapshot_stock!
+    stocktake.count!(stocktake.stocktake_lines.find_by!(part: duplicate), 5, user: @user)
+
+    loan = @org.loans.new(borrower_name: "Ada", due_on: Date.current + 7)
+    loan.loan_lines.build(part: duplicate, storage_location: @shelf, quantity: 1)
+    loan.lend!(user: @user)
+
+    resistance = @org.parameter_definitions.create!(name: "Resistance", unit: "Ω")
+    tolerance = @org.parameter_definitions.create!(name: "Tolerance", unit: "%")
+    keep.part_parameters.create!(parameter_definition: resistance, value: "10k")
+    duplicate.part_parameters.create!(parameter_definition: resistance, value: "9k")
+    duplicate.part_parameters.create!(parameter_definition: tolerance, value: "1%")
+
+    merge!(keep, duplicate)
+
+    line = stocktake.stocktake_lines.sole
+    assert_equal [ keep.id, 15, 5 ], [ line.part_id, line.expected_quantity, line.counted_quantity ]
+    assert_equal keep.id, loan.loan_lines.sole.reload.part_id
+    assert_equal({ "Resistance" => "10k", "Tolerance" => "1%" },
+                 keep.reload.part_parameters.includes(:parameter_definition).to_h { |p| [ p.parameter_definition.name, p.value ] })
+    assert_equal [ "Device:R", "Resistor_SMD:R_0603_1608Metric" ], [ keep.kicad_symbol, keep.kicad_footprint ]
+    assert_ledger_matches(keep)
+  end
+
   test "keeps the kept part's details and fills its blanks from the duplicates" do
     footprint = create_footprint(organization: @org, name: "DIP-8")
     keep = create_part(organization: @org, category: @category, name: "LM358", manufacturer: "TI", min_stock_threshold: 0)

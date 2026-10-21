@@ -1,7 +1,13 @@
 import { useForm } from '@inertiajs/react'
-import { FormEvent, useEffect, useMemo, useState } from 'react'
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
+import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Label } from '@/components/ui/label'
+import { printOnPrinterWithToast, useLabelTarget } from '@/components/print-labels-dialog'
+import { type LabelFormatId, type LabelItem, labelForPart, printLabels } from '@/lib/labels'
+import type { Flash } from '@/types'
 import { LookupResult } from '@/components/supplier-lookup'
 import {
   Dialog,
@@ -15,16 +21,28 @@ import {
 import { PartFormBody } from '@/components/part-form/part-form-body'
 import { usePartSuppliers } from '@/components/part-form/use-part-suppliers'
 import {
+  AddPartPrefill,
   BagBox,
   BagOption,
   Category,
   EMPTY_PART,
   Footprint,
   lookupResultPatch,
+  partPayload,
   StorageLocationOption,
   Supplier,
   Tag,
 } from '@/components/part-form/types'
+
+const PRINT_LABEL_STORAGE_KEY = 'makerstorage.printNewPartLabel'
+
+function storedPrintLabel() {
+  try {
+    return window.localStorage.getItem(PRINT_LABEL_STORAGE_KEY) === '1'
+  } catch {
+    return false
+  }
+}
 
 interface AddPartDialogProps {
   open: boolean
@@ -42,6 +60,9 @@ interface AddPartDialogProps {
   bagOptions?: BagOption[] | null
   // ...and the boxes a new bag can be opened in.
   bagBoxes?: BagBox[] | null
+  // Opened from a scanned supplier label: what the label says about the part.
+  // The dialog then returns to the scanner once the part is created.
+  prefill?: AddPartPrefill | null
 }
 
 export function AddPartDialog({
@@ -56,8 +77,11 @@ export function AddPartDialog({
   ipnManualEntry = false,
   bagOptions = null,
   bagBoxes = null,
+  prefill = null,
 }: AddPartDialogProps) {
   const [detailsOpen, setDetailsOpen] = useState(false)
+  const [printLabel, setPrintLabel] = useState(storedPrintLabel)
+  const labelTarget = useLabelTarget(open && printLabel)
   const [suppliersOpen, setSuppliersOpen] = useState(false)
   const suppliersController = usePartSuppliers(suppliers)
 
@@ -87,14 +111,41 @@ export function AddPartDialog({
   })
   const { data, setData } = form
 
+  // The label prefill only applies to the dialog it opened; closing it (or
+  // creating the part) returns to a blank form.
+  const [activePrefill, setActivePrefill] = useState(prefill)
+  const prefillApplied = useRef(false)
+  useEffect(() => {
+    if (!open || !activePrefill || prefillApplied.current) return
+    prefillApplied.current = true
+    setData({
+      ...data,
+      part: {
+        ...data.part,
+        name: activePrefill.mpn || data.part.name,
+        mpn: activePrefill.mpn || data.part.mpn,
+        manufacturer: activePrefill.manufacturer || data.part.manufacturer,
+      },
+      initial_quantity: activePrefill.quantity || data.initial_quantity,
+    })
+    if (activePrefill.provider && activePrefill.supplier_sku) {
+      suppliersController.applySupplierFromResult(
+        { provider: activePrefill.provider, supplier_sku: activePrefill.supplier_sku } as LookupResult,
+        () => setSuppliersOpen(true),
+      )
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, activePrefill])
+
   // Fold the pending suppliers and catalog asset URLs into the payload right
   // before it goes over the wire.
   form.transform((payload) => ({
     ...payload,
     datasheet_url: attach.datasheet_url,
     image_url: attach.image_url,
+    ...(activePrefill ? { return_to: 'scan' } : {}),
     part: {
-      ...payload.part,
+      ...partPayload(payload.part),
       ...(imageFile ? { images: [imageFile] } : {}),
       part_suppliers_attributes: suppliersController.suppliersAttributes(),
     },
@@ -110,6 +161,7 @@ export function AddPartDialog({
     setSuppliersOpen(false)
     setAttach({ datasheet_url: null, image_url: null })
     setImageFile(null)
+    setActivePrefill(null)
   }
 
   // Prefill the form from a chosen catalog match.
@@ -125,12 +177,37 @@ export function AddPartDialog({
     onOpenChange(next)
   }
 
+  const choosePrintLabel = (checked: boolean) => {
+    setPrintLabel(checked)
+    try {
+      window.localStorage.setItem(PRINT_LABEL_STORAGE_KEY, checked ? '1' : '0')
+    } catch {
+      // The choice just isn't kept.
+    }
+  }
+
+  // A network printer prints straight away; the browser's print dialog needs a
+  // click of its own (popup blockers refuse a window opened after the save).
+  const printNewPartLabel = (item: LabelItem) => {
+    if (labelTarget.printer) {
+      printOnPrinterWithToast(labelTarget.printer, Promise.resolve([ item ]))
+      return
+    }
+    const format = labelTarget.target as LabelFormatId
+    toast('Part created', {
+      description: `Print the label for ${item.title}?`,
+      action: { label: 'Print label', onClick: () => printLabels([ item ], format, window.open('', '_blank')) },
+    })
+  }
+
   const submit = (e: FormEvent) => {
     e.preventDefault()
     form.post('/parts', {
       preserveScroll: true,
       preserveState: true,
-      onSuccess: () => {
+      onSuccess: (page) => {
+        const created = (page.props.flash as Flash | undefined)?.created_part
+        if (printLabel && created) printNewPartLabel(labelForPart(created))
         resetAll()
         onOpenChange(false)
       },
@@ -160,6 +237,7 @@ export function AddPartDialog({
             bagOptions={bagOptions}
             bagBoxes={bagBoxes}
             supplierLookupEnabled={supplierLookupEnabled}
+            autoLookup={activePrefill?.mpn ?? null}
             onApplyLookup={applyResult}
             attach={attach}
             imagePreview={imagePreview}
@@ -178,7 +256,14 @@ export function AddPartDialog({
             onInitialQuantityChange={(value) => setData('initial_quantity', value)}
           />
 
-          <DialogFooter className="border-t px-6 py-4">
+          <DialogFooter className="items-center border-t px-6 py-4">
+            <div className="mr-auto flex items-center gap-2">
+              <Checkbox id="print-new-part-label" checked={printLabel} onCheckedChange={(checked) => choosePrintLabel(checked === true)} />
+              <Label htmlFor="print-new-part-label" className="text-sm font-normal">
+                Print its label
+                {printLabel && labelTarget.printer && <span className="text-muted-foreground"> on {labelTarget.printer.name}</span>}
+              </Label>
+            </div>
             <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>Cancel</Button>
             <Button type="submit" disabled={form.processing}>Add part</Button>
           </DialogFooter>

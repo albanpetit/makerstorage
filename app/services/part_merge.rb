@@ -12,7 +12,12 @@
 #                kept part the two are combined into one (quantities added),
 #                keeping their zone split only when both lines had one
 #   projects     BOM lines point to the kept part
+#   stocktakes   count lines move; two lines of one count on the same zone
+#                become one, adding up what each expected and counted
+#   loans        loan lines point to the kept part
 #   tags         union
+#   parameters   union; on a parameter both parts have, the kept part's value
+#                stays
 #   suppliers    links move; on a supplier both parts are linked to, the kept
 #                part's link stays and takes the duplicate's blank fields; a
 #                preferred link only stays preferred if the kept part had none
@@ -35,7 +40,7 @@ class PartMerge
   # Detail columns copied from a duplicate when the kept part leaves them blank.
   FILLED_ATTRIBUTES = %i[
     mpn sku barcode manufacturer description value footprint_id package_type tolerance power_rating voltage_rating
-    unit_price lead_time_days target_stock storage_notes image_source_url
+    unit_price lead_time_days target_stock storage_notes image_source_url kicad_symbol kicad_footprint
   ].freeze
   # Unique per organization: cleared on the duplicate before the kept part takes them.
   UNIQUE_ATTRIBUTES = %i[mpn sku barcode ipn].freeze
@@ -61,7 +66,10 @@ class PartMerge
     counts[:movements] = StockMovement.where(part_id: from).update_all(part_id: to)
     counts[:order_lines] = fold_order_lines(from, to)
     counts[:project_lines] = ProjectLine.where(part_id: from).update_all(part_id: to)
+    fold_stocktake_lines(from, to)
+    LoanLine.where(part_id: from).update_all(part_id: to)
     repoint_links(PartTag, :part_id, from, to, :tag_id)
+    repoint_links(PartParameter, :part_id, from, to, :parameter_definition_id)
     fold_supplier_links(from, to)
     move_attachments(from, to, "images")
     move_attachments(from, to, "datasheet")
@@ -106,6 +114,24 @@ class PartMerge
       OrderLineAllocation.where(order_line_id: line.id).delete_all
       line.delete
       true
+    end
+  end
+
+  # Two parts folded together can sit on the same zone of one stocktake: their
+  # lines become one, adding up what each expected and counted.
+  def self.fold_stocktake_lines(from, to)
+    StocktakeLine.where(part_id: from).find_each do |line|
+      existing = StocktakeLine.find_by(stocktake_id: line.stocktake_id, part_id: to, storage_location_id: line.storage_location_id)
+      unless existing
+        line.update_columns(part_id: to)
+        next
+      end
+
+      counted = [ existing.counted_quantity, line.counted_quantity ].compact
+      existing.update_columns(expected_quantity: existing.expected_quantity + line.expected_quantity,
+                              counted_quantity: counted.empty? ? nil : counted.sum,
+                              stock_movement_id: existing.stock_movement_id || line.stock_movement_id)
+      line.delete
     end
   end
 

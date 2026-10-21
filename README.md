@@ -25,6 +25,7 @@ A multi-tenant inventory manager for makerspaces and fablabs, purpose-built for 
 - **Dashboard**: at-a-glance stock value, low-stock counts, and category breakdowns
 - **Multi-tenant**: every organization has isolated data, its own members invited with roles (owner / admin / member / viewer), and a configurable internal part-number (IPN) scheme
 - **CSV import**: bulk-load parts (UTF-8 or Excel's Windows-1252), auto-creating categories and locations as needed
+- **KiCad library**: browse stocked parts in KiCad's symbol chooser (HTTP library) and place them with footprint, MPN, IPN and supplier filled in
 - **Claude & MCP**: a built-in, read-only MCP server so Claude (or any MCP client) can check stock, storage locations, project buildability and BOMs against your inventory
 
 ## Tech stack
@@ -136,6 +137,7 @@ confirmed.
 | `APP_PROTOCOL`        | `https` with `FORCE_SSL`, else `http`  | Protocol of links in emails. Set to `https` when a proxy serves HTTPS without `FORCE_SSL`. |
 | `FORCE_SSL`           | —                                      | Set to `true` behind a TLS-terminating proxy: redirects to HTTPS, sends HSTS, and marks the session cookie `Secure`. Leave unset for plain-HTTP LAN installs. |
 | `CSP_ENFORCE`         | —                                      | Set to `true` to enforce the Content-Security-Policy. By default it is report-only: violations are logged as `[CSP] …` but nothing is blocked. Check those logs before turning it on. |
+| `NETWORK_PRINTING`    | on                                     | Set to `false` to turn off direct printing to network label printers (Settings → Label printers), e.g. on a shared instance. When on, the server only connects to local-network addresses (10.x, 172.16–31.x, 192.168.x, 100.64/10, fc00::/7) on printer ports (9100–9109, 6101). |
 
 ```bash
 docker run -d --name makerstorage \
@@ -190,6 +192,27 @@ organization loses API access with it.
 - **Claude Code**: `claude mcp add --transport http makerstorage https://parts.example.org/mcp`,
   then `/mcp` in a session to sign in. Claude Code runs on your computer, so a
   LAN install (`http://192.168.1.10:3000/mcp`) works too.
+
+### KiCad library
+
+Makerstorage serves a [KiCad HTTP library](https://docs.kicad.org/9.0/en/eeschema/eeschema_advanced.html#http-libraries)
+(KiCad 8 or later), so your stocked parts show up in the symbol chooser, one
+library category per Makerstorage category, with their stock count. A placed
+part gets its value, KiCad footprint, datasheet link, manufacturer, MPN, IPN,
+preferred supplier and SKU as symbol fields, which the BOM import matches back
+to the same parts.
+
+Each part uses a symbol from your own KiCad libraries: the part's *KiCad
+symbol* if set, else its category's (or the nearest parent's), else a guess
+from the category name (`Device:R`, `Device:C`, `Device:LED`…). Parts with no
+symbol, and obsolete parts, are left out. The footprint comes from the part's
+*KiCad footprint*, else from its Makerstorage footprint's.
+
+An admin turns it on in Settings → KiCad library, which downloads a
+`.kicad_httplib` file holding the server URL and the organization's token
+(shown once; a new file replaces the token, *Revoke* turns access off). In
+KiCad, add that file in Preferences → Manage Symbol Libraries. KiCad must be
+able to reach the server: use its LAN or public address, not `localhost`.
 
 ## Contributing
 

@@ -14,6 +14,9 @@ class Footprint < ApplicationRecord
   # Validations
   validates :name, presence: true, length: { minimum: 1, maximum: 50 }
   validates :name, uniqueness: { scope: :organization_id }
+  normalizes :kicad_footprint, with: ->(value) { value.strip.presence }
+  validates :kicad_footprint, format: { with: KicadLibrary::REFERENCE_FORMAT, message: KicadLibrary::REFERENCE_MESSAGE },
+    length: { maximum: 255 }, allow_blank: true
   validates :mounting_type, inclusion: { in: MOUNTING_TYPES }, allow_blank: true
 
   # Scopes

@@ -73,6 +73,11 @@ Rails.application.routes.draw do
 
   resources :tags, only: %i[index create update destroy]
 
+  # Technical parameters (Resistance, Tolerance…) and their category templates.
+  resources :parameter_definitions, path: "parameters", only: %i[index create update destroy] do
+    post :standard, on: :collection
+  end
+
   resources :storage_locations, only: %i[index create update destroy] do
     post :move_stock, on: :collection
     post :add_bags, on: :member
@@ -82,8 +87,20 @@ Rails.application.routes.draw do
     get :export, on: :collection
   end
 
+  # Stocktakes (cycle counts): count a zone, then adjust stock to the count.
+  resources :stocktakes, only: %i[index show create destroy] do
+    member do
+      post :complete
+      post :scan
+      get :export
+    end
+
+    resources :stocktake_lines, only: %i[create update], path: "lines"
+  end
+
   get "scan", to: "scans#index", as: :scan
   post "scan/movements", to: "scans#create_movement", as: :scan_movements
+  post "scan/receipts", to: "scans#receive", as: :scan_receipts
 
   get "search", to: "search#index", as: :search
 
@@ -98,6 +115,16 @@ Rails.application.routes.draw do
   post "oauth/authorize", to: "oauth/authorizations#create"
   post "oauth/token", to: "oauth/tokens#create", as: :oauth_token
   post "oauth/revoke", to: "oauth/tokens#revoke", as: :oauth_revoke
+
+  # KiCad HTTP library (KicadLibrary): the organization's parts in KiCad's
+  # symbol chooser, behind the organization's KiCad token. KiCad appends the
+  # API version to the root URL; the bare paths answer too.
+  scope "kicad(/v1)", controller: :kicad_library, format: false, constraints: { id: /\d+/, category_id: /\d+/ } do
+    get "/", action: :index, as: :kicad_library
+    get "categories.json", action: :categories
+    get "parts/category/:category_id.json", action: :category_parts
+    get "parts/:id.json", action: :part
+  end
 
   # DigiKey account connection (3-legged OAuth) for the user-scoped Order API.
   get "oauth/digikey/authorize", to: "oauth/digikey#authorize", as: :oauth_digikey_authorize
@@ -124,8 +151,9 @@ Rails.application.routes.draw do
   end
 
   # Project BOM availability checks
-  resources :projects, only: %i[index show create destroy] do
+  resources :projects, only: %i[index show create update destroy] do
     member do
+      post :duplicate
       post :confirm
       post :reserve
       post :release
@@ -133,7 +161,22 @@ Rails.application.routes.draw do
       post :build
     end
 
-    resources :project_lines, only: %i[update destroy]
+    resources :project_lines, only: %i[create update destroy]
+    resources :project_files, path: "files", only: %i[create destroy] do
+      post :import_bom, on: :collection
+    end
+    resource :github, controller: "project_github", only: %i[update destroy] do
+      post :sync
+    end
+  end
+
+  # Tools and parts lent to members: out of stock until returned.
+  resources :loans, only: %i[index show create update] do
+    member do
+      post :return_items
+      post :return_all
+      post :write_off
+    end
   end
 
   get "alerts", to: "alerts#index"
@@ -142,9 +185,16 @@ Rails.application.routes.draw do
 
   resources :members, only: %i[index create update destroy]
 
+  # Network label printers (Settings → Label printers) and direct printing.
+  resources :label_printers, only: %i[index create update destroy] do
+    post :print, on: :member
+  end
+
   resource :settings, only: %i[show update] do
     post :reassign_ipns
     get :reassign_ipns_preview
+    post :kicad_token, action: :create_kicad_token
+    delete :kicad_token, action: :destroy_kicad_token
   end
 
   # Organization backup: download the current organization, or restore an

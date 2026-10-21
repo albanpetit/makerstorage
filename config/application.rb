@@ -52,7 +52,7 @@ module Makerstorage
   # supplier catalogs' image CDNs. Part#image_source_url only accepts these and
   # the Content-Security-Policy's img-src lists them, so a part can't make every
   # member's browser load an image from an arbitrary server.
-  SUPPLIER_IMAGE_HOSTS = %w[mouser.com digikey.com].freeze
+  SUPPLIER_IMAGE_HOSTS = %w[mouser.com digikey.com lcsc.com].freeze
 
   # HTTPS is opt-in (FORCE_SSL): LAN installs often serve plain HTTP.
   def self.force_ssl_from_env?
@@ -105,5 +105,9 @@ module Makerstorage
     # NotificationDigestJob). Production turns them off without SMTP, and the
     # settings that control them then say mail isn't set up.
     config.x.email_notifications = true
+
+    # Direct printing to network label printers (LabelPrinting::Network). On
+    # unless NETWORK_PRINTING=false, e.g. on a shared instance with no printers.
+    config.x.network_printing = !%w[0 false no off].include?(ENV["NETWORK_PRINTING"].to_s.strip.downcase)
   end
 end

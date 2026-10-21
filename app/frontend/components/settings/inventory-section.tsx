@@ -55,7 +55,7 @@ export function InventorySection({ form }: { form: InventoryForm }) {
               onCheckedChange={(checked) => form.setData('organization', { ...form.data.organization, allow_negative_stock: checked })}
             />
           </div>
-          <div className="flex items-center justify-between gap-4 py-3 last:pb-0">
+          <div className="flex items-center justify-between gap-4 py-3">
             <div>
               <div className="text-sm font-medium">Reserve stock for projects</div>
               <div className="text-xs text-muted-foreground">Confirmed projects hold their BOM quantities until built, so other projects only count what's left.</div>
@@ -63,6 +63,23 @@ export function InventorySection({ form }: { form: InventoryForm }) {
             <Switch
               checked={form.data.organization.stock_reservations_enabled}
               onCheckedChange={(checked) => form.setData('organization', { ...form.data.organization, stock_reservations_enabled: checked })}
+            />
+          </div>
+          <div className="flex items-center justify-between gap-4 py-3 last:pb-0">
+            <div>
+              <div className="text-sm font-medium">Default loan duration (days)</div>
+              <div className="text-xs text-muted-foreground">Suggested due date for new loans; it can be changed on each loan.</div>
+            </div>
+            <Input
+              type="number"
+              min={1}
+              max={3650}
+              className="w-28 text-center font-mono"
+              value={form.data.organization.default_loan_days}
+              onChange={(e) => form.setData('organization', {
+                ...form.data.organization,
+                default_loan_days: Number(e.target.value) || 0,
+              })}
             />
           </div>
         </CardContent>

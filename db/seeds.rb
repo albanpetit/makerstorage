@@ -231,7 +231,8 @@ suppliers_data = [
     name: "LCSC",
     email: "support@lcsc.com",
     website: "https://www.lcsc.com",
-    country: "China"
+    country: "China",
+    catalog_provider: "lcsc"
   }
 ]
 
@@ -594,6 +595,13 @@ parts_data.each do |data|
 end
 
 puts "  Created #{Part.count} parts"
+
+# =============================================================================
+# Technical parameters (standard set, category templates, values from fields)
+# =============================================================================
+puts "Creating parameters..."
+ParameterDefinition.install_standard!(org)
+puts "  Created #{ParameterDefinition.count} parameters and #{PartParameter.count} part values"
 
 # =============================================================================
 # Stock movements & initial inventory
