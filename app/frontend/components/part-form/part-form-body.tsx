@@ -98,6 +98,8 @@ export interface PartFormBodyProps {
 
   // Supplier catalog lookup
   supplierLookupEnabled: boolean
+  // A part number to look up as soon as the form shows (from a scanned label).
+  autoLookup?: string | null
   onApplyLookup: (result: LookupResult) => void
   attach: { datasheet_url: string | null; image_url: string | null }
 
@@ -139,6 +141,7 @@ export function PartFormBody({
   bagOptions = null,
   bagBoxes = null,
   supplierLookupEnabled,
+  autoLookup = null,
   onApplyLookup,
   attach,
   imagePreview,
@@ -222,6 +225,7 @@ export function PartFormBody({
       {supplierLookupEnabled && (
         <SupplierLookup
           defaultQuery={part.mpn}
+          autoQuery={autoLookup}
           onApply={onApplyLookup}
           attached={{ datasheet: !!attach.datasheet_url, image: !!attach.image_url }}
         />
@@ -667,6 +671,32 @@ export function PartFormBody({
                 placeholder="Special storage or handling instructions"
                 value={part.storage_notes}
                 onChange={(e) => setPart({ storage_notes: e.target.value })}
+              />
+            </FieldContent>
+          </Field>
+          <Field className="col-span-2">
+            <FieldLabel>
+              <Label>KiCad symbol</Label>
+            </FieldLabel>
+            <FieldContent>
+              <Input
+                className="font-mono"
+                placeholder="From the category"
+                value={part.kicad_symbol}
+                onChange={(e) => setPart({ kicad_symbol: e.target.value })}
+              />
+            </FieldContent>
+          </Field>
+          <Field className="col-span-2">
+            <FieldLabel>
+              <Label>KiCad footprint</Label>
+            </FieldLabel>
+            <FieldContent>
+              <Input
+                className="font-mono"
+                placeholder="From the footprint"
+                value={part.kicad_footprint}
+                onChange={(e) => setPart({ kicad_footprint: e.target.value })}
               />
             </FieldContent>
           </Field>

@@ -2,12 +2,13 @@ class Supplier < ApplicationRecord
   # Supported external catalog integrations (see SupplierCatalog). A supplier
   # tagged with one of these is the local record that a configured API
   # integration fills prices from, and is seeded for every organization.
-  CATALOG_PROVIDERS = %w[mouser digikey].freeze
+  CATALOG_PROVIDERS = %w[mouser digikey lcsc].freeze
 
   # Canonical display name + website for each provider's seeded supplier.
   CATALOG_PROVIDER_DEFAULTS = {
     "mouser" => { name: "Mouser Electronics", website: "https://www.mouser.com" },
-    "digikey" => { name: "DigiKey", website: "https://www.digikey.com" }
+    "digikey" => { name: "DigiKey", website: "https://www.digikey.com" },
+    "lcsc" => { name: "LCSC", website: "https://www.lcsc.com" }
   }.freeze
 
   # Associations

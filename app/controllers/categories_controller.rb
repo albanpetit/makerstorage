@@ -102,7 +102,7 @@ class CategoriesController < ApplicationController
   end
 
   def category_params
-    permitted = params.require(:category).permit(:name, :code, :color, :description, :parent_id, parameter_definition_ids: [])
+    permitted = params.require(:category).permit(:name, :code, :color, :description, :parent_id, :kicad_symbol, parameter_definition_ids: [])
     # Through-association ids are looked up across every organization: keep
     # this one's parameters, in the order given (the template's order).
     if permitted.key?(:parameter_definition_ids)
@@ -121,6 +121,7 @@ class CategoriesController < ApplicationController
       color: category.color,
       description: category.description,
       parent_id: category.parent_id,
+      kicad_symbol: category.kicad_symbol,
       parameter_definition_ids: category.category_parameters.map(&:parameter_definition_id),
       parts_count: category.attributes["parts_count"] || 0
     }

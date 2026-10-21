@@ -87,6 +87,8 @@ export interface PartFormData {
   status: string
   rohs_compliant: boolean
   storage_notes: string
+  kicad_symbol: string
+  kicad_footprint: string
   tag_ids: number[]
   // Parameter definition id => value; null = removed in this form.
   parameters: Record<string, string | null>
@@ -123,6 +125,8 @@ export interface FullPart {
   target_stock: number | null
   rohs_compliant: boolean
   storage_notes: string | null
+  kicad_symbol: string | null
+  kicad_footprint: string | null
   category_id: number
   footprint_id: number | null
   tag_ids: number[]
@@ -164,6 +168,8 @@ export const EMPTY_PART: PartFormData = {
   status: 'active',
   rohs_compliant: false,
   storage_notes: '',
+  kicad_symbol: '',
+  kicad_footprint: '',
   tag_ids: [],
   parameters: {},
 }
@@ -193,6 +199,8 @@ export function toFormPart(part: FullPart): PartFormData {
     status: part.status,
     rohs_compliant: part.rohs_compliant,
     storage_notes: part.storage_notes || '',
+    kicad_symbol: part.kicad_symbol || '',
+    kicad_footprint: part.kicad_footprint || '',
     tag_ids: part.tag_ids,
     parameters: Object.fromEntries(part.parameters.map((parameter) => [String(parameter.id), parameter.value])),
   }
@@ -235,6 +243,16 @@ export function lookupResultPatch(result: LookupResult, part: PartFormData): Par
     unit_price: result.unit_price || part.unit_price,
     rohs_compliant: result.rohs_compliant || part.rohs_compliant,
   }
+}
+
+// What a scanned supplier bag label tells the add-part dialog about a part
+// that isn't in the inventory yet (all optional, as labels vary).
+export interface AddPartPrefill {
+  mpn?: string
+  manufacturer?: string
+  provider?: string
+  supplier_sku?: string
+  quantity?: string
 }
 
 // Box & bag numbering: a bag the part form can put the part in (the free ones,

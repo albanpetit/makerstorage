@@ -10,6 +10,21 @@ class CategoryTest < ActiveSupport::TestCase
     assert category.valid?
   end
 
+  test "a KiCad symbol must read Library:Symbol, blanks stored as nil" do
+    category = Category.new(organization: @org, name: "Resistors", kicad_symbol: "  ")
+    assert category.valid?
+    assert_nil category.kicad_symbol
+
+    %w[Device:R Connector_Generic:Conn_01x02].each do |symbol|
+      category.kicad_symbol = symbol
+      assert category.valid?, symbol
+    end
+    [ "R", "Device:", ":R", "Device:R:extra", " :R" ].each do |symbol|
+      category.kicad_symbol = symbol
+      assert_not category.valid?, symbol
+    end
+  end
+
   test "requires a unique name within the organization" do
     create_category(organization: @org, name: "Resistors")
     dup = Category.new(organization: @org, name: "Resistors")

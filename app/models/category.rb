@@ -13,6 +13,9 @@ class Category < ApplicationRecord
   validates :name, uniqueness: { scope: :organization_id, case_sensitive: false }
   validates :code, uniqueness: { scope: :organization_id, case_sensitive: false }, length: { maximum: 10 }, allow_blank: true
   validates :color, format: { with: /\A#[0-9A-F]{6}\z/i }, allow_blank: true
+  normalizes :kicad_symbol, with: ->(value) { value.strip.presence }
+  validates :kicad_symbol, format: { with: KicadLibrary::REFERENCE_FORMAT, message: KicadLibrary::REFERENCE_MESSAGE },
+    length: { maximum: 255 }, allow_blank: true
   validate :cannot_be_its_own_parent
   validate :parent_cannot_be_a_descendant
   validate :parent_must_belong_to_same_organization

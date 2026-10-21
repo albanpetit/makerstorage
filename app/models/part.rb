@@ -71,6 +71,11 @@ class Part < ApplicationRecord
   validates :barcode, uniqueness: { scope: :organization_id, case_sensitive: false }, allow_blank: true
   validates :ipn, uniqueness: { scope: :organization_id, case_sensitive: false }, allow_blank: true
   validates :status, presence: true, inclusion: { in: STATUSES }
+  # KiCad overrides of the category's symbol and the footprint's KiCad
+  # footprint (see KicadLibrary).
+  normalizes :kicad_symbol, :kicad_footprint, with: ->(value) { value.strip.presence }
+  validates :kicad_symbol, :kicad_footprint, format: { with: KicadLibrary::REFERENCE_FORMAT, message: KicadLibrary::REFERENCE_MESSAGE },
+    length: { maximum: 255 }, allow_blank: true
   validates :unit, presence: true, inclusion: { in: UNITS }
   validates :unit_price, numericality: { greater_than_or_equal_to: 0 }, allow_nil: true
   validates :min_stock_threshold, numericality: { greater_than_or_equal_to: 0, less_than_or_equal_to: MAX_INTEGER }

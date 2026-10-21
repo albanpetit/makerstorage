@@ -34,6 +34,63 @@ class SettingsControllerTest < ActionDispatch::IntegrationTest
     assert_includes inertia_props["currencies"], "USD"
   end
 
+  test "show reports the KiCad library state" do
+    user = create_user
+    org = user.organizations.first
+    create_part(organization: org, category: create_category(organization: org, name: "Resistors"))
+    create_part(organization: org, category: create_category(organization: org, name: "Modules"))
+
+    sign_in user
+    get settings_path
+    kicad = inertia_props["kicad"]
+    assert_equal false, kicad["enabled"]
+    assert_equal "http://www.example.com/kicad/", kicad["root_url"]
+    assert_equal 1, kicad["listed_parts_count"]
+    assert_equal 1, kicad["parts_without_symbol_count"]
+  end
+
+  test "an admin creates a KiCad token, returned once inside the library file" do
+    user = create_user
+    org = user.organizations.first
+
+    sign_in user
+    post kicad_token_settings_path, as: :json
+    assert_response :success
+
+    token = response.parsed_body["token"]
+    assert_equal org, KicadLibrary.authenticate(token)
+    assert_match(/\.kicad_httplib\z/, response.parsed_body["filename"])
+    library = JSON.parse(response.parsed_body["library_file"])
+    assert_equal token, library.dig("source", "token")
+    assert_equal "http://www.example.com/kicad/", library.dig("source", "root_url")
+  end
+
+  test "an admin revokes the KiCad token" do
+    user = create_user
+    org = user.organizations.first
+    token = KicadLibrary.issue_token!(org)
+
+    sign_in user
+    delete kicad_token_settings_path
+    assert_redirected_to settings_path
+    assert_nil KicadLibrary.authenticate(token)
+  end
+
+  test "a member can't create or revoke the KiCad token" do
+    owner = create_user
+    org = owner.organizations.first
+    token = KicadLibrary.issue_token!(org)
+    member = create_user
+    OrganizationMembership.create!(organization: org, user: member, role: "member")
+
+    sign_in member
+    post switch_organization_path(org)
+    post kicad_token_settings_path, as: :json
+    delete kicad_token_settings_path
+
+    assert_equal org, KicadLibrary.authenticate(token)
+  end
+
   test "show lists the organizations an owner can merge this one into" do
     user = create_user
     owned = create_organization(name: "Owned")
@@ -317,6 +374,25 @@ class SettingsControllerTest < ActionDispatch::IntegrationTest
     refute organization.key?("mouser_api_key")
   end
 
+  test "the GitHub token is write-only: stored, kept on a blank submit, removed on request" do
+    user = create_user
+    org = user.organizations.first
+    sign_in user
+
+    patch settings_path, params: { organization: { github_token: "  ghp_secret  " } }
+    assert_equal "ghp_secret", org.reload.github_token
+
+    get settings_path
+    assert_equal true, inertia_props.dig("organization", "github_token_present")
+    refute inertia_props["organization"].key?("github_token")
+
+    patch settings_path, params: { organization: { github_token: "" } }
+    assert_equal "ghp_secret", org.reload.github_token
+
+    patch settings_path, params: { organization: { remove_github_token: "true" } }
+    assert_nil org.reload.github_token
+  end
+
   test "update leaves an existing Mouser key untouched on a blank submit" do
     user = create_user
     org = user.organizations.first
@@ -336,6 +412,25 @@ class SettingsControllerTest < ActionDispatch::IntegrationTest
 
     patch settings_path, params: { organization: { remove_mouser_api_key: "true" } }
     assert_nil org.reload.mouser_api_key
+  end
+
+  test "update turns LCSC on, sets up its supplier, and shows the switch state" do
+    user = create_user
+    org = user.organizations.first
+    org.suppliers.find_by(catalog_provider: "lcsc")&.destroy!
+    sign_in user
+
+    patch settings_path, params: { organization: { lcsc_enabled: "true" } }
+
+    assert org.reload.lcsc_enabled?
+    assert org.suppliers.exists?(catalog_provider: "lcsc", name: "LCSC")
+    assert_match(/Added LCSC to your suppliers/, flash[:notice])
+
+    get settings_path
+    assert_equal true, inertia_props.dig("organization", "lcsc_enabled")
+
+    patch settings_path, params: { organization: { lcsc_enabled: "false" } }
+    refute org.reload.lcsc_enabled?
   end
 
   test "update stores DigiKey credentials without echoing the secret back" do

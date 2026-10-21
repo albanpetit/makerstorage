@@ -1,6 +1,6 @@
 ---
 name: supplier-api
-description: Reference for Makerstorage's supplier catalog integrations (Mouser Search + Order/Cart APIs, DigiKey Product Information v4 + 3-legged OAuth Order Status v4) and the SSRF-guarded asset downloader. Use when touching app/services/supplier_catalog*, the DigiKey OAuth controller, part lookup/import, order import, push-to-cart, or remote datasheet/image attachment.
+description: Reference for Makerstorage's supplier catalog integrations (Mouser Search + Order/Cart APIs, DigiKey Product Information v4 + 3-legged OAuth Order Status v4, keyless LCSC search) and the SSRF-guarded asset downloader. Use when touching app/services/supplier_catalog*, the DigiKey OAuth controller, part lookup/import, order import, push-to-cart, or remote datasheet/image attachment.
 ---
 
 All supplier integration code lives in `app/services/supplier_catalog.rb` and `app/services/supplier_catalog/`. Read the file you're changing before editing — endpoints and payload shapes are documented inline.
@@ -26,6 +26,13 @@ All supplier integration code lives in `app/services/supplier_catalog.rb` and `a
 - Order Status: `orderstatus/v4/salesorder` is **user-scoped** → needs the **3-legged OAuth** flow in `Oauth::DigikeyController` (`/oauth/digikey/authorize` → DigiKey consent → `/oauth/digikey/callback`). The `state` param is stored in session and compared on callback — keep that check.
 - Tokens (`digikey_access_token`, `digikey_refresh_token`, `digikey_token_expires_at`) live encrypted on `Organization`. `SupplierCatalog.digikey_order_client` refreshes an expired token first and persists the **rotated** refresh token (DigiKey rotates it on every refresh — losing it disconnects the account).
 - Endpoint history: the order-status endpoint has been fixed twice (commits `941236d`, `05b8357`); verify against DigiKey's v4 docs before changing URLs.
+
+## LCSC (`lcsc.rb`)
+
+- No official access: LCSC's API is granted to approved partners only (application with business documents, IP whitelisting). We use the keyless JSON endpoints behind lcsc.com instead: `POST https://wmsc.lcsc.com/ftps/wm/product/query/list` (keyword search, MPN or `C1234` code) then `GET .../product/detail?productCode=&productId=` (both params required) for the specs of the first `MAX_DETAILS` hits. Unsupported, so it can break or be blocked; it's opt-in per org (`lcsc_enabled`, a switch in Settings → Integrations, no credential).
+- Responses are always HTTP 200 with `{ code, msg, result }`; `code != 200` is an error. A non-200 HTTP status is LCSC's WAF (it 403s queries with `<>';`, which `sanitize` strips). A User-Agent is required.
+- Prices are always USD (`usdPrice`): the unit price is only pre-filled when the org currency is USD; otherwise it's shown as a "Unit price (USD)" attribute.
+- Images are hotlinked from `assets.lcsc.com` (`lcsc.com` is in `SUPPLIER_IMAGE_HOSTS`); datasheets (`datasheet.lcsc.com`) go through `RemoteFile` like the others.
 
 ## Credentials & secrets
 

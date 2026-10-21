@@ -48,6 +48,7 @@ interface Category {
   color: string | null
   description: string | null
   parent_id: number | null
+  kicad_symbol: string | null
   parameter_definition_ids: number[]
   parts_count: number
 }
@@ -70,13 +71,14 @@ interface CategoryFormData {
     color: string
     description: string
     parent_id: string
+    kicad_symbol: string
     // The category's own template, in order (parents' are inherited).
     parameter_definition_ids: number[]
   }
 }
 
 const EMPTY_FORM: CategoryFormData['category'] = {
-  name: '', code: '', color: '', description: '', parent_id: '', parameter_definition_ids: [],
+  name: '', code: '', color: '', description: '', parent_id: '', kicad_symbol: '', parameter_definition_ids: [],
 }
 
 export default function CategoriesIndex({ categories, parameter_definitions }: CategoriesPageProps) {
@@ -194,6 +196,7 @@ export default function CategoriesIndex({ categories, parameter_definitions }: C
       color: category.color || '',
       description: category.description || '',
       parent_id: category.parent_id != null ? String(category.parent_id) : '',
+      kicad_symbol: category.kicad_symbol || '',
       parameter_definition_ids: category.parameter_definition_ids,
     })
     setEditId(category.id)
@@ -471,6 +474,7 @@ function categoryErrors(errors: Partial<Record<string, string | string[]>>) {
     name: errors['category.name'],
     code: errors['category.code'],
     parent: errors['category.parent'] ?? errors['category.parent_id'],
+    kicad_symbol: errors['category.kicad_symbol'],
   }
 }
 
@@ -490,6 +494,7 @@ interface CategoryFormProps {
     name?: string | string[]
     code?: string | string[]
     parent?: string | string[]
+    kicad_symbol?: string | string[]
   }
   parentOptions: Array<{ id: number; label: string }>
   parameterDefinitions: ParameterOption[]
@@ -619,6 +624,24 @@ function CategoryForm({
             onChange={(e) => onChange({ description: e.target.value })}
           />
         </FieldContent>
+      </Field>
+
+      <Field>
+        <FieldLabel>
+          <Label>KiCad symbol</Label>
+        </FieldLabel>
+        <FieldContent>
+          <Input
+            className="font-mono"
+            placeholder="e.g. Device:R"
+            value={data.kicad_symbol}
+            onChange={(e) => onChange({ kicad_symbol: e.target.value })}
+          />
+        </FieldContent>
+        <FieldDescription>
+          Library:Symbol used for this category's parts in the KiCad library. Leave empty to inherit the parent's.
+        </FieldDescription>
+        {errors.kicad_symbol && <FieldError>{errors.kicad_symbol}</FieldError>}
       </Field>
 
       <DialogFooter>
