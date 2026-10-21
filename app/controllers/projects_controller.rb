@@ -14,7 +14,7 @@ class ProjectsController < ApplicationController
 
   def index
     projects = current_organization.projects
-      .includes(project_lines: { part: :part_storages })
+      .includes(:kicad_files_attachments, project_lines: { part: :part_storages })
       .recent
 
     render inertia: "projects/index", props: {
@@ -33,6 +33,9 @@ class ProjectsController < ApplicationController
   end
 
   def create
+    uploads = Array(params[:files]).select { |upload| upload.respond_to?(:original_filename) }
+    return create_from_kicad_files(uploads) if uploads.any?
+
     file = params[:file]
     return create_empty unless file
     return redirect_to(projects_path, alert: BomParser.too_large_message) if BomParser.too_large?(file)
@@ -232,6 +235,35 @@ class ProjectsController < ApplicationController
 
   private
 
+  # A project made from its KiCad files (loose or zipped): they are attached,
+  # and the BOM is read from the schematics among them.
+  def create_from_kicad_files(uploads)
+    if (error = ProjectKicadFiles.upload_error(uploads))
+      return redirect_to(projects_path, alert: error)
+    end
+
+    lines = ProjectKicadFiles.bom_lines(ProjectKicadFiles.upload_files(uploads))
+    filenames = uploads.map(&:original_filename)
+    project = current_organization.projects.new(
+      name: params[:name].presence || ProjectKicadFiles.project_name(filenames) || "Untitled project", status: "draft"
+    )
+    project.build_bom_lines(lines)
+    project.kicad_files.attach(ProjectKicadFiles.attachables(uploads))
+    project.save_with_generated_reference! { Project.next_reference(current_organization) }
+
+    notice =
+      if lines.any?
+        "Imported #{project.project_lines.size} BOM lines from the schematic. Review the matches below."
+      else
+        "Project created with its files. No schematic (.kicad_sch) among them, so the BOM is empty."
+      end
+    redirect_to project_path(project), notice: notice
+  rescue ProjectKicadFiles::Unreadable => e
+    redirect_to projects_path, alert: e.message
+  rescue ActiveRecord::RecordInvalid
+    redirect_to projects_path, alert: project.errors.full_messages.to_sentence.presence || "Could not create that project."
+  end
+
   # A project started by hand: a name and no BOM yet; lines are added on its page.
   def create_empty
     name = params[:name].to_s.strip
@@ -248,7 +280,7 @@ class ProjectsController < ApplicationController
 
   def set_project
     @project = current_organization.projects
-      .includes(project_lines: { part: [ :part_storages, { part_suppliers: :supplier } ] })
+      .includes({ kicad_files_attachments: :blob }, project_lines: { part: [ :part_storages, { part_suppliers: :supplier } ] })
       .find(params[:id])
   end
 
@@ -284,7 +316,8 @@ class ProjectsController < ApplicationController
       short_count: project.short_lines.size,
       unmatched_count: project.unmatched_lines.size,
       checked_at: project.checked_at&.iso8601,
-      created_at: project.created_at.iso8601
+      created_at: project.created_at.iso8601,
+      file_count: project.kicad_files.size
     }
   end
 
@@ -308,7 +341,19 @@ class ProjectsController < ApplicationController
       builds_count: project.builds_count,
       last_built_at: project.last_built_at&.iso8601,
       builds: serialize_builds(project),
-      lines: project.project_lines.map { |line| serialize_line(project, line, shortfalls) }
+      lines: project.project_lines.map { |line| serialize_line(project, line, shortfalls) },
+      files: project.kicad_files.map { |file| serialize_file(file) },
+      files_have_schematics: ProjectKicadFiles.schematics?(project.kicad_files.map { |file| file.filename.to_s })
+    }
+  end
+
+  def serialize_file(file)
+    {
+      id: file.id,
+      filename: file.filename.to_s,
+      byte_size: file.byte_size,
+      created_at: file.created_at.iso8601,
+      url: stored_file_path_for(file)
     }
   end
 

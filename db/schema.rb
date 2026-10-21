@@ -194,6 +194,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_21_180000) do
     t.string "notification_frequency", default: "daily", null: false
     t.date "notifications_sent_on"
     t.boolean "stock_reservations_enabled", default: true, null: false
+    t.boolean "lcsc_enabled", default: false, null: false
     t.index ["email"], name: "index_organizations_on_email"
     t.index ["name"], name: "index_organizations_on_name"
   end

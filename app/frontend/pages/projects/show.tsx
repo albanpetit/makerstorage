@@ -1,5 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react'
-import { FormEvent, useMemo, useState } from 'react'
+import { FormEvent, useMemo, useRef, useState } from 'react'
 import {
   ArrowLeft,
   CheckCircle2,
@@ -14,15 +14,20 @@ import {
   Copy,
   Trash2,
   History,
+  Download,
+  FileCode2,
+  RefreshCw,
+  Upload,
 } from 'lucide-react'
 
 import { AppLayout } from '@/layouts/app-layout'
 import { usePermissions } from '@/hooks/use-permissions'
+import { KICAD_ACCEPT, formatFileSize } from '@/lib/kicad-files'
 import { PageHeader } from '@/components/page-header'
 import { FlashMessages } from '@/components/flash-messages'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Card, CardContent } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardAction } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -76,6 +81,14 @@ interface ProjectLine {
   part: LinePart | null
 }
 
+interface ProjectFile {
+  id: number
+  filename: string
+  byte_size: number
+  created_at: string
+  url: string
+}
+
 interface ProjectBuild {
   id: number
   quantity: number
@@ -105,6 +118,8 @@ interface Project {
   last_built_at: string | null
   builds: ProjectBuild[]
   lines: ProjectLine[]
+  files: ProjectFile[]
+  files_have_schematics: boolean
 }
 
 interface PartOption {
@@ -135,6 +150,24 @@ const MATCH_LABELS: Record<ProjectLine['match_type'], string> = {
 export default function ProjectShow({ project, parts }: ProjectShowProps) {
   const { canWrite } = usePermissions()
   const [buildOpen, setBuildOpen] = useState(false)
+  const [importOpen, setImportOpen] = useState(false)
+  const [removeFile, setRemoveFile] = useState<ProjectFile | null>(null)
+  const [uploading, setUploading] = useState(false)
+  const fileInput = useRef<HTMLInputElement>(null)
+
+  const uploadFiles = (files: FileList | null) => {
+    if (!files || files.length === 0) return
+    const formData = new FormData()
+    Array.from(files).forEach((file) => formData.append('files[]', file))
+    setUploading(true)
+    router.post(`/projects/${project.id}/files`, formData, {
+      preserveScroll: true,
+      onFinish: () => {
+        setUploading(false)
+        if (fileInput.current) fileInput.current.value = ''
+      },
+    })
+  }
   const [kits, setKits] = useState('1')
   const [buildNote, setBuildNote] = useState('')
   const [editOpen, setEditOpen] = useState(false)
@@ -291,6 +324,71 @@ export default function ProjectShow({ project, parts }: ProjectShowProps) {
           </CardContent>
         </Card>
 
+        {/* KiCad files */}
+        <Card>
+          <CardHeader>
+            <CardTitle>KiCad files</CardTitle>
+            <CardDescription>
+              The project's design files, or a ZIP of its folder. The BOM can be read again from the schematics after a design change.
+            </CardDescription>
+            {canWrite && (
+              <CardAction className="flex gap-2">
+                {project.files_have_schematics && (
+                  <Button size="sm" variant="outline" onClick={() => setImportOpen(true)}>
+                    <RefreshCw className="size-4" />
+                    Update BOM from schematic
+                  </Button>
+                )}
+                <Button size="sm" variant="outline" disabled={uploading} onClick={() => fileInput.current?.click()}>
+                  <Upload className="size-4" />
+                  Add files
+                </Button>
+                <Input
+                  ref={fileInput}
+                  type="file"
+                  multiple
+                  accept={KICAD_ACCEPT}
+                  className="hidden"
+                  aria-label="KiCad files"
+                  onChange={(e) => uploadFiles(e.target.files)}
+                />
+              </CardAction>
+            )}
+          </CardHeader>
+          <CardContent>
+            {project.files.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No files yet.{canWrite && ' Add the .kicad_pro, .kicad_sch and .kicad_pcb files, or a ZIP of the project folder.'}
+              </p>
+            ) : (
+              <ul className="grid gap-x-8 lg:grid-cols-2">
+                {project.files.map((file) => (
+                  <li key={file.id} className="flex items-center gap-3 border-b py-1.5">
+                    <FileCode2 className="size-4 shrink-0 text-muted-foreground" />
+                    <a
+                      href={`${file.url}?disposition=attachment`}
+                      className="inline-flex min-w-0 items-center gap-1.5 font-mono text-sm hover:underline"
+                      title={`Download ${file.filename}`}
+                      download
+                    >
+                      <span className="truncate">{file.filename}</span>
+                      <Download className="size-3.5 shrink-0 text-muted-foreground" />
+                    </a>
+                    <span className="ml-auto shrink-0 text-xs text-muted-foreground">
+                      {formatFileSize(file.byte_size)} · {new Date(file.created_at).toLocaleDateString()}
+                    </span>
+                    {canWrite && (
+                      <Button variant="ghost" size="icon-sm" aria-label={`Remove ${file.filename}`} onClick={() => setRemoveFile(file)}>
+                        <Trash2 className="size-4 text-muted-foreground" />
+                      </Button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+
         {/* BOM lines */}
         <Card className="overflow-hidden py-0">
           <Table>
@@ -413,6 +511,50 @@ export default function ProjectShow({ project, parts }: ProjectShowProps) {
       <EditProjectDialog project={project} open={editOpen} onOpenChange={setEditOpen} />
       <NewRevisionDialog project={project} open={revisionOpen} onOpenChange={setRevisionOpen} />
       <AddLineDialog projectId={project.id} partOptions={partOptions} open={lineOpen} onOpenChange={setLineOpen} />
+
+      {/* Update BOM confirmation */}
+      <AlertDialog open={importOpen} onOpenChange={setImportOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Update the BOM from the schematic?</AlertDialogTitle>
+            <AlertDialogDescription>
+              The BOM lines are replaced by the components of the attached schematics and matched again. Parts you picked by hand stay on the components that are still there. The project goes back to draft{project.reserved && ' and its stock reservation is released'}.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                router.post(`/projects/${project.id}/files/import_bom`, {}, { preserveScroll: true })
+                setImportOpen(false)
+              }}
+            >
+              Update BOM
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Remove file confirmation */}
+      <AlertDialog open={removeFile !== null} onOpenChange={(o) => !o && setRemoveFile(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove {removeFile?.filename}?</AlertDialogTitle>
+            <AlertDialogDescription>The file is deleted. The BOM lines already imported stay as they are.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (removeFile) router.delete(`/projects/${project.id}/files/${removeFile.id}`, { preserveScroll: true })
+                setRemoveFile(null)
+              }}
+            >
+              Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Remove line confirmation */}
       <AlertDialog open={removeLine !== null} onOpenChange={(o) => !o && setRemoveLine(null)}>

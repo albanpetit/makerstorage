@@ -1,19 +1,34 @@
 class Project < ApplicationRecord
   include GeneratedReference
+  include AttachmentValidation
 
   # Associations
   belongs_to :organization
   has_many :project_lines, dependent: :destroy
   has_many :project_builds, dependent: :destroy
   accepts_nested_attributes_for :project_lines
+  # The project's design files: KiCad files or a ZIP of the project folder.
+  has_many_attached :kicad_files
 
   # Constants
   STATUSES = %w[draft confirmed].freeze
+
+  # KiCad files are plain text that content sniffing can't tell apart, so they
+  # are typed by name on upload (see .kicad_content_type) and always served as
+  # downloads.
+  KICAD_FILE_TYPE = "application/x-kicad"
+  ZIP_TYPE = "application/zip"
+  KICAD_EXTENSIONS = %w[.kicad_pro .kicad_sch .kicad_pcb .kicad_sym .kicad_mod .kicad_prl .kicad_dru .kicad_wks].freeze
+  KICAD_FILENAMES = %w[sym-lib-table fp-lib-table].freeze
+  MAX_KICAD_FILES = 30
+  MAX_KICAD_FILE_SIZE = 50.megabytes
 
   # Validations
   validates :name, presence: true, length: { minimum: 2, maximum: 255 }
   validates :status, presence: true, inclusion: { in: STATUSES }
   validates :reference, uniqueness: { scope: :organization_id }, allow_blank: true
+  validates_attachment :kicad_files, content_types: [ KICAD_FILE_TYPE, ZIP_TYPE ], max_size: MAX_KICAD_FILE_SIZE
+  validate :kicad_files_count_within_limit
   validates :description, length: { maximum: 255 }
   validates :revision, length: { maximum: 20 }
 
@@ -40,6 +55,18 @@ class Project < ApplicationRecord
       end
     end
     lines.group(:part_id).sum(:quantity)
+  end
+
+  # The content type a KiCad file or project ZIP is stored under, from its
+  # name; nil for any other file.
+  def self.kicad_content_type(filename)
+    name = File.basename(filename.to_s).downcase
+    extension = File.extname(name)
+    if KICAD_EXTENSIONS.include?(extension) || KICAD_FILENAMES.include?(name)
+      KICAD_FILE_TYPE
+    elsif extension == ".zip"
+      ZIP_TYPE
+    end
   end
 
   # Builds a human-readable, per-organization-unique reference of the form
@@ -78,6 +105,8 @@ class Project < ApplicationRecord
         line.attributes.slice(*%w[part_id match_type raw_reference designation value footprint designators quantity])
       )
     end
+    # The revision starts from the same design files: the blobs are shared, not copied.
+    kicad_files.each { |file| copy.kicad_files.attach(file.blob) }
     copy
   end
 
@@ -165,5 +194,50 @@ class Project < ApplicationRecord
   # Lines that couldn't be matched to any inventory part.
   def unmatched_lines
     project_lines.select { |line| line.part.nil? }
+  end
+
+  # Methods - BOM import
+
+  # Adds a line per parsed BOM line (BomParser's hashes), matched against the
+  # organization's parts. +manual+ maps BomParser.line_key to a part chosen by
+  # hand earlier, which wins over the matcher.
+  def build_bom_lines(lines, manual: {})
+    matcher = BomParser::Matcher.new(organization)
+    lines.each do |line|
+      part = manual[BomParser.line_key(line)]
+      part, match_type = part ? [ part, "manual" ] : matcher.match(line)
+      project_lines.build(
+        part: part,
+        match_type: match_type,
+        raw_reference: line[:mpn].presence || line[:sku],
+        designation: line[:designation],
+        value: line[:value],
+        footprint: line[:footprint],
+        designators: line[:designators],
+        quantity: line[:quantity]
+      )
+    end
+  end
+
+  # Swaps the BOM for +lines+ (the design changed): parts picked by hand stay
+  # on the lines that still describe the same component, and the project goes
+  # back to draft, unreserved, since its matches need checking again.
+  def replace_bom!(lines)
+    manual = project_lines.select { |line| line.match_type == "manual" && line.part }
+      .to_h { |line| [ BomParser.line_key(line), line.part ] }
+
+    transaction do
+      project_lines.destroy_all
+      build_bom_lines(lines, manual: manual)
+      update!(status: "draft", checked_at: nil, reserved_at: nil)
+    end
+  end
+
+  private
+
+  def kicad_files_count_within_limit
+    if kicad_files.size > MAX_KICAD_FILES
+      errors.add(:kicad_files, "can't be more than #{MAX_KICAD_FILES} files")
+    end
   end
 end

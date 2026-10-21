@@ -165,6 +165,38 @@ class ProjectTest < ActiveSupport::TestCase
     assert_not project.reserving?
   end
 
+  test "kicad_content_type types KiCad files and archives by name, and nothing else" do
+    assert_equal Project::KICAD_FILE_TYPE, Project.kicad_content_type("Board.KiCad_Sch")
+    assert_equal Project::KICAD_FILE_TYPE, Project.kicad_content_type("libs/fp-lib-table")
+    assert_equal Project::ZIP_TYPE, Project.kicad_content_type("board.zip")
+    assert_nil Project.kicad_content_type("board.pdf")
+    assert_nil Project.kicad_content_type("kicad_sch")
+  end
+
+  test "kicad files must be KiCad files or ZIP archives" do
+    project = create_project(organization: @org)
+    project.kicad_files.attach(io: StringIO.new("<html>"), filename: "board.html", content_type: "text/html")
+
+    assert_not project.valid?
+    assert_includes project.errors[:kicad_files].join, "must be a"
+  end
+
+  test "replace_bom! keeps hand-picked parts on the same components and drops the review" do
+    part = create_part(organization: @org)
+    project = create_project(organization: @org, status: "confirmed", reserved_at: Time.current, checked_at: Time.current)
+    project.project_lines.create!(part: part, value: "10k", footprint: "R_0603", quantity: 1, match_type: "manual")
+
+    project.replace_bom!([
+      { designation: "10k", value: "10K", footprint: "r_0603", designators: "R1, R2", quantity: 2 },
+      { designation: "Mystery", value: "MYST", footprint: nil, designators: "U9", quantity: 1 }
+    ])
+
+    project.reload
+    assert_equal [ "draft", nil, nil ], [ project.status, project.reserved_at, project.checked_at ]
+    assert_equal [ [ "10K", part, "manual", 2 ], [ "MYST", nil, "none", 1 ] ],
+      project.project_lines.order(:id).map { |l| [ l.value, l.part, l.match_type, l.quantity ] }
+  end
+
   test "revision is optional and at most 20 characters" do
     assert Project.new(organization: @org, name: "Kit", revision: nil).valid?
     assert_not Project.new(organization: @org, name: "Kit", revision: "x" * 21).valid?
@@ -199,6 +231,19 @@ class ProjectTest < ActiveSupport::TestCase
                  copy.project_lines.order(:id).pluck(:part_id, :quantity, :match_type, :raw_reference, :designators)
     assert_equal 2, project.project_lines.count
     assert_not_equal project.reference, copy.reference
+  end
+
+  test "duplicate_as_revision keeps the design files, sharing their blobs" do
+    project = create_project(organization: @org, name: "Badge")
+    project.kicad_files.attach(io: file_fixture("kicad/board/board.kicad_sch").open, filename: "board.kicad_sch",
+                               content_type: Project::KICAD_FILE_TYPE)
+
+    copy = project.duplicate_as_revision
+    copy.save_with_generated_reference! { Project.next_reference(@org) }
+
+    assert_equal project.kicad_files.map(&:blob_id), copy.reload.kicad_files.map(&:blob_id)
+    copy.destroy!
+    assert project.reload.kicad_files.attached?, "the original keeps its files"
   end
 
   test "buildable? and shortfall_by_part scale with the number of kits" do

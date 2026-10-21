@@ -1,9 +1,10 @@
 import { Head, Link, router } from '@inertiajs/react'
 import { FormEvent, useRef, useState } from 'react'
-import { ClipboardList, Plus, Upload, Trash2, CheckCircle2, AlertTriangle, Lock } from 'lucide-react'
+import { ClipboardList, Plus, Upload, Trash2, CheckCircle2, AlertTriangle, Lock, Paperclip } from 'lucide-react'
 
 import { AppLayout } from '@/layouts/app-layout'
 import { usePermissions } from '@/hooks/use-permissions'
+import { KICAD_ACCEPT, KICAD_FILE } from '@/lib/kicad-files'
 import { PageHeader } from '@/components/page-header'
 import { FlashMessages } from '@/components/flash-messages'
 import { ReadOnlyBadge } from '@/components/read-only-badge'
@@ -52,6 +53,7 @@ interface ProjectSummary {
   unmatched_count: number
   checked_at: string | null
   created_at: string
+  file_count: number
 }
 
 interface ProjectsPageProps {
@@ -73,11 +75,15 @@ export default function ProjectsIndex({ projects }: ProjectsPageProps) {
 
   const submit = (e: FormEvent) => {
     e.preventDefault()
-    const file = fileInput.current?.files?.[0]
-    if (!file && !name.trim()) return
+    const files = Array.from(fileInput.current?.files ?? [])
+    if (files.length === 0 && !name.trim()) return
 
     const formData = new FormData()
-    if (file) formData.append('file', file)
+    if (files.length === 1 && !KICAD_FILE.test(files[0].name)) {
+      formData.append('file', files[0])
+    } else {
+      files.forEach((file) => formData.append('files[]', file))
+    }
     if (name.trim()) formData.append('name', name.trim())
 
     setProcessing(true)
@@ -94,7 +100,7 @@ export default function ProjectsIndex({ projects }: ProjectsPageProps) {
   return (
     <AppLayout
       header={
-        <PageHeader title="Projects" subtitle="Build a project BOM by hand or import one, and check stock availability">
+        <PageHeader title="Projects" subtitle="Build a project BOM by hand or import its KiCad files or BOM, and check stock availability">
           {canWrite ? (
             <Button size="sm" onClick={() => setOpen(true)}>
               <Plus className="size-4" />
@@ -119,7 +125,7 @@ export default function ProjectsIndex({ projects }: ProjectsPageProps) {
               </div>
               <p className="font-semibold">No projects yet</p>
               <p className="max-w-sm text-sm text-muted-foreground">
-                Start a project and add its parts by hand, or upload a bill of materials (CSV, or a KiCad / EasyEDA export) to match each component against your inventory and see what you can build.
+                Start a project and add its parts by hand, or upload a KiCad project (its files or a ZIP of the folder) or a bill of materials (CSV, or a KiCad / EasyEDA export) to match each component against your inventory and see what you can build.
               </p>
             </CardContent>
           </Card>
@@ -141,12 +147,23 @@ export default function ProjectsIndex({ projects }: ProjectsPageProps) {
                 {projects.map((project) => (
                   <TableRow key={project.id} className="cursor-pointer" onClick={() => router.visit(`/projects/${project.id}`)}>
                     <TableCell className="font-medium">
-                      <Link href={`/projects/${project.id}`} className="hover:underline" onClick={(e) => e.stopPropagation()}>
-                        {project.name}
-                      </Link>
-                      {project.revision && (
-                        <Badge variant="outline" className="ml-2 font-mono text-xs">rev {project.revision}</Badge>
-                      )}
+                      <div className="flex items-center gap-2">
+                        <Link href={`/projects/${project.id}`} className="hover:underline" onClick={(e) => e.stopPropagation()}>
+                          {project.name}
+                        </Link>
+                        {project.revision && (
+                          <Badge variant="outline" className="font-mono text-xs">rev {project.revision}</Badge>
+                        )}
+                        {project.file_count > 0 && (
+                          <span
+                            className="inline-flex items-center gap-0.5 text-xs font-normal text-muted-foreground"
+                            title={`${project.file_count} KiCad file${project.file_count !== 1 ? 's' : ''}`}
+                          >
+                            <Paperclip className="size-3.5" />
+                            {project.file_count}
+                          </span>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell className="font-mono text-xs text-muted-foreground">{project.reference}</TableCell>
                     <TableCell>
@@ -205,7 +222,7 @@ export default function ProjectsIndex({ projects }: ProjectsPageProps) {
             <DialogHeader>
               <DialogTitle>New project</DialogTitle>
               <DialogDescription>
-                Give it a name to start empty and add parts by hand, or upload a BOM CSV, a KiCad export (BOM CSV or the netlist XML) or an EasyEDA BOM. Columns are auto-detected (designation, MPN, SKU, value, footprint, quantity); KiCad lines are matched by MPN, supplier part number, then value + footprint. Review the matches before building.
+                Give it a name to start empty and add parts by hand, or upload the KiCad project files (.kicad_pro, .kicad_sch, .kicad_pcb…) or a ZIP of the project folder: they're kept with the project and the BOM is read from the schematics. A BOM export also works: a CSV, a KiCad BOM CSV or netlist XML, or an EasyEDA BOM. Lines are matched by MPN, supplier part number, then value + footprint. Review the matches before building.
               </DialogDescription>
             </DialogHeader>
 
@@ -223,14 +240,16 @@ export default function ProjectsIndex({ projects }: ProjectsPageProps) {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="project-file">BOM file (CSV or KiCad XML), optional</Label>
+                <Label htmlFor="project-file">KiCad files or BOM, optional</Label>
                 <Input
                   ref={fileInput}
                   id="project-file"
                   type="file"
-                  accept=".csv,text/csv,.xml,application/xml,text/xml"
+                  multiple
+                  accept={`${KICAD_ACCEPT},.csv,text/csv,.xml,application/xml,text/xml`}
                   onChange={(e) => setFileName(e.target.value.split(/[\\/]/).pop() ?? '')}
                 />
+                <p className="text-xs text-muted-foreground">Select several KiCad files at once, or a single ZIP or BOM file.</p>
               </div>
             </div>
 
