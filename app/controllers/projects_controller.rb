@@ -13,7 +13,8 @@ class ProjectsController < ApplicationController
       .recent
 
     render inertia: "projects/index", props: {
-      projects: projects.map { |project| serialize_project_summary(project) }
+      projects: projects.map { |project| serialize_project_summary(project) },
+      github_token_configured: current_organization.github_token.present?
     }
   end
 
@@ -30,6 +31,7 @@ class ProjectsController < ApplicationController
   def create
     uploads = Array(params[:files]).select { |upload| upload.respond_to?(:original_filename) }
     return create_from_kicad_files(uploads) if uploads.any?
+    return create_from_github if params[:repository].present?
 
     file = params[:file]
     return redirect_to(projects_path, alert: "Please choose a BOM file to import.") unless file
@@ -223,6 +225,25 @@ class ProjectsController < ApplicationController
     redirect_to projects_path, alert: project.errors.full_messages.to_sentence.presence || "Could not create that project."
   end
 
+  # A project linked to a GitHub repository, made with the KiCad files and BOM
+  # fetched from it. Nothing is kept when the fetch fails.
+  def create_from_github
+    attributes = ProjectGithubController.link_attributes(params)
+    project = current_organization.projects.new(status: "draft", **attributes)
+    project.name = params[:name].presence || project.github_path&.split("/")&.last || project.github_repository.to_s.split("/").last
+    return redirect_to(projects_path, alert: project.errors.full_messages.to_sentence) unless project.valid?
+
+    flash = nil
+    ActiveRecord::Base.transaction do
+      project.save_with_generated_reference! { Project.next_reference(current_organization) }
+      flash = ProjectGithubController.sync_flash(project)
+      raise ActiveRecord::Rollback if flash[:alert]
+    end
+    return redirect_to(projects_path, alert: flash[:alert]) if flash[:alert]
+
+    redirect_to project_path(project), notice: flash[:notice]
+  end
+
   def set_project
     @project = current_organization.projects
       .includes({ kicad_files_attachments: :blob }, project_lines: { part: [ :part_storages, { part_suppliers: :supplier } ] })
@@ -260,7 +281,8 @@ class ProjectsController < ApplicationController
       unmatched_count: project.unmatched_lines.size,
       checked_at: project.checked_at&.iso8601,
       created_at: project.created_at.iso8601,
-      file_count: project.kicad_files.size
+      file_count: project.kicad_files.size,
+      github_repository: project.github_repository
     }
   end
 
@@ -282,7 +304,24 @@ class ProjectsController < ApplicationController
       last_built_at: project.last_built_at&.iso8601,
       lines: project.project_lines.map { |line| serialize_line(project, line, shortfalls) },
       files: project.kicad_files.map { |file| serialize_file(file) },
-      files_have_schematics: ProjectKicadFiles.schematics?(project.kicad_files.map { |file| file.filename.to_s })
+      files_have_schematics: ProjectKicadFiles.schematics?(project.kicad_files.map { |file| file.filename.to_s }),
+      github: serialize_github(project),
+      github_token_configured: current_organization.github_token.present?
+    }
+  end
+
+  def serialize_github(project)
+    return unless project.github_linked?
+
+    {
+      repository: project.github_repository,
+      ref: project.github_ref,
+      path: project.github_path,
+      location: project.github_location,
+      url: project.github_url,
+      synced_sha: project.github_synced_sha,
+      synced_at: project.github_synced_at&.iso8601,
+      commit_url: project.github_synced_sha && "https://github.com/#{project.github_repository}/commit/#{project.github_synced_sha}"
     }
   end
 
@@ -292,7 +331,8 @@ class ProjectsController < ApplicationController
       filename: file.filename.to_s,
       byte_size: file.byte_size,
       created_at: file.created_at.iso8601,
-      url: stored_file_path_for(file)
+      url: stored_file_path_for(file),
+      from_github: ProjectGithubSync.snapshot?(file)
     }
   end
 

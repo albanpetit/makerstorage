@@ -197,6 +197,31 @@ class ProjectTest < ActiveSupport::TestCase
       project.project_lines.order(:id).map { |l| [ l.value, l.part, l.match_type, l.quantity ] }
   end
 
+  test "github link fields are normalized and validated" do
+    org = create_organization
+    project = create_project(organization: org, github_repository: " maker/rover.git ", github_ref: " ", github_path: "./hw/main/")
+    assert_equal [ "maker/rover", nil, "hw/main" ], [ project.github_repository, project.github_ref, project.github_path ]
+    assert project.github_linked?
+    assert_equal "maker/rover/hw/main", project.github_location
+    assert_equal "https://github.com/maker/rover/tree/HEAD/hw/main", project.github_url
+
+    project.github_ref = "v2"
+    project.github_path = nil
+    assert_equal "maker/rover@v2", project.github_location
+    assert_equal "https://github.com/maker/rover/tree/v2", project.github_url
+
+    project.assign_attributes(github_repository: "rover", github_ref: "a b", github_path: "hw/../../etc")
+    refute project.valid?
+    assert_equal %i[github_path github_ref github_repository], project.errors.attribute_names.sort
+  end
+
+  test "unlink_github! clears the link" do
+    project = create_project(organization: create_organization, github_repository: "maker/rover", github_synced_sha: "a" * 40)
+    project.unlink_github!
+    refute project.reload.github_linked?
+    assert_nil project.github_synced_sha
+  end
+
   private
 
   def reserving_project(quantities, reserved_at: Time.current)

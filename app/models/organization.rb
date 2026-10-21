@@ -41,6 +41,8 @@ class Organization < ApplicationRecord
   encrypts :digikey_client_secret
   encrypts :digikey_access_token
   encrypts :digikey_refresh_token
+  # GitHub token for projects linked to a private repository (see GithubClient)
+  encrypts :github_token
 
   # Constants
   IPN_SEPARATORS = %w[- . _ /].freeze

@@ -15,7 +15,7 @@ interface IntegrationsSectionProps {
   organization: OrganizationSettings
 }
 
-// Mouser and DigiKey credentials (write-only) and the DigiKey account link.
+// Mouser, DigiKey and GitHub credentials (write-only) and the DigiKey account link.
 export function IntegrationsSection({ form, organization }: IntegrationsSectionProps) {
   const origin = typeof window !== 'undefined' ? window.location.origin : ''
 
@@ -27,6 +27,8 @@ export function IntegrationsSection({ form, organization }: IntegrationsSectionP
     digikey_client_id: '',
     digikey_client_secret: '',
     remove_digikey: false,
+    github_token: '',
+    remove_github_token: false,
   })
 
   const submitIntegrations = (e: FormEvent) => {
@@ -39,7 +41,7 @@ export function IntegrationsSection({ form, organization }: IntegrationsSectionP
 
   // Stage a one-off removal flag for a single provider, submit, then clear the
   // form back to its neutral (write-only) state regardless of outcome.
-  const removeProvider = (flag: 'remove_mouser_api_key' | 'remove_mouser_order_api_key' | 'remove_digikey') => {
+  const removeProvider = (flag: 'remove_mouser_api_key' | 'remove_mouser_order_api_key' | 'remove_digikey' | 'remove_github_token') => {
     form.transform((data) => ({
       organization: { ...data.organization, [flag]: true },
     }))
@@ -57,7 +59,7 @@ export function IntegrationsSection({ form, organization }: IntegrationsSectionP
       <div>
         <h2 className="text-lg font-semibold">Integrations</h2>
         <p className="max-w-xl text-sm text-muted-foreground">
-          Connect external supplier catalogs to look up component data by part number.
+          Connect external supplier catalogs to look up component data by part number, and GitHub to fetch projects' KiCad files.
         </p>
       </div>
 
@@ -284,6 +286,64 @@ export function IntegrationsSection({ form, organization }: IntegrationsSectionP
               !form.data.organization.digikey_client_secret.trim()
             }
           >
+            Save
+          </Button>
+        </CardFooter>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>GitHub</CardTitle>
+          <CardDescription>
+            Projects can be linked to a GitHub repository to fetch their KiCad files and BOM. Public repositories
+            work without a token. For private ones (or to lift GitHub's limit of 60 requests an hour), create a{' '}
+            <a
+              href="https://github.com/settings/personal-access-tokens/new"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium text-primary underline underline-offset-2"
+            >
+              fine-grained personal access token
+            </a>{' '}
+            with read-only access to the repositories' contents.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {organization.github_token_present && (
+            <div className="flex items-center gap-2 rounded-md border border-green-600/30 bg-green-600/10 px-3 py-2 text-sm text-green-700 dark:text-green-400">
+              <CircleCheck className="size-4 shrink-0" />
+              A token is configured. Enter a new token below to replace it.
+            </div>
+          )}
+          <Field>
+            <FieldLabel><Label>Personal access token</Label></FieldLabel>
+            <FieldContent>
+              <Input
+                type="password"
+                autoComplete="off"
+                placeholder={organization.github_token_present ? '••••••••••••••••' : 'github_pat_…'}
+                value={form.data.organization.github_token}
+                onChange={(e) => form.setData('organization', {
+                  ...form.data.organization,
+                  github_token: e.target.value,
+                })}
+              />
+            </FieldContent>
+            {form.errors['organization.github_token'] && (
+              <FieldError>{form.errors['organization.github_token']}</FieldError>
+            )}
+          </Field>
+          <p className="text-xs text-muted-foreground">
+            The token is shared by every project of this organization and only ever sent to api.github.com.
+          </p>
+        </CardContent>
+        <CardFooter className="justify-end gap-2 border-t">
+          {organization.github_token_present && (
+            <Button type="button" variant="outline" onClick={() => removeProvider('remove_github_token')} disabled={form.processing}>
+              Remove token
+            </Button>
+          )}
+          <Button type="submit" disabled={form.processing || !form.data.organization.github_token.trim()}>
             Save
           </Button>
         </CardFooter>

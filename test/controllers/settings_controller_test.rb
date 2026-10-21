@@ -317,6 +317,25 @@ class SettingsControllerTest < ActionDispatch::IntegrationTest
     refute organization.key?("mouser_api_key")
   end
 
+  test "the GitHub token is write-only: stored, kept on a blank submit, removed on request" do
+    user = create_user
+    org = user.organizations.first
+    sign_in user
+
+    patch settings_path, params: { organization: { github_token: "  ghp_secret  " } }
+    assert_equal "ghp_secret", org.reload.github_token
+
+    get settings_path
+    assert_equal true, inertia_props.dig("organization", "github_token_present")
+    refute inertia_props["organization"].key?("github_token")
+
+    patch settings_path, params: { organization: { github_token: "" } }
+    assert_equal "ghp_secret", org.reload.github_token
+
+    patch settings_path, params: { organization: { remove_github_token: "true" } }
+    assert_nil org.reload.github_token
+  end
+
   test "update leaves an existing Mouser key untouched on a blank submit" do
     user = create_user
     org = user.organizations.first

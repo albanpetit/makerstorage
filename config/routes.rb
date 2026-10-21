@@ -133,6 +133,9 @@ Rails.application.routes.draw do
     resources :project_files, path: "files", only: %i[create destroy] do
       post :import_bom, on: :collection
     end
+    resource :github, controller: "project_github", only: %i[update destroy] do
+      post :sync
+    end
   end
 
   get "alerts", to: "alerts#index"
