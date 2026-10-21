@@ -41,6 +41,8 @@ class OrganizationBackupTest < ActiveSupport::TestCase
                               reserved_at: 1.hour.ago)
     @project.project_lines.create!(part: @part, raw_reference: "RC0603-10K", quantity: 4, match_type: "mpn")
     @project.project_lines.create!(raw_reference: "UNKNOWN", quantity: 1, match_type: "none")
+    @project.kicad_files.attach(io: file_fixture("kicad/board/board.kicad_sch").open, filename: "board.kicad_sch",
+                                content_type: Project::KICAD_FILE_TYPE)
 
     # Another tenant's data must stay out of the archive.
     @other = create_organization(name: "Other Lab")
@@ -99,7 +101,9 @@ class OrganizationBackupTest < ActiveSupport::TestCase
     assert org.logo.attached?
     assert_equal [ "photo.png" ], part.images.map { |image| image.filename.to_s }
     assert_equal file_fixture("logo.png").binread, part.images.first.download
-    assert_equal 2, result.files_count
+    assert_equal [ "board.kicad_sch" ], project.kicad_files.map { |file| file.filename.to_s }
+    assert_equal file_fixture("kicad/board/board.kicad_sch").binread, project.kicad_files.first.download
+    assert_equal 3, result.files_count
     assert_empty result.skipped_files
 
     assert_not org.parts.exists?(mpn: "FOREIGN-1")
@@ -143,7 +147,7 @@ class OrganizationBackupTest < ActiveSupport::TestCase
       assert data["tables"]["stock_movements"].none? { |row| row.key?("user_id") }
       assert data["tables"]["parts"].none? { |row| row.key?("organization_id") }
       assert_includes zip.read("csv/parts.csv"), "RC0603-10K"
-      assert_equal 2, data["attachments"].size
+      assert_equal 3, data["attachments"].size
       data["attachments"].each { |entry| assert zip.find_entry(entry["path"]), entry["path"] }
     end
   end
@@ -226,7 +230,7 @@ class OrganizationBackupTest < ActiveSupport::TestCase
     }))
 
     assert_equal [ "evil.html", "logo.png" ], result.skipped_files.sort
-    assert_equal 0, result.files_count
+    assert_equal 1, result.files_count # the project's KiCad file
     assert_not result.organization.logo.attached?
     assert_not result.organization.parts.first.images.attached?
   end
