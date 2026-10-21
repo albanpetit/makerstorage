@@ -4,6 +4,7 @@ class Project < ApplicationRecord
   # Associations
   belongs_to :organization
   has_many :project_lines, dependent: :destroy
+  has_many :project_builds, dependent: :destroy
   accepts_nested_attributes_for :project_lines
 
   # Constants
@@ -13,6 +14,8 @@ class Project < ApplicationRecord
   validates :name, presence: true, length: { minimum: 2, maximum: 255 }
   validates :status, presence: true, inclusion: { in: STATUSES }
   validates :reference, uniqueness: { scope: :organization_id }, allow_blank: true
+  validates :description, length: { maximum: 255 }
+  validates :revision, length: { maximum: 20 }
 
   # Scopes
   scope :recent, -> { order(created_at: :desc) }
@@ -51,6 +54,31 @@ class Project < ApplicationRecord
       reference = "#{base}-#{suffix}"
     end
     reference
+  end
+
+  # Methods - Revisions
+
+  # The label a copy of this project gets: the next one after its own ("A" →
+  # "B", "v2" → "v3", "Z" → "AA"), skipping labels another project with the
+  # same name already uses. A project without a label counts as "A".
+  def next_revision
+    used = organization.projects.where(name: name).where.not(revision: [ nil, "" ]).pluck(:revision).to_set(&:downcase)
+    candidate = (revision.presence || "A").succ
+    candidate = candidate.succ while used.include?(candidate.downcase)
+    candidate
+  end
+
+  # A new draft project with this one's name, description and lines, labelled
+  # +revision+. Matches are kept as they are; status, reservation and build
+  # history start over. The caller saves it (it needs a generated reference).
+  def duplicate_as_revision(revision: next_revision)
+    copy = organization.projects.new(name: name, description: description, revision: revision, status: "draft")
+    project_lines.each do |line|
+      copy.project_lines.build(
+        line.attributes.slice(*%w[part_id match_type raw_reference designation value footprint designators quantity])
+      )
+    end
+    copy
   end
 
   # Methods - Status
@@ -106,25 +134,26 @@ class Project < ApplicationRecord
   # part against the summed requirement — checking each line alone would count
   # the same stock once per line.
 
-  # Required quantity per matched part, summed across the lines that use it.
-  def required_by_part
-    project_lines.select(&:part).group_by(&:part).transform_values { |lines| lines.sum(&:quantity) }
+  # Required quantity per matched part, summed across the lines that use it,
+  # for +kits+ copies of the project.
+  def required_by_part(kits: 1)
+    project_lines.select(&:part).group_by(&:part).transform_values { |lines| lines.sum(&:quantity) * kits }
   end
 
   # Parts whose available stock (see #available_for) can't cover their summed
-  # requirement, with the missing quantity. Preload
+  # requirement for +kits+ copies, with the missing quantity. Preload
   # `project_lines: { part: :part_storages }` to avoid an N+1.
-  def shortfall_by_part
-    required_by_part.filter_map do |part, required|
+  def shortfall_by_part(kits: 1)
+    required_by_part(kits: kits).filter_map do |part, required|
       missing = required - available_for(part)
       [ part, missing ] if missing.positive?
     end.to_h
   end
 
-  # Every line is matched and every part's stock covers its summed requirement.
-  # An empty project isn't buildable — there is nothing to build.
-  def buildable?
-    project_lines.any? && unmatched_lines.empty? && shortfall_by_part.empty?
+  # Every line is matched and every part's stock covers its summed requirement
+  # for +kits+ copies. An empty project isn't buildable — there is nothing to build.
+  def buildable?(kits: 1)
+    project_lines.any? && unmatched_lines.empty? && shortfall_by_part(kits: kits).empty?
   end
 
   # Lines whose part is short of the project's summed requirement.
