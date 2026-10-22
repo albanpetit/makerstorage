@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_15_100000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_20_090000) do
   create_table "active_storage_attachments", force: :cascade do |t|
     t.bigint "blob_id", null: false
     t.datetime "created_at", null: false
@@ -194,6 +194,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_15_100000) do
     t.string "notification_frequency", default: "daily", null: false
     t.date "notifications_sent_on"
     t.boolean "stock_reservations_enabled", default: true, null: false
+    t.boolean "lcsc_enabled", default: false, null: false
     t.index ["email"], name: "index_organizations_on_email"
     t.index ["name"], name: "index_organizations_on_name"
   end
