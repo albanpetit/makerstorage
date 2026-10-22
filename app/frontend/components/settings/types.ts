@@ -39,6 +39,7 @@ export interface OrganizationSettings {
   digikey_configured: boolean
   digikey_account_connected: boolean
   lcsc_enabled: boolean
+  github_token_present: boolean
   parts_count: number
   ipn_preview: IpnPreview
   free_bags_count: number
@@ -118,6 +119,8 @@ export interface IntegrationsFormData {
     digikey_client_id: string
     digikey_client_secret: string
     remove_digikey: boolean
+    github_token: string
+    remove_github_token: boolean
   }
 }
 

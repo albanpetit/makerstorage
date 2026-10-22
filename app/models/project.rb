@@ -31,6 +31,13 @@ class Project < ApplicationRecord
   validate :kicad_files_count_within_limit
   validates :description, length: { maximum: 255 }
   validates :revision, length: { maximum: 20 }
+  validates :github_repository, format: { with: GithubClient::REPOSITORY_FORMAT, message: "must look like owner/name" }, allow_blank: true
+  validates :github_ref, length: { maximum: 255 }, format: { without: /\s|\.\./, message: "isn't a valid branch, tag or commit" }, allow_blank: true
+  validates :github_path, length: { maximum: 255 }, format: { without: %r{(\A|/)\.\.(/|\z)}, message: "can't go up a folder" }, allow_blank: true
+
+  normalizes :github_repository, with: ->(value) { value.strip.delete_suffix(".git").presence }
+  normalizes :github_ref, with: ->(value) { value.strip.presence }
+  normalizes :github_path, with: ->(value) { value.strip.gsub(%r{\A[/.]*/|/+\z}, "").squeeze("/").presence }
 
   # Scopes
   scope :recent, -> { order(created_at: :desc) }
@@ -95,11 +102,12 @@ class Project < ApplicationRecord
     candidate
   end
 
-  # A new draft project with this one's name, description and lines, labelled
-  # +revision+. Matches are kept as they are; status, reservation and build
-  # history start over. The caller saves it (it needs a generated reference).
+  # A new draft project with this one's name, description, lines, design files
+  # and GitHub link, labelled +revision+. Matches are kept as they are; status,
+  # reservation and build history start over. The caller saves it (it needs a generated reference).
   def duplicate_as_revision(revision: next_revision)
-    copy = organization.projects.new(name: name, description: description, revision: revision, status: "draft")
+    copy = organization.projects.new(name: name, description: description, revision: revision, status: "draft",
+                                     **attributes.slice(*%w[github_repository github_ref github_path github_synced_sha github_synced_at]))
     project_lines.each do |line|
       copy.project_lines.build(
         line.attributes.slice(*%w[part_id match_type raw_reference designation value footprint designators quantity])
@@ -117,6 +125,35 @@ class Project < ApplicationRecord
 
   def confirmed?
     status == "confirmed"
+  end
+
+  # Methods - GitHub
+  #
+  # A project can take its KiCad files from a GitHub repository (optionally a
+  # branch/tag/commit and a folder): ProjectGithubSync fetches them.
+
+  def github_linked?
+    github_repository.present?
+  end
+
+  # "owner/name", with the folder and ref when set: "owner/name/hw@v2".
+  def github_location
+    [ [ github_repository, github_path ].compact.join("/"), github_ref ].compact.join("@")
+  end
+
+  # The repository (or folder, at the ref) on github.com.
+  def github_url
+    return unless github_linked?
+
+    base = "https://github.com/#{github_repository}"
+    return base if github_ref.blank? && github_path.blank?
+
+    "#{base}/tree/#{github_ref.presence || 'HEAD'}#{"/#{github_path}" if github_path.present?}"
+  end
+
+  # Drops the link; the files already fetched stay as files of the project.
+  def unlink_github!
+    update!(github_repository: nil, github_ref: nil, github_path: nil, github_synced_sha: nil, github_synced_at: nil)
   end
 
   # Methods - Reservation

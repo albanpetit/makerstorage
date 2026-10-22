@@ -18,6 +18,9 @@ import {
   FileCode2,
   RefreshCw,
   Upload,
+  GitBranch,
+  ExternalLink,
+  Unlink,
 } from 'lucide-react'
 
 import { AppLayout } from '@/layouts/app-layout'
@@ -32,6 +35,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Combobox, type ComboboxOption } from '@/components/ui/combobox'
+import { GithubFields, type GithubLinkData } from '@/components/projects/github-fields'
 import {
   Table,
   TableBody,
@@ -87,6 +91,18 @@ interface ProjectFile {
   byte_size: number
   created_at: string
   url: string
+  from_github: boolean
+}
+
+interface GithubLink {
+  repository: string
+  ref: string | null
+  path: string | null
+  location: string
+  url: string
+  synced_sha: string | null
+  synced_at: string | null
+  commit_url: string | null
 }
 
 interface ProjectBuild {
@@ -120,6 +136,8 @@ interface Project {
   lines: ProjectLine[]
   files: ProjectFile[]
   files_have_schematics: boolean
+  github: GithubLink | null
+  github_token_configured: boolean
 }
 
 interface PartOption {
@@ -154,6 +172,34 @@ export default function ProjectShow({ project, parts }: ProjectShowProps) {
   const [removeFile, setRemoveFile] = useState<ProjectFile | null>(null)
   const [uploading, setUploading] = useState(false)
   const fileInput = useRef<HTMLInputElement>(null)
+  const [githubOpen, setGithubOpen] = useState(false)
+  const [unlinkOpen, setUnlinkOpen] = useState(false)
+  const [syncing, setSyncing] = useState(false)
+  const [githubData, setGithubData] = useState<GithubLinkData>({ repository: '', ref: '', path: '' })
+
+  const openGithubDialog = () => {
+    setGithubData({
+      repository: project.github?.repository ?? '',
+      ref: project.github?.ref ?? '',
+      path: project.github?.path ?? '',
+    })
+    setGithubOpen(true)
+  }
+
+  const saveGithubLink = (e: FormEvent) => {
+    e.preventDefault()
+    setSyncing(true)
+    router.patch(`/projects/${project.id}/github`, { ...githubData }, {
+      preserveScroll: true,
+      onSuccess: () => setGithubOpen(false),
+      onFinish: () => setSyncing(false),
+    })
+  }
+
+  const syncGithub = () => {
+    setSyncing(true)
+    router.post(`/projects/${project.id}/github/sync`, {}, { preserveScroll: true, onFinish: () => setSyncing(false) })
+  }
 
   const uploadFiles = (files: FileList | null) => {
     if (!files || files.length === 0) return
@@ -329,7 +375,7 @@ export default function ProjectShow({ project, parts }: ProjectShowProps) {
           <CardHeader>
             <CardTitle>KiCad files</CardTitle>
             <CardDescription>
-              The project's design files, or a ZIP of its folder. The BOM can be read again from the schematics after a design change.
+              The project's design files, a ZIP of its folder, or the files of a linked GitHub repository. The BOM can be read again from the schematics after a design change.
             </CardDescription>
             {canWrite && (
               <CardAction className="flex gap-2">
@@ -337,6 +383,12 @@ export default function ProjectShow({ project, parts }: ProjectShowProps) {
                   <Button size="sm" variant="outline" onClick={() => setImportOpen(true)}>
                     <RefreshCw className="size-4" />
                     Update BOM from schematic
+                  </Button>
+                )}
+                {!project.github && (
+                  <Button size="sm" variant="outline" onClick={openGithubDialog}>
+                    <GitBranch className="size-4" />
+                    Link to GitHub
                   </Button>
                 )}
                 <Button size="sm" variant="outline" disabled={uploading} onClick={() => fileInput.current?.click()}>
@@ -355,10 +407,51 @@ export default function ProjectShow({ project, parts }: ProjectShowProps) {
               </CardAction>
             )}
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-3">
+            {project.github && (
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-md border bg-muted/40 px-3 py-2 text-sm">
+                <GitBranch className="size-4 shrink-0 text-muted-foreground" />
+                <a
+                  href={project.github.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex min-w-0 items-center gap-1 font-mono font-medium hover:underline"
+                >
+                  <span className="truncate">{project.github.location}</span>
+                  <ExternalLink className="size-3.5 shrink-0 text-muted-foreground" />
+                </a>
+                <span className="text-xs text-muted-foreground">
+                  {project.github.synced_sha && project.github.commit_url ? (
+                    <>
+                      Commit{' '}
+                      <a href={project.github.commit_url} target="_blank" rel="noopener noreferrer" className="font-mono hover:underline">
+                        {project.github.synced_sha.slice(0, 7)}
+                      </a>
+                      {project.github.synced_at && <> · checked {new Date(project.github.synced_at).toLocaleString()}</>}
+                    </>
+                  ) : (
+                    'Not fetched yet'
+                  )}
+                </span>
+                {canWrite && (
+                  <div className="ml-auto flex gap-1">
+                    <Button size="sm" onClick={syncGithub} disabled={syncing}>
+                      <RefreshCw className={`size-4 ${syncing ? 'animate-spin' : ''}`} />
+                      Update from GitHub
+                    </Button>
+                    <Button size="icon-sm" variant="ghost" aria-label="Edit GitHub link" onClick={openGithubDialog}>
+                      <Pencil className="size-4 text-muted-foreground" />
+                    </Button>
+                    <Button size="icon-sm" variant="ghost" aria-label="Unlink from GitHub" onClick={() => setUnlinkOpen(true)}>
+                      <Unlink className="size-4 text-muted-foreground" />
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
             {project.files.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                No files yet.{canWrite && ' Add the .kicad_pro, .kicad_sch and .kicad_pcb files, or a ZIP of the project folder.'}
+                No files yet.{canWrite && ' Add the .kicad_pro, .kicad_sch and .kicad_pcb files, a ZIP of the project folder, or link a GitHub repository.'}
               </p>
             ) : (
               <ul className="grid gap-x-8 lg:grid-cols-2">
@@ -374,6 +467,11 @@ export default function ProjectShow({ project, parts }: ProjectShowProps) {
                       <span className="truncate">{file.filename}</span>
                       <Download className="size-3.5 shrink-0 text-muted-foreground" />
                     </a>
+                    {file.from_github && (
+                      <Badge variant="outline" className="shrink-0" title="Fetched from GitHub: replaced on the next update">
+                        GitHub
+                      </Badge>
+                    )}
                     <span className="ml-auto shrink-0 text-xs text-muted-foreground">
                       {formatFileSize(file.byte_size)} · {new Date(file.created_at).toLocaleDateString()}
                     </span>
@@ -530,6 +628,55 @@ export default function ProjectShow({ project, parts }: ProjectShowProps) {
               }}
             >
               Update BOM
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* GitHub link */}
+      <Dialog open={githubOpen} onOpenChange={setGithubOpen}>
+        <DialogContent className="sm:max-w-md">
+          <form onSubmit={saveGithubLink}>
+            <DialogHeader>
+              <DialogTitle>{project.github ? 'Edit the GitHub link' : 'Link to a GitHub repository'}</DialogTitle>
+              <DialogDescription>
+                The KiCad files in the repository (or in one folder of it) are fetched into this project and its BOM is read from the schematics. Use “Update from GitHub” after pushing a change.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-4">
+              <GithubFields data={githubData} onChange={setGithubData} tokenConfigured={project.github_token_configured} autoFocus />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setGithubOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={syncing || !githubData.repository.trim()}>
+                <GitBranch className="size-4" />
+                {project.github ? 'Save & fetch' : 'Link & fetch'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Unlink confirmation */}
+      <AlertDialog open={unlinkOpen} onOpenChange={setUnlinkOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Unlink from GitHub?</AlertDialogTitle>
+            <AlertDialogDescription>
+              The project stops following {project.github?.location}. The files fetched so far and the BOM stay as they are.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                router.delete(`/projects/${project.id}/github`, { preserveScroll: true })
+                setUnlinkOpen(false)
+              }}
+            >
+              Unlink
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

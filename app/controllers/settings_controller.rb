@@ -110,12 +110,14 @@ class SettingsController < ApplicationController
       :mouser_api_key, :remove_mouser_api_key,
       :mouser_order_api_key, :remove_mouser_order_api_key,
       :digikey_client_id, :digikey_client_secret, :remove_digikey,
-      :lcsc_enabled
+      :lcsc_enabled,
+      :github_token, :remove_github_token
     )
 
     normalize_mouser_api_key(permitted)
     normalize_write_only_key(permitted, :mouser_order_api_key, :remove_mouser_order_api_key)
     normalize_digikey_credentials(permitted)
+    normalize_write_only_key(permitted, :github_token, :remove_github_token)
     permitted
   end
 
@@ -186,6 +188,7 @@ class SettingsController < ApplicationController
       digikey_configured: org.digikey_configured?,
       digikey_account_connected: org.digikey_account_connected?,
       lcsc_enabled: org.lcsc_enabled,
+      github_token_present: org.github_token.present?,
       parts_count: org.total_parts_count,
       ipn_preview: org.ipn_preview(category_code: org.ipn_use_category_code ? "RES" : nil),
       # Box & bag numbering: how many bags are free, and the first few codes.

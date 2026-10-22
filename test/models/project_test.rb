@@ -233,8 +233,9 @@ class ProjectTest < ActiveSupport::TestCase
     assert_not_equal project.reference, copy.reference
   end
 
-  test "duplicate_as_revision keeps the design files, sharing their blobs" do
-    project = create_project(organization: @org, name: "Badge")
+  test "duplicate_as_revision keeps the design files, sharing their blobs, and the github link" do
+    project = create_project(organization: @org, name: "Badge", github_repository: "maker/badge", github_path: "hw",
+                             github_synced_sha: "a" * 40)
     project.kicad_files.attach(io: file_fixture("kicad/board/board.kicad_sch").open, filename: "board.kicad_sch",
                                content_type: Project::KICAD_FILE_TYPE)
 
@@ -242,6 +243,7 @@ class ProjectTest < ActiveSupport::TestCase
     copy.save_with_generated_reference! { Project.next_reference(@org) }
 
     assert_equal project.kicad_files.map(&:blob_id), copy.reload.kicad_files.map(&:blob_id)
+    assert_equal [ "maker/badge", "hw", "a" * 40 ], [ copy.github_repository, copy.github_path, copy.github_synced_sha ]
     copy.destroy!
     assert project.reload.kicad_files.attached?, "the original keeps its files"
   end
@@ -269,6 +271,31 @@ class ProjectTest < ActiveSupport::TestCase
 
     assert_nil movement.reload.project_build_id
     assert_not ProjectBuild.exists?(build.id)
+  end
+
+  test "github link fields are normalized and validated" do
+    org = create_organization
+    project = create_project(organization: org, github_repository: " maker/rover.git ", github_ref: " ", github_path: "./hw/main/")
+    assert_equal [ "maker/rover", nil, "hw/main" ], [ project.github_repository, project.github_ref, project.github_path ]
+    assert project.github_linked?
+    assert_equal "maker/rover/hw/main", project.github_location
+    assert_equal "https://github.com/maker/rover/tree/HEAD/hw/main", project.github_url
+
+    project.github_ref = "v2"
+    project.github_path = nil
+    assert_equal "maker/rover@v2", project.github_location
+    assert_equal "https://github.com/maker/rover/tree/v2", project.github_url
+
+    project.assign_attributes(github_repository: "rover", github_ref: "a b", github_path: "hw/../../etc")
+    refute project.valid?
+    assert_equal %i[github_path github_ref github_repository], project.errors.attribute_names.sort
+  end
+
+  test "unlink_github! clears the link" do
+    project = create_project(organization: create_organization, github_repository: "maker/rover", github_synced_sha: "a" * 40)
+    project.unlink_github!
+    refute project.reload.github_linked?
+    assert_nil project.github_synced_sha
   end
 
   private
