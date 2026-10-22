@@ -27,19 +27,19 @@ class LoanLine < ApplicationRecord
 
   def settled_quantities_within_quantity
     if returned_quantity.to_i + lost_quantity.to_i > quantity.to_i
-      errors.add(:base, "Can't return or write off more than was lent")
+      errors.add(:base, :more_than_lent)
     end
   end
 
   def part_must_belong_to_same_organization
     if part.present? && loan.present? && part.organization_id != loan.organization_id
-      errors.add(:part, "must belong to the same organization")
+      errors.add(:part, :same_organization)
     end
   end
 
   def storage_location_must_belong_to_same_organization
     if storage_location.present? && loan.present? && storage_location.organization_id != loan.organization_id
-      errors.add(:storage_location, "must belong to the same organization")
+      errors.add(:storage_location, :same_organization)
     end
   end
 end

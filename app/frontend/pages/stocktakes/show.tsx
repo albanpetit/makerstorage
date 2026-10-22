@@ -35,6 +35,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { cn } from '@/lib/utils'
+import { t, tn, intlLocale } from '@/lib/i18n'
 
 interface Stocktake {
   id: number
@@ -92,12 +93,12 @@ type LineFilter = 'all' | 'uncounted' | 'differences'
 const ALL_ZONES = ''
 
 function formatDateTime(iso: string) {
-  return new Date(iso).toLocaleString(undefined, { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+  return new Date(iso).toLocaleString(intlLocale(), { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
 
 function formatMoney(value: number, currency: string) {
   try {
-    return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(value)
+    return new Intl.NumberFormat(intlLocale(), { style: 'currency', currency }).format(value)
   } catch {
     return `${value.toFixed(2)} ${currency}`
   }
@@ -109,12 +110,12 @@ function signed(value: number) {
 
 function DifferenceBadge({ difference }: { difference: number | null }) {
   if (difference === null) {
-    return <span className="text-xs text-muted-foreground">Not counted</span>
+    return <span className="text-xs text-muted-foreground">{t('Not counted')}</span>
   }
   if (difference === 0) {
     return (
       <Badge variant="outline" className="bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400">
-        <CheckCircle2 className="size-3.5" /> Match
+        <CheckCircle2 className="size-3.5" /> {t('Match')}
       </Badge>
     )
   }
@@ -254,23 +255,23 @@ export default function StocktakeShow({ stocktake, lines, zones, current_zone_id
   return (
     <AppLayout
       header={
-        <PageHeader title={`Stocktake ${stocktake.reference ?? ''}`.trim()} subtitle={stocktake.zone.name}>
+        <PageHeader title={t('Stocktake {reference}', { reference: stocktake.reference ?? '' }).trim()} subtitle={stocktake.zone.name}>
           <div className="flex flex-wrap gap-2">
             <Button size="sm" variant="outline" asChild>
               <a href={`${base}/export`}>
                 <Download className="size-4" />
-                Export CSV
+                {t('Export CSV')}
               </a>
             </Button>
             {counting && (
               <>
                 <Button size="sm" variant="outline" onClick={() => setDiscardOpen(true)}>
                   <Trash2 className="size-4" />
-                  Discard
+                  {t('Discard')}
                 </Button>
                 <Button size="sm" onClick={() => setCompleteOpen(true)}>
                   <Check className="size-4" />
-                  Complete stocktake
+                  {t('Complete stocktake')}
                 </Button>
               </>
             )}
@@ -278,14 +279,14 @@ export default function StocktakeShow({ stocktake, lines, zones, current_zone_id
         </PageHeader>
       }
     >
-      <Head title={`Stocktake ${stocktake.reference ?? ''}`.trim()} />
+      <Head title={t('Stocktake {reference}', { reference: stocktake.reference ?? '' }).trim()} />
 
       <div className="space-y-6">
         <FlashMessages errors={errors} />
 
         <Link href="/stocktakes" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
           <ArrowLeft className="size-4" />
-          All stocktakes
+          {t('All stocktakes')}
         </Link>
 
         {counting && (
@@ -303,9 +304,9 @@ export default function StocktakeShow({ stocktake, lines, zones, current_zone_id
                   <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 px-4 text-center">
                     <Button type="button" onClick={camera.start} disabled={camera.starting}>
                       <Camera className="size-4" />
-                      {camera.starting ? 'Starting camera…' : 'Start camera'}
+                      {camera.starting ? t('Starting camera…') : t('Start camera')}
                     </Button>
-                    <span className="text-xs text-zinc-400">Scan zone and part labels one after the other</span>
+                    <span className="text-xs text-zinc-400">{t('Scan zone and part labels one after the other')}</span>
                   </div>
                 ) : (
                   <Button
@@ -315,7 +316,7 @@ export default function StocktakeShow({ stocktake, lines, zones, current_zone_id
                     className="absolute top-2 right-2 h-auto gap-1.5 rounded-lg border border-white/20 bg-black/40 px-2.5 py-1.5 text-xs text-white backdrop-blur hover:bg-black/60 hover:text-white has-[>svg]:px-2.5 dark:hover:bg-black/60"
                   >
                     <CameraOff className="size-3.5" />
-                    Stop
+                    {t('Stop')}
                   </Button>
                 )}
               </div>
@@ -334,21 +335,21 @@ export default function StocktakeShow({ stocktake, lines, zones, current_zone_id
                     ref={scanInput}
                     value={code}
                     onChange={(e) => setCode(e.target.value)}
-                    placeholder="Scan or type a part or zone code…"
-                    aria-label="Scan a code"
+                    placeholder={t('Scan or type a part or zone code…')}
+                    aria-label={t('Scan a code')}
                     className="h-10"
                   />
                   <Button type="submit" variant="outline" className="h-10">
                     <ScanLine className="size-4" />
-                    Scan
+                    {t('Scan')}
                   </Button>
                 </form>
 
                 <div className="flex items-center justify-between gap-4">
                   <div>
-                    <Label htmlFor="stocktake-increment">Each scan adds 1</Label>
+                    <Label htmlFor="stocktake-increment">{t('Each scan adds 1')}</Label>
                     <p className="text-xs text-muted-foreground">
-                      {increment ? 'Scan every item once.' : 'Scan a label, then type the quantity counted and press Enter.'}
+                      {increment ? t('Scan every item once.') : t('Scan a label, then type the quantity counted and press Enter.')}
                     </p>
                   </div>
                   <Switch id="stocktake-increment" checked={increment} onCheckedChange={setIncrement} />
@@ -356,35 +357,35 @@ export default function StocktakeShow({ stocktake, lines, zones, current_zone_id
 
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
-                    <Label htmlFor="stocktake-current-zone">Counting in</Label>
+                    <Label htmlFor="stocktake-current-zone">{t('Counting in')}</Label>
                     <StorageLocationSelect
                       id="stocktake-current-zone"
                       locations={zones}
                       value={zoneId}
                       onValueChange={changeZone}
-                      noneLabel="All zones of this count"
-                      placeholder="All zones of this count"
+                      noneLabel={t('All zones of this count')}
+                      placeholder={t('All zones of this count')}
                     />
-                    <p className="text-xs text-muted-foreground">Scanning a zone label picks it too.</p>
+                    <p className="text-xs text-muted-foreground">{t('Scanning a zone label picks it too.')}</p>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="stocktake-add-part">Found something else?</Label>
+                    <Label htmlFor="stocktake-add-part">{t('Found something else?')}</Label>
                     <div className="flex gap-2">
                       <Combobox
                         id="stocktake-add-part"
                         options={partOptions}
                         value={addPartId}
                         onValueChange={setAddPartId}
-                        placeholder="Add a part…"
-                        searchPlaceholder="Search parts…"
+                        placeholder={t('Add a part…')}
+                        searchPlaceholder={t('Search parts…')}
                         className="min-w-0 flex-1"
                       />
-                      <Button type="button" variant="outline" disabled={!addPartId} onClick={addPart} aria-label="Add part to the count">
+                      <Button type="button" variant="outline" disabled={!addPartId} onClick={addPart} aria-label={t('Add part to the count')}>
                         <Plus className="size-4" />
                       </Button>
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      Added to {currentZone ? currentZone.name : stocktake.zone.name}.
+                      {t('Added to {zone}.', { zone: currentZone ? currentZone.name : stocktake.zone.name })}
                     </p>
                   </div>
                 </div>
@@ -395,14 +396,14 @@ export default function StocktakeShow({ stocktake, lines, zones, current_zone_id
 
         {/* Summary */}
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-          <SummaryCard label="Counted" value={`${stocktake.counted_count} / ${stocktake.line_count}`} />
-          <SummaryCard label="Differences" value={stocktake.discrepancy_count} tone={stocktake.discrepancy_count > 0 ? 'amber' : undefined} />
+          <SummaryCard label={t('Counted')} value={`${stocktake.counted_count} / ${stocktake.line_count}`} />
+          <SummaryCard label={t('Differences')} value={stocktake.discrepancy_count} tone={stocktake.discrepancy_count > 0 ? 'amber' : undefined} />
           <SummaryCard
-            label="Units found / missing"
+            label={t('Units found / missing')}
             value={`+${stocktake.units_found} / −${stocktake.units_missing}`}
           />
           <SummaryCard
-            label="Value difference"
+            label={t('Value difference')}
             value={formatMoney(stocktake.value_difference, currency)}
             tone={stocktake.value_difference < 0 ? 'amber' : undefined}
           />
@@ -412,21 +413,24 @@ export default function StocktakeShow({ stocktake, lines, zones, current_zone_id
           <CardContent className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
             {stocktake.status === 'completed' ? (
               <span className="font-medium">
-                Completed {stocktake.completed_at && formatDateTime(stocktake.completed_at)}
-                {stocktake.completed_by && ` by ${stocktake.completed_by}`}
+                {stocktake.completed_by
+                  ? t('Completed {date} by {name}', { date: stocktake.completed_at ? formatDateTime(stocktake.completed_at) : '', name: stocktake.completed_by })
+                  : t('Completed {date}', { date: stocktake.completed_at ? formatDateTime(stocktake.completed_at) : '' })}
                 {' · '}
                 {stocktake.adjustment_count === 0
-                  ? 'stock matched the count'
-                  : `${stocktake.adjustment_count} adjustment${stocktake.adjustment_count !== 1 ? 's' : ''} recorded`}
+                  ? t('stock matched the count')
+                  : tn('{count} adjustment recorded', '{count} adjustments recorded', stocktake.adjustment_count)}
               </span>
             ) : (
-              <span className="font-medium">In progress: nothing changes in stock until the stocktake is completed.</span>
+              <span className="font-medium">{t('In progress: nothing changes in stock until the stocktake is completed.')}</span>
             )}
             <span className="text-muted-foreground">
-              Started {formatDateTime(stocktake.created_at)}{stocktake.started_by && ` by ${stocktake.started_by}`}
+              {stocktake.started_by
+                ? t('Started {date} by {name}', { date: formatDateTime(stocktake.created_at), name: stocktake.started_by })
+                : t('Started {date}', { date: formatDateTime(stocktake.created_at) })}
             </span>
-            {stocktake.include_sub_zones && <Badge variant="outline">With sub-zones</Badge>}
-            {stocktake.blind && <Badge variant="outline">Blind count</Badge>}
+            {stocktake.include_sub_zones && <Badge variant="outline">{t('With sub-zones')}</Badge>}
+            {stocktake.blind && <Badge variant="outline">{t('Blind count')}</Badge>}
             {stocktake.notes && <p className="w-full text-muted-foreground">{stocktake.notes}</p>}
           </CardContent>
         </Card>
@@ -435,9 +439,9 @@ export default function StocktakeShow({ stocktake, lines, zones, current_zone_id
         <Card className="gap-0 overflow-hidden py-0">
           <div className="flex flex-wrap items-center gap-2 border-b px-4 py-3">
             {([
-              ['all', 'All'],
-              ['uncounted', `${stocktake.status === 'completed' ? 'Not counted' : 'To count'} (${uncountedCount})`],
-              ['differences', `Differences (${stocktake.discrepancy_count})`],
+              ['all', t('All')],
+              ['uncounted', `${stocktake.status === 'completed' ? t('Not counted') : t('To count')} (${uncountedCount})`],
+              ['differences', `${t('Differences')} (${stocktake.discrepancy_count})`],
             ] as Array<[LineFilter, string]>).map(([value, label]) => (
               <Button key={value} size="sm" variant={filter === value ? 'secondary' : 'ghost'} onClick={() => setFilter(value)}>
                 {label}
@@ -447,27 +451,27 @@ export default function StocktakeShow({ stocktake, lines, zones, current_zone_id
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Filter parts…"
-              aria-label="Filter parts"
+              placeholder={t('Filter parts…')}
+              aria-label={t('Filter parts')}
               className="h-8 w-full sm:w-56"
             />
           </div>
           {visibleLines.length === 0 ? (
             <div className="px-4 py-8 text-center text-sm text-muted-foreground">
               {lines.length === 0
-                ? 'The ledger has no stock in this zone. Scan or add the parts you find.'
-                : 'No line matches.'}
+                ? t('The ledger has no stock in this zone. Scan or add the parts you find.')
+                : t('No line matches.')}
             </div>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Part</TableHead>
-                  <TableHead className="hidden sm:table-cell">Zone</TableHead>
-                  <TableHead className="text-right">Expected</TableHead>
-                  <TableHead className="text-right">Counted</TableHead>
-                  <TableHead className="hidden sm:table-cell">Difference</TableHead>
-                  {stocktake.status === 'completed' && <TableHead className="text-right">Adjustment</TableHead>}
+                  <TableHead>{t('Part')}</TableHead>
+                  <TableHead className="hidden sm:table-cell">{t('Zone')}</TableHead>
+                  <TableHead className="text-right">{t('Expected')}</TableHead>
+                  <TableHead className="text-right">{t('Counted')}</TableHead>
+                  <TableHead className="hidden sm:table-cell">{t('Difference')}</TableHead>
+                  {stocktake.status === 'completed' && <TableHead className="text-right">{t('Adjustment')}</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -492,7 +496,7 @@ export default function StocktakeShow({ stocktake, lines, zones, current_zone_id
                       {line.zone.code && <div className="font-mono text-xs text-muted-foreground">{line.zone.code}</div>}
                     </TableCell>
                     <TableCell className="text-right font-mono">
-                      {line.expected_quantity === null ? <span className="text-muted-foreground">hidden</span> : line.expected_quantity}
+                      {line.expected_quantity === null ? <span className="text-muted-foreground">{t('hidden')}</span> : line.expected_quantity}
                     </TableCell>
                     <TableCell className="text-right">
                       {counting ? (
@@ -503,7 +507,7 @@ export default function StocktakeShow({ stocktake, lines, zones, current_zone_id
                               size="sm"
                               variant="ghost"
                               className="h-8 px-2 text-xs"
-                              title="Counted what was expected"
+                              title={t('Counted what was expected')}
                               onClick={() => saveCount(line, String(line.expected_quantity))}
                             >
                               <Check className="size-3.5" />
@@ -521,7 +525,7 @@ export default function StocktakeShow({ stocktake, lines, zones, current_zone_id
                             min={0}
                             inputMode="numeric"
                             defaultValue={line.counted_quantity ?? ''}
-                            aria-label={`Counted ${line.part.reference}`}
+                            aria-label={t('Counted {reference}', { reference: line.part.reference })}
                             className="h-8 w-20 text-right font-mono sm:w-24"
                             onBlur={(e) => saveCount(line, e.target.value)}
                             onKeyDown={countKeyDown}
@@ -559,12 +563,12 @@ export default function StocktakeShow({ stocktake, lines, zones, current_zone_id
       <AlertDialog open={completeOpen} onOpenChange={setCompleteOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Complete this stocktake?</AlertDialogTitle>
+            <AlertDialogTitle>{t('Complete this stocktake?')}</AlertDialogTitle>
             <AlertDialogDescription>
               {stocktake.discrepancy_count === 0
-                ? 'No counted line differs from the stock.'
-                : `${stocktake.discrepancy_count} counted line${stocktake.discrepancy_count !== 1 ? 's differ' : ' differs'} from the stock: each gets an adjustment movement so the stock matches the count.`}
-              {' '}The stocktake is then closed and kept as a report.
+                ? t('No counted line differs from the stock.')
+                : tn('{count} counted line differs from the stock: each gets an adjustment movement so the stock matches the count.', '{count} counted lines differ from the stock: each gets an adjustment movement so the stock matches the count.', stocktake.discrepancy_count)}
+              {' '}{t('The stocktake is then closed and kept as a report.')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           {uncountedCount > 0 && (
@@ -576,22 +580,22 @@ export default function StocktakeShow({ stocktake, lines, zones, current_zone_id
                 className="mt-0.5"
               />
               <Label htmlFor="stocktake-zero-uncounted" className="block font-normal leading-snug">
-                Set the {uncountedCount} uncounted line{uncountedCount !== 1 ? 's' : ''} to zero
+                {tn('Set the {count} uncounted line to zero', 'Set the {count} uncounted lines to zero', uncountedCount)}
                 <span className="block text-xs text-muted-foreground">
-                  Otherwise they keep their stock, as if they hadn't been part of the count.
+                  {t('Otherwise they keep their stock, as if they hadn\'t been part of the count.')}
                 </span>
               </Label>
             </div>
           )}
           <AlertDialogFooter>
-            <AlertDialogCancel>Keep counting</AlertDialogCancel>
+            <AlertDialogCancel>{t('Keep counting')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
                 router.post(`${base}/complete`, { zero_uncounted: zeroUncounted }, { preserveScroll: true })
                 setCompleteOpen(false)
               }}
             >
-              Complete and adjust stock
+              {t('Complete and adjust stock')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -601,20 +605,20 @@ export default function StocktakeShow({ stocktake, lines, zones, current_zone_id
       <AlertDialog open={discardOpen} onOpenChange={setDiscardOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Discard this stocktake?</AlertDialogTitle>
+            <AlertDialogTitle>{t('Discard this stocktake?')}</AlertDialogTitle>
             <AlertDialogDescription>
-              The counts entered so far are deleted. Stock isn't affected.
+              {t('The counts entered so far are deleted. Stock isn\'t affected.')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t('Cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
                 router.delete(base)
                 setDiscardOpen(false)
               }}
             >
-              Discard
+              {t('Discard')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

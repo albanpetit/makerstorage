@@ -45,6 +45,8 @@ import {
   StorageLocationOption,
   Tag,
 } from './types'
+import { t, tn } from '@/lib/i18n'
+import { mountingTypeLabel } from '@/lib/mounting-types'
 
 // Lightweight disclosure section — no Radix Collapsible in the library, so a
 // button + conditional render.
@@ -192,13 +194,13 @@ export function PartFormBody({
 
   const imageHelp = imageFile
     ? mode === 'add'
-      ? 'Your uploaded image will be used.'
-      : 'Your uploaded image will replace the current one.'
+      ? t('Your uploaded image will be used.')
+      : t('Your uploaded image will replace the current one.')
     : attach.image_url
-      ? 'Using the supplier image — upload a file to override it.'
+      ? t('Using the supplier image — upload a file to override it.')
       : mode === 'add'
-        ? 'Optional. PNG or JPG.'
-        : 'Upload a file to replace the current image.'
+        ? t('Optional. PNG or JPG.')
+        : t('Upload a file to replace the current image.')
 
   return (
     <div className="@container min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-5">
@@ -235,11 +237,11 @@ export function PartFormBody({
       <div className="grid grid-cols-2 gap-4 @2xl:grid-cols-4">
         <Field className="col-span-2 @2xl:col-span-4">
           <FieldLabel>
-            <Label>Name *</Label>
+            <Label>{t('Name *')}</Label>
           </FieldLabel>
           <FieldContent>
             <Input
-              placeholder="e.g. Resistor 10k 1% 0603"
+              placeholder={t('e.g. Resistor 10k 1% 0603')}
               value={part.name}
               onChange={(e) => setPart({ name: e.target.value })}
               autoFocus
@@ -249,7 +251,7 @@ export function PartFormBody({
         </Field>
         <Field className="col-span-2 @2xl:col-span-4">
           <FieldLabel>
-            <Label htmlFor="part-category">Category *</Label>
+            <Label htmlFor="part-category">{t('Category *')}</Label>
           </FieldLabel>
           <FieldContent>
             <CategorySelect
@@ -263,7 +265,7 @@ export function PartFormBody({
         </Field>
         <Field className="col-span-2 @2xl:col-span-4">
           <FieldLabel>
-            <Label>Image</Label>
+            <Label>{t('Image')}</Label>
           </FieldLabel>
           <FieldContent>
             <div className="flex items-center gap-3">
@@ -291,7 +293,7 @@ export function PartFormBody({
                   variant="ghost"
                   size="icon"
                   onClick={() => onImageFileChange(null)}
-                  aria-label="Remove image"
+                  aria-label={t('Remove image')}
                 >
                   <X className="size-4" />
                 </Button>
@@ -301,7 +303,7 @@ export function PartFormBody({
         </Field>
         <Field>
           <FieldLabel>
-            <Label>Value</Label>
+            <Label>{t('Value')}</Label>
           </FieldLabel>
           <FieldContent>
             <Input
@@ -313,7 +315,7 @@ export function PartFormBody({
         </Field>
         <Field>
           <FieldLabel>
-            <Label>Package</Label>
+            <Label>{t('Package')}</Label>
           </FieldLabel>
           <FieldContent>
             <Input
@@ -328,7 +330,7 @@ export function PartFormBody({
         {bagOptions && (
           <Field>
             <FieldLabel>
-              <Label>Bag</Label>
+              <Label>{t('Bag')}</Label>
             </FieldLabel>
             <FieldContent>
               <Select
@@ -345,8 +347,8 @@ export function PartFormBody({
                 <SelectContent>
                   <SelectItem value="none">
                     {mode === 'add'
-                      ? bagOptions.length > 0 ? `First free bag (${bagOptions[0].code})` : 'No free bag'
-                      : 'No bag'}
+                      ? bagOptions.length > 0 ? t('First free bag ({code})', { code: bagOptions[0].code }) : t('No free bag')
+                      : t('No bag')}
                   </SelectItem>
                   {bagOptions.map((bag) => (
                     <SelectItem key={bag.id} value={bag.id.toString()}>{bag.code}</SelectItem>
@@ -355,10 +357,10 @@ export function PartFormBody({
                     <>
                       <SelectSeparator />
                       <SelectGroup>
-                        <SelectLabel>New bag</SelectLabel>
+                        <SelectLabel>{t('New bag')}</SelectLabel>
                         {bagBoxes.map((box) => (
                           <SelectItem key={`new:${box.id}`} value={`new:${box.id}`}>
-                            {box.next_code} <span className="text-muted-foreground">in {box.name}</span>
+                            {box.next_code} <span className="text-muted-foreground">{t('in {name}', { name: box.name })}</span>
                           </SelectItem>
                         ))}
                       </SelectGroup>
@@ -369,14 +371,14 @@ export function PartFormBody({
             </FieldContent>
             <p className="text-xs text-muted-foreground">
               {part.new_bag_box_id
-                ? 'This bag is added to its box when the part is saved; its code becomes this part’s IPN.'
+                ? t('This bag is added to its box when the part is saved; its code becomes this part’s IPN.')
                 : mode === 'add'
                   ? bagOptions.length > 0
-                    ? 'The bag’s code becomes this part’s IPN.'
+                    ? t('The bag’s code becomes this part’s IPN.')
                     : bagBoxes && bagBoxes.length > 0
-                      ? 'Every bag is taken: pick a new bag in a box, or the part is saved without an IPN.'
-                      : 'Every bag is taken: add bags to a box in Storage zones, or the part is saved without an IPN.'
-                  : 'The bag’s code is this part’s IPN. Moving to another bag takes the stock along.'}
+                      ? t('Every bag is taken: pick a new bag in a box, or the part is saved without an IPN.')
+                      : t('Every bag is taken: add bags to a box in Storage zones, or the part is saved without an IPN.')
+                  : t('The bag’s code is this part’s IPN. Moving to another bag takes the stock along.')}
             </p>
             {errors['part.bag'] && <FieldError>{errors['part.bag']}</FieldError>}
           </Field>
@@ -385,7 +387,7 @@ export function PartFormBody({
           <>
             <Field>
               <FieldLabel>
-                <Label>Initial location</Label>
+                <Label>{t('Initial location')}</Label>
               </FieldLabel>
               <FieldContent>
                 <StorageLocationSelect
@@ -393,14 +395,14 @@ export function PartFormBody({
                   locations={storageLocations}
                   value={initialLocationId ?? ''}
                   onValueChange={(value) => onInitialLocationChange?.(value)}
-                  noneLabel={bagOptions ? 'In its bag' : 'No location'}
+                  noneLabel={bagOptions ? t('In its bag') : t('No location')}
                   allowCreate
                 />
               </FieldContent>
             </Field>
             <Field>
               <FieldLabel>
-                <Label>Quantity</Label>
+                <Label>{t('Quantity')}</Label>
               </FieldLabel>
               <FieldContent>
                 <Input
@@ -417,7 +419,7 @@ export function PartFormBody({
         )}
         <Field>
           <FieldLabel>
-            <Label>Min. threshold</Label>
+            <Label>{t('Min. threshold')}</Label>
           </FieldLabel>
           <FieldContent>
             <Input
@@ -430,7 +432,7 @@ export function PartFormBody({
         </Field>
         <Field>
           <FieldLabel>
-            <Label>Unit price</Label>
+            <Label>{t('Unit price')}</Label>
           </FieldLabel>
           <FieldContent>
             <Input
@@ -439,7 +441,7 @@ export function PartFormBody({
               onChange={(e) => setPart({ unit_price: e.target.value })}
             />
           </FieldContent>
-          <p className="text-xs text-muted-foreground">Auto-set from your preferred supplier's price on save.</p>
+          <p className="text-xs text-muted-foreground">{t('Auto-set from your preferred supplier\'s price on save.')}</p>
           {errors['part.unit_price'] && <FieldError>{errors['part.unit_price']}</FieldError>}
         </Field>
       </div>
@@ -454,19 +456,19 @@ export function PartFormBody({
 
       {/* More details */}
       <Section
-        title="More details"
-        description="Identifiers, classification, specifications"
+        title={t('More details')}
+        description={t('Identifiers, classification, specifications')}
         open={detailsOpen}
         onToggle={() => setDetailsOpen((v) => !v)}
       >
         <div className="grid grid-cols-2 gap-4 @2xl:grid-cols-4">
           <Field>
             <FieldLabel>
-              <Label>MPN</Label>
+              <Label>{t('MPN')}</Label>
             </FieldLabel>
             <FieldContent>
               <Input
-                placeholder="e.g. RC0805FR-0710KL"
+                placeholder={t('e.g. RC0805FR-0710KL')}
                 value={part.mpn}
                 onChange={(e) => setPart({ mpn: e.target.value })}
               />
@@ -475,11 +477,11 @@ export function PartFormBody({
           </Field>
           <Field>
             <FieldLabel>
-              <Label>Internal SKU</Label>
+              <Label>{t('Internal SKU')}</Label>
             </FieldLabel>
             <FieldContent>
               <Input
-                placeholder="e.g. RES-10K-0805"
+                placeholder={t('e.g. RES-10K-0805')}
                 value={part.sku}
                 onChange={(e) => setPart({ sku: e.target.value })}
               />
@@ -488,11 +490,11 @@ export function PartFormBody({
           </Field>
           <Field>
             <FieldLabel>
-              <Label>Barcode</Label>
+              <Label>{t('Barcode')}</Label>
             </FieldLabel>
             <FieldContent>
               <Input
-                placeholder="Scan or enter barcode"
+                placeholder={t('Scan or enter barcode')}
                 value={part.barcode}
                 onChange={(e) => setPart({ barcode: e.target.value })}
               />
@@ -505,11 +507,11 @@ export function PartFormBody({
           {!bagOptions && (mode === 'edit' || ipnManualEntry) && (
             <Field>
               <FieldLabel>
-                <Label>Internal part number (IPN)</Label>
+                <Label>{t('Internal part number (IPN)')}</Label>
               </FieldLabel>
               <FieldContent>
                 <Input
-                  placeholder={ipnManualEntry ? 'e.g. MS-00042' : 'Assigned automatically'}
+                  placeholder={ipnManualEntry ? t('e.g. MS-00042') : t('Assigned automatically')}
                   value={part.ipn}
                   onChange={(e) => setPart({ ipn: e.target.value })}
                   disabled={mode === 'edit' && !ipnManualEntry}
@@ -518,20 +520,20 @@ export function PartFormBody({
               <p className="text-xs text-muted-foreground">
                 {ipnManualEntry
                   ? mode === 'add'
-                    ? "Manual numbering is on — type this part's reference."
-                    : 'Manual numbering is on — edit this part’s reference.'
-                  : 'Generated from your numbering settings.'}
+                    ? t('Manual numbering is on — type this part\'s reference.')
+                    : t('Manual numbering is on — edit this part’s reference.')
+                  : t('Generated from your numbering settings.')}
               </p>
               {errors['part.ipn'] && <FieldError>{errors['part.ipn']}</FieldError>}
             </Field>
           )}
           <Field>
             <FieldLabel>
-              <Label>Manufacturer</Label>
+              <Label>{t('Manufacturer')}</Label>
             </FieldLabel>
             <FieldContent>
               <Input
-                placeholder="e.g. Yageo"
+                placeholder={t('e.g. Yageo')}
                 value={part.manufacturer}
                 onChange={(e) => setPart({ manufacturer: e.target.value })}
               />
@@ -539,12 +541,12 @@ export function PartFormBody({
           </Field>
           <Field className="col-span-2 @2xl:col-span-4">
             <FieldLabel>
-              <Label>Description</Label>
+              <Label>{t('Description')}</Label>
             </FieldLabel>
             <FieldContent>
               <Textarea
                 rows={2}
-                placeholder="Detailed description of the part"
+                placeholder={t('Detailed description of the part')}
                 value={part.description}
                 onChange={(e) => setPart({ description: e.target.value })}
               />
@@ -552,7 +554,7 @@ export function PartFormBody({
           </Field>
           <Field>
             <FieldLabel>
-              <Label>Footprint</Label>
+              <Label>{t('Footprint')}</Label>
             </FieldLabel>
             <FieldContent>
               <Select
@@ -560,14 +562,14 @@ export function PartFormBody({
                 onValueChange={(value) => setPart({ footprint_id: value === 'none' ? '' : value })}
               >
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select a footprint" />
+                  <SelectValue placeholder={t('Select a footprint')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
+                  <SelectItem value="none">{t('None')}</SelectItem>
                   {footprints.map((footprint) => (
                     <SelectItem key={footprint.id} value={footprint.id.toString()}>
                       {footprint.name}
-                      {footprint.mounting_type && ` (${footprint.mounting_type})`}
+                      {footprint.mounting_type && ` (${mountingTypeLabel(footprint.mounting_type)})`}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -576,7 +578,7 @@ export function PartFormBody({
           </Field>
           <Field>
             <FieldLabel>
-              <Label>Status</Label>
+              <Label>{t('Status')}</Label>
             </FieldLabel>
             <FieldContent>
               <Select
@@ -587,16 +589,16 @@ export function PartFormBody({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="discontinued">Discontinued</SelectItem>
-                  <SelectItem value="obsolete">Obsolete</SelectItem>
+                  <SelectItem value="active">{t('Active')}</SelectItem>
+                  <SelectItem value="discontinued">{t('Discontinued')}</SelectItem>
+                  <SelectItem value="obsolete">{t('Obsolete')}</SelectItem>
                 </SelectContent>
               </Select>
             </FieldContent>
           </Field>
           <Field className="col-span-2 @2xl:col-span-4">
             <FieldLabel>
-              <Label>Tags</Label>
+              <Label>{t('Tags')}</Label>
             </FieldLabel>
             <FieldContent>
               <TagPicker
@@ -609,7 +611,7 @@ export function PartFormBody({
           {showField('tolerance') && (
             <Field>
               <FieldLabel>
-                <Label>Tolerance</Label>
+                <Label>{t('Tolerance')}</Label>
               </FieldLabel>
               <FieldContent>
                 <Input
@@ -623,7 +625,7 @@ export function PartFormBody({
           {showField('voltage rating') && (
             <Field>
               <FieldLabel>
-                <Label>Voltage rating</Label>
+                <Label>{t('Voltage rating')}</Label>
               </FieldLabel>
               <FieldContent>
                 <Input
@@ -637,7 +639,7 @@ export function PartFormBody({
           {showField('power rating') && (
             <Field>
               <FieldLabel>
-                <Label>Power rating</Label>
+                <Label>{t('Power rating')}</Label>
               </FieldLabel>
               <FieldContent>
                 <Input
@@ -650,7 +652,7 @@ export function PartFormBody({
           )}
           <Field>
             <FieldLabel>
-              <Label>Target stock</Label>
+              <Label>{t('Target stock')}</Label>
             </FieldLabel>
             <FieldContent>
               <Input
@@ -663,12 +665,12 @@ export function PartFormBody({
           </Field>
           <Field className="col-span-2 @2xl:col-span-4">
             <FieldLabel>
-              <Label>Storage notes</Label>
+              <Label>{t('Storage notes')}</Label>
             </FieldLabel>
             <FieldContent>
               <Textarea
                 rows={2}
-                placeholder="Special storage or handling instructions"
+                placeholder={t('Special storage or handling instructions')}
                 value={part.storage_notes}
                 onChange={(e) => setPart({ storage_notes: e.target.value })}
               />
@@ -676,12 +678,12 @@ export function PartFormBody({
           </Field>
           <Field className="col-span-2">
             <FieldLabel>
-              <Label>KiCad symbol</Label>
+              <Label>{t('KiCad symbol')}</Label>
             </FieldLabel>
             <FieldContent>
               <Input
                 className="font-mono"
-                placeholder="From the category"
+                placeholder={t('From the category')}
                 value={part.kicad_symbol}
                 onChange={(e) => setPart({ kicad_symbol: e.target.value })}
               />
@@ -689,12 +691,12 @@ export function PartFormBody({
           </Field>
           <Field className="col-span-2">
             <FieldLabel>
-              <Label>KiCad footprint</Label>
+              <Label>{t('KiCad footprint')}</Label>
             </FieldLabel>
             <FieldContent>
               <Input
                 className="font-mono"
-                placeholder="From the footprint"
+                placeholder={t('From the footprint')}
                 value={part.kicad_footprint}
                 onChange={(e) => setPart({ kicad_footprint: e.target.value })}
               />
@@ -708,7 +710,7 @@ export function PartFormBody({
                 onCheckedChange={(checked) => setPart({ rohs_compliant: checked === true })}
               />
               <Label htmlFor={`${mode}_rohs_compliant`} className="cursor-pointer font-normal">
-                RoHS compliant
+                {t('RoHS compliant')}
               </Label>
             </div>
           </Field>
@@ -717,8 +719,8 @@ export function PartFormBody({
 
       {/* Suppliers */}
       <Section
-        title="Suppliers"
-        description={pendingSuppliers.length > 0 ? `${pendingSuppliers.length} linked` : 'Link suppliers (optional)'}
+        title={t('Suppliers')}
+        description={pendingSuppliers.length > 0 ? tn('{count} linked', '{count} linked', pendingSuppliers.length) : t('Link suppliers (optional)')}
         open={suppliersOpen}
         onToggle={() => setSuppliersOpen((v) => !v)}
       >
@@ -727,10 +729,10 @@ export function PartFormBody({
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Supplier</TableHead>
-                  <TableHead>SKU</TableHead>
-                  <TableHead className="text-right">Price</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead>{t('Supplier')}</TableHead>
+                  <TableHead>{t('SKU')}</TableHead>
+                  <TableHead className="text-right">{t('Price')}</TableHead>
+                  <TableHead>{t('Status')}</TableHead>
                   <TableHead className="w-[80px]" />
                 </TableRow>
               </TableHeader>
@@ -746,18 +748,18 @@ export function PartFormBody({
                       {ps.is_preferred && (
                         <Badge variant="default">
                           <Star className="mr-1 size-3" />
-                          Preferred
+                          {t('Preferred')}
                         </Badge>
                       )}
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">
                         {!ps.is_preferred && (
-                          <Button type="button" variant="ghost" size="icon" onClick={() => setPreferred(ps.tempId)} title="Set as preferred">
+                          <Button type="button" variant="ghost" size="icon" onClick={() => setPreferred(ps.tempId)} title={t('Set as preferred')}>
                             <Star className="size-4" />
                           </Button>
                         )}
-                        <Button type="button" variant="ghost" size="icon" onClick={() => removePendingSupplier(ps)} title="Remove supplier">
+                        <Button type="button" variant="ghost" size="icon" onClick={() => removePendingSupplier(ps)} title={t('Remove supplier')}>
                           <Trash2 className="size-4 text-destructive" />
                         </Button>
                       </div>
@@ -773,13 +775,13 @@ export function PartFormBody({
           <div className="grid grid-cols-2 gap-3">
             <div className="col-span-2 grid grid-cols-2 gap-3 sm:grid-cols-4">
               <div className="col-span-2 space-y-1.5">
-                <Label className="text-xs">Supplier</Label>
+                <Label className="text-xs">{t('Supplier')}</Label>
                 <Select
                   value={newSupplier.supplier_id}
                   onValueChange={(value) => setNewSupplier({ ...newSupplier, supplier_id: value })}
                 >
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select supplier" />
+                    <SelectValue placeholder={t('Select supplier')} />
                   </SelectTrigger>
                   <SelectContent>
                     {availableSuppliers.map((supplier) => (
@@ -789,14 +791,14 @@ export function PartFormBody({
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs">SKU</Label>
+                <Label className="text-xs">{t('SKU')}</Label>
                 <Input
                   value={newSupplier.supplier_sku}
                   onChange={(e) => setNewSupplier({ ...newSupplier, supplier_sku: e.target.value })}
                 />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs">Price</Label>
+                <Label className="text-xs">{t('Price')}</Label>
                 <Input
                   type="number"
                   step="0.01"
@@ -812,17 +814,17 @@ export function PartFormBody({
                   checked={newSupplier.is_preferred}
                   onCheckedChange={(checked) => setNewSupplier({ ...newSupplier, is_preferred: checked === true })}
                 />
-                Preferred supplier
+                {t('Preferred supplier')}
               </label>
               <Button type="button" size="sm" variant="outline" onClick={addPendingSupplier} disabled={!newSupplier.supplier_id}>
                 <Plus className="size-4" />
-                Add supplier
+                {t('Add supplier')}
               </Button>
             </div>
           </div>
         ) : (
           <p className="text-sm text-muted-foreground">
-            {allSuppliers.length === 0 ? 'No suppliers exist yet.' : 'All suppliers already linked.'}
+            {allSuppliers.length === 0 ? t('No suppliers exist yet.') : t('All suppliers already linked.')}
           </p>
         )}
       </Section>

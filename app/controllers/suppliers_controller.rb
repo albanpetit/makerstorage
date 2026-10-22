@@ -22,17 +22,17 @@ class SuppliersController < ApplicationController
     supplier = current_organization.suppliers.build(supplier_params)
 
     if supplier.save
-      redirect_to suppliers_path, notice: "Supplier created successfully."
+      redirect_to suppliers_path, notice: t("flash.suppliers.supplier_created_successfully")
     else
-      redirect_back_or_to suppliers_path, alert: "Failed to create supplier.", inertia: { errors: inertia_errors(supplier, as: :supplier) }
+      redirect_back_or_to suppliers_path, alert: t("flash.suppliers.failed_to_create_supplier"), inertia: { errors: inertia_errors(supplier, as: :supplier) }
     end
   end
 
   def update
     if @supplier.update(supplier_params)
-      redirect_to suppliers_path, notice: "Supplier updated successfully."
+      redirect_to suppliers_path, notice: t("flash.suppliers.supplier_updated_successfully")
     else
-      redirect_back_or_to suppliers_path, alert: "Failed to update supplier.", inertia: { errors: inertia_errors(@supplier, as: :supplier) }
+      redirect_back_or_to suppliers_path, alert: t("flash.suppliers.failed_to_update_supplier"), inertia: { errors: inertia_errors(@supplier, as: :supplier) }
     end
   end
 
@@ -67,10 +67,10 @@ class SuppliersController < ApplicationController
   end
 
   def destroy_notice(provider)
-    return "Supplier deleted successfully." unless provider
+    return t("flash.suppliers.supplier_deleted_successfully") unless provider
 
     label = Supplier::CATALOG_PROVIDER_DEFAULTS.dig(provider, :name) || provider
-    "Supplier deleted. The #{label} catalog integration has been disabled."
+    t("flash.suppliers.supplier_deleted_the_catalog_integration_has", label: label)
   end
 
   def set_supplier
@@ -84,7 +84,7 @@ class SuppliersController < ApplicationController
     return unless @supplier.catalog_provider
     return if current_user.admin_of?(current_organization)
 
-    redirect_to suppliers_path, alert: "Only an admin can delete a catalog supplier, since it disconnects the integration."
+    redirect_to suppliers_path, alert: t("flash.suppliers.only_an_admin_can_delete_a")
   end
 
   def supplier_params

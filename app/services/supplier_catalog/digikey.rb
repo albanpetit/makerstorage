@@ -68,14 +68,14 @@ module SupplierCatalog
       response = http.request(request)
 
       unless response.is_a?(Net::HTTPSuccess)
-        raise LookupError, "DigiKey rejected the authorization. Check the Client ID/Secret and that the callback URL matches your DigiKey app."
+        raise LookupError, I18n.t("errors.digikey.authorization_rejected")
       end
 
       JSON.parse(response.body)
     rescue *NETWORK_ERRORS => e
-      raise LookupError, "Could not reach DigiKey: #{e.message}"
+      raise LookupError, I18n.t("errors.digikey.unreachable", error: e.message)
     rescue JSON::ParserError
-      raise LookupError, "DigiKey returned an unreadable token response"
+      raise LookupError, I18n.t("errors.digikey.token_unreadable")
     end
 
     # DigiKey returns rich structured Parameters (ParameterText / ValueText), so
@@ -116,7 +116,7 @@ module SupplierCatalog
       # bearer token: accept only a plain identifier, so "../" or "?" can't
       # point that request at another DigiKey endpoint (and a stray space
       # can't make an invalid URI).
-      raise LookupError, "Enter a DigiKey sales order number (letters, digits, and dashes only)." unless number.match?(SALES_ORDER_NUMBER)
+      raise LookupError, I18n.t("errors.digikey.invalid_sales_order") unless number.match?(SALES_ORDER_NUMBER)
 
       payload = order_get("#{ORDER_STATUS_ENDPOINT}/#{number}")
       build_order_result(payload, sales_order_number)
@@ -127,7 +127,7 @@ module SupplierCatalog
     # Isolated HTTP boundary for the user-scoped Order Status API — stubbed in
     # tests. Returns the parsed JSON Hash.
     def order_get(url)
-      raise LookupError, "DigiKey account is not connected." if @access_token.blank?
+      raise LookupError, I18n.t("errors.digikey.account_not_connected") if @access_token.blank?
 
       uri = URI(url)
 
@@ -153,9 +153,9 @@ module SupplierCatalog
 
       JSON.parse(response.body)
     rescue *NETWORK_ERRORS => e
-      raise LookupError, "Could not reach DigiKey Order API: #{e.message}"
+      raise LookupError, I18n.t("errors.digikey.order_api_unreachable", error: e.message)
     rescue JSON::ParserError
-      raise LookupError, "DigiKey Order API returned an unreadable response"
+      raise LookupError, I18n.t("errors.digikey.order_api_unreadable")
     end
 
     def order_error_message(response)
@@ -243,16 +243,16 @@ module SupplierCatalog
 
       JSON.parse(response.body)
     rescue *NETWORK_ERRORS => e
-      raise LookupError, "Could not reach DigiKey API: #{e.message}"
+      raise LookupError, I18n.t("errors.digikey.api_unreachable", error: e.message)
     rescue JSON::ParserError
-      raise LookupError, "DigiKey API returned an unreadable response"
+      raise LookupError, I18n.t("errors.digikey.api_unreadable")
     end
 
     # A 401 on the search means the token was rejected (usually bad/unapproved
     # credentials); everything else is passed through with the status code.
     def search_error_message(response)
       if response.is_a?(Net::HTTPUnauthorized)
-        "DigiKey rejected the credentials. Check the Client ID and Secret in Settings → Integrations."
+        I18n.t("errors.digikey.credentials_rejected")
       else
         "DigiKey API returned #{response.code}"
       end
@@ -292,17 +292,17 @@ module SupplierCatalog
       response = http.request(request)
 
       unless response.is_a?(Net::HTTPSuccess)
-        raise LookupError, "DigiKey rejected the credentials. Check the Client ID and Secret in Settings → Integrations."
+        raise LookupError, I18n.t("errors.digikey.credentials_rejected")
       end
 
       token = JSON.parse(response.body)["access_token"]
-      raise LookupError, "DigiKey did not return an access token." if token.blank?
+      raise LookupError, I18n.t("errors.digikey.no_access_token") if token.blank?
 
       token
     rescue *NETWORK_ERRORS => e
-      raise LookupError, "Could not reach DigiKey API: #{e.message}"
+      raise LookupError, I18n.t("errors.digikey.api_unreachable", error: e.message)
     rescue JSON::ParserError
-      raise LookupError, "DigiKey API returned an unreadable token response"
+      raise LookupError, I18n.t("errors.digikey.api_token_unreadable")
     end
 
     def build_result(product)

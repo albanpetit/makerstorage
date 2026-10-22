@@ -40,6 +40,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { t, intlLocale } from '@/lib/i18n'
 
 interface ProjectSummary {
   id: number
@@ -64,7 +65,7 @@ interface ProjectsPageProps {
 }
 
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString(undefined, { day: '2-digit', month: '2-digit', year: 'numeric' })
+  return new Date(iso).toLocaleDateString(intlLocale(), { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
 export default function ProjectsIndex({ projects, github_token_configured }: ProjectsPageProps) {
@@ -114,11 +115,11 @@ export default function ProjectsIndex({ projects, github_token_configured }: Pro
   return (
     <AppLayout
       header={
-        <PageHeader title="Projects" subtitle="Build a project BOM by hand or import its KiCad files or BOM, and check stock availability">
+        <PageHeader title={t('Projects')} subtitle={t('Build a project BOM by hand or import its KiCad files or BOM, and check stock availability')}>
           {canWrite ? (
             <Button size="sm" onClick={() => setOpen(true)}>
               <Plus className="size-4" />
-              New project
+              {t('New project')}
             </Button>
           ) : (
             <ReadOnlyBadge />
@@ -126,7 +127,7 @@ export default function ProjectsIndex({ projects, github_token_configured }: Pro
         </PageHeader>
       }
     >
-      <Head title="Projects" />
+      <Head title={t('Projects')} />
 
       <div className="space-y-6">
         <FlashMessages />
@@ -137,7 +138,7 @@ export default function ProjectsIndex({ projects, github_token_configured }: Pro
               <div className="flex size-11 items-center justify-center rounded-xl bg-muted text-muted-foreground">
                 <ClipboardList className="size-[22px]" />
               </div>
-              <p className="font-semibold">No projects yet</p>
+              <p className="font-semibold">{t('No projects yet')}</p>
               <p className="max-w-sm text-sm text-muted-foreground">
                 Start a project and add its parts by hand, or upload a KiCad project (its files or a ZIP of the folder) or a bill of materials (CSV, or a KiCad / EasyEDA export) to match each component against your inventory and see what you can build.
               </p>
@@ -148,12 +149,12 @@ export default function ProjectsIndex({ projects, github_token_configured }: Pro
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Project</TableHead>
-                  <TableHead>Reference</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Availability</TableHead>
-                  <TableHead className="text-right">Lines</TableHead>
-                  <TableHead>Created</TableHead>
+                  <TableHead>{t('Project')}</TableHead>
+                  <TableHead>{t('Reference')}</TableHead>
+                  <TableHead>{t('Status')}</TableHead>
+                  <TableHead>{t('Availability')}</TableHead>
+                  <TableHead className="text-right">{t('Lines')}</TableHead>
+                  <TableHead>{t('Created')}</TableHead>
                   <TableHead className="w-10" />
                 </TableRow>
               </TableHeader>
@@ -171,7 +172,7 @@ export default function ProjectsIndex({ projects, github_token_configured }: Pro
                         {project.github_repository && (
                           <span
                             className="inline-flex items-center gap-0.5 text-xs font-normal text-muted-foreground"
-                            title={`Linked to ${project.github_repository} on GitHub`}
+                            title={t('Linked to {repository} on GitHub', { repository: project.github_repository })}
                           >
                             <GitBranch className="size-3.5" />
                           </span>
@@ -190,25 +191,25 @@ export default function ProjectsIndex({ projects, github_token_configured }: Pro
                     <TableCell className="font-mono text-xs text-muted-foreground">{project.reference}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1.5">
-                        <Badge variant="outline" className="capitalize">{project.status}</Badge>
+                        <Badge variant="outline">{project.status === 'draft' ? t('Draft') : t('Confirmed')}</Badge>
                         {project.reserved && (
-                          <Badge variant="outline" title="Stock reserved for this project">
-                            <Lock className="size-3.5" /> Reserved
+                          <Badge variant="outline" title={t('Stock reserved for this project')}>
+                            <Lock className="size-3.5" /> {t('Reserved')}
                           </Badge>
                         )}
                       </div>
                     </TableCell>
                     <TableCell>
                       {project.line_count === 0 ? (
-                        <span className="text-xs text-muted-foreground">No lines yet</span>
+                        <span className="text-xs text-muted-foreground">{t('No lines yet')}</span>
                       ) : project.buildable ? (
                         <Badge variant="outline" className="bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400">
-                          <CheckCircle2 className="size-3.5" /> Buildable
+                          <CheckCircle2 className="size-3.5" /> {t('Buildable')}
                         </Badge>
                       ) : (
                         <Badge variant="outline" className="bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400">
                           <AlertTriangle className="size-3.5" />
-                          {project.short_count + project.unmatched_count} to resolve
+                          {t('{count} to resolve', { count: project.short_count + project.unmatched_count })}
                         </Badge>
                       )}
                     </TableCell>
@@ -219,7 +220,7 @@ export default function ProjectsIndex({ projects, github_token_configured }: Pro
                         <Button
                           variant="ghost"
                           size="icon-sm"
-                          aria-label="Delete project"
+                          aria-label={t('Delete project')}
                           onClick={(e) => {
                             e.stopPropagation()
                             setDeleteId(project.id)
@@ -242,7 +243,7 @@ export default function ProjectsIndex({ projects, github_token_configured }: Pro
         <DialogContent className="sm:max-w-md">
           <form onSubmit={submit}>
             <DialogHeader>
-              <DialogTitle>New project</DialogTitle>
+              <DialogTitle>{t('New project')}</DialogTitle>
               <DialogDescription>
                 Give it a name to start empty and add parts by hand, or upload the KiCad project files (.kicad_pro, .kicad_sch, .kicad_pcb…) or a ZIP of the project folder, or fetch them from a GitHub repository: they're kept with the project and the BOM is read from the schematics. A BOM export also works: a CSV, a KiCad BOM CSV or netlist XML, or an EasyEDA BOM. Lines are matched by MPN, supplier part number, then value + footprint. Review the matches before building.
               </DialogDescription>
@@ -250,22 +251,22 @@ export default function ProjectsIndex({ projects, github_token_configured }: Pro
 
             <div className="space-y-4 py-4">
               <div className="space-y-2">
-                <Label htmlFor="project-name">Project name</Label>
+                <Label htmlFor="project-name">{t('Project name')}</Label>
                 <Input
                   id="project-name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g. Weather station v2"
+                  placeholder={t('e.g. Weather station v2')}
                   autoFocus
                 />
                 <p className="text-xs text-muted-foreground">
                   {source === 'github'
-                    ? 'Optional — defaults to the folder or repository name.'
-                    : 'Required without a file; defaults to the file name otherwise.'}
+                    ? t('Optional — defaults to the folder or repository name.')
+                    : t('Required without a file; defaults to the file name otherwise.')}
                 </p>
               </div>
 
-              <div className="grid grid-cols-2 gap-1 rounded-lg bg-muted p-1" role="group" aria-label="Source">
+              <div className="grid grid-cols-2 gap-1 rounded-lg bg-muted p-1" role="group" aria-label={t('Source')}>
                 <Button
                   type="button"
                   size="sm"
@@ -274,7 +275,7 @@ export default function ProjectsIndex({ projects, github_token_configured }: Pro
                   onClick={() => setSource('files')}
                 >
                   <Upload className="size-4" />
-                  Upload files
+                  {t('Upload files')}
                 </Button>
                 <Button
                   type="button"
@@ -284,13 +285,13 @@ export default function ProjectsIndex({ projects, github_token_configured }: Pro
                   onClick={() => setSource('github')}
                 >
                   <GitBranch className="size-4" />
-                  From GitHub
+                  {t('From GitHub')}
                 </Button>
               </div>
 
               {source === 'files' ? (
                 <div className="space-y-2">
-                  <Label htmlFor="project-file">KiCad files or BOM, optional</Label>
+                  <Label htmlFor="project-file">{t('KiCad files or BOM, optional')}</Label>
                   <Input
                     ref={fileInput}
                     id="project-file"
@@ -299,7 +300,7 @@ export default function ProjectsIndex({ projects, github_token_configured }: Pro
                     accept={`${KICAD_ACCEPT},.csv,text/csv,.xml,application/xml,text/xml`}
                     onChange={(e) => setFileName(e.target.value.split(/[\\/]/).pop() ?? '')}
                   />
-                  <p className="text-xs text-muted-foreground">Select several KiCad files at once, or a single ZIP or BOM file.</p>
+                  <p className="text-xs text-muted-foreground">{t('Select several KiCad files at once, or a single ZIP or BOM file.')}</p>
                 </div>
               ) : (
                 <GithubFields data={github} onChange={setGithub} tokenConfigured={github_token_configured} />
@@ -308,14 +309,14 @@ export default function ProjectsIndex({ projects, github_token_configured }: Pro
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-                Cancel
+                {t('Cancel')}
               </Button>
               <Button
                 type="submit"
                 disabled={processing || (source === 'files' ? !fileName && !name.trim() : !github.repository.trim())}
               >
                 {source === 'github' ? <GitBranch className="size-4" /> : fileName ? <Upload className="size-4" /> : <Plus className="size-4" />}
-                {source === 'github' ? 'Fetch & match' : fileName ? 'Import & match' : 'Create empty project'}
+                {source === 'github' ? t('Fetch & match') : fileName ? t('Import & match') : t('Create empty project')}
               </Button>
             </DialogFooter>
           </form>
@@ -326,20 +327,20 @@ export default function ProjectsIndex({ projects, github_token_configured }: Pro
       <AlertDialog open={deleteId !== null} onOpenChange={(o) => !o && setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete this project?</AlertDialogTitle>
+            <AlertDialogTitle>{t('Delete this project?')}</AlertDialogTitle>
             <AlertDialogDescription>
-              This removes the BOM, its matches and its build history. Stock and movements are not affected.
+              {t('This removes the BOM, its matches and its build history. Stock and movements are not affected.')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t('Cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
                 if (deleteId !== null) router.delete(`/projects/${deleteId}`, { preserveScroll: true })
                 setDeleteId(null)
               }}
             >
-              Delete
+              {t('Delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

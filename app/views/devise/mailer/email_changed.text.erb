@@ -1,14 +1,11 @@
-Your email address was changed
+<%= t("mail.email_changed.title") %>
 
-Hello <%= @email %>,
+<%= t("mail.hello", name: @email) %>
 
 <% if @resource.try(:unconfirmed_email?) -%>
-We're letting you know that the email address on your Makerstorage account
-is being changed to <%= @resource.unconfirmed_email %>.
+<%= t("mail.email_changed.being_changed", email: @resource.unconfirmed_email) %>
 <% else -%>
-We're letting you know that the email address on your Makerstorage account
-has been changed to <%= @resource.email %>.
+<%= t("mail.email_changed.changed", email: @resource.email) %>
 <% end -%>
 
-If you didn't make this change, please contact your organization's owner
-right away.
+<%= t("mail.email_changed.not_you") %>

@@ -12,6 +12,6 @@ class CategoryParameter < ApplicationRecord
   def definition_must_belong_to_same_organization
     return if parameter_definition.nil? || category.nil?
 
-    errors.add(:parameter_definition, "must belong to the same organization as the category") if parameter_definition.organization_id != category.organization_id
+    errors.add(:parameter_definition, :same_organization_as_category) if parameter_definition.organization_id != category.organization_id
   end
 end

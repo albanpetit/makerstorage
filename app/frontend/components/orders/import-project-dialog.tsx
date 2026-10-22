@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/dialog'
 
 import type { Order, ProjectOption } from './types'
+import { t, tn } from '@/lib/i18n'
 
 interface ImportProjectDialogProps {
   open: boolean
@@ -54,23 +55,23 @@ export function ImportProjectDialog({ open, onOpenChange, order, projects }: Imp
       <DialogContent className="sm:max-w-md">
         <form onSubmit={submitImport}>
           <DialogHeader>
-            <DialogTitle>Import from project</DialogTitle>
+            <DialogTitle>{t('Import from project')}</DialogTitle>
             <DialogDescription>
-              Add a project's matched BOM lines to this order. Unmatched lines are skipped.
+              {t('Add a project\'s matched BOM lines to this order. Unmatched lines are skipped.')}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label>Project</Label>
+              <Label>{t('Project')}</Label>
               <Select value={importProject} onValueChange={setImportProject}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select a project" />
+                  <SelectValue placeholder={t('Select a project')} />
                 </SelectTrigger>
                 <SelectContent>
                   {projects.map((p) => (
                     <SelectItem key={p.id} value={String(p.id)}>
-                      {p.name} ({p.line_count} line{p.line_count !== 1 ? 's' : ''})
+                      {p.name} ({tn('{count} line', '{count} lines', p.line_count)})
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -78,14 +79,14 @@ export function ImportProjectDialog({ open, onOpenChange, order, projects }: Imp
             </div>
 
             <div className="space-y-2">
-              <Label>Quantities</Label>
+              <Label>{t('Quantities')}</Label>
               <Select value={importMode} onValueChange={(v) => setImportMode(v as 'full' | 'shortfall')}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="full">Full BOM quantities</SelectItem>
-                  <SelectItem value="shortfall">Shortfall only (what stock can't cover)</SelectItem>
+                  <SelectItem value="full">{t('Full BOM quantities')}</SelectItem>
+                  <SelectItem value="shortfall">{t('Shortfall only (what stock can\'t cover)')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -93,10 +94,10 @@ export function ImportProjectDialog({ open, onOpenChange, order, projects }: Imp
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
+              {t('Cancel')}
             </Button>
             <Button type="submit" disabled={!importProject}>
-              Import lines
+              {t('Import lines')}
             </Button>
           </DialogFooter>
         </form>

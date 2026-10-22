@@ -1,4 +1,5 @@
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { t, tn, intlLocale } from '@/lib/i18n'
 
 export interface ActivityDay {
   date: string
@@ -10,9 +11,9 @@ export interface ActivityDay {
 // Same hues as the movement badges; dark mode uses a deeper green so the three
 // stay apart on the dark surface.
 const SERIES = [
-  { key: 'in', label: 'In', className: 'bg-emerald-500 dark:bg-emerald-600' },
-  { key: 'adjustment', label: 'Adjustment', className: 'bg-amber-500' },
-  { key: 'out', label: 'Out', className: 'bg-rose-500' },
+  { key: 'in', get label() { return t('In') }, className: 'bg-emerald-500 dark:bg-emerald-600' },
+  { key: 'adjustment', get label() { return t('Adjustment') }, className: 'bg-amber-500' },
+  { key: 'out', get label() { return t('Out') }, className: 'bg-rose-500' },
 ] as const
 
 const CHART_HEIGHT = 160
@@ -20,7 +21,7 @@ const CHART_HEIGHT = 160
 function dayLabel(iso: string, options: Intl.DateTimeFormatOptions) {
   // Dates are plain days in the organization's time zone: read them as local
   // noon so no time zone shifts them to the day before.
-  return new Date(`${iso}T12:00:00`).toLocaleDateString(undefined, options)
+  return new Date(`${iso}T12:00:00`).toLocaleDateString(intlLocale(), options)
 }
 
 /**
@@ -56,7 +57,7 @@ export function ActivityChart({ days }: { days: ActivityDay[] }) {
                 <TooltipTrigger asChild>
                   <div
                     className="group flex h-full min-w-0 flex-1 flex-col justify-end rounded-sm hover:bg-muted/60"
-                    aria-label={`${dayLabel(day.date, { day: 'numeric', month: 'long' })}: ${total} movements`}
+                    aria-label={tn('{date}: {count} movement', '{date}: {count} movements', total, { date: dayLabel(day.date, { day: 'numeric', month: 'long' }) })}
                   >
                     <div
                       className="flex flex-col-reverse gap-[2px] overflow-hidden rounded-t-[4px]"
@@ -77,7 +78,7 @@ export function ActivityChart({ days }: { days: ActivityDay[] }) {
                 <TooltipContent>
                   <div className="font-medium">{dayLabel(day.date, { weekday: 'short', day: 'numeric', month: 'short' })}</div>
                   {total === 0 ? (
-                    <div>No movements</div>
+                    <div>{t('No movements')}</div>
                   ) : (
                     SERIES.filter((series) => day[series.key] > 0).map((series) => (
                       <div key={series.key}>
@@ -94,7 +95,7 @@ export function ActivityChart({ days }: { days: ActivityDay[] }) {
 
       <div className="flex justify-between pr-6 text-[10px] text-muted-foreground">
         <span>{days.length > 0 && dayLabel(days[0].date, { day: 'numeric', month: 'short' })}</span>
-        <span>Today</span>
+        <span>{t('Today')}</span>
       </div>
     </div>
   )

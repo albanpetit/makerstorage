@@ -45,6 +45,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { t, tn, tx } from '@/lib/i18n'
 
 interface ParameterDefinition {
   id: number
@@ -89,9 +90,9 @@ export default function ParameterDefinitionsIndex({ definitions, standard_missin
   const editForm = useForm<DefinitionFormData>({ parameter_definition: EMPTY_FORM })
 
   const stats = useMemo(() => [
-    { label: 'Parameters', value: String(definitions.length) },
-    { label: 'In category templates', value: String(definitions.filter((d) => d.category_names.length > 0).length) },
-    { label: 'Part values', value: String(definitions.reduce((sum, d) => sum + d.parts_count, 0)) },
+    { label: t('Parameters'), value: String(definitions.length) },
+    { label: t('In category templates'), value: String(definitions.filter((d) => d.category_names.length > 0).length) },
+    { label: t('Part values'), value: String(definitions.reduce((sum, d) => sum + d.parts_count, 0)) },
   ], [definitions])
 
   const openNewDialog = () => {
@@ -138,25 +139,25 @@ export default function ParameterDefinitionsIndex({ definitions, standard_missin
   const standardButton = canWrite && standard_missing > 0 && (
     <Button size="sm" variant="outline" onClick={installStandard} disabled={installing}>
       <Sparkles className="size-4" />
-      Add standard parameters
+      {t('Add standard parameters')}
     </Button>
   )
 
   return (
     <AppLayout
       header={
-        <PageHeader title="Parameters" subtitle="Technical values parts are filtered on: resistance, capacitance, tolerance…">
+        <PageHeader title={t('Parameters')} subtitle={t('Technical values parts are filtered on: resistance, capacitance, tolerance…')}>
           {definitions.length > 0 && standardButton}
           {canWrite && (
             <Button size="sm" onClick={openNewDialog}>
               <Plus className="size-4" />
-              Add Parameter
+              {t('Add Parameter')}
             </Button>
           )}
         </PageHeader>
       }
     >
-      <Head title="Parameters" />
+      <Head title={t('Parameters')} />
 
       <div className="space-y-6">
         <FlashMessages />
@@ -180,11 +181,11 @@ export default function ParameterDefinitionsIndex({ definitions, standard_missin
             <CardContent className="flex flex-col items-center gap-3 py-10 text-center">
               <SlidersHorizontal className="size-8 text-muted-foreground" />
               <div>
-                <p className="font-medium">No parameters yet</p>
+                <p className="font-medium">{t('No parameters yet')}</p>
                 <p className="max-w-md text-sm text-muted-foreground">
                   {canWrite
-                    ? 'Start from the standard set (resistance, capacitance, inductance, tolerance, voltage, power, current, frequency, dielectric, color): resistor, capacitor, inductor, crystal and LED categories get their template, and existing parts are filled in from their Value, Tolerance, Voltage and Power fields.'
-                    : 'No parameters have been defined yet.'}
+                    ? t('Start from the standard set (resistance, capacitance, inductance, tolerance, voltage, power, current, frequency, dielectric, color): resistor, capacitor, inductor, crystal and LED categories get their template, and existing parts are filled in from their Value, Tolerance, Voltage and Power fields.')
+                    : t('No parameters have been defined yet.')}
                 </p>
               </div>
               {canWrite && (
@@ -192,7 +193,7 @@ export default function ParameterDefinitionsIndex({ definitions, standard_missin
                   {standardButton}
                   <Button variant="outline" size="sm" onClick={openNewDialog}>
                     <Plus className="size-4" />
-                    Add Parameter
+                    {t('Add Parameter')}
                   </Button>
                 </div>
               )}
@@ -203,10 +204,10 @@ export default function ParameterDefinitionsIndex({ definitions, standard_missin
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Proposed for</TableHead>
-                  <TableHead className="text-right">Parts</TableHead>
+                  <TableHead>{t('Name')}</TableHead>
+                  <TableHead>{t('Type')}</TableHead>
+                  <TableHead>{t('Proposed for')}</TableHead>
+                  <TableHead className="text-right">{t('Parts')}</TableHead>
                   {canWrite && <TableHead className="w-24" />}
                 </TableRow>
               </TableHeader>
@@ -221,9 +222,9 @@ export default function ParameterDefinitionsIndex({ definitions, standard_missin
                     </TableCell>
                     <TableCell>
                       {definition.value_type === 'number' ? (
-                        <Badge variant="outline" className="font-mono">{definition.unit ? `Number · ${definition.unit}` : 'Number'}</Badge>
+                        <Badge variant="outline" className="font-mono">{definition.unit ? t('Number · {unit}', { unit: definition.unit }) : t('Number')}</Badge>
                       ) : (
-                        <Badge variant="secondary">Text</Badge>
+                        <Badge variant="secondary">{t('Text')}</Badge>
                       )}
                     </TableCell>
                     <TableCell className="max-w-sm text-sm text-muted-foreground">
@@ -233,13 +234,13 @@ export default function ParameterDefinitionsIndex({ definitions, standard_missin
                     {canWrite && (
                       <TableCell>
                         <div className="flex items-center justify-end gap-1">
-                          <Button variant="ghost" size="icon-sm" aria-label="Edit parameter" onClick={() => openEditDialog(definition)}>
+                          <Button variant="ghost" size="icon-sm" aria-label={t('Edit parameter')} onClick={() => openEditDialog(definition)}>
                             <Pencil className="size-4" />
                           </Button>
                           <Button
                             variant="ghost"
                             size="icon-sm"
-                            aria-label="Delete parameter"
+                            aria-label={t('Delete parameter')}
                             className="text-destructive"
                             onClick={() => setDeleteId(definition.id)}
                           >
@@ -256,7 +257,7 @@ export default function ParameterDefinitionsIndex({ definitions, standard_missin
         )}
         {definitions.length > 0 && (
           <p className="text-sm text-muted-foreground">
-            Choose which parameters a category proposes when editing the category (Categories page); sub-categories inherit them.
+            {t('Choose which parameters a category proposes when editing the category (Categories page); sub-categories inherit them.')}
           </p>
         )}
       </div>
@@ -264,7 +265,7 @@ export default function ParameterDefinitionsIndex({ definitions, standard_missin
       <Dialog open={newOpen} onOpenChange={setNewOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Add parameter</DialogTitle>
+            <DialogTitle>{t('Add parameter')}</DialogTitle>
           </DialogHeader>
           <DefinitionForm
             data={newForm.data.parameter_definition}
@@ -273,7 +274,7 @@ export default function ParameterDefinitionsIndex({ definitions, standard_missin
             onSubmit={submitNew}
             onCancel={() => setNewOpen(false)}
             processing={newForm.processing}
-            submitLabel="Add parameter"
+            submitLabel={t('Add parameter')}
           />
         </DialogContent>
       </Dialog>
@@ -281,7 +282,7 @@ export default function ParameterDefinitionsIndex({ definitions, standard_missin
       <Dialog open={editId != null} onOpenChange={(open) => !open && setEditId(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Edit parameter</DialogTitle>
+            <DialogTitle>{t('Edit parameter')}</DialogTitle>
           </DialogHeader>
           <DefinitionForm
             data={editForm.data.parameter_definition}
@@ -290,7 +291,7 @@ export default function ParameterDefinitionsIndex({ definitions, standard_missin
             onSubmit={submitEdit}
             onCancel={() => setEditId(null)}
             processing={editForm.processing}
-            submitLabel="Save"
+            submitLabel={t('Save')}
           />
         </DialogContent>
       </Dialog>
@@ -298,18 +299,18 @@ export default function ParameterDefinitionsIndex({ definitions, standard_missin
       <AlertDialog open={deleteId != null} onOpenChange={(open) => !open && setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete this parameter?</AlertDialogTitle>
+            <AlertDialogTitle>{t('Delete this parameter?')}</AlertDialogTitle>
             <AlertDialogDescription>
-              <span className="font-semibold text-foreground">{deleting?.name}</span> will be removed from every category template.
+              {tx('{name} will be removed from every category template.', { name: <span className="font-semibold text-foreground">{deleting?.name}</span> })}
               {deleting && deleting.parts_count > 0 && (
-                <> Its value on {deleting.parts_count} part{deleting.parts_count !== 1 ? 's' : ''} is deleted too; the parts themselves are kept.</>
+                <>{' '}{tn('Its value on {count} part is deleted too; the part itself is kept.', 'Its value on {count} parts is deleted too; the parts themselves are kept.', deleting.parts_count)}</>
               )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t('Cancel')}</AlertDialogCancel>
             <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-white hover:bg-destructive/90">
-              Delete
+              {t('Delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -334,10 +335,10 @@ function DefinitionForm({ data, errors, onChange, onSubmit, onCancel, processing
       {errors['parameter_definition.base'] && <FieldError>{errors['parameter_definition.base']}</FieldError>}
       <Field>
         <FieldLabel>
-          <Label htmlFor="parameter-name">Name</Label>
+          <Label htmlFor="parameter-name">{t('Name')}</Label>
         </FieldLabel>
         <FieldContent>
-          <Input id="parameter-name" placeholder="e.g. Forward voltage" value={data.name} onChange={(e) => onChange({ name: e.target.value })} />
+          <Input id="parameter-name" placeholder={t('e.g. Forward voltage')} value={data.name} onChange={(e) => onChange({ name: e.target.value })} />
         </FieldContent>
         {errors['parameter_definition.name'] && <FieldError>{errors['parameter_definition.name']}</FieldError>}
       </Field>
@@ -345,14 +346,14 @@ function DefinitionForm({ data, errors, onChange, onSubmit, onCancel, processing
       <div className="grid grid-cols-2 gap-4">
         <Field>
           <FieldLabel>
-            <Label>Type</Label>
+            <Label>{t('Type')}</Label>
           </FieldLabel>
           <FieldContent>
             <Select value={data.value_type} onValueChange={(value) => onChange({ value_type: value as 'number' | 'text' })}>
               <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="number">Number (range filters)</SelectItem>
-                <SelectItem value="text">Text (value list)</SelectItem>
+                <SelectItem value="number">{t('Number (range filters)')}</SelectItem>
+                <SelectItem value="text">{t('Text (value list)')}</SelectItem>
               </SelectContent>
             </Select>
           </FieldContent>
@@ -360,7 +361,7 @@ function DefinitionForm({ data, errors, onChange, onSubmit, onCancel, processing
         {data.value_type === 'number' && (
           <Field>
             <FieldLabel>
-              <Label htmlFor="parameter-unit">Unit</Label>
+              <Label htmlFor="parameter-unit">{t('Unit')}</Label>
             </FieldLabel>
             <FieldContent>
               <Input id="parameter-unit" placeholder="e.g. V, Ω, F, %" value={data.unit} onChange={(e) => onChange({ unit: e.target.value })} />
@@ -371,21 +372,21 @@ function DefinitionForm({ data, errors, onChange, onSubmit, onCancel, processing
       </div>
       {data.value_type === 'number' && (
         <FieldDescription>
-          Values are typed as usual (4k7, 100nF, 1/4W, 3V3) and stored in the unit, so they can be filtered by range.
+          {t('Values are typed as usual (4k7, 100nF, 1/4W, 3V3) and stored in the unit, so they can be filtered by range.')}
         </FieldDescription>
       )}
 
       <Field>
         <FieldLabel>
-          <Label>Description</Label>
+          <Label>{t('Description')}</Label>
         </FieldLabel>
         <FieldContent>
-          <Textarea placeholder="Optional" value={data.description} onChange={(e) => onChange({ description: e.target.value })} />
+          <Textarea placeholder={t('Optional')} value={data.description} onChange={(e) => onChange({ description: e.target.value })} />
         </FieldContent>
       </Field>
 
       <DialogFooter>
-        <Button type="button" variant="outline" onClick={onCancel}>Cancel</Button>
+        <Button type="button" variant="outline" onClick={onCancel}>{t('Cancel')}</Button>
         <Button type="submit" disabled={processing}>{submitLabel}</Button>
       </DialogFooter>
     </form>

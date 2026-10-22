@@ -25,23 +25,16 @@ import {
 
 import { ReassignIpnsCard } from './reassign-ipns-card'
 import type { IpnForm, IpnMode, OrganizationSettings } from './types'
-
-const SEPARATOR_LABELS: Record<string, string> = {
-  '-': '-',
-  '.': '.',
-  _: '_',
-  '/': '/',
-  '': 'None',
-}
+import { t, tn, tx } from '@/lib/i18n'
 
 const DIGIT_OPTIONS = [3, 4, 5, 6, 7, 8]
 
 const IPN_MODES = [
-  { value: 'incremental', label: 'Incremental', icon: TrendingUp, description: 'Auto-incrementing sequential counter. Ordered, predictable references.' },
-  { value: 'random', label: 'Random', icon: Shuffle, description: 'Unique non-sequential draw. Avoids revealing how many parts exist.' },
-  { value: 'category_sequence', label: 'Category + sequence', icon: Boxes, description: 'An independent counter per category (RES-00001, CAP-00001…).' },
-  { value: 'manual', label: 'Manual', icon: Pencil, description: 'Free entry by the operator, with a suggested value.' },
-  { value: 'box_bag', label: 'Box & bag', icon: PackageOpen, description: 'The reference is the bag holding the part (A-3). New parts take the first free bag; an emptied bag is reused.' },
+  { value: 'incremental', get label() { return t('Incremental') }, icon: TrendingUp, get description() { return t('Auto-incrementing sequential counter. Ordered, predictable references.') } },
+  { value: 'random', get label() { return t('Random') }, icon: Shuffle, get description() { return t('Unique non-sequential draw. Avoids revealing how many parts exist.') } },
+  { value: 'category_sequence', get label() { return t('Category + sequence') }, icon: Boxes, get description() { return t('An independent counter per category (RES-00001, CAP-00001…).') } },
+  { value: 'manual', get label() { return t('Manual') }, icon: Pencil, get description() { return t('Free entry by the operator, with a suggested value.') } },
+  { value: 'box_bag', get label() { return t('Box & bag') }, icon: PackageOpen, get description() { return t('The reference is the bag holding the part (A-3). New parts take the first free bag; an emptied bag is reused.') } },
 ] as const satisfies ReadonlyArray<{ value: IpnMode; label: string; icon: typeof Hash; description: string }>
 
 const CHARSET_OPTIONS = [
@@ -167,24 +160,24 @@ export function IpnSection({ form, organization, separators }: IpnSectionProps) 
   return (
     <form onSubmit={submitIpn} className="space-y-4">
       <div>
-        <h2 className="text-lg font-semibold">Reference numbering (IPN)</h2>
+        <h2 className="text-lg font-semibold">{t('Reference numbering (IPN)')}</h2>
         <p className="max-w-xl text-sm text-muted-foreground">
-          The IPN (Internal Part Number) is the unique identifier assigned to every new component.
+          {t('The IPN (Internal Part Number) is the unique identifier assigned to every new component.')}
         </p>
       </div>
 
       {/* Live preview */}
       <div className="rounded-xl border border-zinc-800 bg-zinc-950 p-5 text-zinc-50">
-        <div className="mb-3 text-xs font-semibold tracking-wide text-zinc-400 uppercase">Live preview</div>
+        <div className="mb-3 text-xs font-semibold tracking-wide text-zinc-400 uppercase">{t('Live preview')}</div>
         <div className="flex flex-wrap items-end gap-5">
           <div>
             <div className="mb-1 text-xs text-zinc-400">
-              {ipnMode === 'box_bag' ? 'Next free bag' : 'Next reference generated'}
+              {ipnMode === 'box_bag' ? t('Next free bag') : t('Next reference generated')}
             </div>
             <div className="font-mono text-3xl font-semibold text-primary">{livePreview.next}</div>
           </div>
           <div className="min-w-[180px] flex-1">
-            <div className="mb-1.5 text-xs text-zinc-400">Then follows</div>
+            <div className="mb-1.5 text-xs text-zinc-400">{t('Then follows')}</div>
             <div className="flex flex-wrap gap-1.5">
               {livePreview.examples.map((example) => (
                 <span key={example} className="rounded-md border border-zinc-800 bg-zinc-900 px-2.5 py-1 font-mono text-sm text-zinc-200">
@@ -199,8 +192,8 @@ export function IpnSection({ form, organization, separators }: IpnSectionProps) 
       {/* Generation mode */}
       <Card>
         <CardHeader>
-          <CardTitle>Generation mode</CardTitle>
-          <CardDescription>How the numeric part of each reference is assigned.</CardDescription>
+          <CardTitle>{t('Generation mode')}</CardTitle>
+          <CardDescription>{t('How the numeric part of each reference is assigned.')}</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-2.5 sm:grid-cols-2">
           {IPN_MODES.map((m) => {
@@ -229,27 +222,26 @@ export function IpnSection({ form, organization, separators }: IpnSectionProps) 
 
       <Card>
         <CardHeader>
-          <CardTitle>Composition</CardTitle>
-          <CardDescription>The segments that make up each reference.</CardDescription>
+          <CardTitle>{t('Composition')}</CardTitle>
+          <CardDescription>{t('The segments that make up each reference.')}</CardDescription>
         </CardHeader>
         <CardContent className="divide-y">
           {ipnMode === 'box_bag' && (
             <div className="flex items-start gap-2 py-3 text-xs text-muted-foreground first:pt-0">
               <PackageOpen className="mt-0.5 size-3.5 shrink-0" />
               <span>
-                Each box is a storage zone of type Box with a code (A, B, C…); add numbered bags to it from
-                Storage zones. A bag is free when no part holds it, or once its part has been emptied out of it.{' '}
+                {t('Each box is a storage zone of type Box with a code (A, B, C…); add numbered bags to it from Storage zones. A bag is free when no part holds it, or once its part has been emptied out of it.')}{' '}
                 {organization.free_bags_count === 0
-                  ? 'No bag is free right now.'
-                  : `${organization.free_bags_count} ${organization.free_bags_count === 1 ? 'bag is' : 'bags are'} free.`}
+                  ? t('No bag is free right now.')
+                  : tn('{count} bag is free.', '{count} bags are free.', organization.free_bags_count)}
               </span>
             </div>
           )}
           {ipnMode !== 'box_bag' && (<>
           <div className="flex items-center justify-between gap-4 py-3 first:pt-0">
             <div>
-              <div className="text-sm font-medium">Prefix</div>
-              <div className="text-xs text-muted-foreground">Text placed at the start of every reference.</div>
+              <div className="text-sm font-medium">{t('Prefix')}</div>
+              <div className="text-xs text-muted-foreground">{t('Text placed at the start of every reference.')}</div>
             </div>
             <Input
               className="w-28 text-center font-mono"
@@ -263,11 +255,11 @@ export function IpnSection({ form, organization, separators }: IpnSectionProps) 
           </div>
           <div className="flex items-center justify-between gap-4 py-3">
             <div>
-              <div className="text-sm font-medium">Include category code</div>
+              <div className="text-sm font-medium">{t('Include category code')}</div>
               <div className="text-xs text-muted-foreground">
                 {ipnMode === 'category_sequence'
-                  ? 'Always included in the category + sequence mode.'
-                  : 'Inserts a code (RES, CAP, IC…) between the prefix and the number.'}
+                  ? t('Always included in the category + sequence mode.')
+                  : t('Inserts a code (RES, CAP, IC…) between the prefix and the number.')}
               </div>
             </div>
             <Switch
@@ -279,9 +271,9 @@ export function IpnSection({ form, organization, separators }: IpnSectionProps) 
           </>)}
           <div className="flex items-center justify-between gap-4 py-3">
             <div>
-              <div className="text-sm font-medium">Separator</div>
+              <div className="text-sm font-medium">{t('Separator')}</div>
               <div className="text-xs text-muted-foreground">
-                {ipnMode === 'box_bag' ? 'Character between the box and the bag number.' : 'Character between segments.'}
+                {ipnMode === 'box_bag' ? t('Character between the box and the bag number.') : t('Character between segments.')}
               </div>
             </div>
             <div className="flex gap-1.5">
@@ -298,7 +290,7 @@ export function IpnSection({ form, organization, separators }: IpnSectionProps) 
                       active ? 'border-transparent' : 'text-muted-foreground'
                     }`}
                   >
-                    {SEPARATOR_LABELS[sep] ?? sep}
+                    {sep === '' ? t('None') : sep}
                   </Button>
                 )
               })}
@@ -307,9 +299,9 @@ export function IpnSection({ form, organization, separators }: IpnSectionProps) 
           {ipnMode !== 'box_bag' && (
           <div className="flex items-center justify-between gap-4 py-3">
             <div>
-              <div className="text-sm font-medium">Number length</div>
+              <div className="text-sm font-medium">{t('Number length')}</div>
               <div className="text-xs text-muted-foreground">
-                {ipnMode === 'random' ? 'How many characters the random body uses.' : 'The sequence is left-padded with zeros to this length.'}
+                {ipnMode === 'random' ? t('How many characters the random body uses.') : t('The sequence is left-padded with zeros to this length.')}
               </div>
             </div>
             <Select
@@ -319,7 +311,7 @@ export function IpnSection({ form, organization, separators }: IpnSectionProps) 
               <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {DIGIT_OPTIONS.map((n) => (
-                  <SelectItem key={n} value={String(n)}>{n} digits</SelectItem>
+                  <SelectItem key={n} value={String(n)}>{t('{count} digits', { count: n })}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -328,11 +320,11 @@ export function IpnSection({ form, organization, separators }: IpnSectionProps) 
           {(ipnMode === 'incremental' || ipnMode === 'category_sequence') && (
             <div className="flex items-center justify-between gap-4 py-3 last:pb-0">
               <div>
-                <div className="text-sm font-medium">Next sequence number</div>
+                <div className="text-sm font-medium">{t('Next sequence number')}</div>
                 <div className="text-xs text-muted-foreground">
                   {ipnMode === 'category_sequence'
-                    ? 'Each category keeps its own counter, incrementing by +1 per component.'
-                    : 'The counter increments by +1 for every new component.'}
+                    ? t('Each category keeps its own counter, incrementing by +1 per component.')
+                    : t('The counter increments by +1 for every new component.')}
                 </div>
               </div>
               <Input
@@ -350,8 +342,8 @@ export function IpnSection({ form, organization, separators }: IpnSectionProps) 
             <>
               <div className="flex items-center justify-between gap-4 py-3">
                 <div>
-                  <div className="text-sm font-medium">Character set</div>
-                  <div className="text-xs text-muted-foreground">Digits only, or alphanumeric for more combinations.</div>
+                  <div className="text-sm font-medium">{t('Character set')}</div>
+                  <div className="text-xs text-muted-foreground">{t('Digits only, or alphanumeric for more combinations.')}</div>
                 </div>
                 <div className="flex gap-1.5">
                   {CHARSET_OPTIONS.map((c) => {
@@ -375,20 +367,20 @@ export function IpnSection({ form, organization, separators }: IpnSectionProps) 
               </div>
               <div className="flex items-center gap-2 py-3 text-xs text-amber-700 dark:text-amber-400 last:pb-0">
                 <TriangleAlert className="size-3.5 shrink-0" />
-                Uniqueness is checked at creation — a collision triggers a fresh draw automatically.
+                {t('Uniqueness is checked at creation — a collision triggers a fresh draw automatically.')}
               </div>
             </>
           )}
           {ipnMode === 'manual' && (
             <div className="flex items-center gap-2 py-3 text-xs text-muted-foreground last:pb-0">
               <Pencil className="size-3.5 shrink-0" />
-              In manual mode the operator types the reference freely; the settings above only provide a suggested pre-filled value.
+              {t('In manual mode the operator types the reference freely; the settings above only provide a suggested pre-filled value.')}
             </div>
           )}
         </CardContent>
         <CardFooter className="justify-end gap-2 border-t">
-          <Button type="button" variant="outline" onClick={() => form.reset()}>Reset</Button>
-          <Button type="submit" disabled={form.processing}>Save</Button>
+          <Button type="button" variant="outline" onClick={() => form.reset()}>{t('Reset')}</Button>
+          <Button type="submit" disabled={form.processing}>{t('Save')}</Button>
         </CardFooter>
       </Card>
 
@@ -396,7 +388,7 @@ export function IpnSection({ form, organization, separators }: IpnSectionProps) 
 
       <div className="flex items-center gap-2 text-xs text-muted-foreground">
         <Info className="size-3.5 shrink-0" />
-        Current format:{' '}
+        {t('Current format:')}{' '}
         <code className="rounded-md border bg-card px-1.5 py-0.5 font-mono text-foreground">
           {livePreview.pattern}
         </code>
@@ -407,16 +399,16 @@ export function IpnSection({ form, organization, separators }: IpnSectionProps) 
       <AlertDialog open={ipnConfirmOpen} onOpenChange={setIpnConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Change the numbering format?</AlertDialogTitle>
+            <AlertDialogTitle>{t('Change the numbering format?')}</AlertDialogTitle>
             <AlertDialogDescription>
-              New components will be numbered <span className="font-mono">{livePreview.next}</span> and onward.
-              Existing parts keep the reference numbers they already have — they are not renumbered, so your
-              inventory will hold a mix of the old and new formats.
+              {tx('New components will be numbered {next} and onward. Existing parts keep the reference numbers they already have — they are not renumbered, so your inventory will hold a mix of the old and new formats.', {
+                next: <span className="font-mono">{livePreview.next}</span>,
+              })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={saveIpn}>Save changes</AlertDialogAction>
+            <AlertDialogCancel>{t('Cancel')}</AlertDialogCancel>
+            <AlertDialogAction onClick={saveIpn}>{t('Save changes')}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

@@ -62,6 +62,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { t, tn, intlLocale } from '@/lib/i18n'
 
 interface LinePart {
   id: number
@@ -156,13 +157,13 @@ interface ProjectShowProps {
 const NONE = '__none__'
 
 const MATCH_LABELS: Record<ProjectLine['match_type'], string> = {
-  mpn: 'by MPN',
-  sku: 'by SKU',
-  supplier_sku: 'by supplier SKU',
-  value_footprint: 'by value + footprint',
-  name: 'by name',
-  manual: 'manual',
-  none: 'no match',
+  get mpn() { return t('by MPN') },
+  get sku() { return t('by SKU') },
+  get supplier_sku() { return t('by supplier SKU') },
+  get value_footprint() { return t('by value + footprint') },
+  get name() { return t('by name') },
+  get manual() { return t('manual') },
+  get none() { return t('no match') },
 }
 
 export default function ProjectShow({ project, parts }: ProjectShowProps) {
@@ -223,7 +224,7 @@ export default function ProjectShow({ project, parts }: ProjectShowProps) {
 
   const partOptions = useMemo<ComboboxOption[]>(
     () => [
-      { value: NONE, label: 'Not in inventory' },
+      { value: NONE, label: t('Not in inventory') },
       ...parts.map((p) => ({ value: String(p.id), label: `${p.reference} — ${p.name}` })),
     ],
     [parts]
@@ -267,11 +268,11 @@ export default function ProjectShow({ project, parts }: ProjectShowProps) {
             <div className="flex flex-wrap gap-2">
               <Button size="sm" variant="outline" onClick={() => setEditOpen(true)}>
                 <Pencil className="size-4" />
-                Edit
+                {t('Edit')}
               </Button>
               <Button size="sm" variant="outline" onClick={() => setRevisionOpen(true)}>
                 <Copy className="size-4" />
-                New revision
+                {t('New revision')}
               </Button>
               {project.status === 'draft' && (
                 <Button
@@ -280,7 +281,7 @@ export default function ProjectShow({ project, parts }: ProjectShowProps) {
                   onClick={() => router.post(`/projects/${project.id}/confirm`, {}, { preserveScroll: true })}
                 >
                   <CheckCircle2 className="size-4" />
-                  Confirm matches
+                  {t('Confirm matches')}
                 </Button>
               )}
               {project.status === 'confirmed' && project.reservations_enabled && (
@@ -290,27 +291,27 @@ export default function ProjectShow({ project, parts }: ProjectShowProps) {
                   onClick={() => router.post(`/projects/${project.id}/${project.reserved ? 'release' : 'reserve'}`, {}, { preserveScroll: true })}
                 >
                   {project.reserved ? <LockOpen className="size-4" /> : <Lock className="size-4" />}
-                  {project.reserved ? 'Release stock' : 'Reserve stock'}
+                  {project.reserved ? t('Release stock') : t('Reserve stock')}
                 </Button>
               )}
               <Button
                 size="sm"
                 variant="outline"
                 disabled={project.short_count === 0}
-                title={project.short_count === 0 ? 'No shortfalls to order' : undefined}
+                title={project.short_count === 0 ? t('No shortfalls to order') : undefined}
                 onClick={() => router.post(`/projects/${project.id}/create_purchase_orders`, {}, { preserveScroll: true })}
               >
                 <FileText className="size-4" />
-                Order shortfalls
+                {t('Order shortfalls')}
               </Button>
               <Button
                 size="sm"
                 disabled={!project.buildable}
-                title={project.buildable ? undefined : 'Resolve shortfalls and unmatched lines first'}
+                title={project.buildable ? undefined : t('Resolve shortfalls and unmatched lines first')}
                 onClick={() => setBuildOpen(true)}
               >
                 <Hammer className="size-4" />
-                Build
+                {t('Build')}
               </Button>
             </div>
           )}
@@ -324,17 +325,17 @@ export default function ProjectShow({ project, parts }: ProjectShowProps) {
 
         <Link href="/projects" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
           <ArrowLeft className="size-4" />
-          All projects
+          {t('All projects')}
         </Link>
 
         {project.description && <p className="max-w-3xl text-sm text-muted-foreground">{project.description}</p>}
 
         {/* Availability summary */}
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-          <SummaryCard label="Total lines" value={project.lines.length} />
-          <SummaryCard label="Matched" value={`${matchedCount} / ${project.lines.length}`} />
-          <SummaryCard label="Short on stock" value={project.short_count} tone={project.short_count > 0 ? 'amber' : undefined} />
-          <SummaryCard label="Not in inventory" value={project.unmatched_count} tone={project.unmatched_count > 0 ? 'red' : undefined} />
+          <SummaryCard label={t('Total lines')} value={project.lines.length} />
+          <SummaryCard label={t('Matched')} value={`${matchedCount} / ${project.lines.length}`} />
+          <SummaryCard label={t('Short on stock')} value={project.short_count} tone={project.short_count > 0 ? 'amber' : undefined} />
+          <SummaryCard label={t('Not in inventory')} value={project.unmatched_count} tone={project.unmatched_count > 0 ? 'red' : undefined} />
         </div>
 
         <Card className={`border-l-[3px] ${project.buildable ? 'border-l-emerald-500' : 'border-l-amber-500'}`}>
@@ -342,29 +343,33 @@ export default function ProjectShow({ project, parts }: ProjectShowProps) {
             {project.buildable ? (
               <>
                 <CheckCircle2 className="size-5 text-emerald-600 dark:text-emerald-400" />
-                <p className="text-sm font-medium">You have enough stock to build this project.</p>
+                <p className="text-sm font-medium">{t('You have enough stock to build this project.')}</p>
               </>
             ) : project.lines.length === 0 ? (
               <>
                 <AlertTriangle className="size-5 text-amber-600 dark:text-amber-400" />
-                <p className="text-sm font-medium">This project has no lines yet: add the parts it needs to see what you can build.</p>
+                <p className="text-sm font-medium">{t('This project has no lines yet: add the parts it needs to see what you can build.')}</p>
               </>
             ) : (
               <>
                 <AlertTriangle className="size-5 text-amber-600 dark:text-amber-400" />
                 <p className="text-sm font-medium">
-                  {project.short_count + project.unmatched_count} line{project.short_count + project.unmatched_count !== 1 ? 's' : ''} need resolving before this project is buildable.
+                  {tn(
+                    '{count} line needs resolving before this project is buildable.',
+                    '{count} lines need resolving before this project is buildable.',
+                    project.short_count + project.unmatched_count,
+                  )}
                 </p>
               </>
             )}
             {project.reserved && project.reserved_at && (
               <Badge variant="outline" className="ml-auto">
-                <Lock className="size-3.5" /> Stock reserved since {new Date(project.reserved_at).toLocaleDateString()}
+                <Lock className="size-3.5" /> {t('Stock reserved since {date}', { date: new Date(project.reserved_at).toLocaleDateString(intlLocale()) })}
               </Badge>
             )}
             {project.builds_count > 0 && project.last_built_at && (
               <p className={`${project.reserved ? '' : 'ml-auto '}text-xs text-muted-foreground`}>
-                {project.builds_count} kit{project.builds_count !== 1 ? 's' : ''} built · last on {new Date(project.last_built_at).toLocaleDateString()}
+                {tn('{count} kit built · last on {date}', '{count} kits built · last on {date}', project.builds_count, { date: new Date(project.last_built_at).toLocaleDateString(intlLocale()) })}
               </p>
             )}
           </CardContent>
@@ -373,27 +378,27 @@ export default function ProjectShow({ project, parts }: ProjectShowProps) {
         {/* KiCad files */}
         <Card>
           <CardHeader>
-            <CardTitle>KiCad files</CardTitle>
+            <CardTitle>{t('KiCad files')}</CardTitle>
             <CardDescription>
-              The project's design files, a ZIP of its folder, or the files of a linked GitHub repository. The BOM can be read again from the schematics after a design change.
+              {t('The project\'s design files, a ZIP of its folder, or the files of a linked GitHub repository. The BOM can be read again from the schematics after a design change.')}
             </CardDescription>
             {canWrite && (
               <CardAction className="flex gap-2">
                 {project.files_have_schematics && (
                   <Button size="sm" variant="outline" onClick={() => setImportOpen(true)}>
                     <RefreshCw className="size-4" />
-                    Update BOM from schematic
+                    {t('Update BOM from schematic')}
                   </Button>
                 )}
                 {!project.github && (
                   <Button size="sm" variant="outline" onClick={openGithubDialog}>
                     <GitBranch className="size-4" />
-                    Link to GitHub
+                    {t('Link to GitHub')}
                   </Button>
                 )}
                 <Button size="sm" variant="outline" disabled={uploading} onClick={() => fileInput.current?.click()}>
                   <Upload className="size-4" />
-                  Add files
+                  {t('Add files')}
                 </Button>
                 <Input
                   ref={fileInput}
@@ -401,7 +406,7 @@ export default function ProjectShow({ project, parts }: ProjectShowProps) {
                   multiple
                   accept={KICAD_ACCEPT}
                   className="hidden"
-                  aria-label="KiCad files"
+                  aria-label={t('KiCad files')}
                   onChange={(e) => uploadFiles(e.target.files)}
                 />
               </CardAction>
@@ -423,26 +428,26 @@ export default function ProjectShow({ project, parts }: ProjectShowProps) {
                 <span className="text-xs text-muted-foreground">
                   {project.github.synced_sha && project.github.commit_url ? (
                     <>
-                      Commit{' '}
+                      {t('Commit')}{' '}
                       <a href={project.github.commit_url} target="_blank" rel="noopener noreferrer" className="font-mono hover:underline">
                         {project.github.synced_sha.slice(0, 7)}
                       </a>
-                      {project.github.synced_at && <> · checked {new Date(project.github.synced_at).toLocaleString()}</>}
+                      {project.github.synced_at && <> · {t('checked {date}', { date: new Date(project.github.synced_at).toLocaleString(intlLocale()) })}</>}
                     </>
                   ) : (
-                    'Not fetched yet'
+                    t('Not fetched yet')
                   )}
                 </span>
                 {canWrite && (
                   <div className="ml-auto flex gap-1">
                     <Button size="sm" onClick={syncGithub} disabled={syncing}>
                       <RefreshCw className={`size-4 ${syncing ? 'animate-spin' : ''}`} />
-                      Update from GitHub
+                      {t('Update from GitHub')}
                     </Button>
-                    <Button size="icon-sm" variant="ghost" aria-label="Edit GitHub link" onClick={openGithubDialog}>
+                    <Button size="icon-sm" variant="ghost" aria-label={t('Edit GitHub link')} onClick={openGithubDialog}>
                       <Pencil className="size-4 text-muted-foreground" />
                     </Button>
-                    <Button size="icon-sm" variant="ghost" aria-label="Unlink from GitHub" onClick={() => setUnlinkOpen(true)}>
+                    <Button size="icon-sm" variant="ghost" aria-label={t('Unlink from GitHub')} onClick={() => setUnlinkOpen(true)}>
                       <Unlink className="size-4 text-muted-foreground" />
                     </Button>
                   </div>
@@ -451,7 +456,7 @@ export default function ProjectShow({ project, parts }: ProjectShowProps) {
             )}
             {project.files.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                No files yet.{canWrite && ' Add the .kicad_pro, .kicad_sch and .kicad_pcb files, a ZIP of the project folder, or link a GitHub repository.'}
+                {t('No files yet.')}{canWrite && ` ${t('Add the .kicad_pro, .kicad_sch and .kicad_pcb files, a ZIP of the project folder, or link a GitHub repository.')}`}
               </p>
             ) : (
               <ul className="grid gap-x-8 lg:grid-cols-2">
@@ -461,22 +466,22 @@ export default function ProjectShow({ project, parts }: ProjectShowProps) {
                     <a
                       href={`${file.url}?disposition=attachment`}
                       className="inline-flex min-w-0 items-center gap-1.5 font-mono text-sm hover:underline"
-                      title={`Download ${file.filename}`}
+                      title={t('Download {name}', { name: file.filename })}
                       download
                     >
                       <span className="truncate">{file.filename}</span>
                       <Download className="size-3.5 shrink-0 text-muted-foreground" />
                     </a>
                     {file.from_github && (
-                      <Badge variant="outline" className="shrink-0" title="Fetched from GitHub: replaced on the next update">
+                      <Badge variant="outline" className="shrink-0" title={t('Fetched from GitHub: replaced on the next update')}>
                         GitHub
                       </Badge>
                     )}
                     <span className="ml-auto shrink-0 text-xs text-muted-foreground">
-                      {formatFileSize(file.byte_size)} · {new Date(file.created_at).toLocaleDateString()}
+                      {formatFileSize(file.byte_size)} · {new Date(file.created_at).toLocaleDateString(intlLocale())}
                     </span>
                     {canWrite && (
-                      <Button variant="ghost" size="icon-sm" aria-label={`Remove ${file.filename}`} onClick={() => setRemoveFile(file)}>
+                      <Button variant="ghost" size="icon-sm" aria-label={t('Remove {name}', { name: file.filename })} onClick={() => setRemoveFile(file)}>
                         <Trash2 className="size-4 text-muted-foreground" />
                       </Button>
                     )}
@@ -492,14 +497,14 @@ export default function ProjectShow({ project, parts }: ProjectShowProps) {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>BOM reference</TableHead>
-                <TableHead>Matched part</TableHead>
-                <TableHead className="text-right">Required</TableHead>
-                <TableHead className="text-right">In stock</TableHead>
+                <TableHead>{t('BOM reference')}</TableHead>
+                <TableHead>{t('Matched part')}</TableHead>
+                <TableHead className="text-right">{t('Required')}</TableHead>
+                <TableHead className="text-right">{t('In stock')}</TableHead>
                 {project.reservations_enabled && (
-                  <TableHead className="text-right" title="Held by projects reserved before this one">Reserved elsewhere</TableHead>
+                  <TableHead className="text-right" title={t('Held by projects reserved before this one')}>{t('Reserved elsewhere')}</TableHead>
                 )}
-                <TableHead>Status</TableHead>
+                <TableHead>{t('Status')}</TableHead>
                 {canWrite && <TableHead className="w-10" />}
               </TableRow>
             </TableHeader>
@@ -536,8 +541,8 @@ export default function ProjectShow({ project, parts }: ProjectShowProps) {
                           options={partOptions}
                           value={line.part ? String(line.part.id) : NONE}
                           onValueChange={(value) => changePart(line, value)}
-                          placeholder="Not in inventory"
-                          searchPlaceholder="Search parts…"
+                          placeholder={t('Not in inventory')}
+                          searchPlaceholder={t('Search parts…')}
                           className="min-w-[220px]"
                         />
                         <span className="text-xs text-muted-foreground">{MATCH_LABELS[line.match_type]}</span>
@@ -545,7 +550,7 @@ export default function ProjectShow({ project, parts }: ProjectShowProps) {
                     ) : line.part ? (
                       <span>{line.part.reference} — {line.part.name}</span>
                     ) : (
-                      <span className="text-muted-foreground">Not in inventory</span>
+                      <span className="text-muted-foreground">{t('Not in inventory')}</span>
                     )}
                   </TableCell>
                   <TableCell className="text-right">
@@ -570,21 +575,21 @@ export default function ProjectShow({ project, parts }: ProjectShowProps) {
                   <TableCell>
                     {!line.part ? (
                       <Badge variant="outline" className="bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400">
-                        <XCircle className="size-3.5" /> Not in inventory
+                        <XCircle className="size-3.5" /> {t('Not in inventory')}
                       </Badge>
                     ) : line.available ? (
                       <Badge variant="outline" className="bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400">
-                        <CheckCircle2 className="size-3.5" /> OK
+                        <CheckCircle2 className="size-3.5" /> {t('OK')}
                       </Badge>
                     ) : (
                       <Badge variant="outline" className="bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400">
-                        <AlertTriangle className="size-3.5" /> Short {line.shortfall}
+                        <AlertTriangle className="size-3.5" /> {t('Short {count}', { count: line.shortfall })}
                       </Badge>
                     )}
                   </TableCell>
                   {canWrite && (
                     <TableCell>
-                      <Button variant="ghost" size="icon-sm" aria-label="Remove line" onClick={() => setRemoveLine(line)}>
+                      <Button variant="ghost" size="icon-sm" aria-label={t('Remove line')} onClick={() => setRemoveLine(line)}>
                         <Trash2 className="size-4 text-muted-foreground" />
                       </Button>
                     </TableCell>
@@ -597,7 +602,7 @@ export default function ProjectShow({ project, parts }: ProjectShowProps) {
             <div className="border-t px-4 py-3">
               <Button size="sm" variant="outline" onClick={() => setLineOpen(true)}>
                 <Plus className="size-4" />
-                Add line
+                {t('Add line')}
               </Button>
             </div>
           )}
@@ -614,20 +619,22 @@ export default function ProjectShow({ project, parts }: ProjectShowProps) {
       <AlertDialog open={importOpen} onOpenChange={setImportOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Update the BOM from the schematic?</AlertDialogTitle>
+            <AlertDialogTitle>{t('Update the BOM from the schematic?')}</AlertDialogTitle>
             <AlertDialogDescription>
-              The BOM lines are replaced by the components of the attached schematics and matched again. Parts you picked by hand stay on the components that are still there. The project goes back to draft{project.reserved && ' and its stock reservation is released'}.
+              {project.reserved
+                ? t('The BOM lines are replaced by the components of the attached schematics and matched again. Parts you picked by hand stay on the components that are still there. The project goes back to draft and its stock reservation is released.')
+                : t('The BOM lines are replaced by the components of the attached schematics and matched again. Parts you picked by hand stay on the components that are still there. The project goes back to draft.')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t('Cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
                 router.post(`/projects/${project.id}/files/import_bom`, {}, { preserveScroll: true })
                 setImportOpen(false)
               }}
             >
-              Update BOM
+              {t('Update BOM')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -638,9 +645,9 @@ export default function ProjectShow({ project, parts }: ProjectShowProps) {
         <DialogContent className="sm:max-w-md">
           <form onSubmit={saveGithubLink}>
             <DialogHeader>
-              <DialogTitle>{project.github ? 'Edit the GitHub link' : 'Link to a GitHub repository'}</DialogTitle>
+              <DialogTitle>{project.github ? t('Edit the GitHub link') : t('Link to a GitHub repository')}</DialogTitle>
               <DialogDescription>
-                The KiCad files in the repository (or in one folder of it) are fetched into this project and its BOM is read from the schematics. Use “Update from GitHub” after pushing a change.
+                {t('The KiCad files in the repository (or in one folder of it) are fetched into this project and its BOM is read from the schematics. Use “Update from GitHub” after pushing a change.')}
               </DialogDescription>
             </DialogHeader>
             <div className="py-4">
@@ -648,11 +655,11 @@ export default function ProjectShow({ project, parts }: ProjectShowProps) {
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setGithubOpen(false)}>
-                Cancel
+                {t('Cancel')}
               </Button>
               <Button type="submit" disabled={syncing || !githubData.repository.trim()}>
                 <GitBranch className="size-4" />
-                {project.github ? 'Save & fetch' : 'Link & fetch'}
+                {project.github ? t('Save & fetch') : t('Link & fetch')}
               </Button>
             </DialogFooter>
           </form>
@@ -663,20 +670,20 @@ export default function ProjectShow({ project, parts }: ProjectShowProps) {
       <AlertDialog open={unlinkOpen} onOpenChange={setUnlinkOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Unlink from GitHub?</AlertDialogTitle>
+            <AlertDialogTitle>{t('Unlink from GitHub?')}</AlertDialogTitle>
             <AlertDialogDescription>
-              The project stops following {project.github?.location}. The files fetched so far and the BOM stay as they are.
+              {t('The project stops following {location}. The files fetched so far and the BOM stay as they are.', { location: project.github?.location ?? '' })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t('Cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
                 router.delete(`/projects/${project.id}/github`, { preserveScroll: true })
                 setUnlinkOpen(false)
               }}
             >
-              Unlink
+              {t('Unlink')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -686,18 +693,18 @@ export default function ProjectShow({ project, parts }: ProjectShowProps) {
       <AlertDialog open={removeFile !== null} onOpenChange={(o) => !o && setRemoveFile(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove {removeFile?.filename}?</AlertDialogTitle>
-            <AlertDialogDescription>The file is deleted. The BOM lines already imported stay as they are.</AlertDialogDescription>
+            <AlertDialogTitle>{t('Remove {name}?', { name: removeFile?.filename ?? '' })}</AlertDialogTitle>
+            <AlertDialogDescription>{t('The file is deleted. The BOM lines already imported stay as they are.')}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t('Cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
                 if (removeFile) router.delete(`/projects/${project.id}/files/${removeFile.id}`, { preserveScroll: true })
                 setRemoveFile(null)
               }}
             >
-              Remove
+              {t('Remove')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -707,20 +714,20 @@ export default function ProjectShow({ project, parts }: ProjectShowProps) {
       <AlertDialog open={removeLine !== null} onOpenChange={(o) => !o && setRemoveLine(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove this line?</AlertDialogTitle>
+            <AlertDialogTitle>{t('Remove this line?')}</AlertDialogTitle>
             <AlertDialogDescription>
-              {removeLine?.designation || removeLine?.raw_reference || 'This line'} is removed from the project. Stock is not affected.
+              {t('{line} is removed from the project. Stock is not affected.', { line: removeLine?.designation || removeLine?.raw_reference || t('This line') })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t('Cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
                 if (removeLine) router.delete(`/projects/${project.id}/project_lines/${removeLine.id}`, { preserveScroll: true })
                 setRemoveLine(null)
               }}
             >
-              Remove
+              {t('Remove')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -730,32 +737,32 @@ export default function ProjectShow({ project, parts }: ProjectShowProps) {
       <AlertDialog open={buildOpen} onOpenChange={setBuildOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Build this project?</AlertDialogTitle>
+            <AlertDialogTitle>{t('Build this project?')}</AlertDialogTitle>
             <AlertDialogDescription>
-              This deducts the required quantity of every matched part from stock, times the number of kits, recording an outgoing movement for each and an entry in the build history. This can't be undone automatically.
-              {project.reserved && ' The project\'s stock reservation is released once built.'}
+              {t('This deducts the required quantity of every matched part from stock, times the number of kits, recording an outgoing movement for each and an entry in the build history. This can\'t be undone automatically.')}
+              {project.reserved && ` ${t('The project\'s stock reservation is released once built.')}`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="grid gap-4 sm:grid-cols-[120px_1fr]">
             <div className="space-y-2">
-              <Label htmlFor="build-kits">Kits</Label>
+              <Label htmlFor="build-kits">{t('Kits')}</Label>
               <Input id="build-kits" type="number" min={1} value={kits} onChange={(e) => setKits(e.target.value)} className="font-mono" />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="build-note">Note</Label>
+              <Label htmlFor="build-note">{t('Note')}</Label>
               <Input
                 id="build-note"
                 value={buildNote}
                 maxLength={255}
                 onChange={(e) => setBuildNote(e.target.value)}
-                placeholder="Optional, e.g. workshop of 12 October"
+                placeholder={t('Optional, e.g. workshop of 12 October')}
               />
             </div>
           </div>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t('Cancel')}</AlertDialogCancel>
             <AlertDialogAction disabled={!kitsValid} onClick={build}>
-              Deduct stock
+              {t('Deduct stock')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -783,25 +790,25 @@ function BuildHistory({ builds }: { builds: ProjectBuild[] }) {
     <Card className="overflow-hidden py-0">
       <div className="flex items-center gap-2 border-b px-4 py-3">
         <History className="size-4 text-muted-foreground" />
-        <h2 className="text-sm font-semibold">Build history</h2>
+        <h2 className="text-sm font-semibold">{t('Build history')}</h2>
       </div>
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Date</TableHead>
-            <TableHead className="text-right">Kits</TableHead>
-            <TableHead className="text-right">Parts taken</TableHead>
-            <TableHead>By</TableHead>
-            <TableHead>Note</TableHead>
+            <TableHead>{t('Date')}</TableHead>
+            <TableHead className="text-right">{t('Kits')}</TableHead>
+            <TableHead className="text-right">{t('Parts taken')}</TableHead>
+            <TableHead>{t('By')}</TableHead>
+            <TableHead>{t('Note')}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {builds.map((build) => (
             <TableRow key={build.id}>
-              <TableCell className="text-sm">{new Date(build.built_at).toLocaleString()}</TableCell>
+              <TableCell className="text-sm">{new Date(build.built_at).toLocaleString(intlLocale())}</TableCell>
               <TableCell className="text-right font-mono">{build.quantity}</TableCell>
               <TableCell className="text-right font-mono text-muted-foreground">
-                {build.units} ({build.references} ref{build.references !== 1 ? 's' : ''})
+                {build.units} ({tn('{count} ref', '{count} refs', build.references)})
               </TableCell>
               <TableCell className="text-sm">{build.user ?? '—'}</TableCell>
               <TableCell className="max-w-[320px] truncate text-sm text-muted-foreground" title={build.note ?? undefined}>
@@ -850,36 +857,36 @@ function EditProjectDialog({ project, open, onOpenChange }: DialogProps & { proj
       <DialogContent className="sm:max-w-md">
         <form onSubmit={submit}>
           <DialogHeader>
-            <DialogTitle>Edit project</DialogTitle>
+            <DialogTitle>{t('Edit project')}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="grid gap-4 sm:grid-cols-[1fr_100px]">
               <div className="space-y-2">
-                <Label htmlFor="edit-project-name">Name</Label>
+                <Label htmlFor="edit-project-name">{t('Name')}</Label>
                 <Input id="edit-project-name" value={name} onChange={(e) => setName(e.target.value)} required />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="edit-project-revision">Revision</Label>
+                <Label htmlFor="edit-project-revision">{t('Revision')}</Label>
                 <Input id="edit-project-revision" value={revision} maxLength={20} onChange={(e) => setRevision(e.target.value)} placeholder="A" />
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="edit-project-description">Description</Label>
+              <Label htmlFor="edit-project-description">{t('Description')}</Label>
               <Textarea
                 id="edit-project-description"
                 value={description}
                 maxLength={255}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="What this board or kit is for"
+                placeholder={t('What this board or kit is for')}
               />
             </div>
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
+              {t('Cancel')}
             </Button>
             <Button type="submit" disabled={processing || name.trim().length < 2}>
-              Save
+              {t('Save')}
             </Button>
           </DialogFooter>
         </form>
@@ -912,23 +919,24 @@ function NewRevisionDialog({ project, open, onOpenChange }: DialogProps & { proj
       <DialogContent className="sm:max-w-md">
         <form onSubmit={submit}>
           <DialogHeader>
-            <DialogTitle>New revision</DialogTitle>
+            <DialogTitle>{t('New revision')}</DialogTitle>
             <DialogDescription>
-              Copies {project.revision ? `revision ${project.revision}` : 'this project'} and its {project.lines.length} line
-              {project.lines.length !== 1 ? 's' : ''} into a new draft project, with the same matches. This one stays as it is, with its build history.
+              {project.revision
+                ? tn('Copies revision {revision} and its {count} line into a new draft project, with the same matches. This one stays as it is, with its build history.', 'Copies revision {revision} and its {count} lines into a new draft project, with the same matches. This one stays as it is, with its build history.', project.lines.length, { revision: project.revision })
+                : tn('Copies this project and its {count} line into a new draft project, with the same matches. This one stays as it is, with its build history.', 'Copies this project and its {count} lines into a new draft project, with the same matches. This one stays as it is, with its build history.', project.lines.length)}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2 py-4">
-            <Label htmlFor="new-revision">Revision</Label>
+            <Label htmlFor="new-revision">{t('Revision')}</Label>
             <Input id="new-revision" value={revision} maxLength={20} onChange={(e) => setRevision(e.target.value)} className="w-32 font-mono" />
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
+              {t('Cancel')}
             </Button>
             <Button type="submit" disabled={processing}>
               <Copy className="size-4" />
-              Create revision
+              {t('Create revision')}
             </Button>
           </DialogFooter>
         </form>
@@ -993,51 +1001,51 @@ function AddLineDialog({
       <DialogContent className="sm:max-w-lg">
         <form onSubmit={submit}>
           <DialogHeader>
-            <DialogTitle>Add line</DialogTitle>
+            <DialogTitle>{t('Add line')}</DialogTitle>
             <DialogDescription>
-              Pick a part from the inventory, or describe a component you don't stock yet so it shows up as missing.
+              {t('Pick a part from the inventory, or describe a component you don\'t stock yet so it shows up as missing.')}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="line-part">Part</Label>
+              <Label htmlFor="line-part">{t('Part')}</Label>
               <Combobox
                 id="line-part"
                 options={partOptions}
                 value={partId}
                 onValueChange={(value) => setPartId(value || NONE)}
-                placeholder="Not in inventory"
-                searchPlaceholder="Search parts…"
+                placeholder={t('Not in inventory')}
+                searchPlaceholder={t('Search parts…')}
                 className="w-full"
               />
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="line-designation">Designation</Label>
+                <Label htmlFor="line-designation">{t('Designation')}</Label>
                 <Input
                   id="line-designation"
                   value={designation}
                   onChange={(e) => setDesignation(e.target.value)}
-                  placeholder={partId === NONE ? 'e.g. ESP32-C3 module' : 'Defaults to the part name'}
+                  placeholder={partId === NONE ? t('e.g. ESP32-C3 module') : t('Defaults to the part name')}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="line-reference">Reference (MPN)</Label>
+                <Label htmlFor="line-reference">{t('Reference (MPN)')}</Label>
                 <Input
                   id="line-reference"
                   value={reference}
                   onChange={(e) => setReference(e.target.value)}
-                  placeholder={partId === NONE ? 'Optional' : 'Defaults to the part MPN'}
+                  placeholder={partId === NONE ? t('Optional') : t('Defaults to the part MPN')}
                 />
               </div>
             </div>
             <div className="grid gap-4 sm:grid-cols-[1fr_120px]">
               <div className="space-y-2">
-                <Label htmlFor="line-designators">Designators</Label>
-                <Input id="line-designators" value={designators} onChange={(e) => setDesignators(e.target.value)} placeholder="e.g. R1, R2" />
+                <Label htmlFor="line-designators">{t('Designators')}</Label>
+                <Input id="line-designators" value={designators} onChange={(e) => setDesignators(e.target.value)} placeholder={t('e.g. R1, R2')} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="line-quantity">Quantity</Label>
+                <Label htmlFor="line-quantity">{t('Quantity')}</Label>
                 <Input
                   id="line-quantity"
                   type="number"
@@ -1051,11 +1059,11 @@ function AddLineDialog({
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
+              {t('Cancel')}
             </Button>
             <Button type="submit" disabled={processing || !valid}>
               <Plus className="size-4" />
-              Add line
+              {t('Add line')}
             </Button>
           </DialogFooter>
         </form>

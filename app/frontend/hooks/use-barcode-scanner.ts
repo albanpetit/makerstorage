@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { IScannerControls } from '@zxing/browser'
+import { t } from '@/lib/i18n'
 
 // Symbologies we read: QR (zones) plus the common 1D/2D barcodes on part labels.
 const SCAN_FORMATS = [
@@ -22,15 +23,15 @@ interface BarcodeDetectorConstructor {
 function describeCameraError(err: unknown): string {
   const e = err as { name?: string; message?: string }
   if (e?.name === 'NotAllowedError' || e?.name === 'SecurityError') {
-    return 'Camera permission was denied. Allow camera access in your browser and try again.'
+    return t('Camera permission was denied. Allow camera access in your browser and try again.')
   }
   if (e?.name === 'NotFoundError' || e?.name === 'OverconstrainedError' || e?.name === 'DevicesNotFoundError') {
-    return 'No camera was found on this device.'
+    return t('No camera was found on this device.')
   }
   if (e?.name === 'NotReadableError' || e?.name === 'TrackStartError') {
-    return 'The camera is already in use by another application.'
+    return t('The camera is already in use by another application.')
   }
-  return e?.message || 'Could not start the camera.'
+  return e?.message || t('Could not start the camera.')
 }
 
 interface BarcodeScannerOptions {
@@ -96,8 +97,8 @@ export function useBarcodeScanner(onDecoded: (code: string) => void, { continuou
     if (!navigator.mediaDevices?.getUserMedia) {
       setError(
         window.isSecureContext
-          ? 'This browser does not support camera access.'
-          : 'Camera access requires HTTPS. Open the app over https:// (or on localhost) to scan.',
+          ? t('This browser does not support camera access.')
+          : t('Camera access requires HTTPS. Open the app over https:// (or on localhost) to scan.'),
       )
       return
     }

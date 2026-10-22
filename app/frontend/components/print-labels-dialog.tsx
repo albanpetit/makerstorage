@@ -31,6 +31,7 @@ import {
   printLabels,
 } from '@/lib/labels'
 import { type LabelPrinter, fetchLabelPrinters, printOnLabelPrinter } from '@/lib/label-printers'
+import { t, tn } from '@/lib/i18n'
 
 const TARGET_STORAGE_KEY = 'makerstorage.labelFormat'
 
@@ -90,9 +91,9 @@ export function printOnPrinterWithToast(printer: LabelPrinter, items: Promise<La
     return list.length
   })
   toast.promise(job, {
-    loading: `Printing on ${printer.name}…`,
-    success: (n: number) => `Sent ${n} label${n !== 1 ? 's' : ''} to ${printer.name}.`,
-    error: (error: Error) => error.message || 'Could not prepare the labels.',
+    loading: t('Printing on {name}…', { name: printer.name }),
+    success: (n: number) => tn('Sent {count} label to {name}.', 'Sent {count} labels to {name}.', n, { name: printer.name }),
+    error: (error: Error) => error.message || t('Could not prepare the labels.'),
   })
 }
 
@@ -110,7 +111,7 @@ export function LabelTargetSelect({ id, value, onChange, printers }: {
       <SelectContent position="popper">
         {printers && printers.length > 0 && (
           <SelectGroup>
-            <SelectLabel>Network printers</SelectLabel>
+            <SelectLabel>{t('Network printers')}</SelectLabel>
             {printers.map((printer) => (
               <SelectItem key={printer.id} value={printerTarget(printer)}>
                 {printer.name} · {printer.size}
@@ -119,7 +120,7 @@ export function LabelTargetSelect({ id, value, onChange, printers }: {
           </SelectGroup>
         )}
         <SelectGroup>
-          <SelectLabel>Browser print dialog</SelectLabel>
+          <SelectLabel>{t('Browser print dialog')}</SelectLabel>
           {(Object.keys(LABEL_FORMATS) as LabelFormatId[]).map((formatId) => (
             <SelectItem key={formatId} value={formatId}>{LABEL_FORMATS[formatId].name}</SelectItem>
           ))}
@@ -163,7 +164,7 @@ export function PrintLabelsDialog({ open, onOpenChange, count, loadItems, title,
       .then((items) => printLabels(items, format, printWindow))
       .catch(() => {
         printWindow?.close()
-        toast.error('Could not prepare the labels.')
+        toast.error(t('Could not prepare the labels.'))
       })
     onOpenChange(false)
   }
@@ -174,28 +175,28 @@ export function PrintLabelsDialog({ open, onOpenChange, count, loadItems, title,
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>
-            {description ?? 'Each label carries a QR code that opens the scanner on this record.'}
+            {description ?? t('Each label carries a QR code that opens the scanner on this record.')}
           </DialogDescription>
         </DialogHeader>
 
         {children}
 
         <div className="min-w-0 space-y-2">
-          <Label htmlFor="label-format">Print on</Label>
+          <Label htmlFor="label-format">{t('Print on')}</Label>
           <LabelTargetSelect id="label-format" value={target} onChange={choose} printers={printers} />
           <p className="text-xs text-muted-foreground">
             {printer
-              ? `Sent straight to the printer: load ${printer.size} labels.`
-              : 'In the print dialog, keep the scale at 100% and disable headers and footers.'}
-            {!printer && printers?.length === 0 && canAdminister && ' Brother QL and Zebra printers on your network can print directly: add them in Settings → Label printers.'}
+              ? t('Sent straight to the printer: load {size} labels.', { size: printer.size })
+              : t('In the print dialog, keep the scale at 100% and disable headers and footers.')}
+            {!printer && printers?.length === 0 && canAdminister && ` ${t('Brother QL and Zebra printers on your network can print directly: add them in Settings → Label printers.')}`}
           </p>
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>{t('Cancel')}</Button>
           <Button disabled={count === 0} onClick={print}>
             <Printer className="size-4" />
-            Print {count} label{count !== 1 ? 's' : ''}
+            {tn('Print {count} label', 'Print {count} labels', count)}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -110,7 +110,7 @@ module SupplierCatalog
   # its error is only surfaced when *every* provider failed to return anything.
   def lookup(organization, mpn:)
     providers = providers_for(organization)
-    raise NotConfiguredError, "No supplier catalog is configured for this organization" if providers.empty?
+    raise NotConfiguredError, I18n.t("errors.supplier_catalog.not_configured") if providers.empty?
 
     results = []
     errors = []

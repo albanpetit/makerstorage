@@ -29,6 +29,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { t, tn, intlLocale } from '@/lib/i18n'
 
 interface DuplicatePart {
   id: number
@@ -66,31 +67,30 @@ interface PartDuplicatesProps {
   manual: boolean
 }
 
-const plural = (count: number, word: string) => `${count.toLocaleString()} ${word}${count === 1 ? '' : 's'}`
-
 export default function PartDuplicatesIndex({ groups, total_groups, manual }: PartDuplicatesProps) {
   const [detailPartId, setDetailPartId] = useState<number | null>(null)
 
   const subtitle = manual
-    ? 'Pick the part to keep: the others are merged into it'
+    ? t('Pick the part to keep: the others are merged into it')
     : total_groups === 0
-      ? 'Parts that look like the same component entered twice'
-      : `${plural(total_groups, 'group')} of parts that look like the same component${total_groups > groups.length ? ` · showing the first ${groups.length}` : ''}`
+      ? t('Parts that look like the same component entered twice')
+      : tn('{count} group of parts that look like the same component', '{count} groups of parts that look like the same component', total_groups) +
+        (total_groups > groups.length ? t(' · showing the first {count}', { count: groups.length }) : '')
 
   return (
     <AppLayout
       header={
-        <PageHeader title={manual ? 'Merge parts' : 'Duplicates'} subtitle={subtitle}>
+        <PageHeader title={manual ? t('Merge parts') : t('Duplicates')} subtitle={subtitle}>
           <Button variant="outline" size="sm" asChild>
             <Link href="/parts">
               <ArrowLeft className="size-4" />
-              Inventory
+              {t('Inventory')}
             </Link>
           </Button>
         </PageHeader>
       }
     >
-      <Head title={manual ? 'Merge parts' : 'Duplicates'} />
+      <Head title={manual ? t('Merge parts') : t('Duplicates')} />
 
       <div className="space-y-4">
         <FlashMessages />
@@ -99,11 +99,9 @@ export default function PartDuplicatesIndex({ groups, total_groups, manual }: Pa
           <Card>
             <CardContent className="flex flex-col items-center gap-2 py-10 text-center">
               <CheckCircle2 className="size-8 text-emerald-500" />
-              <div className="font-medium">{manual ? 'Nothing left to merge' : 'No duplicates found'}</div>
+              <div className="font-medium">{manual ? t('Nothing left to merge') : t('No duplicates found')}</div>
               <p className="max-w-md text-sm text-muted-foreground">
-                Parts are paired when they share a part number (MPN, SKU, barcode or a supplier part number), or the
-                same name, value and footprint. To merge parts the finder misses, select them in the inventory and
-                choose Merge.
+                {t('Parts are paired when they share a part number (MPN, SKU, barcode or a supplier part number), or the same name, value and footprint. To merge parts the finder misses, select them in the inventory and choose Merge.')}
               </p>
             </CardContent>
           </Card>
@@ -148,10 +146,10 @@ function DuplicateGroupCard({
     { units: 0, movements: 0, orderLines: 0, projectLines: 0 },
   )
   const moved = [
-    totals.units > 0 && `${plural(totals.units, 'unit')} of stock`,
-    totals.movements > 0 && plural(totals.movements, 'movement'),
-    totals.orderLines > 0 && plural(totals.orderLines, 'order line'),
-    totals.projectLines > 0 && plural(totals.projectLines, 'project line'),
+    totals.units > 0 && tn('{count} unit of stock', '{count} units of stock', totals.units),
+    totals.movements > 0 && tn('{count} movement', '{count} movements', totals.movements),
+    totals.orderLines > 0 && tn('{count} order line', '{count} order lines', totals.orderLines),
+    totals.projectLines > 0 && tn('{count} project line', '{count} project lines', totals.projectLines),
   ].filter(Boolean) as string[]
 
   const toggle = (id: number, checked: boolean) =>
@@ -185,8 +183,8 @@ function DuplicateGroupCard({
             <span className="font-medium">{kept.name}</span>
             {!manual && (
               group.certain
-                ? <Badge className="border-transparent bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-400">Likely duplicates</Badge>
-                : <Badge variant="outline">Possible duplicates</Badge>
+                ? <Badge className="border-transparent bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-400">{t('Likely duplicates')}</Badge>
+                : <Badge variant="outline">{t('Possible duplicates')}</Badge>
             )}
           </div>
           {group.reasons.length > 0 && (
@@ -198,12 +196,12 @@ function DuplicateGroupCard({
             {!manual && (
               <Button variant="ghost" size="sm" disabled={submitting} onClick={dismiss}>
                 <EyeOff className="size-4" />
-                Not duplicates
+                {t('Not duplicates')}
               </Button>
             )}
             <Button size="sm" disabled={submitting || merged.length === 0 || unitClash} onClick={() => setConfirmOpen(true)}>
               <Combine className="size-4" />
-              Merge {merged.length > 0 ? plural(merged.length, 'part') : ''}
+              {merged.length > 0 ? tn('Merge {count} part', 'Merge {count} parts', merged.length) : t('Merge')}
             </Button>
           </div>
         )}
@@ -211,20 +209,20 @@ function DuplicateGroupCard({
 
       {unitClash && (
         <p className="border-b bg-destructive/5 px-4 py-2 text-xs text-destructive">
-          These parts are counted in different units ({[ ...units ].join(', ')}): leave out the ones that don't match.
+          {t('These parts are counted in different units ({units}): leave out the ones that don\'t match.', { units: [ ...units ].join(', ') })}
         </p>
       )}
 
       <Table>
         <TableHeader>
           <TableRow>
-            {canWrite && <TableHead className="w-10 pl-4"><span className="sr-only">Merge</span></TableHead>}
-            <TableHead className={canWrite ? undefined : 'pl-4'}>Part</TableHead>
-            <TableHead>Category · footprint</TableHead>
-            <TableHead className="text-right">Stock</TableHead>
-            <TableHead>History</TableHead>
-            <TableHead>Suppliers</TableHead>
-            {canWrite && <TableHead className="w-28 pr-4 text-right"><span className="sr-only">Keep</span></TableHead>}
+            {canWrite && <TableHead className="w-10 pl-4"><span className="sr-only">{t('Merge')}</span></TableHead>}
+            <TableHead className={canWrite ? undefined : 'pl-4'}>{t('Part')}</TableHead>
+            <TableHead>{t('Category · footprint')}</TableHead>
+            <TableHead className="text-right">{t('Stock')}</TableHead>
+            <TableHead>{t('History')}</TableHead>
+            <TableHead>{t('Suppliers')}</TableHead>
+            {canWrite && <TableHead className="w-28 pr-4 text-right"><span className="sr-only">{t('Keep')}</span></TableHead>}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -237,7 +235,7 @@ function DuplicateGroupCard({
                 {canWrite && (
                   <TableCell className="pl-4">
                     <Checkbox
-                      aria-label={`Merge ${part.name}`}
+                      aria-label={t('Merge {name}', { name: part.name })}
                       checked={isKept || isMerged}
                       disabled={isKept}
                       onCheckedChange={(checked) => toggle(part.id, checked === true)}
@@ -258,23 +256,23 @@ function DuplicateGroupCard({
                   </div>
                 </TableCell>
                 <TableCell className="text-right">
-                  <div className="font-mono text-sm">{part.total_quantity.toLocaleString()}{part.unit !== 'piece' ? ` ${part.unit}` : ''}</div>
+                  <div className="font-mono text-sm">{part.total_quantity.toLocaleString(intlLocale())}{part.unit !== 'piece' ? ` ${part.unit}` : ''}</div>
                   {part.locations.slice(0, 2).map((location) => (
                     <div key={location.path} className="text-xs text-muted-foreground">{location.path} ({location.quantity})</div>
                   ))}
-                  {part.locations.length > 2 && <div className="text-xs text-muted-foreground">+{part.locations.length - 2} more</div>}
+                  {part.locations.length > 2 && <div className="text-xs text-muted-foreground">{t('+{count} more', { count: part.locations.length - 2 })}</div>}
                 </TableCell>
                 <TableCell className="text-xs text-muted-foreground">
-                  <div>{plural(part.movements_count, 'movement')}</div>
+                  <div>{tn('{count} movement', '{count} movements', part.movements_count)}</div>
                   {(part.order_lines_count > 0 || part.project_lines_count > 0) && (
                     <div>
                       {[
-                        part.order_lines_count > 0 && plural(part.order_lines_count, 'order line'),
-                        part.project_lines_count > 0 && plural(part.project_lines_count, 'BOM line'),
+                        part.order_lines_count > 0 && tn('{count} order line', '{count} order lines', part.order_lines_count),
+                        part.project_lines_count > 0 && tn('{count} BOM line', '{count} BOM lines', part.project_lines_count),
                       ].filter(Boolean).join(' · ')}
                     </div>
                   )}
-                  <div>Added {new Date(part.created_at).toLocaleDateString()}</div>
+                  <div>{t('Added {date}', { date: new Date(part.created_at).toLocaleDateString(intlLocale()) })}</div>
                 </TableCell>
                 <TableCell className="max-w-48 whitespace-normal text-xs text-muted-foreground">
                   {part.suppliers.length > 0 ? part.suppliers.join(', ') : '—'}
@@ -282,10 +280,10 @@ function DuplicateGroupCard({
                 {canWrite && (
                   <TableCell className="pr-4 text-right">
                     {isKept ? (
-                      <Badge>Kept</Badge>
+                      <Badge>{t('Kept')}</Badge>
                     ) : (
                       <Button variant="outline" size="sm" onClick={() => { setKeepId(part.id); toggle(part.id, true) }}>
-                        Keep this one
+                        {t('Keep this one')}
                       </Button>
                     )}
                   </TableCell>
@@ -299,21 +297,20 @@ function DuplicateGroupCard({
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Merge {plural(merged.length, 'part')} into {kept.name}?</AlertDialogTitle>
+            <AlertDialogTitle>{tn('Merge {count} part into {name}?', 'Merge {count} parts into {name}?', merged.length, { name: kept.name })}</AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div className="space-y-2">
                 <p>
-                  {[ ...moved, 'tags, supplier links and files' ].join(', ')} move to {kept.name}. It keeps its own
-                  details; the ones it leaves blank are filled in from the others.
+                  {t('{items} move to {name}. It keeps its own details; the ones it leaves blank are filled in from the others.', { items: [ ...moved, t('tags, supplier links and files') ].join(', '), name: kept.name })}
                 </p>
-                <p>Then {merged.map((part) => part.name).join(', ')} {merged.length === 1 ? 'is' : 'are'} deleted. This can't be undone.</p>
+                <p>{tn('Then {names} is deleted. This can\'t be undone.', 'Then {names} are deleted. This can\'t be undone.', merged.length, { names: merged.map((part) => part.name).join(', ') })}</p>
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={submitting}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={submitting}>{t('Cancel')}</AlertDialogCancel>
             <AlertDialogAction disabled={submitting} onClick={(event) => { event.preventDefault(); merge() }}>
-              Merge
+              {t('Merge')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

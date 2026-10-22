@@ -40,6 +40,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { t, tn } from '@/lib/i18n'
 
 interface LoanLine {
   id: number
@@ -78,7 +79,7 @@ export default function LoanShow({ loan, storage_locations }: LoanShowProps) {
   const { canWrite } = usePermissions()
   const open = loan.status !== 'returned'
   const meta = LOAN_STATUS_META[loan.status]
-  const title = loan.reference ?? `Loan #${loan.id}`
+  const title = loan.reference ?? t('Loan #{id}', { id: loan.id })
 
   const [settle, setSettle] = useState<{ line: LoanLine; mode: SettleMode } | null>(null)
   const [quantity, setQuantity] = useState('1')
@@ -132,17 +133,17 @@ export default function LoanShow({ loan, storage_locations }: LoanShowProps) {
   return (
     <AppLayout
       header={
-        <PageHeader title={title} subtitle={`Lent to ${loan.borrower_name}`}>
+        <PageHeader title={title} subtitle={t('Lent to {name}', { name: loan.borrower_name })}>
           <Button variant="outline" size="sm" asChild>
             <Link href="/loans">
               <ArrowLeft className="size-4" />
-              Loans
+              {t('Loans')}
             </Link>
           </Button>
           {canWrite && open && (
             <Button size="sm" onClick={() => setReturnAllOpen(true)}>
               <PackageCheck className="size-4" />
-              Return everything
+              {t('Return everything')}
             </Button>
           )}
         </PageHeader>
@@ -156,35 +157,35 @@ export default function LoanShow({ loan, storage_locations }: LoanShowProps) {
         <Card>
           <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div>
-              <div className="text-xs text-muted-foreground">Status</div>
+              <div className="text-xs text-muted-foreground">{t('Status')}</div>
               <div className="mt-1 flex items-center gap-2">
                 <Badge variant="outline" className={meta.className}>{meta.label}</Badge>
                 {loan.status === 'overdue' && (
                   <span className="text-sm font-medium text-destructive">
-                    {loan.days_overdue} day{loan.days_overdue === 1 ? '' : 's'} late
+                    {tn('{count} day late', '{count} days late', loan.days_overdue)}
                   </span>
                 )}
               </div>
             </div>
             <div>
-              <div className="text-xs text-muted-foreground">Borrower</div>
+              <div className="text-xs text-muted-foreground">{t('Borrower')}</div>
               <div className="mt-1 text-sm font-medium">
                 {loan.borrower_name}
-                {!loan.borrower_is_member && <span className="ml-1.5 text-xs font-normal text-muted-foreground">(not a member)</span>}
+                {!loan.borrower_is_member && <span className="ml-1.5 text-xs font-normal text-muted-foreground">{t('(not a member)')}</span>}
               </div>
               {loan.borrower_contact && <div className="truncate text-xs text-muted-foreground">{loan.borrower_contact}</div>}
             </div>
             <div>
-              <div className="text-xs text-muted-foreground">Lent</div>
+              <div className="text-xs text-muted-foreground">{t('Lent')}</div>
               <div className="mt-1 text-sm">{formatDate(loan.created_at)}</div>
-              {loan.lent_by_name && <div className="text-xs text-muted-foreground">by {loan.lent_by_name}</div>}
+              {loan.lent_by_name && <div className="text-xs text-muted-foreground">{t('by {name}', { name: loan.lent_by_name })}</div>}
             </div>
             <div>
-              <div className="text-xs text-muted-foreground">{loan.closed_at ? 'Returned' : 'Due back'}</div>
+              <div className="text-xs text-muted-foreground">{loan.closed_at ? t('Returned') : t('Due back')}</div>
               <div className="mt-1 flex items-center gap-1 text-sm">
-                {loan.closed_at ? formatDate(loan.closed_at) : loan.due_on ? formatDate(loan.due_on) : 'No due date'}
+                {loan.closed_at ? formatDate(loan.closed_at) : loan.due_on ? formatDate(loan.due_on) : t('No due date')}
                 {canWrite && open && (
-                  <Button variant="ghost" size="icon-sm" aria-label="Edit loan" onClick={startEdit}>
+                  <Button variant="ghost" size="icon-sm" aria-label={t('Edit loan')} onClick={startEdit}>
                     <Pencil className="size-3.5 text-muted-foreground" />
                   </Button>
                 )}
@@ -192,7 +193,7 @@ export default function LoanShow({ loan, storage_locations }: LoanShowProps) {
             </div>
             {loan.notes && (
               <div className="sm:col-span-2 lg:col-span-4">
-                <div className="text-xs text-muted-foreground">Notes</div>
+                <div className="text-xs text-muted-foreground">{t('Notes')}</div>
                 <p className="mt-1 text-sm whitespace-pre-line">{loan.notes}</p>
               </div>
             )}
@@ -203,12 +204,12 @@ export default function LoanShow({ loan, storage_locations }: LoanShowProps) {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Item</TableHead>
-                <TableHead>Taken from</TableHead>
-                <TableHead className="text-right">Lent</TableHead>
-                <TableHead className="text-right">Returned</TableHead>
-                <TableHead className="text-right">Written off</TableHead>
-                <TableHead className="text-right">Still out</TableHead>
+                <TableHead>{t('Item')}</TableHead>
+                <TableHead>{t('Taken from')}</TableHead>
+                <TableHead className="text-right">{t('Lent')}</TableHead>
+                <TableHead className="text-right">{t('Returned')}</TableHead>
+                <TableHead className="text-right">{t('Written off')}</TableHead>
+                <TableHead className="text-right">{t('Still out')}</TableHead>
                 {canWrite && open && <TableHead className="w-0" />}
               </TableRow>
             </TableHeader>
@@ -232,11 +233,11 @@ export default function LoanShow({ loan, storage_locations }: LoanShowProps) {
                         <div className="flex justify-end gap-1">
                           <Button variant="outline" size="sm" onClick={() => startSettle(line, 'return')}>
                             <Undo2 className="size-4" />
-                            Return
+                            {t('Return')}
                           </Button>
                           <Button variant="ghost" size="sm" onClick={() => startSettle(line, 'write_off')}>
                             <XCircle className="size-4" />
-                            Write off
+                            {t('Write off')}
                           </Button>
                         </div>
                       )}
@@ -255,16 +256,16 @@ export default function LoanShow({ loan, storage_locations }: LoanShowProps) {
           {settle && (
             <form onSubmit={submitSettle}>
               <DialogHeader>
-                <DialogTitle>{settle.mode === 'return' ? 'Return' : 'Write off'} {settle.line.part.name}</DialogTitle>
+                <DialogTitle>{settle.mode === 'return' ? t('Return {name}', { name: settle.line.part.name }) : t('Write off {name}', { name: settle.line.part.name })}</DialogTitle>
                 <DialogDescription>
                   {settle.mode === 'return'
-                    ? 'The items go back into stock in the zone you pick.'
-                    : "For items that won't come back (lost, broken, used up). They already left stock when lent, so stock doesn't change."}
+                    ? t('The items go back into stock in the zone you pick.')
+                    : t('For items that won\'t come back (lost, broken, used up). They already left stock when lent, so stock doesn\'t change.')}
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4 py-4">
                 <div className="space-y-2">
-                  <Label htmlFor="settle-qty">Quantity</Label>
+                  <Label htmlFor="settle-qty">{t('Quantity')}</Label>
                   <Input
                     id="settle-qty"
                     type="number"
@@ -273,29 +274,29 @@ export default function LoanShow({ loan, storage_locations }: LoanShowProps) {
                     value={quantity}
                     onChange={(e) => setQuantity(e.target.value)}
                   />
-                  <p className="text-xs text-muted-foreground">{settle.line.outstanding} still out.</p>
+                  <p className="text-xs text-muted-foreground">{t('{count} still out.', { count: settle.line.outstanding })}</p>
                 </div>
                 {settle.mode === 'return' && (
                   <div className="space-y-2">
-                    <Label htmlFor="settle-zone">Return to</Label>
+                    <Label htmlFor="settle-zone">{t('Return to')}</Label>
                     <StorageLocationSelect
                       id="settle-zone"
                       locations={storage_locations}
                       value={locationId}
                       onValueChange={setLocationId}
-                      placeholder="Pick a zone"
+                      placeholder={t('Pick a zone')}
                     />
                   </div>
                 )}
               </div>
               <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setSettle(null)}>Cancel</Button>
+                <Button type="button" variant="outline" onClick={() => setSettle(null)}>{t('Cancel')}</Button>
                 <Button
                   type="submit"
                   variant={settle.mode === 'return' ? 'default' : 'destructive'}
                   disabled={processing || !(Number(quantity) > 0) || (settle.mode === 'return' && !locationId)}
                 >
-                  {settle.mode === 'return' ? 'Return' : 'Write off'}
+                  {settle.mode === 'return' ? t('Return') : t('Write off')}
                 </Button>
               </DialogFooter>
             </form>
@@ -308,26 +309,26 @@ export default function LoanShow({ loan, storage_locations }: LoanShowProps) {
         <DialogContent className="sm:max-w-md">
           <form onSubmit={submitEdit}>
             <DialogHeader>
-              <DialogTitle>Edit loan</DialogTitle>
-              <DialogDescription>Extend the due date, or update the contact and notes.</DialogDescription>
+              <DialogTitle>{t('Edit loan')}</DialogTitle>
+              <DialogDescription>{t('Extend the due date, or update the contact and notes.')}</DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="space-y-2">
-                <Label htmlFor="edit-due">Due back</Label>
+                <Label htmlFor="edit-due">{t('Due back')}</Label>
                 <Input id="edit-due" type="date" value={edit.due_on} onChange={(e) => setEdit({ ...edit, due_on: e.target.value })} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="edit-contact">Contact</Label>
+                <Label htmlFor="edit-contact">{t('Contact')}</Label>
                 <Input id="edit-contact" value={edit.borrower_contact} maxLength={255} onChange={(e) => setEdit({ ...edit, borrower_contact: e.target.value })} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="edit-notes">Notes</Label>
+                <Label htmlFor="edit-notes">{t('Notes')}</Label>
                 <Textarea id="edit-notes" rows={3} value={edit.notes} onChange={(e) => setEdit({ ...edit, notes: e.target.value })} />
               </div>
             </div>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>
-              <Button type="submit" disabled={processing}>Save</Button>
+              <Button type="button" variant="outline" onClick={() => setEditOpen(false)}>{t('Cancel')}</Button>
+              <Button type="submit" disabled={processing}>{t('Save')}</Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -337,15 +338,15 @@ export default function LoanShow({ loan, storage_locations }: LoanShowProps) {
       <AlertDialog open={returnAllOpen} onOpenChange={setReturnAllOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Return everything?</AlertDialogTitle>
+            <AlertDialogTitle>{t('Return everything?')}</AlertDialogTitle>
             <AlertDialogDescription>
-              The {outstanding} item{outstanding === 1 ? '' : 's'} still out go back into the zones they were taken from, and the loan closes.
+              {tn('The {count} item still out goes back into the zone it was taken from, and the loan closes.', 'The {count} items still out go back into the zones they were taken from, and the loan closes.', outstanding)}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t('Cancel')}</AlertDialogCancel>
             <AlertDialogAction onClick={() => router.post(`/loans/${loan.id}/return_all`, {}, { preserveScroll: true })}>
-              Return everything
+              {t('Return everything')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

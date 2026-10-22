@@ -15,6 +15,7 @@ import {
 
 import { LIFECYCLE_META, STOCK_STATUS_META, locationLabel, stockStatusKey } from './part-meta'
 import type { Part, PartListPagination } from './types'
+import { t } from '@/lib/i18n'
 
 // Small square thumbnail for a part row. The URL may be a hotlinked supplier
 // image (e.g. Mouser) that the browser can't load — fall back to the icon on
@@ -94,22 +95,22 @@ export function PartsTable({
     {totalCount === 0 ? (
       <div className="flex flex-col items-center justify-center p-16">
         <Package className="size-12 text-muted-foreground" />
-        <h3 className="mt-4 text-lg font-semibold">No parts yet</h3>
+        <h3 className="mt-4 text-lg font-semibold">{t('No parts yet')}</h3>
         <p className="mt-2 text-sm text-muted-foreground">
-          {canWrite ? 'Get started by adding your first part.' : 'No parts have been added yet.'}
+          {canWrite ? t('Get started by adding your first part.') : t('No parts have been added yet.')}
         </p>
         {canWrite && (
           <Button className="mt-4" onClick={onAddPart}>
             <Plus className="mr-2 size-4" />
-            Add Part
+            {t('Add Part')}
           </Button>
         )}
       </div>
     ) : total === 0 ? (
       <div className="flex flex-col items-center justify-center p-16 text-center">
-        <h3 className="text-lg font-semibold">No results found</h3>
+        <h3 className="text-lg font-semibold">{t('No results found')}</h3>
         <p className="mt-2 text-sm text-muted-foreground">
-          Try a different search or filter.
+          {t('Try a different search or filter.')}
         </p>
       </div>
     ) : (
@@ -121,35 +122,35 @@ export function PartsTable({
                 <Checkbox
                   checked={pageAllSelected ? true : pageSomeSelected ? 'indeterminate' : false}
                   onCheckedChange={togglePage}
-                  aria-label="Select page"
+                  aria-label={t('Select page')}
                 />
               </TableHead>
-              <TableHead className="py-2">Reference</TableHead>
-              <TableHead className="py-2">IPN</TableHead>
-              <TableHead className="py-2">Category</TableHead>
-              <TableHead className="py-2">Value</TableHead>
+              <TableHead className="py-2">{t('Reference')}</TableHead>
+              <TableHead className="py-2">{t('IPN')}</TableHead>
+              <TableHead className="py-2">{t('Category')}</TableHead>
+              <TableHead className="py-2">{t('Value')}</TableHead>
               {parameterColumns.map((column) => (
                 <TableHead key={`param-${column.id}`} className="py-2">{column.name}</TableHead>
               ))}
-              <TableHead className="py-2">Package</TableHead>
-              <TableHead className="py-2">Location</TableHead>
-              <TableHead className="py-2">Supplier</TableHead>
-              <TableHead className="py-2 text-right">Stock</TableHead>
-              <TableHead className="py-2">Status</TableHead>
-              <TableHead className="py-2 text-right">Stock Value</TableHead>
-              <TableHead className="w-[60px] py-2">Actions</TableHead>
+              <TableHead className="py-2">{t('Package')}</TableHead>
+              <TableHead className="py-2">{t('Location')}</TableHead>
+              <TableHead className="py-2">{t('Supplier')}</TableHead>
+              <TableHead className="py-2 text-right">{t('Stock')}</TableHead>
+              <TableHead className="py-2">{t('Status')}</TableHead>
+              <TableHead className="py-2 text-right">{t('Stock Value')}</TableHead>
+              <TableHead className="w-[60px] py-2">{t('Actions')}</TableHead>
             </TableRow>
             {pageAllSelected && !allFilteredSelected && total > pageIds.length && (
               <TableRow className="bg-muted hover:bg-muted">
                 <TableHead colSpan={12 + parameterColumns.length} className="py-1.5 text-center text-xs font-normal text-muted-foreground">
-                  All {pageIds.length} parts on this page are selected.{' '}
+                  {t('All {count} parts on this page are selected.', { count: pageIds.length })}{' '}
                   <Button
                     type="button"
                     variant="link"
                     onClick={selectAllMatching}
                     className="h-auto p-0 underline underline-offset-2 hover:no-underline"
                   >
-                    Select all {total} parts matching filters
+                    {t('Select all {count} parts matching filters', { count: total })}
                   </Button>
                 </TableHead>
               </TableRow>
@@ -240,7 +241,7 @@ export function PartsTable({
                   </TableCell>
                   <TableCell className="py-2.5">
                     {canWrite && (
-                      <Button variant="ghost" size="icon" onClick={() => onEditPart(part.id)} aria-label="Edit part">
+                      <Button variant="ghost" size="icon" onClick={() => onEditPart(part.id)} aria-label={t('Edit part')}>
                         <Pencil className="size-4" />
                       </Button>
                     )}
@@ -254,15 +255,15 @@ export function PartsTable({
         {pageCount > 1 && (
           <div className="sticky bottom-0 flex items-center justify-between border-t bg-background px-5 py-2.5 text-sm text-muted-foreground">
             <span>
-              {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, total)} of {total} · Page {page}/{pageCount}
+              {t('{from}–{to} of {total} · Page {page}/{pages}', { from: (page - 1) * pageSize + 1, to: Math.min(page * pageSize, total), total, page, pages: pageCount })}
             </span>
             <div className="flex gap-2">
               <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => onPageChange(page - 1)}>
                 <ChevronLeft className="size-4" />
-                Previous
+                {t('Previous')}
               </Button>
               <Button variant="outline" size="sm" disabled={page >= pageCount} onClick={() => onPageChange(page + 1)}>
-                Next
+                {t('Next')}
                 <ChevronRight className="size-4" />
               </Button>
             </div>

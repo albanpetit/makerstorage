@@ -23,10 +23,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { printOnPrinterWithToast } from '@/components/print-labels-dialog'
 
 import type { LabelPrinterMedia, LabelPrinterProtocol, LabelPrinterSettings } from './types'
+import { t } from '@/lib/i18n'
 
 const PROTOCOLS: Record<LabelPrinterProtocol, { name: string; hint: string }> = {
-  brother_ql: { name: 'Brother QL', hint: 'QL-710W, QL-720NW, QL-810W, QL-820NWB… (Wi-Fi or Ethernet models)' },
-  zpl: { name: 'Zebra (ZPL)', hint: 'Zebra and ZPL-compatible thermal printers with a network port' },
+  brother_ql: { name: 'Brother QL', get hint() { return t('QL-710W, QL-720NW, QL-810W, QL-820NWB… (Wi-Fi or Ethernet models)') } },
+  zpl: { name: 'Zebra (ZPL)', get hint() { return t('Zebra and ZPL-compatible thermal printers with a network port') } },
 }
 
 interface PrinterFormData {
@@ -80,20 +81,20 @@ function PrinterFormDialog({ printer, media, open, onOpenChange }: {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>{printer ? 'Edit printer' : 'Add a label printer'}</DialogTitle>
-          <DialogDescription>The server sends labels to the printer's network port, so it must be reachable from the server.</DialogDescription>
+          <DialogTitle>{printer ? t('Edit printer') : t('Add a label printer')}</DialogTitle>
+          <DialogDescription>{t('The server sends labels to the printer\'s network port, so it must be reachable from the server.')}</DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="flex min-w-0 flex-col gap-4">
           <Field>
-            <FieldLabel><Label htmlFor="printer-name">Name</Label></FieldLabel>
+            <FieldLabel><Label htmlFor="printer-name">{t('Name')}</Label></FieldLabel>
             <FieldContent>
-              <Input id="printer-name" placeholder="e.g. Workshop QL-820" value={data.name} onChange={(e) => set({ name: e.target.value })} />
+              <Input id="printer-name" placeholder={t('e.g. Workshop QL-820')} value={data.name} onChange={(e) => set({ name: e.target.value })} />
             </FieldContent>
             {error('name') && <FieldError>{error('name')}</FieldError>}
           </Field>
 
           <Field>
-            <FieldLabel><Label htmlFor="printer-protocol">Printer</Label></FieldLabel>
+            <FieldLabel><Label htmlFor="printer-protocol">{t('Printer')}</Label></FieldLabel>
             <FieldContent>
               <Select value={data.protocol} onValueChange={(value) => set({ protocol: value as LabelPrinterProtocol, length_mm: value === 'zpl' ? '25.4' : '29' })}>
                 <SelectTrigger id="printer-protocol" className="w-full"><SelectValue /></SelectTrigger>
@@ -109,14 +110,14 @@ function PrinterFormDialog({ printer, media, open, onOpenChange }: {
 
           <div className="grid grid-cols-[1fr_7rem] gap-3">
             <Field>
-              <FieldLabel><Label htmlFor="printer-host">IP address or host name</Label></FieldLabel>
+              <FieldLabel><Label htmlFor="printer-host">{t('IP address or host name')}</Label></FieldLabel>
               <FieldContent>
                 <Input id="printer-host" placeholder="192.168.1.50" value={data.host} onChange={(e) => set({ host: e.target.value })} />
               </FieldContent>
               {error('host') && <FieldError>{error('host')}</FieldError>}
             </Field>
             <Field>
-              <FieldLabel><Label htmlFor="printer-port">Port</Label></FieldLabel>
+              <FieldLabel><Label htmlFor="printer-port">{t('Port')}</Label></FieldLabel>
               <FieldContent>
                 <Input id="printer-port" inputMode="numeric" value={data.port} onChange={(e) => set({ port: e.target.value })} />
               </FieldContent>
@@ -127,7 +128,7 @@ function PrinterFormDialog({ printer, media, open, onOpenChange }: {
           {data.protocol === 'brother_ql' ? (
             <div className="grid grid-cols-[1fr_7rem] gap-3">
               <Field>
-                <FieldLabel><Label htmlFor="printer-media">Label roll</Label></FieldLabel>
+                <FieldLabel><Label htmlFor="printer-media">{t('Label roll')}</Label></FieldLabel>
                 <FieldContent>
                   <Select value={data.media} onValueChange={(value) => set({ media: value })}>
                     <SelectTrigger id="printer-media" className="w-full"><SelectValue /></SelectTrigger>
@@ -140,7 +141,7 @@ function PrinterFormDialog({ printer, media, open, onOpenChange }: {
               </Field>
               {continuous && (
                 <Field>
-                  <FieldLabel><Label htmlFor="printer-length">Length (mm)</Label></FieldLabel>
+                  <FieldLabel><Label htmlFor="printer-length">{t('Length (mm)')}</Label></FieldLabel>
                   <FieldContent>
                     <Input id="printer-length" inputMode="decimal" value={data.length_mm} onChange={(e) => set({ length_mm: e.target.value })} />
                   </FieldContent>
@@ -151,21 +152,21 @@ function PrinterFormDialog({ printer, media, open, onOpenChange }: {
           ) : (
             <div className="grid grid-cols-3 gap-3">
               <Field>
-                <FieldLabel><Label htmlFor="printer-width">Width (mm)</Label></FieldLabel>
+                <FieldLabel><Label htmlFor="printer-width">{t('Width (mm)')}</Label></FieldLabel>
                 <FieldContent>
                   <Input id="printer-width" inputMode="decimal" value={data.width_mm} onChange={(e) => set({ width_mm: e.target.value })} />
                 </FieldContent>
                 {error('width_mm') && <FieldError>{error('width_mm')}</FieldError>}
               </Field>
               <Field>
-                <FieldLabel><Label htmlFor="printer-length">Height (mm)</Label></FieldLabel>
+                <FieldLabel><Label htmlFor="printer-length">{t('Height (mm)')}</Label></FieldLabel>
                 <FieldContent>
                   <Input id="printer-length" inputMode="decimal" value={data.length_mm} onChange={(e) => set({ length_mm: e.target.value })} />
                 </FieldContent>
                 {error('length_mm') && <FieldError>{error('length_mm')}</FieldError>}
               </Field>
               <Field>
-                <FieldLabel><Label htmlFor="printer-dpi">Resolution</Label></FieldLabel>
+                <FieldLabel><Label htmlFor="printer-dpi">{t('Resolution')}</Label></FieldLabel>
                 <FieldContent>
                   <Select value={data.dpi} onValueChange={(value) => set({ dpi: value })}>
                     <SelectTrigger id="printer-dpi" className="w-full"><SelectValue /></SelectTrigger>
@@ -179,8 +180,8 @@ function PrinterFormDialog({ printer, media, open, onOpenChange }: {
           )}
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-            <Button type="submit" disabled={form.processing}>{printer ? 'Save' : 'Add printer'}</Button>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>{t('Cancel')}</Button>
+            <Button type="submit" disabled={form.processing}>{printer ? t('Save') : t('Add printer')}</Button>
           </DialogFooter>
         </form>
       </DialogContent>
@@ -205,35 +206,34 @@ export function PrintersSection({ printers, media, enabled }: {
   return (
     <div className="space-y-4">
       <div>
-        <h2 className="text-lg font-semibold">Label printers</h2>
+        <h2 className="text-lg font-semibold">{t('Label printers')}</h2>
         <p className="max-w-xl text-sm text-muted-foreground">
-          Print QR labels straight to a Brother QL or Zebra printer on your network, without the browser's print dialog.
-          Other printers (DYMO, USB-only models) keep printing through the browser.
+          {t('Print QR labels straight to a Brother QL or Zebra printer on your network, without the browser\'s print dialog. Other printers (DYMO, USB-only models) keep printing through the browser.')}
         </p>
       </div>
 
       {!enabled && (
         <Alert>
           <TriangleAlert />
-          <AlertTitle>Network printing is turned off on this server</AlertTitle>
-          <AlertDescription>The server's administrator set NETWORK_PRINTING=false. Labels print through the browser.</AlertDescription>
+          <AlertTitle>{t('Network printing is turned off on this server')}</AlertTitle>
+          <AlertDescription>{t('The server\'s administrator set NETWORK_PRINTING=false. Labels print through the browser.')}</AlertDescription>
         </Alert>
       )}
 
       <Card>
         <CardHeader className="flex flex-row items-start justify-between gap-4">
           <div className="space-y-1.5">
-            <CardTitle>Printers</CardTitle>
-            <CardDescription>Members pick one in the print dialog. Only addresses on a local network (10.x, 172.16–31.x, 192.168.x) and printer ports (9100–9109, 6101) are accepted.</CardDescription>
+            <CardTitle>{t('Printers')}</CardTitle>
+            <CardDescription>{t('Members pick one in the print dialog. Only addresses on a local network (10.x, 172.16–31.x, 192.168.x) and printer ports (9100–9109, 6101) are accepted.')}</CardDescription>
           </div>
           <Button type="button" size="sm" onClick={() => setEditing({ printer: null, key: Date.now() })}>
             <Plus className="size-4" />
-            Add printer
+            {t('Add printer')}
           </Button>
         </CardHeader>
         <CardContent>
           {printers.length === 0 ? (
-            <p className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">No printer yet.</p>
+            <p className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">{t('No printer yet.')}</p>
           ) : (
             <div className="divide-y">
               {printers.map((printer) => (
@@ -245,11 +245,11 @@ export function PrintersSection({ printers, media, enabled }: {
                       {PROTOCOLS[printer.protocol].name} · {printer.size} · <span className="font-mono">{printer.host}:{printer.port}</span>
                     </div>
                   </div>
-                  <Button type="button" variant="outline" size="sm" disabled={!enabled} onClick={() => testPrint(printer)}>Test print</Button>
-                  <Button type="button" variant="outline" size="icon-sm" aria-label={`Edit ${printer.name}`} onClick={() => setEditing({ printer, key: Date.now() })}>
+                  <Button type="button" variant="outline" size="sm" disabled={!enabled} onClick={() => testPrint(printer)}>{t('Test print')}</Button>
+                  <Button type="button" variant="outline" size="icon-sm" aria-label={t('Edit {name}', { name: printer.name })} onClick={() => setEditing({ printer, key: Date.now() })}>
                     <Pencil className="size-4" />
                   </Button>
-                  <Button type="button" variant="outline" size="icon-sm" className="text-destructive" aria-label={`Remove ${printer.name}`} onClick={() => setRemoving(printer)}>
+                  <Button type="button" variant="outline" size="icon-sm" className="text-destructive" aria-label={t('Remove {name}', { name: printer.name })} onClick={() => setRemoving(printer)}>
                     <Trash2 className="size-4" />
                   </Button>
                 </div>
@@ -272,16 +272,16 @@ export function PrintersSection({ printers, media, enabled }: {
       <AlertDialog open={removing !== null} onOpenChange={(open) => !open && setRemoving(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove {removing?.name}?</AlertDialogTitle>
-            <AlertDialogDescription>Members won't be able to print on it any more. Labels already printed are not affected.</AlertDialogDescription>
+            <AlertDialogTitle>{t('Remove {name}?', { name: removing?.name ?? '' })}</AlertDialogTitle>
+            <AlertDialogDescription>{t('Members won\'t be able to print on it any more. Labels already printed are not affected.')}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t('Cancel')}</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-white hover:bg-destructive/90"
               onClick={() => removing && router.delete(`/label_printers/${removing.id}`, { preserveScroll: true })}
             >
-              Remove
+              {t('Remove')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

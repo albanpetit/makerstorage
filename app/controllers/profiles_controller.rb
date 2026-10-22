@@ -11,7 +11,8 @@ class ProfilesController < ApplicationController
         lastname: current_user.lastname,
         email: current_user.email,
         email_confirmed: current_user.confirmed?,
-        unconfirmed_email: current_user.unconfirmed_email
+        unconfirmed_email: current_user.unconfirmed_email,
+        locale: current_user.locale
       },
       # Hidden until the address is confirmed: they're addressed to an email the
       # user hasn't yet proven is theirs.
@@ -57,13 +58,22 @@ class ProfilesController < ApplicationController
     redirect_to profile_path, notice: "#{authorization.oauth_client.name} disconnected."
   end
 
+  # UI language: "en", "fr", or blank to follow the browser.
+  def update_locale
+    current_user.update!(locale: params[:locale].presence_in(I18n.available_locales.map(&:to_s)))
+
+    I18n.with_locale(current_user.locale || browser_locale) do
+      redirect_to profile_path, notice: t("flash.profiles.locale_updated")
+    end
+  end
+
   # Per-organization opt-out of the email digest (NotificationDigestJob).
   def update_notifications
     membership = current_user.active_organization_memberships.find(params[:id])
     enabled = ActiveModel::Type::Boolean.new.cast(params[:email_notifications])
     membership.update!(email_notifications: enabled)
 
-    redirect_to profile_path, notice: "Email notifications #{enabled ? 'on' : 'off'} for #{membership.organization.name}."
+    redirect_to profile_path, notice: t(enabled ? "flash.profiles.notifications_on" : "flash.profiles.notifications_off", organization: membership.organization.name)
   end
 
   def update
@@ -96,33 +106,33 @@ class ProfilesController < ApplicationController
     if current_user.will_save_change_to_email? && !current_password_valid?(params.dig(:user, :current_password))
       current_user.errors.add(:current_password, params.dig(:user, :current_password).blank? ? :blank : :invalid)
       return redirect_to profile_path, inertia: { errors: inertia_errors(current_user, as: :user) },
-        alert: "Enter your current password to change your email."
+        alert: t("flash.profiles.enter_your_current_password_to_change")
     end
 
     if current_user.save
-      notice = "Profile updated successfully."
+      notice = t("flash.profiles.profile_updated_successfully")
       if current_user.saved_change_to_unconfirmed_email? && current_user.pending_reconfirmation?
-        notice += " Confirm #{current_user.unconfirmed_email} from the email we sent there to start signing in with it."
+        notice += t("flash.profiles.confirm_from_the_email_we_sent", unconfirmed_email: current_user.unconfirmed_email)
       end
       redirect_to profile_path, notice: notice
     else
-      redirect_to profile_path, inertia: { errors: inertia_errors(current_user, as: :user) }, alert: "Failed to update profile."
+      redirect_to profile_path, inertia: { errors: inertia_errors(current_user, as: :user) }, alert: t("flash.profiles.failed_to_update_profile")
     end
   end
 
   def update_password
     unless current_password_valid?(password_params[:current_password])
       current_user.errors.add(:current_password, password_params[:current_password].blank? ? :blank : :invalid)
-      return redirect_to profile_path, inertia: { errors: inertia_errors(current_user, as: :user) }, alert: "Failed to update password."
+      return redirect_to profile_path, inertia: { errors: inertia_errors(current_user, as: :user) }, alert: t("flash.profiles.failed_to_update_password")
     end
 
     if current_user.update_with_password(password_params)
       # Changing the password rotates the Devise auth token, which would sign
       # the user out — keep the current session alive.
       bypass_sign_in(current_user)
-      redirect_to profile_path, notice: "Password updated successfully."
+      redirect_to profile_path, notice: t("flash.profiles.password_updated_successfully")
     else
-      redirect_to profile_path, inertia: { errors: inertia_errors(current_user, as: :user) }, alert: "Failed to update password."
+      redirect_to profile_path, inertia: { errors: inertia_errors(current_user, as: :user) }, alert: t("flash.profiles.failed_to_update_password")
     end
   end
 

@@ -7,6 +7,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { typeMeta } from './zone-meta'
 import type { StorageLocationRecord } from './types'
 import type { ZoneTree } from './use-zone-tree'
+import { t, tn } from '@/lib/i18n'
 
 interface SubZoneGridProps {
   subZones: StorageLocationRecord[]
@@ -23,12 +24,12 @@ export function SubZoneGrid({ subZones, tree, onSelect, onAddHere }: SubZoneGrid
     <div>
       <div className="mb-2 flex items-center justify-between">
         <h2 className="text-sm font-semibold">
-          Sub-zones <span className="font-normal text-muted-foreground">· {subZones.length}</span>
+          {t('Sub-zones')} <span className="font-normal text-muted-foreground">· {subZones.length}</span>
         </h2>
         {canWrite && (
           <Button variant="ghost" size="sm" className="text-xs text-muted-foreground" onClick={onAddHere}>
             <Plus className="size-3.5" />
-            Add here
+            {t('Add here')}
           </Button>
         )}
       </div>
@@ -48,8 +49,8 @@ export function SubZoneGrid({ subZones, tree, onSelect, onAddHere }: SubZoneGrid
                     <div className="truncate text-sm font-semibold">{z.name}</div>
                     <div className="text-xs text-muted-foreground">
                       {meta.label}
-                      {childCount > 0 && ` · ${childCount} sub-zone${childCount > 1 ? 's' : ''}`}
-                      {` · ${agg.refs} ref${agg.refs !== 1 ? 's' : ''}`}
+                      {childCount > 0 && ` · ${tn('{count} sub-zone', '{count} sub-zones', childCount)}`}
+                      {` · ${tn('{count} ref', '{count} refs', agg.refs)}`}
                     </div>
                   </div>
                   <ArrowUpRight className="size-4 shrink-0 text-muted-foreground" />
@@ -60,7 +61,7 @@ export function SubZoneGrid({ subZones, tree, onSelect, onAddHere }: SubZoneGrid
         </div>
       ) : (
         <div className="rounded-lg border border-dashed p-5 text-center text-sm text-muted-foreground">
-          This zone has no sub-zone. It's a final storage location.
+          {t('This zone has no sub-zone. It\'s a final storage location.')}
         </div>
       )}
     </div>

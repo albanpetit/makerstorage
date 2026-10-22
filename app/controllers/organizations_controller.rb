@@ -12,11 +12,11 @@ class OrganizationsController < ApplicationController
     end
 
     session[:current_organization_id] = organization.id
-    redirect_to root_path, notice: "Organization \"#{organization.name}\" created."
+    redirect_to root_path, notice: t("flash.organizations.organization_created", organization_name: organization.name)
   rescue ActiveRecord::RecordInvalid
     redirect_back fallback_location: root_path,
                   inertia: { errors: inertia_errors(organization, as: :organization) },
-                  alert: "Failed to create organization."
+                  alert: t("flash.organizations.failed_to_create_organization")
   end
 
   def switch
@@ -24,37 +24,37 @@ class OrganizationsController < ApplicationController
 
     if organization
       session[:current_organization_id] = organization.id
-      redirect_back fallback_location: root_path, notice: "Switched to #{organization.name}"
+      redirect_back fallback_location: root_path, notice: t("flash.organizations.switched_to", organization_name: organization.name)
     else
-      redirect_back fallback_location: root_path, alert: "Organization not found"
+      redirect_back fallback_location: root_path, alert: t("flash.organizations.organization_not_found")
     end
   end
 
   def destroy
     organization = current_user.organizations.find_by(id: params[:id])
 
-    return redirect_back(fallback_location: root_path, alert: "Organization not found") unless organization
+    return redirect_back(fallback_location: root_path, alert: t("flash.organizations.organization_not_found")) unless organization
 
     unless current_user.owner_of?(organization)
-      return redirect_back(fallback_location: root_path, alert: "You must be an owner to delete an organization.")
+      return redirect_back(fallback_location: root_path, alert: t("flash.organizations.you_must_be_an_owner_to"))
     end
 
     if organization.personal?
-      return redirect_back(fallback_location: root_path, alert: "You can't delete a personal organization.")
+      return redirect_back(fallback_location: root_path, alert: t("flash.organizations.you_can_t_delete_a_personal"))
     end
 
     if current_user.organizations.count <= 1
-      return redirect_back(fallback_location: root_path, alert: "You can't delete your only organization.")
+      return redirect_back(fallback_location: root_path, alert: t("flash.organizations.you_can_t_delete_your_only"))
     end
 
     next_org = current_user.organizations.where.not(id: organization.id).first
     unless organization.destroy
-      reason = organization.errors.full_messages.to_sentence.presence || "Some of its data could not be removed."
-      return redirect_back(fallback_location: root_path, alert: "Could not delete \"#{organization.name}\". #{reason}")
+      reason = organization.errors.full_messages.to_sentence.presence || t("flash.organizations.some_of_its_data_could_not")
+      return redirect_back(fallback_location: root_path, alert: t("flash.organizations.could_not_delete", organization_name: organization.name, reason: reason))
     end
     session[:current_organization_id] = next_org&.id
 
-    redirect_to root_path, notice: "Organization \"#{organization.name}\" was deleted."
+    redirect_to root_path, notice: t("flash.organizations.organization_was_deleted", organization_name: organization.name)
   end
 
   # Deletes all of the organization's inventory data but keeps the
@@ -68,7 +68,7 @@ class OrganizationsController < ApplicationController
     count = organization.reset_data!
     redirect_to settings_path, notice: "\"#{organization.name}\" was reset (#{count} #{'part'.pluralize(count)} removed)."
   rescue ActiveRecord::RecordNotDestroyed, ActiveRecord::InvalidForeignKey
-    redirect_back fallback_location: settings_path, alert: "Could not reset \"#{organization.name}\". Some of its data could not be removed."
+    redirect_back fallback_location: settings_path, alert: t("flash.organizations.could_not_reset_some_of_its", organization_name: organization.name)
   end
 
   # Moves everything in this organization into another one the user also owns,
@@ -79,7 +79,7 @@ class OrganizationsController < ApplicationController
 
     target = current_user.organizations.find_by(id: params[:target_id])
     unless target && current_user.owner_of?(target)
-      return redirect_back(fallback_location: settings_path, alert: "Choose an organization you own to merge into.")
+      return redirect_back(fallback_location: settings_path, alert: t("flash.organizations.choose_an_organization_you_own_to"))
     end
     return unless confirmed_by_name?(source)
 
@@ -87,7 +87,7 @@ class OrganizationsController < ApplicationController
     session[:current_organization_id] = target.id
     redirect_to settings_path, notice: merge_notice(source, target, result)
   rescue OrganizationMerge::Error => e
-    redirect_back fallback_location: settings_path, alert: "Could not merge \"#{source.name}\". #{e.message}"
+    redirect_back fallback_location: settings_path, alert: t("flash.organizations.could_not_merge", source_name: source.name, message: e.message)
   end
 
   private
@@ -96,9 +96,9 @@ class OrganizationsController < ApplicationController
     organization = current_user.organizations.find_by(id: id)
 
     if organization.nil?
-      redirect_back fallback_location: root_path, alert: "Organization not found"
+      redirect_back fallback_location: root_path, alert: t("flash.organizations.organization_not_found")
     elsif !current_user.owner_of?(organization)
-      redirect_back fallback_location: root_path, alert: "You must be an owner of \"#{organization.name}\" to do this."
+      redirect_back fallback_location: root_path, alert: t("flash.organizations.you_must_be_an_owner_of", organization_name: organization.name)
     else
       return organization
     end
@@ -108,7 +108,7 @@ class OrganizationsController < ApplicationController
   def confirmed_by_name?(organization)
     return true if params[:confirmation].to_s.strip == organization.name.strip
 
-    redirect_back fallback_location: settings_path, alert: "Type the organization's name to confirm."
+    redirect_back fallback_location: settings_path, alert: t("flash.organizations.type_the_organization_s_name_to")
     false
   end
 

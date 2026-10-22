@@ -45,6 +45,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { t, intlLocale, tn, tx } from '@/lib/i18n'
 
 type Role = 'owner' | 'admin' | 'member' | 'viewer'
 
@@ -71,28 +72,28 @@ const AVATAR_COLORS = [
 
 const ROLE_META: Record<Role, { label: string; icon: typeof Crown; className: string; description: string; permissions: string[] }> = {
   owner: {
-    label: 'Owner', icon: Crown,
+    get label() { return t('Owner') }, icon: Crown,
     className: 'bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-400',
-    description: 'Full control, including billing and the team itself.',
-    permissions: [ 'Manage members & roles', 'Configure organization settings', 'Create / delete anything', 'Record stock movements' ],
+    get description() { return t('Full control, including billing and the team itself.') },
+    get permissions() { return [ t('Manage members & roles'), t('Configure organization settings'), t('Create / delete anything'), t('Record stock movements') ] },
   },
   admin: {
-    label: 'Admin', icon: Shield,
+    get label() { return t('Admin') }, icon: Shield,
     className: 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400',
-    description: 'Manages inventory, zones, and day-to-day operations.',
-    permissions: [ 'Manage members & roles', 'Create / edit components', 'Record stock movements', 'Manage storage zones' ],
+    get description() { return t('Manages inventory, zones, and day-to-day operations.') },
+    get permissions() { return [ t('Manage members & roles'), t('Create / edit components'), t('Record stock movements'), t('Manage storage zones') ] },
   },
   member: {
-    label: 'Member', icon: Wrench,
+    get label() { return t('Member') }, icon: Wrench,
     className: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400',
-    description: 'Everyday inventory and stock movement access.',
-    permissions: [ 'Create / edit components', 'Record stock movements', 'Scan & count stock', 'Cannot manage members' ],
+    get description() { return t('Everyday inventory and stock movement access.') },
+    get permissions() { return [ t('Create / edit components'), t('Record stock movements'), t('Scan & count stock'), t('Cannot manage members') ] },
   },
   viewer: {
-    label: 'Viewer', icon: Eye,
+    get label() { return t('Viewer') }, icon: Eye,
     className: 'bg-muted text-muted-foreground',
-    description: 'Read-only access for consulting and exporting data.',
-    permissions: [ 'View components & zones', 'Export data', 'Cannot edit inventory', 'Cannot manage members' ],
+    get description() { return t('Read-only access for consulting and exporting data.') },
+    get permissions() { return [ t('View components & zones'), t('Export data'), t('Cannot edit inventory'), t('Cannot manage members') ] },
   },
 }
 
@@ -106,7 +107,7 @@ function initials(name: string) {
 }
 
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString(undefined, { day: '2-digit', month: '2-digit', year: 'numeric' })
+  return new Date(iso).toLocaleDateString(intlLocale(), { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
 interface InviteFormData {
@@ -152,10 +153,10 @@ export default function MembersIndex({ members }: MembersPageProps) {
   const stats = useMemo(() => {
     const countBy = (role: Role) => members.filter((m) => m.role === role).length
     return [
-      { label: 'Members', value: String(members.length), className: '' },
-      { label: 'Owners', value: String(countBy('owner')), className: 'text-purple-600 dark:text-purple-400' },
-      { label: 'Admins', value: String(countBy('admin')), className: 'text-blue-600 dark:text-blue-400' },
-      { label: 'Viewers', value: String(countBy('viewer')), className: '' },
+      { label: t('Members'), value: String(members.length), className: '' },
+      { label: t('Owners'), value: String(countBy('owner')), className: 'text-purple-600 dark:text-purple-400' },
+      { label: t('Admins'), value: String(countBy('admin')), className: 'text-blue-600 dark:text-blue-400' },
+      { label: t('Viewers'), value: String(countBy('viewer')), className: '' },
     ]
   }, [members])
 
@@ -170,15 +171,15 @@ export default function MembersIndex({ members }: MembersPageProps) {
   return (
     <AppLayout
       header={
-        <PageHeader title="Members & Roles" subtitle="Manage your team's access to the workshop">
+        <PageHeader title={t('Members & Roles')} subtitle={t('Manage your team\'s access to the workshop')}>
           <Button size="sm" onClick={openInviteDialog}>
             <UserPlus className="size-4" />
-            Invite Member
+            {t('Invite Member')}
           </Button>
         </PageHeader>
       }
     >
-      <Head title="Members & Roles" />
+      <Head title={t('Members & Roles')} />
 
       <div className="space-y-6">
         <FlashMessages />
@@ -198,17 +199,17 @@ export default function MembersIndex({ members }: MembersPageProps) {
         {/* Members table */}
         <div>
           <h2 className="mb-2 text-sm font-semibold">
-            Team members <span className="font-normal text-muted-foreground">· {members.length}</span>
+            {t('Team members')} <span className="font-normal text-muted-foreground">· {members.length}</span>
           </h2>
           <Card className="gap-0 overflow-hidden py-0">
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted hover:bg-muted">
-                  <TableHead className="py-2">Member</TableHead>
-                  <TableHead className="py-2">Role</TableHead>
-                  <TableHead className="py-2">Joined</TableHead>
-                  <TableHead className="py-2">Status</TableHead>
-                  <TableHead className="w-[60px] py-2 text-right">Actions</TableHead>
+                  <TableHead className="py-2">{t('Member')}</TableHead>
+                  <TableHead className="py-2">{t('Role')}</TableHead>
+                  <TableHead className="py-2">{t('Joined')}</TableHead>
+                  <TableHead className="py-2">{t('Status')}</TableHead>
+                  <TableHead className="w-[60px] py-2 text-right">{t('Actions')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -224,7 +225,7 @@ export default function MembersIndex({ members }: MembersPageProps) {
                           <div className="min-w-0">
                             <div className="font-semibold">
                               {member.name}
-                              {member.is_you && <span className="ml-1.5 text-xs font-normal text-muted-foreground">· you</span>}
+                              {member.is_you && <span className="ml-1.5 text-xs font-normal text-muted-foreground">{t('· you')}</span>}
                             </div>
                             <div className="font-mono text-xs text-muted-foreground">{member.email}</div>
                           </div>
@@ -241,12 +242,12 @@ export default function MembersIndex({ members }: MembersPageProps) {
                         {member.pending ? (
                           <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
                             <span className={`size-1.5 rounded-full ${member.invitation_expired ? 'bg-muted-foreground' : 'bg-amber-500'}`} />
-                            {member.invitation_expired ? 'Invitation expired' : 'Invited'}
+                            {member.invitation_expired ? t('Invitation expired') : t('Invited')}
                           </span>
                         ) : (
                           <span className={`inline-flex items-center gap-1.5 text-sm ${member.active ? '' : 'text-muted-foreground'}`}>
                             <span className={`size-1.5 rounded-full ${member.active ? 'bg-emerald-500' : 'bg-muted-foreground'}`} />
-                            {member.active ? 'Active' : 'Inactive'}
+                            {member.active ? t('Active') : t('Inactive')}
                           </span>
                         )}
                       </TableCell>
@@ -258,7 +259,7 @@ export default function MembersIndex({ members }: MembersPageProps) {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuLabel className="text-xs text-muted-foreground">Change role</DropdownMenuLabel>
+                            <DropdownMenuLabel className="text-xs text-muted-foreground">{t('Change role')}</DropdownMenuLabel>
                             {ROLE_ORDER.map((role) => {
                               const RoleIcon = ROLE_META[role].icon
                               return (
@@ -277,7 +278,7 @@ export default function MembersIndex({ members }: MembersPageProps) {
                               onClick={() => setRemoveTarget(member)}
                             >
                               <X className="mr-2 size-4" />
-                              Remove from organization
+                              {t('Remove from organization')}
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -292,7 +293,7 @@ export default function MembersIndex({ members }: MembersPageProps) {
 
         {/* Roles reference */}
         <div>
-          <h2 className="mb-2 text-sm font-semibold">Roles & permissions</h2>
+          <h2 className="mb-2 text-sm font-semibold">{t('Roles & permissions')}</h2>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {roleCards.map(({ role, meta, count }) => (
               <Card key={role}>
@@ -303,7 +304,7 @@ export default function MembersIndex({ members }: MembersPageProps) {
                     </span>
                     <div>
                       <div className="font-semibold">{meta.label}</div>
-                      <div className="font-mono text-xs text-muted-foreground">{count} member{count !== 1 ? 's' : ''}</div>
+                      <div className="font-mono text-xs text-muted-foreground">{tn('{count} member', '{count} members', count)}</div>
                     </div>
                   </div>
                   <ul className="flex flex-col gap-1.5">
@@ -322,18 +323,18 @@ export default function MembersIndex({ members }: MembersPageProps) {
       <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Invite a member</DialogTitle>
-            <DialogDescription>They need an existing Makerstorage account, and join once they accept the invitation from their profile.</DialogDescription>
+            <DialogTitle>{t('Invite a member')}</DialogTitle>
+            <DialogDescription>{t('They need an existing Makerstorage account, and join once they accept the invitation from their profile.')}</DialogDescription>
           </DialogHeader>
           <form onSubmit={submitInvite} className="flex flex-col gap-4">
             <Field>
               <FieldLabel>
-                <Label>Email address</Label>
+                <Label>{t('Email address')}</Label>
               </FieldLabel>
               <FieldContent>
                 <Input
                   type="email"
-                  placeholder="firstname@workshop.io"
+                  placeholder={t('firstname@workshop.io')}
                   value={inviteForm.data.member.email}
                   onChange={(e) => inviteForm.setData('member', { ...inviteForm.data.member, email: e.target.value })}
                 />
@@ -342,7 +343,7 @@ export default function MembersIndex({ members }: MembersPageProps) {
             </Field>
             <Field>
               <FieldLabel>
-                <Label>Assigned role</Label>
+                <Label>{t('Assigned role')}</Label>
               </FieldLabel>
               <FieldContent>
                 <div className="flex flex-col gap-2">
@@ -372,10 +373,10 @@ export default function MembersIndex({ members }: MembersPageProps) {
               </FieldContent>
             </Field>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setInviteOpen(false)}>Cancel</Button>
+              <Button type="button" variant="outline" onClick={() => setInviteOpen(false)}>{t('Cancel')}</Button>
               <Button type="submit" disabled={inviteForm.processing || !inviteForm.data.member.email.includes('@')}>
                 <UserPlus className="size-4" />
-                Send invitation
+                {t('Send invitation')}
               </Button>
             </DialogFooter>
           </form>
@@ -386,15 +387,15 @@ export default function MembersIndex({ members }: MembersPageProps) {
       <AlertDialog open={!!removeTarget} onOpenChange={(open) => !open && setRemoveTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove this member?</AlertDialogTitle>
+            <AlertDialogTitle>{t('Remove this member?')}</AlertDialogTitle>
             <AlertDialogDescription>
-              <span className="font-semibold text-foreground">{removeTarget?.name}</span> will lose access to this organization.
+              {tx('{name} will lose access to this organization.', { name: <span className="font-semibold text-foreground">{removeTarget?.name}</span> })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t('Cancel')}</AlertDialogCancel>
             <AlertDialogAction onClick={confirmRemove} className="bg-destructive text-white hover:bg-destructive/90">
-              Remove
+              {t('Remove')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -1,0 +1,624 @@
+# Server-side strings: flash messages, model and service errors, statuses.
+# Keep app.en.yml and app.fr.yml in step (test/i18n_test.rb checks it).
+en:
+  activerecord:
+    errors:
+      messages:
+        already_counted: 'is already being counted in %{stocktake}: complete or discard it first'
+        another_part: must be another part
+        attachment_size: must be smaller than %{size}
+        attachment_type: must be a %{types} file
+        bag_codes_taken: 'would give bags codes already in use: %{codes}'
+        bag_held_by: '%{code} is %{part}''s bag: pick another bag'
+        bag_is_other_ipn: '%{code} is already another part''s IPN'
+        bag_other_organization: must be a bag of this organization
+        bag_parent_not_box: 'must be a box: a bag sits inside a box'
+        bag_parent_without_code: needs a code (A, B, C…) before it can hold bags
+        bag_taken: '%{code} is already holding another part'
+        box_code_needed: can't be blank while the box holds bags
+        descendant_parent: cannot be a descendant of this category
+        image_host: must be an https image from a supplier catalog (%{hosts})
+        more_than_lent: Can't return or write off more than was lent
+        needs_active_owner: Organization must have at least one active owner
+        needs_owner: Organization must have at least one owner
+        negative_for_outgoing: must be negative for an outgoing movement
+        negative_stock: would result in negative stock at this location
+        no_loan_lines: Add at least one item to lend
+        not_a_number_value: “%{value}” is not a number
+        not_a_value_in_unit: “%{value}” is not a value in %{unit}
+        not_in_stocktake: isn't part of this stocktake
+        not_users_organization: must be one of the user's organizations
+        or_designation_required: or a designation is required
+        order_status_final: can't change once the order is %{status}
+        organization_member: must be a member of this organization
+        own_parent: cannot be itself
+        positive_for_incoming: must be positive for an incoming movement
+        printer_port: must be a printer port (9100–9109 or 6101)
+        received_only_by_marking: can only become received by marking the order received
+        redirect_uris_insecure: must be https URIs, or http on localhost
+        redirect_uris_missing: must list at least one URI
+        redirect_uris_too_many: can list at most %{count} URIs
+        same_organization: must belong to the same organization
+        same_organization_as_category: must belong to the same organization as the category
+        same_organization_as_part: must belong to the same organization as the part
+        too_many_files: can't be more than %{count} files
+        under_own_subzone: cannot be moved under one of its own sub-zones
+        values_not_in_unit:
+          one: '%{count} value of %{name} is not a number in %{unit} (%{examples}).'
+          other: '%{count} values of %{name} are not a number in %{unit} (%{examples}).'
+        values_not_numbers:
+          one: '%{count} value of %{name} is not a number (%{examples}).'
+          other: '%{count} values of %{name} are not a number (%{examples}).'
+  errors:
+    backup:
+      data_too_large: '%{file} is too large.'
+      inconsistent: 'The backup could not be restored (%{error}): its data is inconsistent.'
+      invalid_json: '%{file} is not valid JSON.'
+      invalid_settings: 'The organization settings are invalid: %{errors}.'
+      newer_version: This backup was made by a newer version of MakerStorage (format %{version}). Update this install first.
+      no_data: 'The archive has no %{file}: is it a MakerStorage backup?'
+      no_organization: The backup has no organization data.
+      not_an_archive: The file is not a valid backup archive.
+      too_large: The file is larger than %{size}.
+      too_many_files: The archive holds too many files.
+      wrong_format: The archive is not a MakerStorage organization backup.
+    bom:
+      too_large: That file is too large to import (the limit is %{size}).
+    digikey:
+      account_not_connected: DigiKey account is not connected.
+      api_token_unreadable: DigiKey API returned an unreadable token response
+      api_unreachable: 'Could not reach DigiKey API: %{error}'
+      api_unreadable: DigiKey API returned an unreadable response
+      authorization_rejected: DigiKey rejected the authorization. Check the Client ID/Secret and that the callback URL matches your DigiKey app.
+      credentials_rejected: DigiKey rejected the credentials. Check the Client ID and Secret in Settings → Integrations.
+      invalid_sales_order: Enter a DigiKey sales order number (letters, digits, and dashes only).
+      no_access_token: DigiKey did not return an access token.
+      order_api_unreachable: 'Could not reach DigiKey Order API: %{error}'
+      order_api_unreadable: DigiKey Order API returned an unreadable response
+      token_unreadable: DigiKey returned an unreadable token response
+      unreachable: 'Could not reach DigiKey: %{error}'
+    github:
+      file_too_large: '%{name} is too large to keep.'
+      files_too_large: The KiCad files in %{location} are too large to keep (over %{size} zipped).
+      forbidden: GitHub refused access to %{repository}.
+      forbidden_with_token: 'GitHub refused access to %{repository}: check that the token can read its contents.'
+      no_kicad_files: No KiCad files in %{location}.
+      not_found: Could not find %{repository} on GitHub%{hint}.
+      not_linked: This project isn't linked to a GitHub repository.
+      private_hint: (a private repository needs a GitHub token in Settings → Integrations)
+      rate_limited: GitHub's rate limit is reached. Try again later.
+      rate_limited_without_token: 'GitHub''s rate limit is reached (60 requests an hour without a token: add one in Settings → Integrations). Try again later.'
+      ref_not_found: Could not find %{repository} at “%{ref}” on GitHub. Check the repository and the branch, tag or commit%{hint}.
+      status: GitHub returned %{code} for %{repository}.
+      token_rejected: GitHub rejected the token. Check it in Settings → Integrations.
+      too_large: '%{repository} is too large to download (over %{size}).'
+      too_many_files: '%{repository} has too many files to read.'
+      too_many_kicad_files: '%{location} holds more than %{count} KiCad files.'
+      unexpected_answer: GitHub returned an unexpected answer for %{repository}.
+      unexpected_redirect: GitHub redirected the download somewhere unexpected.
+      unreachable: 'Could not reach GitHub: %{error}'
+      unreadable_archive: Could not read the archive GitHub sent for %{repository}.
+    kicad_files:
+      not_a_schematic: '%{name} isn''t a KiCad schematic this version can read (KiCad 6 or later).'
+      not_a_zip: Could not open %{name} as a ZIP archive.
+      not_kicad: '%{name} isn''t a KiCad file: attach .kicad_pro, .kicad_sch, .kicad_pcb… files or a ZIP of the project.'
+      too_large: '%{name} is too large (the limit is %{size}).'
+      too_large_for_bom: '%{name} is too large to read the BOM from.'
+      too_many: 'A project holds at most %{count} files: ZIP the project folder instead.'
+      zip_too_many: '%{name} has too many files.'
+    label_printing:
+      bad_port: Port %{port} isn't a printer port (%{first}–%{last} or %{other}).
+      disabled: Network printing is turned off on this server.
+      host_not_found: '%{host} could not be found on the network.'
+      not_local: '%{host} isn''t a local network address (10.x, 172.16–31.x, 192.168.x).'
+      unreachable: Could not reach the printer at %{host}:%{port} (%{error}).
+    lcsc:
+      failed: 'LCSC search failed: %{error}'
+      refused: LCSC refused the search (HTTP %{code}). LCSC has no public API, so its catalog may block or change these requests.
+      unreachable: 'Could not reach LCSC: %{error}'
+      unreadable: LCSC returned an unreadable response.
+      unreadable_changed: LCSC returned an unreadable response. Its catalog may have changed; LCSC has no public API.
+    loans:
+      closed: This loan is already closed.
+      enter_quantity: Enter a quantity to settle.
+      not_on_loan: That item isn't on this loan.
+      only_outstanding: Only %{count} of %{reference} still out.
+      pick_return_zone: Pick a storage zone to return %{reference} to.
+      positive: Quantities must be positive.
+      zone_other_organization: That storage zone isn't in this organization.
+    mouser:
+      api_key_rejected: Mouser rejected the API key. Check it in Settings → Integrations (it must be a Search API key).
+      api_status: Mouser API returned %{code}
+      api_unreachable: 'Could not reach Mouser API: %{error}'
+      api_unreadable: Mouser API returned an unreadable response
+      order_api_status: Mouser Order API returned %{code}
+      order_api_unreachable: 'Could not reach Mouser Order API: %{error}'
+      order_api_unreadable: Mouser Order API returned an unreadable response
+      order_key_missing: No Mouser Order API key is configured.
+    organization_merge:
+      into_itself: An organization can't be merged into itself.
+      personal: A personal organization can't be merged into another one.
+      source_not_deleted: '%{name} could not be deleted once its data was moved.'
+    part_merge:
+      failed: 'The parts could not be merged: %{error}'
+      other_organization: Parts of another organization can't be merged.
+      pick_one: Pick at least one other part to merge.
+      units: Parts counted in different units (%{units}) can't be merged.
+    stocktakes:
+      already_completed: This stocktake is already completed.
+      another: another stocktake
+    supplier_catalog:
+      not_configured: No supplier catalog is configured for this organization
+  flash:
+    alerts:
+      no_alert_has_a_preferred_supplier: No alert has a preferred supplier to order from.
+      no_purchase_order_was_created: 'No purchase order was created: %{errors}.'
+      order_marked_as: Order %{reference} marked as %{status}.
+      order_marked_as_received: Order %{reference} marked as received.
+      these_parts_are_already_covered_by: These parts are already covered by open purchase orders.
+      this_order_is_already_received_or: This order is already received or cancelled.
+    application:
+      you_don_t_have_access_to: You don't have access to this organization
+      you_don_t_have_admin_access: You don't have admin access to this organization
+      you_must_be_an_owner_to: You must be an owner to perform this action
+      you_re_not_an_active_member: You're not an active member of any organization. Create one, or ask an admin to reactivate your access.
+      your_role_is_read_only_for: Your role is read-only for this organization.
+    backups:
+      confirm_your_email_address_before_restoring: Confirm your email address before restoring a backup.
+      could_not_restore_the_backup: Could not restore the backup. %{message}
+      files:
+        one: '%{count} file'
+        other: '%{count} files'
+      please_choose_a_backup_file_to: Please choose a backup file to restore.
+      records:
+        one: '%{count} record'
+        other: '%{count} records'
+      restored: Restored "%{name}" (%{records}, %{files}).
+      skipped_files:
+        one: ' Skipped %{count} file that couldn''t be restored.'
+        other: ' Skipped %{count} files that couldn''t be restored.'
+      too_many_restores_please_try_again: Too many restores. Please try again later.
+    categories:
+      category_created: Category "%{category_name}" created.
+      category_deleted_successfully: Category deleted successfully.
+      category_updated_successfully: Category updated successfully.
+      deleted_and_moved:
+        one: Category deleted. %{count} part moved to "%{category}".
+        other: Category deleted. %{count} parts moved to "%{category}".
+      failed_to_create_category: Failed to create category.
+      failed_to_update_category: Failed to update category.
+      select_another_category_to_move_this: Select another category to move this category's parts to before deleting.
+    footprints:
+      failed_to_create_footprint: Failed to create footprint.
+      failed_to_update_footprint: Failed to update footprint.
+      footprint_created_successfully: Footprint created successfully.
+      footprint_deleted_successfully: Footprint deleted successfully.
+      footprint_updated_successfully: Footprint updated successfully.
+    invitations:
+      confirm_your_email_address_to_answer: Confirm your email address to answer invitations.
+      invitation_to_declined: Invitation to %{organization_name} declined.
+      you_joined: You joined %{organization_name}.
+    label_printers:
+      add_failed: Failed to add the printer.
+      added: Printer "%{name}" added.
+      removed: Printer "%{name}" removed.
+      update_failed: Failed to update the printer.
+      updated: Printer updated.
+    loans:
+      check_items: check the items and quantities.
+      closed: 'Everything is back: loan closed.'
+      item: Item
+      not_enough_stock: '%{reference}: not enough stock in %{zone}'
+      not_recorded: 'The loan wasn''t recorded: %{errors}'
+      recorded: 'Loan %{reference} recorded: items taken out of stock.'
+      return_recorded: Return recorded.
+      updated: Loan updated.
+    members:
+      choose_a_valid_role: Choose a valid role.
+      failed_to_add_member: Failed to add member.
+      invitation_sent: If %{email} has a Makerstorage account, they've been invited and will join once they accept it from their profile. Otherwise, ask them to sign up first, then invite them again.
+      member_removed_from_the_organization: Member removed from the organization.
+      only_an_owner_can_assign_or: Only an owner can assign or change the owner role.
+      only_an_owner_can_remove_another: Only an owner can remove another owner.
+      role_updated_successfully: Role updated successfully.
+    oauth_authorizations:
+      choose_one_of_your_organizations: Choose one of your organizations.
+      this_application_asked_to_send_you: This application asked to send you back to an address it never registered.
+      this_application_isn_t_registered_with: This application isn't registered with MakerStorage. Add the connector again from your client.
+      you_re_not_an_active_member: You're not an active member of any organization.
+    oauth_digikey:
+      add_your_digikey_client_id_and: Add your DigiKey Client ID and Secret before connecting an account.
+      digikey_account_connected: DigiKey account connected.
+      digikey_account_disconnected: DigiKey account disconnected.
+      digikey_authorization_could_not_be_verified: DigiKey authorization could not be verified. Please try connecting again.
+      digikey_authorization_was_cancelled: DigiKey authorization was cancelled.
+      you_switched_organization_during_the_digikey: You switched organization during the DigiKey connection. Please connect again from this organization.
+    order_lines:
+      a_chosen_storage_zone_doesn_t: A chosen storage zone doesn't belong to this organization.
+      added_to_the_order: Added %{reference} to the order.
+      choose_a_category_for_the_new: Choose a category for the new component.
+      choose_a_part_to_add_to: Choose a part to add to this order.
+      could_not_add_that_component: Could not add that component.
+      could_not_add_that_part: Could not add that part.
+      could_not_create_the_component: Could not create the component.
+      could_not_update_that_line: Could not update that line.
+      line_removed: Line removed.
+      line_updated: Line updated.
+      the_storage_split_must_add_up: The storage split must add up to the line quantity (%{quantity}).
+      this_order_is_and_can_no: This order is %{status} and can no longer be edited.
+    orders:
+      add_a_mouser_order_api_key: Add a Mouser Order API key in Settings → Integrations to build a cart.
+      add_a_mouser_order_api_key_2: Add a Mouser Order API key in Settings → Integrations to import orders.
+      checkout: ' Checkout: %{checkout_url}'
+      choose_a_storage_zone_to_assign: Choose a storage zone to assign.
+      choose_a_supplier_to_create_an: Choose a supplier to create an order.
+      connect_your_digikey_account_in_settings: Connect your DigiKey account in Settings → Integrations to import orders.
+      could_not_create_order: Could not create order.
+      could_not_import_that_order: 'Could not import that order: %{errors}.'
+      could_not_update_order: Could not update order.
+      enter_an_order_number_to_import: Enter an order number to import.
+      imported_from_project:
+        one: Imported %{count} line from %{project}.
+        other: Imported %{count} lines from %{project}.
+      lines_without_mouser_number_skipped:
+        one: ' %{count} line without a Mouser part number was skipped.'
+        other: ' %{count} lines without a Mouser part number were skipped.'
+      mouser_cart_built:
+        one: Built a Mouser cart with %{count} line.
+        other: Built a Mouser cart with %{count} lines.
+      mouser_cart_built_with_total:
+        one: Built a Mouser cart with %{count} line totalling %{total}.
+        other: Built a Mouser cart with %{count} lines totalling %{total}.
+      no_line_has_a_mouser_part: No line has a Mouser part number. Add components via a Mouser catalog search first.
+      no_stock_recorded:
+        one: No stock was recorded for %{parts} — it has no storage location. Add a location and record the movement manually.
+        other: No stock was recorded for %{parts} — they have no storage location. Add a location and record the movement manually.
+      nothing_to_import_from_no_matched: Nothing to import from %{project_name} — no matched line needed ordering.
+      nothing_was_imported: 'Nothing was imported: %{errors}.'
+      order_created: Order %{reference} created.
+      order_deleted: Order deleted.
+      order_marked_as: Order %{reference} marked as %{status}.
+      order_marked_as_received: Order %{reference} marked as received.
+      order_updated: Order updated.
+      storage_zone_set:
+        one: Storage zone set for %{count} line.
+        other: Storage zone set for %{count} lines.
+      supplier_order_imported:
+        one: Imported %{supplier} order %{reference} with %{count} line.
+        other: Imported %{supplier} order %{reference} with %{count} lines.
+      this_order_is_already_received_or: This order is already received or cancelled.
+      this_order_is_and_can_no: This order is %{status} and can no longer be edited.
+      unmatched_bom_lines_skipped:
+        one: '%{count} BOM line had no matching part and was skipped.'
+        other: '%{count} BOM lines had no matching part and were skipped.'
+      use_mark_received_to_receive_an: Use “Mark received” to receive an order so stock is credited.
+    organizations:
+      choose_an_organization_you_own_to: Choose an organization you own to merge into.
+      could_not_delete: Could not delete "%{organization_name}". %{reason}
+      could_not_merge: Could not merge "%{source_name}". %{message}
+      could_not_reset_some_of_its: Could not reset "%{organization_name}". Some of its data could not be removed.
+      failed_to_create_organization: Failed to create organization.
+      organization_created: Organization "%{organization_name}" created.
+      organization_not_found: Organization not found
+      organization_was_deleted: Organization "%{organization_name}" was deleted.
+      some_of_its_data_could_not: Some of its data could not be removed.
+      switched_to: Switched to %{organization_name}
+      type_the_organization_s_name_to: Type the organization's name to confirm.
+      you_can_t_delete_a_personal: You can't delete a personal organization.
+      you_can_t_delete_your_only: You can't delete your only organization.
+      you_must_be_an_owner_of: You must be an owner of "%{organization_name}" to do this.
+      you_must_be_an_owner_to: You must be an owner to delete an organization.
+    parameter_definitions:
+      categories_templated:
+        one: '%{count} category given a template'
+        other: '%{count} categories given a template'
+      created: Parameter "%{name}" created.
+      deleted: Parameter "%{name}" deleted.
+      deleted_with_values:
+        one: Parameter "%{name}" deleted with its %{count} part value.
+        other: Parameter "%{name}" deleted with its %{count} part values.
+      parameters_added:
+        one: '%{count} parameter added'
+        other: '%{count} parameters added'
+      standard_failed: 'Could not add the standard parameters: %{errors}'
+      standard_installed: '%{added}, %{categories}, %{values} filled in from existing fields.'
+      updated: Parameter updated.
+      values_filled:
+        one: '%{count} part value'
+        other: '%{count} part values'
+    part_duplicates:
+      dismissed: '%{count} parts won''t be suggested as duplicates of each other again.'
+      merged:
+        one: Merged %{count} part into %{name}.
+        other: Merged %{count} parts into %{name}.
+      moved: Moved %{items}.
+      moved_movements:
+        one: '%{count} movement'
+        other: '%{count} movements'
+      moved_order_lines:
+        one: '%{count} order line'
+        other: '%{count} order lines'
+      moved_project_lines:
+        one: '%{count} project line'
+        other: '%{count} project lines'
+      moved_stock_rows:
+        one: '%{count} stock row'
+        other: '%{count} stock rows'
+      pick_two: Pick at least two parts.
+    part_suppliers:
+      supplier_added_successfully: Supplier added successfully.
+      supplier_removed_successfully: Supplier removed successfully.
+      supplier_updated_successfully: Supplier updated successfully.
+    parts:
+      bulk_category:
+        one: Set category to %{category} for %{count} part.
+        other: Set category to %{category} for %{count} parts.
+      bulk_moved:
+        one: Relocated stock for %{count} part to %{location}.
+        other: Relocated stock for %{count} parts to %{location}.
+      bulk_status:
+        one: Set status to %{status} for %{count} part.
+        other: Set status to %{status} for %{count} parts.
+      bulk_supplier:
+        one: Assigned %{supplier} as preferred supplier for %{count} part.
+        other: Assigned %{supplier} as preferred supplier for %{count} parts.
+      bulk_tags_added:
+        one: Added %{tags} to %{count} part.
+        other: Added %{tags} to %{count} parts.
+      bulk_tags_removed:
+        one: Removed %{tags} from %{count} part.
+        other: Removed %{tags} from %{count} parts.
+      choose_a_category: Choose a category.
+      choose_a_destination_location: Choose a destination location.
+      choose_a_supplier: Choose a supplier.
+      choose_a_valid_status: Choose a valid status.
+      choose_at_least_one_tag: Choose at least one tag.
+      could_not_parse_that_file_as: Could not parse that file as CSV.
+      enter_a_part_number_to_search: Enter a part number to search.
+      import_complete_created_updated_skipped: 'Import complete: %{created} created, %{updated} updated, %{skipped} skipped.'
+      no_supplier_catalog_is_configured_add: No supplier catalog is configured. Add a Mouser or DigiKey key, or turn on LCSC, in Settings.
+      no_supplier_was_assigned: 'No supplier was assigned: %{errors}.'
+      part_created_successfully: Part created successfully.
+      part_deleted_successfully: Part deleted successfully.
+      part_updated_successfully: Part updated successfully.
+      please_choose_a_csv_file_to: Please choose a CSV file to import.
+      quantity_is_too_large: Quantity is too large
+      select_at_least_one_part: Select at least one part.
+      tags:
+        one: '%{count} tag'
+        other: '%{count} tags'
+    profiles:
+      confirm_from_the_email_we_sent: ' Confirm %{unconfirmed_email} from the email we sent there to start signing in with it.'
+      enter_your_current_password_to_change: Enter your current password to change your email.
+      failed_to_update_password: Failed to update password.
+      failed_to_update_profile: Failed to update profile.
+      locale_updated: Language updated.
+      notifications_off: Email notifications off for %{organization}.
+      notifications_on: Email notifications on for %{organization}.
+      password_updated_successfully: Password updated successfully.
+      profile_updated_successfully: Profile updated successfully.
+    project_files:
+      added:
+        one: Added %{count} file.
+        other: Added %{count} files.
+      bom_updated:
+        one: 'BOM updated from the schematic: %{count} line. Review the matches below.'
+        other: 'BOM updated from the schematic: %{count} lines. Review the matches below.'
+      choose_files: Please choose files to add.
+      imported_lines:
+        one: Imported %{count} BOM line from the schematic.
+        other: Imported %{count} BOM lines from the schematic.
+      no_schematic: No schematic (.kicad_sch) with components among this project's files.
+      removed: '%{name} removed.'
+    project_github:
+      bom_unchanged: The BOM hasn't changed.
+      enter_repository: Enter a GitHub repository (owner/name or its URL).
+      fetched:
+        one: Fetched %{count} KiCad file from %{location} (%{sha}).
+        other: Fetched %{count} KiCad files from %{location} (%{sha}).
+      no_schematic: No schematic with components among them, so the BOM is unchanged.
+      unlinked: Unlinked from GitHub. The files fetched so far stay with the project.
+      up_to_date: Already up to date with %{location} (%{sha}).
+    project_lines:
+      added: Line added.
+      line_removed: Line removed.
+      line_updated: Line updated.
+    projects:
+      build_kits_between: Build between 1 and %{max} kits at a time.
+      could_not_deduct_stock: 'Could not deduct stock: %{errors}.'
+      could_not_import_that_bom: Could not import that BOM.
+      could_not_parse_that_file_as: Could not parse that file as CSV.
+      could_not_read_that_file_as: Could not read that file as a KiCad BOM (XML).
+      created_empty: Project created. Add its parts below.
+      imported_bom_lines_review_the_matches: Imported %{project_lines_count} BOM lines. Review the matches below.
+      matches_confirmed: Matches confirmed.
+      matches_confirmed_and_stock_reserved: Matches confirmed and stock reserved.
+      name_or_file: Give the project a name, or choose a BOM file to import.
+      no_purchase_order_was_created: 'No purchase order was created: %{errors}.'
+      not_enough_stock_for_kits: There isn't enough stock to build %{kits} kits.
+      nothing_left_to_order_short_parts: 'Nothing left to order: short parts have no preferred supplier or are already on open purchase orders.'
+      only_a_confirmed_project_can_reserve: Only a confirmed project can reserve stock, with reservations turned on in Settings.
+      please_choose_a_bom_file_to: Please choose a BOM file to import.
+      project_deleted: Project deleted.
+      reservation_released: Reservation released.
+      revision_created: Revision %{revision} created from %{source}.
+      stock_deducted:
+        one: Stock deducted for %{count} reference.
+        other: Stock deducted for %{count} references.
+      stock_deducted_kits:
+        one: Stock deducted for %{count} reference (%{kits} kits).
+        other: Stock deducted for %{count} references (%{kits} kits).
+      stock_reserved_for_this_project: Stock reserved for this project.
+      that_file_has_no_usable_bom: That file has no usable BOM rows.
+      this_kit_was_already_built_from: This kit was already built from this page. Reload to build another one.
+      this_project_isn_t_buildable_yet: This project isn't buildable yet — resolve shortfalls and unmatched lines first.
+      updated: Project updated.
+    purchase_orders_created:
+      one: Created %{count} purchase order for %{references}.
+      other: Created %{count} purchase orders for %{references}.
+    references:
+      one: '%{count} reference'
+      other: '%{count} references'
+    scans:
+      bag_receive_failed: Failed to receive the bag.
+      bag_received: Received %{quantity} × %{reference} into %{zone}.
+      failed_to_record_movement: Failed to record movement.
+      movement_recorded_successfully: Movement recorded successfully.
+    settings:
+      added_to_your_suppliers: ' Added %{errors} to your suppliers.'
+      failed_to_update_settings: Failed to update settings.
+      ipns_reassigned:
+        one: Updated the IPN of %{count} part.
+        other: Updated the IPN of %{count} parts.
+      kicad_token_revoked: KiCad library access revoked. KiCad can no longer read your parts.
+      settings_updated_successfully: Settings updated successfully.
+      turn_on_an_automatic_numbering_mode: Turn on an automatic numbering mode before reassigning IPNs.
+    stock_movements:
+      failed_to_record_movement: Failed to record movement.
+      movement_recorded_successfully: Movement recorded successfully.
+    stocktakes:
+      adjust_detail: '%{reference} in %{zone}: '
+      completed_adjusted:
+        one: 'Stocktake completed: %{count} adjustment recorded.'
+        other: 'Stocktake completed: %{count} adjustments recorded.'
+      completed_kept: A completed stocktake is kept with the adjustments it made.
+      completed_matched: 'Stocktake completed: stock matched the count.'
+      could_not_add_part: 'Could not add that part: %{errors}.'
+      could_not_save_count: 'Could not save that count: %{errors}.'
+      could_not_start: 'Could not start the stocktake: %{errors}.'
+      counting: Counting %{zone}.
+      discarded: Stocktake %{reference} discarded.
+      no_match: No part or zone matches "%{code}".
+      nothing_adjusted: Nothing was adjusted (%{detail}%{errors}). Recount that line and try again.
+      part_added: '%{reference} added to the count.'
+      pick_zone: Pick the zone to count.
+      several_zones: '%{reference} is stocked in several zones of this count: scan or pick the zone first.'
+      started:
+        one: 'Stocktake %{reference} started: %{count} line to count.'
+        other: 'Stocktake %{reference} started: %{count} lines to count.'
+      zone_not_in_stocktake: '%{zone} isn''t part of this stocktake.'
+    storage_locations:
+      add_between_and_bags_at_a: Add between 1 and %{max} bags at a time.
+      bag_added: Added 1 bag (%{code}).
+      bags_added: Added %{count} bags (%{first} to %{last}).
+      cannot_delete_a_zone_that_contains: Cannot delete a zone that contains sub-zones.
+      cannot_move_quantity: '%{reference}: can''t move %{quantity} (only %{available} in %{zone}).'
+      components_moved:
+        one: Moved %{count} component to %{zone}.
+        other: Moved %{count} components to %{zone}.
+      could_not_move: Could not move %{reference}.
+      no_components_selected_to_move: No components selected to move.
+      only_a_box_can_hold_bags: Only a box can hold bags.
+      pick_a_different_destination_zone: Pick a different destination zone.
+      storage_zone_created_successfully: Storage zone created successfully.
+      storage_zone_deleted_successfully: Storage zone deleted successfully.
+      storage_zone_updated_successfully: Storage zone updated successfully.
+      unknown_storage_zone: Unknown storage zone.
+    suppliers:
+      failed_to_create_supplier: Failed to create supplier.
+      failed_to_update_supplier: Failed to update supplier.
+      only_an_admin_can_delete_a: Only an admin can delete a catalog supplier, since it disconnects the integration.
+      supplier_created_successfully: Supplier created successfully.
+      supplier_deleted_successfully: Supplier deleted successfully.
+      supplier_deleted_the_catalog_integration_has: Supplier deleted. The %{label} catalog integration has been disabled.
+      supplier_updated_successfully: Supplier updated successfully.
+    tags:
+      failed_to_create_tag: Failed to create tag.
+      failed_to_update_tag: Failed to update tag.
+      tag_created: Tag "%{tag_name}" created.
+      tag_deleted_successfully: Tag deleted successfully.
+      tag_updated_successfully: Tag updated successfully.
+    users_confirmations:
+      that_confirmation_link_is_invalid_or: That confirmation link is invalid or has expired. Sign in and request a new one from your profile.
+      too_many_confirmation_emails_requested_please: Too many confirmation emails requested. Please wait a few minutes and try again.
+      we_sent_a_confirmation_link_to: We sent a confirmation link to %{address}.
+      your_email_address_is_already_confirmed: Your email address is already confirmed.
+      your_email_address_is_confirmed: Your email address %{email} is confirmed.
+    users_passwords:
+      enter_your_email_address: Enter your email address.
+      too_many_reset_requests_please_wait: Too many reset requests. Please wait a few minutes and try again.
+    users_registrations:
+      too_many_sign_ups_from_this: Too many sign-ups from this network. Please try again later.
+    users_sessions:
+      too_many_sign_in_attempts_please: Too many sign-in attempts. Please wait a few minutes and try again.
+  mail:
+    account_footer: You received this email because an account action was requested. If it wasn't you, you can safely ignore this message.
+    confirmation:
+      body: Confirm that this is your address to use it on Makerstorage. Organizations invite members by email, so invitations sent to this address only show up once it's confirmed.
+      button: Confirm email
+      expires:
+        one: This link expires in %{count} day.
+        other: This link expires in %{count} days.
+      ignore: If you didn't sign up or change your email on Makerstorage, you can safely ignore this email.
+      title: Confirm your email address
+    copy_url: 'If the button doesn''t work, copy and paste this URL into your browser:'
+    digest:
+      days_late:
+        one: '%{count} day late'
+        other: '%{count} days late'
+      footer_html: You receive this digest as a member of %{organization}. Turn it off from your %{profile}; admins choose which alerts are sent in Settings → Notifications.
+      footer_text: 'You receive this digest as a member of %{organization}.
+
+        Turn it off from your profile: %{url}'
+      intro: Hello %{name}, here is what needs attention as of %{date}.
+      items:
+        one: '%{count} item'
+        other: '%{count} items'
+      late_orders: Late orders (%{count})
+      loan: 'Loan #%{id}'
+      low_stock: Low stock (%{count})
+      more: And %{count} more.
+      open_alerts: Open alerts
+      order: 'Order #%{id}'
+      overdue_loans: Overdue loans (%{count})
+      profile: profile
+      subject: '%{organization}: %{counts}'
+      subject_late_orders:
+        one: '%{count} late order'
+        other: '%{count} late orders'
+      subject_low_stock:
+        one: '%{count} low-stock part'
+        other: '%{count} low-stock parts'
+      subject_overdue_loans:
+        one: '%{count} overdue loan'
+        other: '%{count} overdue loans'
+      title: '%{organization} alerts'
+    email_changed:
+      being_changed: We're letting you know that the email address on your Makerstorage account is being changed to %{email}.
+      being_changed_html: 'We''re letting you know that the email address on your Makerstorage account is being changed to <strong style="color: #09090b;">%{email}</strong>.'
+      changed: We're letting you know that the email address on your Makerstorage account has been changed to %{email}.
+      changed_html: 'We''re letting you know that the email address on your Makerstorage account has been changed to <strong style="color: #09090b;">%{email}</strong>.'
+      not_you: If you didn't make this change, please contact your organization's owner right away.
+      title: Your email address was changed
+    hello: Hello %{name},
+    open_link: 'Open the link below:'
+    password_change:
+      body: This is a confirmation that the password for your Makerstorage account was just changed.
+      not_you: If you made this change, no action is needed. If you didn't, please reset your password immediately and contact your organization's owner.
+      title: Your password was changed
+    reset_password:
+      body: Someone requested a link to change the password on your Makerstorage account. Use the button below to choose a new one.
+      button: Reset password
+      expires:
+        one: This link expires in %{count} hour.
+        other: This link expires in %{count} hours.
+      ignore: 'If you didn''t request this, you can safely ignore this email: your password won''t change until you open the link above and set a new one.'
+      title: Reset your password
+    tagline: Electronics-parts inventory for makerspaces.
+  order_statuses:
+    cancelled: cancelled
+    pending: pending
+    received: received
+    shipped: shipped
+  part_duplicates:
+    same_category: Same category, value and footprint
+    same_name: Same name, value and footprint
+    same_part_number: Same part number “%{code}”
+  part_statuses:
+    active: active
+    discontinued: discontinued
+    obsolete: obsolete
+  stock_statuses:
+    low: Low stock
+    ok: In stock
+    out: Out of stock

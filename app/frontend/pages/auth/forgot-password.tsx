@@ -8,6 +8,7 @@ import { Field, FieldContent, FieldError, FieldGroup, FieldLabel } from '@/compo
 import { FlashMessages } from '@/components/flash-messages'
 
 import authImage from '/assets/auth.jpeg'
+import { t } from '@/lib/i18n'
 
 export default function ForgotPassword() {
   const { data, setData, post, processing, errors } = useForm({
@@ -23,7 +24,7 @@ export default function ForgotPassword() {
 
   return (
     <>
-      <Head title="Forgot Password" />
+      <Head title={t('Forgot Password')} />
 
       <div className="grid min-h-svh lg:grid-cols-2 bg-background text-foreground">
         <div className="flex flex-col gap-4 p-6 md:p-10 bg-background text-foreground">
@@ -34,16 +35,16 @@ export default function ForgotPassword() {
               <form onSubmit={submit} className="space-y-4 mt-4">
                 <FieldGroup>
                   <div className="flex flex-col items-center gap-1 text-center">
-                    <h1 className="text-2xl font-bold">Forgot your password?</h1>
+                    <h1 className="text-2xl font-bold">{t('Forgot your password?')}</h1>
                     <p className="text-muted-foreground text-sm text-balance">
-                      Enter your email and we'll send you a link to reset your password
+                      {t('Enter your email and we\'ll send you a link to reset your password')}
                     </p>
                   </div>
 
                   {/* Email Field */}
                   <Field>
                     <FieldLabel>
-                      <Label htmlFor="email">Email</Label>
+                      <Label htmlFor="email">{t('Email')}</Label>
                     </FieldLabel>
                     <FieldContent>
                       <Input
@@ -66,17 +67,17 @@ export default function ForgotPassword() {
                     className="w-full"
                     disabled={processing}
                   >
-                    {processing ? 'Sending...' : 'Send reset link'}
+                    {processing ? t('Sending...') : t('Send reset link')}
                   </Button>
 
                   {/* Back to login link */}
                   <div className="text-center text-sm">
-                    <span className="text-muted-foreground">Remember your password? </span>
+                    <span className="text-muted-foreground">{t('Remember your password?')} </span>
                     <Link
                       href="/login"
                       className="text-foreground hover:text-primary transition-colors underline-offset-4 hover:underline font-medium"
                     >
-                      Back to login
+                      {t('Back to login')}
                     </Link>
                   </div>
                 </FieldGroup>
@@ -87,7 +88,7 @@ export default function ForgotPassword() {
         <div className="relative hidden lg:block">
           <img
             src={authImage}
-            alt="Image"
+            alt={t('Image')}
             className="absolute inset-0 h-full w-full object-cover dark:brightness-[0.8]"
           />
         </div>

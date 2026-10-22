@@ -191,12 +191,12 @@ class Stocktake < ApplicationRecord
   private
 
   def ensure_in_progress!
-    raise NotInProgress, "This stocktake is already completed." unless in_progress?
+    raise NotInProgress, I18n.t("errors.stocktakes.already_completed") unless in_progress?
   end
 
   def storage_location_must_belong_to_same_organization
     if storage_location.present? && storage_location.organization_id != organization_id
-      errors.add(:storage_location, "must belong to the same organization")
+      errors.add(:storage_location, :same_organization)
     end
   end
 
@@ -211,7 +211,7 @@ class Stocktake < ApplicationRecord
     mine = location_ids.to_set
     clash = others.find { |other| other.location_ids.any? { |id| mine.include?(id) } }
     if clash
-      errors.add(:storage_location, "is already being counted in #{clash.reference.presence || 'another stocktake'}: complete or discard it first")
+      errors.add(:storage_location, :already_counted, stocktake: clash.reference.presence || I18n.t("errors.stocktakes.another"))
     end
   end
 end

@@ -13,6 +13,7 @@ import {
 import { StorageLocationSelect, type StorageLocationOption } from '@/components/storage-location-select'
 
 import type { Order } from './types'
+import { t } from '@/lib/i18n'
 
 interface BulkZoneDialogProps {
   open: boolean
@@ -45,9 +46,9 @@ export function BulkZoneDialog({ open, onOpenChange, order, storageLocations }: 
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Set storage zone for all lines</DialogTitle>
+          <DialogTitle>{t('Set storage zone for all lines')}</DialogTitle>
           <DialogDescription>
-            Sends every line's full quantity to the chosen zone. You can then override individual lines to split them.
+            {t('Sends every line\'s full quantity to the chosen zone. You can then override individual lines to split them.')}
           </DialogDescription>
         </DialogHeader>
         <div className="py-4">
@@ -55,16 +56,16 @@ export function BulkZoneDialog({ open, onOpenChange, order, storageLocations }: 
             locations={storageLocations}
             value={bulkZone != null ? String(bulkZone) : ''}
             onValueChange={(value) => setBulkZone(value ? Number(value) : null)}
-            placeholder="Select a zone"
+            placeholder={t('Select a zone')}
             allowCreate
           />
         </div>
         <DialogFooter>
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
+            {t('Cancel')}
           </Button>
           <Button type="button" disabled={bulkZone == null} onClick={submitBulkZone}>
-            Apply to all lines
+            {t('Apply to all lines')}
           </Button>
         </DialogFooter>
       </DialogContent>

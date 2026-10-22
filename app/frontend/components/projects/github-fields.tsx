@@ -1,5 +1,6 @@
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { t } from '@/lib/i18n'
 
 export interface GithubLinkData {
   repository: string
@@ -21,38 +22,38 @@ export function GithubFields({ data, onChange, tokenConfigured, autoFocus }: Git
   return (
     <div className="space-y-4">
       <div className="space-y-2">
-        <Label htmlFor="github-repository">Repository</Label>
+        <Label htmlFor="github-repository">{t('Repository')}</Label>
         <Input
           id="github-repository"
           value={data.repository}
           onChange={(e) => onChange({ ...data, repository: e.target.value })}
-          placeholder="owner/name or https://github.com/owner/name"
+          placeholder={t('owner/name or https://github.com/owner/name')}
           autoFocus={autoFocus}
           required
         />
         <p className="text-xs text-muted-foreground">
           {tokenConfigured
-            ? 'Public or private: requests use the GitHub token from Settings → Integrations.'
-            : 'A public repository. For a private one, add a GitHub token in Settings → Integrations first.'}
+            ? t('Public or private: requests use the GitHub token from Settings → Integrations.')
+            : t('A public repository. For a private one, add a GitHub token in Settings → Integrations first.')}
         </p>
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
-          <Label htmlFor="github-ref">Branch, tag or commit</Label>
+          <Label htmlFor="github-ref">{t('Branch, tag or commit')}</Label>
           <Input
             id="github-ref"
             value={data.ref}
             onChange={(e) => onChange({ ...data, ref: e.target.value })}
-            placeholder="Default branch"
+            placeholder={t('Default branch')}
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="github-path">Folder</Label>
+          <Label htmlFor="github-path">{t('Folder')}</Label>
           <Input
             id="github-path"
             value={data.path}
             onChange={(e) => onChange({ ...data, path: e.target.value })}
-            placeholder="Repository root"
+            placeholder={t('Repository root')}
           />
         </div>
       </div>

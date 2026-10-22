@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/select'
 
 import type { GeneralForm, OrganizationSettings } from './types'
+import { t } from '@/lib/i18n'
 
 const CURRENCY_LABELS: Record<string, string> = {
   EUR: 'EUR (€)',
@@ -73,21 +74,21 @@ export function GeneralSection({ form, organization, currencies, timezones }: Ge
   return (
     <form onSubmit={submitGeneral} className="space-y-4">
       <div>
-        <h2 className="text-lg font-semibold">General</h2>
+        <h2 className="text-lg font-semibold">{t('General')}</h2>
         <p className="max-w-xl text-sm text-muted-foreground">
-          Organization profile and global workspace preferences.
+          {t('Organization profile and global workspace preferences.')}
         </p>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Organization profile</CardTitle>
-          <CardDescription>Shown on purchase orders and shared with your team.</CardDescription>
+          <CardTitle>{t('Organization profile')}</CardTitle>
+          <CardDescription>{t('Shown on purchase orders and shared with your team.')}</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
           <div className="flex items-center gap-4 sm:col-span-2">
             <Avatar className="size-16 rounded-lg">
-              {logoSrc && <AvatarImage src={logoSrc} alt="Organization logo" className="object-cover" />}
+              {logoSrc && <AvatarImage src={logoSrc} alt={t('Organization logo')} className="object-cover" />}
               <AvatarFallback className="rounded-lg text-lg font-semibold">
                 {organization.name.trim().charAt(0).toUpperCase() || '?'}
               </AvatarFallback>
@@ -95,15 +96,15 @@ export function GeneralSection({ form, organization, currencies, timezones }: Ge
             <div className="space-y-1.5">
               <div className="flex flex-wrap gap-2">
                 <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
-                  <Upload className="size-4" /> {logoSrc ? 'Replace' : 'Upload'} logo
+                  <Upload className="size-4" /> {logoSrc ? t('Replace logo') : t('Upload logo')}
                 </Button>
                 {logoSrc && (
                   <Button type="button" variant="ghost" size="sm" onClick={handleRemoveLogo}>
-                    <Trash2 className="size-4" /> Remove
+                    <Trash2 className="size-4" /> {t('Remove')}
                   </Button>
                 )}
               </div>
-              <p className="text-xs text-muted-foreground">PNG, JPG or SVG. Shown in the sidebar and on documents.</p>
+              <p className="text-xs text-muted-foreground">{t('PNG, JPG or SVG. Shown in the sidebar and on documents.')}</p>
               <input
                 ref={fileInputRef}
                 type="file"
@@ -117,7 +118,7 @@ export function GeneralSection({ form, organization, currencies, timezones }: Ge
             <FieldError className="sm:col-span-2">{form.errors['organization.logo']}</FieldError>
           )}
           <Field className="sm:col-span-2">
-            <FieldLabel><Label>Name</Label></FieldLabel>
+            <FieldLabel><Label>{t('Name')}</Label></FieldLabel>
             <FieldContent>
               <Input
                 value={form.data.organization.name}
@@ -127,7 +128,7 @@ export function GeneralSection({ form, organization, currencies, timezones }: Ge
             {form.errors['organization.name'] && <FieldError>{form.errors['organization.name']}</FieldError>}
           </Field>
           <Field>
-            <FieldLabel><Label>Email</Label></FieldLabel>
+            <FieldLabel><Label>{t('Email')}</Label></FieldLabel>
             <FieldContent>
               <Input
                 type="email"
@@ -138,7 +139,7 @@ export function GeneralSection({ form, organization, currencies, timezones }: Ge
             {form.errors['organization.email'] && <FieldError>{form.errors['organization.email']}</FieldError>}
           </Field>
           <Field>
-            <FieldLabel><Label>Phone</Label></FieldLabel>
+            <FieldLabel><Label>{t('Phone')}</Label></FieldLabel>
             <FieldContent>
               <Input
                 value={form.data.organization.phone}
@@ -147,10 +148,10 @@ export function GeneralSection({ form, organization, currencies, timezones }: Ge
             </FieldContent>
           </Field>
           <Field className="sm:col-span-2">
-            <FieldLabel><Label>Website</Label></FieldLabel>
+            <FieldLabel><Label>{t('Website')}</Label></FieldLabel>
             <FieldContent>
               <Input
-                placeholder="https://"
+                placeholder={t('https://')}
                 value={form.data.organization.website}
                 onChange={(e) => form.setData('organization', { ...form.data.organization, website: e.target.value })}
               />
@@ -162,11 +163,11 @@ export function GeneralSection({ form, organization, currencies, timezones }: Ge
 
       <Card>
         <CardHeader>
-          <CardTitle>Address</CardTitle>
+          <CardTitle>{t('Address')}</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
           <Field className="sm:col-span-2">
-            <FieldLabel><Label>Address line 1</Label></FieldLabel>
+            <FieldLabel><Label>{t('Address line 1')}</Label></FieldLabel>
             <FieldContent>
               <Input
                 value={form.data.organization.address_line1}
@@ -175,7 +176,7 @@ export function GeneralSection({ form, organization, currencies, timezones }: Ge
             </FieldContent>
           </Field>
           <Field className="sm:col-span-2">
-            <FieldLabel><Label>Address line 2</Label></FieldLabel>
+            <FieldLabel><Label>{t('Address line 2')}</Label></FieldLabel>
             <FieldContent>
               <Input
                 value={form.data.organization.address_line2}
@@ -184,7 +185,7 @@ export function GeneralSection({ form, organization, currencies, timezones }: Ge
             </FieldContent>
           </Field>
           <Field>
-            <FieldLabel><Label>City</Label></FieldLabel>
+            <FieldLabel><Label>{t('City')}</Label></FieldLabel>
             <FieldContent>
               <Input
                 value={form.data.organization.city}
@@ -193,7 +194,7 @@ export function GeneralSection({ form, organization, currencies, timezones }: Ge
             </FieldContent>
           </Field>
           <Field>
-            <FieldLabel><Label>Postcode</Label></FieldLabel>
+            <FieldLabel><Label>{t('Postcode')}</Label></FieldLabel>
             <FieldContent>
               <Input
                 value={form.data.organization.postcode}
@@ -202,7 +203,7 @@ export function GeneralSection({ form, organization, currencies, timezones }: Ge
             </FieldContent>
           </Field>
           <Field className="sm:col-span-2">
-            <FieldLabel><Label>Country</Label></FieldLabel>
+            <FieldLabel><Label>{t('Country')}</Label></FieldLabel>
             <FieldContent>
               <Input
                 value={form.data.organization.country}
@@ -215,13 +216,13 @@ export function GeneralSection({ form, organization, currencies, timezones }: Ge
 
       <Card>
         <CardHeader>
-          <CardTitle>Regional preferences</CardTitle>
+          <CardTitle>{t('Regional preferences')}</CardTitle>
         </CardHeader>
         <CardContent className="divide-y">
           <div className="flex items-center justify-between gap-4 py-3 first:pt-0">
             <div>
-              <div className="text-sm font-medium">Currency</div>
-              <div className="text-xs text-muted-foreground">Displayed prices and stock valuation.</div>
+              <div className="text-sm font-medium">{t('Currency')}</div>
+              <div className="text-xs text-muted-foreground">{t('Displayed prices and stock valuation.')}</div>
             </div>
             <Select
               value={form.data.organization.currency}
@@ -237,22 +238,22 @@ export function GeneralSection({ form, organization, currencies, timezones }: Ge
           </div>
           <div className="flex items-center justify-between gap-4 py-3 last:pb-0">
             <div>
-              <div className="text-sm font-medium">Timezone</div>
-              <div className="text-xs text-muted-foreground">Timestamps on stock movements.</div>
+              <div className="text-sm font-medium">{t('Timezone')}</div>
+              <div className="text-xs text-muted-foreground">{t('Timestamps on stock movements.')}</div>
             </div>
             <Combobox
               className="w-56"
               value={form.data.organization.timezone}
               onValueChange={(value) => form.setData('organization', { ...form.data.organization, timezone: value })}
               options={timezones.map((tz) => ({ value: tz, label: tz }))}
-              placeholder="Select timezone"
-              searchPlaceholder="Search timezones…"
-              emptyText="No timezone found."
+              placeholder={t('Select timezone')}
+              searchPlaceholder={t('Search timezones…')}
+              emptyText={t('No timezone found.')}
             />
           </div>
         </CardContent>
         <CardFooter className="justify-end border-t">
-          <Button type="submit" disabled={form.processing}>Save</Button>
+          <Button type="submit" disabled={form.processing}>{t('Save')}</Button>
         </CardFooter>
       </Card>
     </form>

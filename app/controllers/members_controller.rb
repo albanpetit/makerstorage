@@ -23,7 +23,7 @@ class MembersController < ApplicationController
     user = User.find_by(email: email)
 
     unless OrganizationMembership::ROLES.include?(role)
-      redirect_back_or_to members_path, alert: "Choose a valid role.", inertia: { errors: { "member.role" => [ "is not included in the list" ] } }
+      redirect_back_or_to members_path, alert: t("flash.members.choose_a_valid_role"), inertia: { errors: { "member.role" => [ "is not included in the list" ] } }
       return
     end
 
@@ -57,13 +57,13 @@ class MembersController < ApplicationController
     if membership.save
       redirect_to members_path, notice: invitation_notice(user.email)
     else
-      redirect_back_or_to members_path, alert: "Failed to add member.", inertia: { errors: inertia_errors(membership, as: :member) }
+      redirect_back_or_to members_path, alert: t("flash.members.failed_to_add_member"), inertia: { errors: inertia_errors(membership, as: :member) }
     end
   end
 
   def update
     if @membership.update(member_params)
-      redirect_to members_path, notice: "Role updated successfully."
+      redirect_to members_path, notice: t("flash.members.role_updated_successfully")
     else
       redirect_to members_path, alert: @membership.errors.full_messages.to_sentence
     end
@@ -71,7 +71,7 @@ class MembersController < ApplicationController
 
   def destroy
     if @membership.destroy
-      redirect_to members_path, notice: "Member removed from the organization."
+      redirect_to members_path, notice: t("flash.members.member_removed_from_the_organization")
     else
       redirect_to members_path, alert: @membership.errors.full_messages.to_sentence
     end
@@ -98,7 +98,7 @@ class MembersController < ApplicationController
     return unless crosses_owner
     return if current_user.owner_of?(current_organization)
 
-    redirect_to members_path, alert: "Only an owner can assign or change the owner role."
+    redirect_to members_path, alert: t("flash.members.only_an_owner_can_assign_or")
   end
 
   # Removing an owner is at least as sensitive as demoting one, so it needs the
@@ -109,12 +109,11 @@ class MembersController < ApplicationController
     return unless @membership.owner?
     return if current_user.owner_of?(current_organization)
 
-    redirect_to members_path, alert: "Only an owner can remove another owner."
+    redirect_to members_path, alert: t("flash.members.only_an_owner_can_remove_another")
   end
 
   def invitation_notice(email)
-    "If #{email} has a Makerstorage account, they've been invited and will join once they accept it from their profile. " \
-      "Otherwise, ask them to sign up first, then invite them again."
+    t("flash.members.invitation_sent", email: email)
   end
 
   def member_params

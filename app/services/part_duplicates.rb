@@ -55,12 +55,12 @@ class PartDuplicates
       if name_key.present?
         entry = keys[[ :name, name_key, value_key, footprint_id ]]
         entry[:ids] << id
-        entry[:reason] ||= "Same name, value and footprint"
+        entry[:reason] ||= I18n.t("part_duplicates.same_name")
       end
       if value_key.present? && footprint_id
         entry = keys[[ :value, category_id, value_key, footprint_id ]]
         entry[:ids] << id
-        entry[:reason] ||= "Same category, value and footprint"
+        entry[:reason] ||= I18n.t("part_duplicates.same_category")
       end
     end
     PartSupplier.where(part_id: parts.map(&:first)).where.not(supplier_sku: [ nil, "" ]).pluck(:part_id, :supplier_sku)
@@ -81,10 +81,11 @@ class PartDuplicates
       end
     end
 
-    reasons = Hash.new { |hash, root| hash[root] = { certain: false, reasons: [] } }
+    reasons = Hash.new { |hash, root| hash[root] = { certain: false, reasons: [], certain_reasons: Set.new } }
     edges.each do |id, entry|
       group = reasons[union.root(id)]
       group[:certain] ||= entry[:certain]
+      group[:certain_reasons] << entry[:reason] if entry[:certain]
       group[:reasons] << entry[:reason] unless group[:reasons].include?(entry[:reason])
     end
 
@@ -92,7 +93,7 @@ class PartDuplicates
     union.sets.map do |root, ids|
       group = reasons[root]
       Group.new(part_ids: ids.sort, certain: group[:certain],
-                reasons: group[:reasons].sort_by { |reason| reason.start_with?("Same part number") ? 0 : 1 })
+                reasons: group[:reasons].sort_by { |reason| group[:certain_reasons].include?(reason) ? 0 : 1 })
     end.sort_by { |group| [ group.certain ? 0 : 1, names[group.part_ids.first] ] }
   end
 
@@ -103,7 +104,7 @@ class PartDuplicates
     entry = keys[[ :code, normalized ]]
     entry[:ids] << id
     entry[:certain] = true
-    entry[:reason] ||= "Same part number “#{code.strip}”"
+    entry[:reason] ||= I18n.t("part_duplicates.same_part_number", code: code.strip)
   end
 
   # Disjoint sets over part ids.

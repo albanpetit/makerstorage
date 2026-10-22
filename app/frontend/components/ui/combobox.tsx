@@ -3,6 +3,7 @@ import { Popover as PopoverPrimitive } from "radix-ui"
 import { Check, ChevronsUpDown, Plus, Search } from "lucide-react"
 
 import { cn } from "@/lib/utils"
+import { t } from "@/lib/i18n"
 
 export interface ComboboxOption {
   value: string
@@ -54,15 +55,15 @@ function Combobox({
   options,
   value,
   onValueChange,
-  placeholder = "Select…",
-  searchPlaceholder = "Search…",
-  emptyText = "No results.",
+  placeholder = t("Select…"),
+  searchPlaceholder = t("Search…"),
+  emptyText = t("No results."),
   className,
   contentClassName,
   disabled,
   id,
   onCreate,
-  createLabel = (query) => (query ? `Create "${query}"` : "Create new…"),
+  createLabel = (query) => (query ? t("Create “{query}”", { query }) : t("Create new…")),
 }: ComboboxProps) {
   const [open, setOpen] = React.useState(false)
   const [query, setQuery] = React.useState("")

@@ -6,11 +6,15 @@ class NotificationMailer < ApplicationMailer
     @digest = digest
     @organization = digest.organization
 
-    counts = []
-    counts << "#{digest.low_stock.size} low-stock #{'part'.pluralize(digest.low_stock.size)}" if digest.low_stock.any?
-    counts << "#{digest.late_orders.size} late #{'order'.pluralize(digest.late_orders.size)}" if digest.late_orders.any?
-    counts << "#{digest.overdue_loans.size} overdue #{'loan'.pluralize(digest.overdue_loans.size)}" if digest.overdue_loans.any?
+    # Each member gets the digest in the language they picked (English when
+    # they follow their browser's, which a background job can't know).
+    I18n.with_locale(user.locale || I18n.default_locale) do
+      counts = []
+      counts << t("mail.digest.subject_low_stock", count: digest.low_stock.size) if digest.low_stock.any?
+      counts << t("mail.digest.subject_late_orders", count: digest.late_orders.size) if digest.late_orders.any?
+      counts << t("mail.digest.subject_overdue_loans", count: digest.overdue_loans.size) if digest.overdue_loans.any?
 
-    mail to: user.email, subject: "#{@organization.name}: #{counts.to_sentence}"
+      mail to: user.email, subject: t("mail.digest.subject", organization: @organization.name, counts: counts.to_sentence)
+    end
   end
 end

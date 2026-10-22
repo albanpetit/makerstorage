@@ -36,16 +36,17 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { t, intlLocale, tx } from '@/lib/i18n'
 
 const AVATAR_COLORS = [
   'bg-amber-600', 'bg-blue-600', 'bg-red-600', 'bg-emerald-600', 'bg-purple-600', 'bg-cyan-600', 'bg-pink-600',
 ]
 
 const PURCHASE_STATUS_META: Record<string, { label: string; className: string }> = {
-  pending: { label: 'Pending', className: 'bg-muted text-muted-foreground' },
-  shipped: { label: 'Shipped', className: 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400' },
-  received: { label: 'Received', className: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400' },
-  cancelled: { label: 'Cancelled', className: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400' },
+  pending: { get label() { return t('Pending') }, className: 'bg-muted text-muted-foreground' },
+  shipped: { get label() { return t('Shipped') }, className: 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400' },
+  received: { get label() { return t('Received') }, className: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400' },
+  cancelled: { get label() { return t('Cancelled') }, className: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400' },
 }
 
 interface LinkedComponent {
@@ -102,11 +103,11 @@ function initials(name: string) {
 }
 
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString(undefined, { day: '2-digit', month: '2-digit', year: 'numeric' })
+  return new Date(iso).toLocaleDateString(intlLocale(), { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
 function formatMoney(value: number) {
-  return `${value.toLocaleString(undefined, { maximumFractionDigits: 0 })} €`
+  return `${value.toLocaleString(intlLocale(), { maximumFractionDigits: 0 })} €`
 }
 
 interface SupplierFormData {
@@ -190,27 +191,27 @@ export default function SuppliersIndex({ suppliers }: SuppliersPageProps) {
     const leadTimes = suppliers.map((s) => s.avg_lead_time_days).filter((v): v is number => v != null)
     const avgLead = leadTimes.length > 0 ? Math.round(leadTimes.reduce((a, b) => a + b, 0) / leadTimes.length) : null
     return [
-      { label: 'Suppliers', value: String(suppliers.length), icon: Truck },
-      { label: 'Active', value: String(active), icon: Package },
-      { label: 'References sourced', value: String(totalRefs), icon: Package },
-      { label: 'Avg. lead time', value: avgLead != null ? `${avgLead}d` : '-', icon: Clock },
+      { label: t('Suppliers'), value: String(suppliers.length), icon: Truck },
+      { label: t('Active'), value: String(active), icon: Package },
+      { label: t('References sourced'), value: String(totalRefs), icon: Package },
+      { label: t('Avg. lead time'), value: avgLead != null ? `${avgLead}d` : '-', icon: Clock },
     ]
   }, [suppliers])
 
   return (
     <AppLayout
       header={
-        <PageHeader title="Suppliers" subtitle="Sourcing and lead times">
+        <PageHeader title={t('Suppliers')} subtitle={t('Sourcing and lead times')}>
           {canWrite && (
             <Button size="sm" onClick={openNewDialog}>
               <Plus className="size-4" />
-              Add Supplier
+              {t('Add Supplier')}
             </Button>
           )}
         </PageHeader>
       }
     >
-      <Head title="Suppliers" />
+      <Head title={t('Suppliers')} />
 
       <div className="space-y-6">
         <FlashMessages />
@@ -236,15 +237,15 @@ export default function SuppliersIndex({ suppliers }: SuppliersPageProps) {
             <CardContent className="flex flex-col items-center gap-3 py-10 text-center">
               <Truck className="size-8 text-muted-foreground" />
               <div>
-                <p className="font-medium">No suppliers yet</p>
+                <p className="font-medium">{t('No suppliers yet')}</p>
                 <p className="text-sm text-muted-foreground">
-                  {canWrite ? 'Add your first supplier to start tracking sourcing.' : 'No suppliers have been added yet.'}
+                  {canWrite ? t('Add your first supplier to start tracking sourcing.') : t('No suppliers have been added yet.')}
                 </p>
               </div>
               {canWrite && (
                 <Button onClick={openNewDialog}>
                   <Plus className="size-4" />
-                  Add Supplier
+                  {t('Add Supplier')}
                 </Button>
               )}
             </CardContent>
@@ -266,24 +267,24 @@ export default function SuppliersIndex({ suppliers }: SuppliersPageProps) {
                     <div className="font-mono text-xs text-muted-foreground">{supplier.country || '-'}</div>
                   </div>
                   <Badge variant={supplier.reference_count > 0 ? 'default' : 'secondary'} className="shrink-0">
-                    {supplier.reference_count > 0 ? 'Active' : 'No components'}
+                    {supplier.reference_count > 0 ? t('Active') : t('No components')}
                   </Badge>
                 </div>
                 <div className="grid grid-cols-2 gap-3 p-4 text-sm">
                   <div>
-                    <div className="text-xs text-muted-foreground">References</div>
+                    <div className="text-xs text-muted-foreground">{t('References')}</div>
                     <div className="font-mono font-semibold">{supplier.reference_count}</div>
                   </div>
                   <div>
-                    <div className="text-xs text-muted-foreground">Stock value</div>
+                    <div className="text-xs text-muted-foreground">{t('Stock value')}</div>
                     <div className="font-mono font-semibold">{formatMoney(supplier.stock_value)}</div>
                   </div>
                   <div>
-                    <div className="text-xs text-muted-foreground">Lead time</div>
+                    <div className="text-xs text-muted-foreground">{t('Lead time')}</div>
                     <div className="font-mono font-semibold">{supplier.avg_lead_time_days != null ? `${supplier.avg_lead_time_days}d` : '-'}</div>
                   </div>
                   <div>
-                    <div className="text-xs text-muted-foreground">Last order</div>
+                    <div className="text-xs text-muted-foreground">{t('Last order')}</div>
                     <div className="font-mono font-semibold">{supplier.last_order_at ? formatDate(supplier.last_order_at) : '-'}</div>
                   </div>
                 </div>
@@ -299,7 +300,7 @@ export default function SuppliersIndex({ suppliers }: SuppliersPageProps) {
                     >
                       <a href={`mailto:${supplier.email}`}>
                         <Mail className="size-3.5" />
-                        Contact
+                        {t('Contact')}
                       </a>
                     </Button>
                   )}
@@ -314,16 +315,16 @@ export default function SuppliersIndex({ suppliers }: SuppliersPageProps) {
       <Dialog open={newOpen} onOpenChange={setNewOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Add supplier</DialogTitle>
+            <DialogTitle>{t('Add supplier')}</DialogTitle>
           </DialogHeader>
           <form onSubmit={submitNew} className="flex flex-col gap-4">
             <Field>
               <FieldLabel>
-                <Label>Name</Label>
+                <Label>{t('Name')}</Label>
               </FieldLabel>
               <FieldContent>
                 <Input
-                  placeholder="e.g. Mouser Electronics"
+                  placeholder={t('e.g. Mouser Electronics')}
                   value={newForm.data.supplier.name}
                   onChange={(e) => newForm.setData('supplier', { ...newForm.data.supplier, name: e.target.value })}
                 />
@@ -333,12 +334,12 @@ export default function SuppliersIndex({ suppliers }: SuppliersPageProps) {
             <div className="grid grid-cols-2 gap-4">
               <Field>
                 <FieldLabel>
-                  <Label>Email</Label>
+                  <Label>{t('Email')}</Label>
                 </FieldLabel>
                 <FieldContent>
                   <Input
                     type="email"
-                    placeholder="orders@supplier.com"
+                    placeholder={t('orders@supplier.com')}
                     value={newForm.data.supplier.email}
                     onChange={(e) => newForm.setData('supplier', { ...newForm.data.supplier, email: e.target.value })}
                   />
@@ -347,7 +348,7 @@ export default function SuppliersIndex({ suppliers }: SuppliersPageProps) {
               </Field>
               <Field>
                 <FieldLabel>
-                  <Label>Phone</Label>
+                  <Label>{t('Phone')}</Label>
                 </FieldLabel>
                 <FieldContent>
                   <Input
@@ -359,11 +360,11 @@ export default function SuppliersIndex({ suppliers }: SuppliersPageProps) {
             </div>
             <Field>
               <FieldLabel>
-                <Label>Website</Label>
+                <Label>{t('Website')}</Label>
               </FieldLabel>
               <FieldContent>
                 <Input
-                  placeholder="https://"
+                  placeholder={t('https://')}
                   value={newForm.data.supplier.website}
                   onChange={(e) => newForm.setData('supplier', { ...newForm.data.supplier, website: e.target.value })}
                 />
@@ -373,7 +374,7 @@ export default function SuppliersIndex({ suppliers }: SuppliersPageProps) {
             <div className="grid grid-cols-2 gap-4">
               <Field>
                 <FieldLabel>
-                  <Label>City</Label>
+                  <Label>{t('City')}</Label>
                 </FieldLabel>
                 <FieldContent>
                   <Input
@@ -384,7 +385,7 @@ export default function SuppliersIndex({ suppliers }: SuppliersPageProps) {
               </Field>
               <Field>
                 <FieldLabel>
-                  <Label>Country</Label>
+                  <Label>{t('Country')}</Label>
                 </FieldLabel>
                 <FieldContent>
                   <Input
@@ -395,8 +396,8 @@ export default function SuppliersIndex({ suppliers }: SuppliersPageProps) {
               </Field>
             </div>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setNewOpen(false)}>Cancel</Button>
-              <Button type="submit" disabled={newForm.processing}>Add supplier</Button>
+              <Button type="button" variant="outline" onClick={() => setNewOpen(false)}>{t('Cancel')}</Button>
+              <Button type="submit" disabled={newForm.processing}>{t('Add supplier')}</Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -406,12 +407,12 @@ export default function SuppliersIndex({ suppliers }: SuppliersPageProps) {
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Edit supplier</DialogTitle>
+            <DialogTitle>{t('Edit supplier')}</DialogTitle>
           </DialogHeader>
           <form onSubmit={submitEdit} className="flex flex-col gap-4">
             <Field>
               <FieldLabel>
-                <Label>Name</Label>
+                <Label>{t('Name')}</Label>
               </FieldLabel>
               <FieldContent>
                 <Input
@@ -424,7 +425,7 @@ export default function SuppliersIndex({ suppliers }: SuppliersPageProps) {
             <div className="grid grid-cols-2 gap-4">
               <Field>
                 <FieldLabel>
-                  <Label>Email</Label>
+                  <Label>{t('Email')}</Label>
                 </FieldLabel>
                 <FieldContent>
                   <Input
@@ -437,7 +438,7 @@ export default function SuppliersIndex({ suppliers }: SuppliersPageProps) {
               </Field>
               <Field>
                 <FieldLabel>
-                  <Label>Phone</Label>
+                  <Label>{t('Phone')}</Label>
                 </FieldLabel>
                 <FieldContent>
                   <Input
@@ -449,7 +450,7 @@ export default function SuppliersIndex({ suppliers }: SuppliersPageProps) {
             </div>
             <Field>
               <FieldLabel>
-                <Label>Website</Label>
+                <Label>{t('Website')}</Label>
               </FieldLabel>
               <FieldContent>
                 <Input
@@ -462,7 +463,7 @@ export default function SuppliersIndex({ suppliers }: SuppliersPageProps) {
             <div className="grid grid-cols-2 gap-4">
               <Field>
                 <FieldLabel>
-                  <Label>City</Label>
+                  <Label>{t('City')}</Label>
                 </FieldLabel>
                 <FieldContent>
                   <Input
@@ -473,7 +474,7 @@ export default function SuppliersIndex({ suppliers }: SuppliersPageProps) {
               </Field>
               <Field>
                 <FieldLabel>
-                  <Label>Country</Label>
+                  <Label>{t('Country')}</Label>
                 </FieldLabel>
                 <FieldContent>
                   <Input
@@ -484,8 +485,8 @@ export default function SuppliersIndex({ suppliers }: SuppliersPageProps) {
               </Field>
             </div>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>
-              <Button type="submit" disabled={editForm.processing}>Save</Button>
+              <Button type="button" variant="outline" onClick={() => setEditOpen(false)}>{t('Cancel')}</Button>
+              <Button type="submit" disabled={editForm.processing}>{t('Save')}</Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -495,24 +496,24 @@ export default function SuppliersIndex({ suppliers }: SuppliersPageProps) {
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete this supplier?</AlertDialogTitle>
+            <AlertDialogTitle>{t('Delete this supplier?')}</AlertDialogTitle>
             <AlertDialogDescription>
-              <span className="font-semibold text-foreground">{selected?.name}</span> will be removed along with its linked component pricing.
+              {tx('{name} will be removed along with its linked component pricing.', { name: <span className="font-semibold text-foreground">{selected?.name}</span> })}
               {selected?.catalog_provider && (
                 <span className="mt-2 block font-medium text-destructive">
-                  This also disables the {CATALOG_PROVIDER_LABELS[selected.catalog_provider] ?? selected.catalog_provider} catalog
-                  integration{selected.catalog_provider === 'lcsc'
-                    ? ''
-                    : ` and clears its saved API ${selected.catalog_provider === 'digikey' ? 'credentials' : 'key'}`}. You can
-                  re-enable it later from Settings → Integrations.
+                  {selected.catalog_provider === 'lcsc'
+                    ? t('This also disables the {provider} catalog integration. You can re-enable it later from Settings → Integrations.', { provider: CATALOG_PROVIDER_LABELS[selected.catalog_provider] ?? selected.catalog_provider })
+                    : selected.catalog_provider === 'digikey'
+                    ? t('This also disables the {provider} catalog integration and clears its saved API credentials. You can re-enable it later from Settings → Integrations.', { provider: CATALOG_PROVIDER_LABELS[selected.catalog_provider] ?? selected.catalog_provider })
+                    : t('This also disables the {provider} catalog integration and clears its saved API key. You can re-enable it later from Settings → Integrations.', { provider: CATALOG_PROVIDER_LABELS[selected.catalog_provider] ?? selected.catalog_provider })}
                 </span>
               )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t('Cancel')}</AlertDialogCancel>
             <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-white hover:bg-destructive/90">
-              Delete
+              {t('Delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -535,7 +536,7 @@ export default function SuppliersIndex({ suppliers }: SuppliersPageProps) {
                     </div>
                   </div>
                   <Badge variant={selected.reference_count > 0 ? 'default' : 'secondary'} className="shrink-0">
-                    {selected.reference_count > 0 ? 'Active' : 'No components'}
+                    {selected.reference_count > 0 ? t('Active') : t('No components')}
                   </Badge>
                 </div>
               </SheetHeader>
@@ -543,21 +544,21 @@ export default function SuppliersIndex({ suppliers }: SuppliersPageProps) {
               <div className="flex flex-1 flex-col gap-5 overflow-y-auto p-4">
                 <div className="grid grid-cols-3 gap-2">
                   <div className="rounded-lg bg-muted p-3">
-                    <div className="text-xs text-muted-foreground">Lead time</div>
+                    <div className="text-xs text-muted-foreground">{t('Lead time')}</div>
                     <div className="font-mono text-lg font-bold">{selected.avg_lead_time_days != null ? `${selected.avg_lead_time_days}d` : '-'}</div>
                   </div>
                   <div className="rounded-lg bg-muted p-3">
-                    <div className="text-xs text-muted-foreground">Orders</div>
+                    <div className="text-xs text-muted-foreground">{t('Orders')}</div>
                     <div className="font-mono text-lg font-bold">{selected.order_count}</div>
                   </div>
                   <div className="rounded-lg bg-muted p-3">
-                    <div className="text-xs text-muted-foreground">Stock value</div>
+                    <div className="text-xs text-muted-foreground">{t('Stock value')}</div>
                     <div className="font-mono text-lg font-bold">{formatMoney(selected.stock_value)}</div>
                   </div>
                 </div>
 
                 <div>
-                  <h3 className="mb-2 text-sm font-semibold">Orders placed</h3>
+                  <h3 className="mb-2 text-sm font-semibold">{t('Orders placed')}</h3>
                   {selected.orders.length > 0 ? (
                     <div className="divide-y rounded-lg border">
                       {selected.orders.map((order) => (
@@ -575,14 +576,14 @@ export default function SuppliersIndex({ suppliers }: SuppliersPageProps) {
                     </div>
                   ) : (
                     <div className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">
-                      No purchase orders recorded yet.
+                      {t('No purchase orders recorded yet.')}
                     </div>
                   )}
                 </div>
 
                 <div>
                   <h3 className="mb-2 text-sm font-semibold">
-                    Components sourced <span className="font-normal text-muted-foreground">· {selected.reference_count}</span>
+                    {t('Components sourced')} <span className="font-normal text-muted-foreground">· {selected.reference_count}</span>
                   </h3>
                   {selected.components.length > 0 ? (
                     <div className="divide-y rounded-lg border">
@@ -602,7 +603,7 @@ export default function SuppliersIndex({ suppliers }: SuppliersPageProps) {
                     </div>
                   ) : (
                     <div className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">
-                      No components sourced from this supplier yet.
+                      {t('No components sourced from this supplier yet.')}
                     </div>
                   )}
                 </div>
@@ -612,7 +613,7 @@ export default function SuppliersIndex({ suppliers }: SuppliersPageProps) {
                 <SheetFooter className="flex-row border-t">
                   <Button variant="outline" className="flex-1" onClick={openEditDialog}>
                     <Pencil className="size-4" />
-                    Edit
+                    {t('Edit')}
                   </Button>
                   {/* Deleting a catalog supplier disconnects its integration, which is admin-only. */}
                   {(!selected.catalog_provider || canAdminister) && (

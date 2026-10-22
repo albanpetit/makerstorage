@@ -25,7 +25,7 @@ module ProjectGithubSync
   module_function
 
   def call(project, force: false)
-    raise Error, "This project isn't linked to a GitHub repository." unless project.github_linked?
+    raise Error, I18n.t("errors.github.not_linked") unless project.github_linked?
 
     client = GithubClient.new(token: project.organization.github_token)
     sha = client.commit_sha(project.github_repository, project.github_ref)
@@ -52,7 +52,7 @@ module ProjectGithubSync
     snapshot = Tempfile.new([ "github-kicad", ".zip" ], binmode: true)
     count = write_snapshot(project, archive_path, snapshot)
     if File.size(snapshot.path) > Project::MAX_KICAD_FILE_SIZE
-      raise Error, "The KiCad files in #{project.github_location} are too large to keep (over #{ActiveSupport::NumberHelper.number_to_human_size(Project::MAX_KICAD_FILE_SIZE)} zipped)."
+      raise Error, I18n.t("errors.github.files_too_large", location: project.github_location, size: ActiveSupport::NumberHelper.number_to_human_size(Project::MAX_KICAD_FILE_SIZE))
     end
 
     filename = "#{project.github_repository.split('/').last}-#{sha.first(7)}.zip"
@@ -86,7 +86,7 @@ module ProjectGithubSync
 
     Zip::File.open(archive_path) do |archive|
       if archive.size > ProjectKicadFiles::MAX_ZIP_ENTRIES * 10
-        raise Error, "#{project.github_repository} has too many files to read."
+        raise Error, I18n.t("errors.github.too_many_files", repository: project.github_repository)
       end
 
       Zip::OutputStream.open(snapshot.path) do |out|
@@ -98,19 +98,19 @@ module ProjectGithubSync
           next unless kicad_file?(relative)
 
           count += 1
-          raise Error, "#{project.github_location} holds more than #{ProjectKicadFiles::MAX_ZIP_ENTRIES} KiCad files." if count > ProjectKicadFiles::MAX_ZIP_ENTRIES
+          raise Error, I18n.t("errors.github.too_many_kicad_files", location: project.github_location, count: ProjectKicadFiles::MAX_ZIP_ENTRIES) if count > ProjectKicadFiles::MAX_ZIP_ENTRIES
 
           out.put_next_entry(relative)
           copied = entry.get_input_stream { |io| IO.copy_stream(io, out, Project::MAX_KICAD_FILE_SIZE + 1) }
-          raise Error, "#{File.basename(relative)} is too large to keep." if copied > Project::MAX_KICAD_FILE_SIZE
+          raise Error, I18n.t("errors.github.file_too_large", name: File.basename(relative)) if copied > Project::MAX_KICAD_FILE_SIZE
         end
       end
     end
-    raise Error, "No KiCad files in #{project.github_location}." if count.zero?
+    raise Error, I18n.t("errors.github.no_kicad_files", location: project.github_location) if count.zero?
 
     count
   rescue Zip::Error
-    raise Error, "Could not read the archive GitHub sent for #{project.github_repository}."
+    raise Error, I18n.t("errors.github.unreadable_archive", repository: project.github_repository)
   end
 
   # KiCad files only (no nested ZIPs), leaving out KiCad's autosaves and

@@ -9,7 +9,7 @@ class PartTag < ApplicationRecord
 
   def tag_must_belong_to_same_organization
     if tag.present? && part.present? && tag.organization_id != part.organization_id
-      errors.add(:tag, "must belong to the same organization as the part")
+      errors.add(:tag, :same_organization_as_part)
     end
   end
 end

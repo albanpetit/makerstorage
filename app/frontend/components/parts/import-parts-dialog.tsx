@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/dialog'
 
 import { csrfToken, parseCsvPreview, type ParsedImportRow } from './csv'
+import { t, tn } from '@/lib/i18n'
 
 interface ImportPartsDialogProps {
   open: boolean
@@ -51,7 +52,7 @@ export function ImportPartsDialog({ open, onOpenChange, identifiers }: ImportPar
       }
     }
     reader.onerror = () => {
-      setImportError('Could not read that file.')
+      setImportError(t('Could not read that file.'))
       setImportRows(null)
     }
     reader.readAsText(file)
@@ -76,9 +77,9 @@ export function ImportPartsDialog({ open, onOpenChange, identifiers }: ImportPar
     <Dialog open={open} onOpenChange={(next) => (next ? onOpenChange(true) : closeImport())}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Import inventory</DialogTitle>
+          <DialogTitle>{t('Import inventory')}</DialogTitle>
           <DialogDescription>
-            CSV file — columns are detected automatically (French and English headers both work).
+            {t('CSV file — columns are detected automatically (French and English headers both work).')}
           </DialogDescription>
         </DialogHeader>
 
@@ -86,9 +87,9 @@ export function ImportPartsDialog({ open, onOpenChange, identifiers }: ImportPar
           <input type="hidden" name="authenticity_token" value={csrfToken()} />
           <label className="flex cursor-pointer flex-col items-center gap-2 rounded-lg border border-dashed p-8 text-center hover:bg-accent">
             <Upload className="size-6 text-muted-foreground" />
-            <span className="text-sm font-medium">Click to choose a file</span>
+            <span className="text-sm font-medium">{t('Click to choose a file')}</span>
             <span className="text-xs text-muted-foreground">
-              Headers: Name, Category, MPN, SKU, Value, Package, Location, Supplier, Quantity, Min Stock Threshold, Unit Price
+              {t('Headers: Name, Category, MPN, SKU, Value, Package, Location, Supplier, Quantity, Min Stock Threshold, Unit Price')}
             </span>
             <input type="file" name="file" accept=".csv,text/csv" className="hidden" onChange={handleFilePicked} />
           </label>
@@ -100,16 +101,16 @@ export function ImportPartsDialog({ open, onOpenChange, identifiers }: ImportPar
           {importRows && !importError && (
             <div className="mt-4 space-y-3">
               <div className="text-sm text-muted-foreground">
-                {importFileName} · {importRows.length} row{importRows.length !== 1 ? 's' : ''}
+                {importFileName} · {tn('{count} row', '{count} rows', importRows.length)}
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div className="rounded-md bg-emerald-100 p-2 text-center dark:bg-emerald-950">
                   <div className="text-lg font-bold text-emerald-700 dark:text-emerald-400">{importNewCount}</div>
-                  <div className="text-xs text-emerald-700 dark:text-emerald-400">New</div>
+                  <div className="text-xs text-emerald-700 dark:text-emerald-400">{t('New')}</div>
                 </div>
                 <div className="rounded-md bg-blue-100 p-2 text-center dark:bg-blue-950">
                   <div className="text-lg font-bold text-blue-700 dark:text-blue-400">{importUpdateCount}</div>
-                  <div className="text-xs text-blue-700 dark:text-blue-400">Updated</div>
+                  <div className="text-xs text-blue-700 dark:text-blue-400">{t('Updated')}</div>
                 </div>
               </div>
               <div className="max-h-40 space-y-1 overflow-y-auto rounded-md border p-2">
@@ -122,7 +123,7 @@ export function ImportPartsDialog({ open, onOpenChange, identifiers }: ImportPar
                           ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400'
                           : 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400'
                       }`}>
-                        {isNew ? 'NEW' : 'UPDATE'}
+                        {isNew ? t('NEW') : t('UPDATE')}
                       </span>
                       <span className="truncate">{r.name}</span>
                     </div>
@@ -134,10 +135,10 @@ export function ImportPartsDialog({ open, onOpenChange, identifiers }: ImportPar
 
           <DialogFooter className="mt-4">
             <Button type="button" variant="outline" onClick={closeImport}>
-              Cancel
+              {t('Cancel')}
             </Button>
             <Button type="button" disabled={!importRows || !!importError} onClick={() => importFormRef.current?.requestSubmit()}>
-              Confirm import
+              {t('Confirm import')}
             </Button>
           </DialogFooter>
         </form>

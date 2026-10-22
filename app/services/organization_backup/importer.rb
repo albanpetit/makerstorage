@@ -27,10 +27,10 @@ module OrganizationBackup
     end
 
     def import!
-      raise Error, "The file is larger than #{ActiveSupport::NumberHelper.number_to_human_size(MAX_ARCHIVE_SIZE)}." if File.size(@path) > MAX_ARCHIVE_SIZE
+      raise Error, I18n.t("errors.backup.too_large", size: ActiveSupport::NumberHelper.number_to_human_size(MAX_ARCHIVE_SIZE)) if File.size(@path) > MAX_ARCHIVE_SIZE
 
       Zip::File.open(@path) do |zip|
-        raise Error, "The archive holds too many files." if zip.size > MAX_ENTRIES
+        raise Error, I18n.t("errors.backup.too_many_files") if zip.size > MAX_ENTRIES
 
         data = read_data(zip)
         organization, records_count = ActiveRecord::Base.transaction { restore_records(data) }
@@ -39,7 +39,7 @@ module OrganizationBackup
         Result.new(organization: organization.reload, records_count: records_count, files_count: files_count, skipped_files: skipped_files)
       end
     rescue Zip::Error
-      raise Error, "The file is not a valid backup archive."
+      raise Error, I18n.t("errors.backup.not_an_archive")
     end
 
     private
@@ -48,19 +48,19 @@ module OrganizationBackup
 
     def read_data(zip)
       entry = zip.find_entry(DATA_ENTRY)
-      raise Error, "The archive has no #{DATA_ENTRY}: is it a MakerStorage backup?" unless entry
-      raise Error, "#{DATA_ENTRY} is too large." if entry.size > MAX_DATA_SIZE
+      raise Error, I18n.t("errors.backup.no_data", file: DATA_ENTRY) unless entry
+      raise Error, I18n.t("errors.backup.data_too_large", file: DATA_ENTRY) if entry.size > MAX_DATA_SIZE
 
       data = JSON.parse(entry.get_input_stream.read)
-      raise Error, "The archive is not a MakerStorage organization backup." unless data.is_a?(Hash) && data["format"] == FORMAT
+      raise Error, I18n.t("errors.backup.wrong_format") unless data.is_a?(Hash) && data["format"] == FORMAT
       unless data["version"].is_a?(Integer) && data["version"].between?(1, VERSION)
-        raise Error, "This backup was made by a newer version of MakerStorage (format #{data['version']}). Update this install first."
+        raise Error, I18n.t("errors.backup.newer_version", version: data["version"])
       end
-      raise Error, "The backup has no organization data." unless data["organization"].is_a?(Hash) && data["tables"].is_a?(Hash)
+      raise Error, I18n.t("errors.backup.no_organization") unless data["organization"].is_a?(Hash) && data["tables"].is_a?(Hash)
 
       data
     rescue JSON::ParserError
-      raise Error, "#{DATA_ENTRY} is not valid JSON."
+      raise Error, I18n.t("errors.backup.invalid_json", file: DATA_ENTRY)
     end
 
     # -- Records ---------------------------------------------------------------
@@ -83,9 +83,9 @@ module OrganizationBackup
 
       [ organization, count ]
     rescue ActiveRecord::RecordInvalid => e
-      raise Error, "The organization settings are invalid: #{e.record.errors.full_messages.to_sentence}."
+      raise Error, I18n.t("errors.backup.invalid_settings", errors: e.record.errors.full_messages.to_sentence)
     rescue ActiveRecord::ActiveRecordError => e
-      raise Error, "The backup could not be restored (#{e.class.name.demodulize}): its data is inconsistent."
+      raise Error, I18n.t("errors.backup.inconsistent", error: e.class.name.demodulize)
     end
 
     def create_organization(attributes)

@@ -3,6 +3,7 @@ import { Card } from '@/components/ui/card'
 
 import { MOVEMENT_META, formatDate } from './zone-meta'
 import type { RecentMovement } from './types'
+import { t } from '@/lib/i18n'
 
 // The latest stock movements in the selected zone and its sub-zones.
 export function ZoneHistory({ movements }: { movements: RecentMovement[] }) {
@@ -10,7 +11,7 @@ export function ZoneHistory({ movements }: { movements: RecentMovement[] }) {
     <div>
       <div className="mb-2 flex items-center justify-between">
         <h2 className="text-sm font-semibold">
-          Zone history <span className="font-normal text-muted-foreground">· subtree included</span>
+          {t('Zone history')} <span className="font-normal text-muted-foreground">{t('· subtree included')}</span>
         </h2>
       </div>
       {movements.length > 0 ? (
@@ -31,7 +32,7 @@ export function ZoneHistory({ movements }: { movements: RecentMovement[] }) {
         </Card>
       ) : (
         <div className="rounded-lg border border-dashed p-5 text-center text-sm text-muted-foreground">
-          No movement recorded for this zone yet.
+          {t('No movement recorded for this zone yet.')}
         </div>
       )}
     </div>

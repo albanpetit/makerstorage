@@ -142,15 +142,15 @@ class StorageLocation < ApplicationRecord
 
   def bag_must_sit_in_a_coded_box
     if parent.nil? || !parent.box?
-      errors.add(:parent, "must be a box: a bag sits inside a box")
+      errors.add(:parent, :bag_parent_not_box)
     elsif parent.code.blank?
-      errors.add(:parent, "needs a code (A, B, C…) before it can hold bags")
+      errors.add(:parent, :bag_parent_without_code)
     end
   end
 
   def box_with_bags_keeps_its_code
     if code.blank? && children.bags.exists?
-      errors.add(:code, "can't be blank while the box holds bags")
+      errors.add(:code, :box_code_needed)
     end
   end
 
@@ -159,7 +159,7 @@ class StorageLocation < ApplicationRecord
   def bag_codes_stay_unique
     renames = children.bags.includes(:bag_occupant).to_h { |bag| [ bag, self.class.bag_code(code, bag.position, organization.ipn_separator) ] }
     clashes = organization.bag_code_clashes(renames)
-    errors.add(:code, "would give bags codes already in use: #{clashes.to_sentence}") if clashes.any?
+    errors.add(:code, :bag_codes_taken, codes: clashes.to_sentence) if clashes.any?
   end
 
   # A renamed box renames its bags (and so the IPNs of the parts in them).
@@ -177,7 +177,7 @@ class StorageLocation < ApplicationRecord
 
   def cannot_be_its_own_parent
     if id.present? && parent_id == id
-      errors.add(:parent_id, "cannot be itself")
+      errors.add(:parent_id, :own_parent)
     end
   end
 
@@ -191,7 +191,7 @@ class StorageLocation < ApplicationRecord
     node = parent
     while node && seen.exclude?(node.id)
       if node.id == id
-        errors.add(:parent_id, "cannot be moved under one of its own sub-zones")
+        errors.add(:parent_id, :under_own_subzone)
         break
       end
       seen << node.id
@@ -201,7 +201,7 @@ class StorageLocation < ApplicationRecord
 
   def parent_must_belong_to_same_organization
     if parent.present? && parent.organization_id != organization_id
-      errors.add(:parent, "must belong to the same organization")
+      errors.add(:parent, :same_organization)
     end
   end
 end

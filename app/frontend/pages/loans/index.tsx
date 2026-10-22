@@ -21,6 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { t, tn } from '@/lib/i18n'
 
 type Filter = 'open' | 'overdue' | 'returned' | 'all'
 
@@ -52,10 +53,10 @@ interface LoansPageProps {
 }
 
 const FILTERS: { value: Filter; label: string }[] = [
-  { value: 'open', label: 'Out' },
-  { value: 'overdue', label: 'Overdue' },
-  { value: 'returned', label: 'Returned' },
-  { value: 'all', label: 'All' },
+  { value: 'open', get label() { return t('Out') } },
+  { value: 'overdue', get label() { return t('Overdue') } },
+  { value: 'returned', get label() { return t('Returned') } },
+  { value: 'all', get label() { return t('All') } },
 ]
 
 export default function LoansIndex({ loans, filter, mine, counts, members, parts, default_due_on, prefill_part_id }: LoansPageProps) {
@@ -79,17 +80,17 @@ export default function LoansIndex({ loans, filter, mine, counts, members, parts
   return (
     <AppLayout
       header={
-        <PageHeader title="Loans" subtitle="Tools and parts lent to members, and when they're due back">
+        <PageHeader title={t('Loans')} subtitle={t('Tools and parts lent to members, and when they\'re due back')}>
           {canWrite && (
             <Button size="sm" onClick={openLend}>
               <Plus className="size-4" />
-              Lend items
+              {t('Lend items')}
             </Button>
           )}
         </PageHeader>
       }
     >
-      <Head title="Loans" />
+      <Head title={t('Loans')} />
 
       <div className="space-y-4">
         <FlashMessages />
@@ -116,7 +117,7 @@ export default function LoansIndex({ loans, filter, mine, counts, members, parts
           </div>
           <div className="flex items-center gap-2">
             <Switch id="loans-mine" checked={mine} onCheckedChange={(checked) => visit({ mine: checked })} />
-            <Label htmlFor="loans-mine" className="text-sm font-normal">Borrowed by me</Label>
+            <Label htmlFor="loans-mine" className="text-sm font-normal">{t('Borrowed by me')}</Label>
           </div>
         </div>
 
@@ -126,9 +127,9 @@ export default function LoansIndex({ loans, filter, mine, counts, members, parts
               <div className="flex size-11 items-center justify-center rounded-xl bg-muted text-muted-foreground">
                 <HandHelping className="size-[22px]" />
               </div>
-              <p className="font-semibold">{filter === 'overdue' ? 'Nothing overdue' : 'No loans here'}</p>
+              <p className="font-semibold">{filter === 'overdue' ? t('Nothing overdue') : t('No loans here')}</p>
               <p className="max-w-sm text-sm text-muted-foreground">
-                Lend a tool or a few parts to a member: they leave stock until they're returned, and overdue loans are flagged here and in the email digest.
+                {t('Lend a tool or a few parts to a member: they leave stock until they\'re returned, and overdue loans are flagged here and in the email digest.')}
               </p>
             </CardContent>
           </Card>
@@ -137,12 +138,12 @@ export default function LoansIndex({ loans, filter, mine, counts, members, parts
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Loan</TableHead>
-                  <TableHead>Borrower</TableHead>
-                  <TableHead>Items</TableHead>
-                  <TableHead>Lent</TableHead>
-                  <TableHead>Due</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead>{t('Loan')}</TableHead>
+                  <TableHead>{t('Borrower')}</TableHead>
+                  <TableHead>{t('Items')}</TableHead>
+                  <TableHead>{t('Lent')}</TableHead>
+                  <TableHead>{t('Due')}</TableHead>
+                  <TableHead>{t('Status')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -157,18 +158,18 @@ export default function LoansIndex({ loans, filter, mine, counts, members, parts
                       </TableCell>
                       <TableCell className="font-medium">
                         {loan.borrower_name}
-                        {loan.mine && <span className="ml-1.5 text-xs font-normal text-muted-foreground">(you)</span>}
+                        {loan.mine && <span className="ml-1.5 text-xs font-normal text-muted-foreground">{t('(you)')}</span>}
                       </TableCell>
                       <TableCell className="max-w-xs text-sm">
                         <div className="truncate">{loan.items.join(', ')}{loan.more_items > 0 && ` +${loan.more_items}`}</div>
                         {loan.status !== 'returned' && loan.outstanding < loan.item_count && (
-                          <div className="text-xs text-muted-foreground">{loan.outstanding} of {loan.item_count} still out</div>
+                          <div className="text-xs text-muted-foreground">{t('{outstanding} of {total} still out', { outstanding: loan.outstanding, total: loan.item_count })}</div>
                         )}
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground">{formatDate(loan.created_at)}</TableCell>
                       <TableCell className={`text-xs ${loan.status === 'overdue' ? 'font-medium text-destructive' : 'text-muted-foreground'}`}>
                         {loan.due_on ? formatDate(loan.due_on) : '—'}
-                        {loan.status === 'overdue' && <div>{loan.days_overdue} day{loan.days_overdue === 1 ? '' : 's'} late</div>}
+                        {loan.status === 'overdue' && <div>{tn('{count} day late', '{count} days late', loan.days_overdue)}</div>}
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline" className={meta.className}>{meta.label}</Badge>

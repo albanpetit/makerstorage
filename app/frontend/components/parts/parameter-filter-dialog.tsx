@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/dialog'
 
 import type { ParameterFacet, ParameterFilter } from './types'
+import { t, tn } from '@/lib/i18n'
 
 interface ParameterFilterDialogProps {
   facet: ParameterFacet | null
@@ -66,19 +67,19 @@ export function ParameterFilterDialog({ facet, current, onOpenChange, onApply }:
             <DialogTitle>{facet.name}{facet.unit ? ` (${facet.unit})` : ''}</DialogTitle>
             <DialogDescription>
               {isNumber
-                ? `${facet.count} part${facet.count !== 1 ? 's' : ''} from ${facet.min_display} to ${facet.max_display}. Leave a bound empty for no limit.`
-                : `${facet.count} part${facet.count !== 1 ? 's' : ''} have a value.`}
+                ? tn('{count} part from {min} to {max}. Leave a bound empty for no limit.', '{count} parts from {min} to {max}. Leave a bound empty for no limit.', facet.count, { min: facet.min_display ?? '', max: facet.max_display ?? '' })
+                : tn('{count} part has a value.', '{count} parts have a value.', facet.count)}
             </DialogDescription>
           </DialogHeader>
 
           {isNumber ? (
             <div className="grid grid-cols-2 gap-3 py-4">
               <div className="space-y-2">
-                <Label htmlFor="parameter-filter-min">Min</Label>
+                <Label htmlFor="parameter-filter-min">{t('Min')}</Label>
                 <Input id="parameter-filter-min" className="font-mono" placeholder={facet.min_display ?? ''} value={min} onChange={(e) => setMin(e.target.value)} autoFocus />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="parameter-filter-max">Max</Label>
+                <Label htmlFor="parameter-filter-max">{t('Max')}</Label>
                 <Input id="parameter-filter-max" className="font-mono" placeholder={facet.max_display ?? ''} value={max} onChange={(e) => setMax(e.target.value)} />
               </div>
             </div>
@@ -101,10 +102,10 @@ export function ParameterFilterDialog({ facet, current, onOpenChange, onApply }:
 
           <DialogFooter>
             {current && (
-              <Button type="button" variant="ghost" onClick={() => onApply(null)}>Clear</Button>
+              <Button type="button" variant="ghost" onClick={() => onApply(null)}>{t('Clear')}</Button>
             )}
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-            <Button type="submit">Apply</Button>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>{t('Cancel')}</Button>
+            <Button type="submit">{t('Apply')}</Button>
           </DialogFooter>
         </form>
       </DialogContent>

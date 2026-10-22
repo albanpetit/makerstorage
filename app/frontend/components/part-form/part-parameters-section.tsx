@@ -27,6 +27,7 @@ import {
   useParameterDefinitions,
   type ParameterDefinitionOption,
 } from '@/components/parameters/use-parameter-definitions'
+import { t } from '@/lib/i18n'
 
 function csrfToken(): string {
   return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? ''
@@ -84,7 +85,7 @@ export function PartParametersSection({ categoryId, values, onChange, error }: P
     e.stopPropagation()
     const name = newName.trim()
     if (!name) {
-      setCreateError('Name is required.')
+      setCreateError(t('Name is required.'))
       return
     }
     const existing = definitions.find((d) => d.name.toLowerCase() === name.toLowerCase())
@@ -109,10 +110,10 @@ export function PartParametersSection({ categoryId, values, onChange, error }: P
         setCreateOpen(false)
       } else {
         const errors = (data.errors ?? {}) as Record<string, string>
-        setCreateError(errors.name ?? Object.values(errors)[0] ?? 'Could not create the parameter.')
+        setCreateError(errors.name ?? Object.values(errors)[0] ?? t('Could not create the parameter.'))
       }
     } catch {
-      setCreateError('Could not create the parameter.')
+      setCreateError(t('Could not create the parameter.'))
     } finally {
       setProcessing(false)
     }
@@ -122,8 +123,8 @@ export function PartParametersSection({ categoryId, values, onChange, error }: P
   const description = filled.length > 0
     ? filled.join(', ')
     : rows.length > 0
-      ? `Suggested: ${rows.map((d) => d.name).join(', ')}`
-      : 'Technical values to filter on (resistance, capacitance…)'
+      ? t('Suggested: {names}', { names: rows.map((d) => d.name).join(', ') })
+      : t('Technical values to filter on (resistance, capacitance…)')
 
   return (
     <div className="rounded-lg border">
@@ -135,7 +136,7 @@ export function PartParametersSection({ categoryId, values, onChange, error }: P
       >
         <ChevronRight className={`size-4 shrink-0 text-muted-foreground transition-transform ${open || error ? 'rotate-90' : ''}`} />
         <span className="flex-1">
-          <span className="block text-sm font-medium">Parameters</span>
+          <span className="block text-sm font-medium">{t('Parameters')}</span>
           <span className="block text-xs text-muted-foreground">{description}</span>
         </span>
       </Button>
@@ -166,7 +167,7 @@ export function PartParametersSection({ categoryId, values, onChange, error }: P
                         size="icon"
                         className="size-8 shrink-0"
                         onClick={() => setValue(definition.id, null)}
-                        aria-label={`Remove ${definition.name}`}
+                        aria-label={t('Remove {name}', { name: definition.name })}
                       >
                         <X className="size-4" />
                       </Button>
@@ -184,15 +185,15 @@ export function PartParametersSection({ categoryId, values, onChange, error }: P
               options={options}
               value=""
               onValueChange={(value) => value && setValue(Number(value), values[Number(value)] ?? '')}
-              placeholder="Add a parameter…"
-              searchPlaceholder="Search parameters…"
-              emptyText={definitions.length === 0 ? 'No parameter yet.' : 'No other parameter.'}
+              placeholder={t('Add a parameter…')}
+              searchPlaceholder={t('Search parameters…')}
+              emptyText={definitions.length === 0 ? t('No parameter yet.') : t('No other parameter.')}
               className="w-56"
               onCreate={startCreate}
-              createLabel={(query) => (query ? `Create parameter "${query}"` : 'New parameter…')}
+              createLabel={(query) => (query ? t('Create parameter “{query}”', { query }) : t('New parameter…'))}
             />
             <span className="text-xs text-muted-foreground">
-              Type values as usual: 4k7, 100nF, 1/4W, 3V3. Categories propose their parameters (Parameters page).
+              {t('Type values as usual: 4k7, 100nF, 1/4W, 3V3. Categories propose their parameters (Parameters page).')}
             </span>
           </div>
         </div>
@@ -203,37 +204,37 @@ export function PartParametersSection({ categoryId, values, onChange, error }: P
           {/* Inside the part form: keep this submit from bubbling up to it. */}
           <form onSubmit={create}>
             <DialogHeader>
-              <DialogTitle>New parameter</DialogTitle>
-              <DialogDescription>Available on every part of the organization.</DialogDescription>
+              <DialogTitle>{t('New parameter')}</DialogTitle>
+              <DialogDescription>{t('Available on every part of the organization.')}</DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="space-y-2">
-                <Label htmlFor="new-parameter-name">Name</Label>
+                <Label htmlFor="new-parameter-name">{t('Name')}</Label>
                 <Input id="new-parameter-name" value={newName} onChange={(e) => setNewName(e.target.value)} autoFocus />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
-                  <Label>Type</Label>
+                  <Label>{t('Type')}</Label>
                   <Select value={newType} onValueChange={(value) => setNewType(value as 'number' | 'text')}>
                     <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="number">Number</SelectItem>
-                      <SelectItem value="text">Text</SelectItem>
+                      <SelectItem value="number">{t('Number')}</SelectItem>
+                      <SelectItem value="text">{t('Text')}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 {newType === 'number' && (
                   <div className="space-y-2">
-                    <Label htmlFor="new-parameter-unit">Unit</Label>
-                    <Input id="new-parameter-unit" placeholder="e.g. V, Ω, dB" value={newUnit} onChange={(e) => setNewUnit(e.target.value)} />
+                    <Label htmlFor="new-parameter-unit">{t('Unit')}</Label>
+                    <Input id="new-parameter-unit" placeholder={t('e.g. V, Ω, dB')} value={newUnit} onChange={(e) => setNewUnit(e.target.value)} />
                   </div>
                 )}
               </div>
               {createError && <FieldError>{createError}</FieldError>}
             </div>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
-              <Button type="submit" disabled={processing}>Create</Button>
+              <Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>{t('Cancel')}</Button>
+              <Button type="submit" disabled={processing}>{t('Create')}</Button>
             </DialogFooter>
           </form>
         </DialogContent>

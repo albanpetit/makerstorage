@@ -32,7 +32,7 @@ class PartParameter < ApplicationRecord
   def definition_must_belong_to_same_organization
     return if parameter_definition.nil? || part.nil?
 
-    errors.add(:parameter_definition, "must belong to the same organization as the part") if parameter_definition.organization_id != part.organization_id
+    errors.add(:parameter_definition, :same_organization_as_part) if parameter_definition.organization_id != part.organization_id
   end
 
   def value_must_fit_definition
@@ -40,6 +40,6 @@ class PartParameter < ApplicationRecord
     return if parameter_definition.parse(value)
 
     unit = parameter_definition.unit
-    errors.add(:value, "“#{value.strip}” is not #{unit ? "a value in #{unit}" : 'a number'}")
+    errors.add(:value, unit ? :not_a_value_in_unit : :not_a_number_value, value: value.strip, unit: unit)
   end
 end

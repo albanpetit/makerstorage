@@ -33,6 +33,7 @@ import {
   Supplier,
   Tag,
 } from '@/components/part-form/types'
+import { t, tx } from '@/lib/i18n'
 
 const PRINT_LABEL_STORAGE_KEY = 'makerstorage.printNewPartLabel'
 
@@ -194,9 +195,9 @@ export function AddPartDialog({
       return
     }
     const format = labelTarget.target as LabelFormatId
-    toast('Part created', {
-      description: `Print the label for ${item.title}?`,
-      action: { label: 'Print label', onClick: () => printLabels([ item ], format, window.open('', '_blank')) },
+    toast(t('Part created'), {
+      description: t('Print the label for {name}?', { name: item.title }),
+      action: { label: t('Print label'), onClick: () => printLabels([ item ], format, window.open('', '_blank')) },
     })
   }
 
@@ -218,9 +219,9 @@ export function AddPartDialog({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="flex max-h-[90svh] flex-col gap-0 p-0 sm:max-w-2xl lg:max-w-4xl">
         <DialogHeader className="border-b px-6 py-4">
-          <DialogTitle>Add part</DialogTitle>
+          <DialogTitle>{t('Add part')}</DialogTitle>
           <DialogDescription>
-            Fill in the essentials — expand the sections below for more detail.
+            {t('Fill in the essentials — expand the sections below for more detail.')}
           </DialogDescription>
         </DialogHeader>
 
@@ -260,12 +261,13 @@ export function AddPartDialog({
             <div className="mr-auto flex items-center gap-2">
               <Checkbox id="print-new-part-label" checked={printLabel} onCheckedChange={(checked) => choosePrintLabel(checked === true)} />
               <Label htmlFor="print-new-part-label" className="text-sm font-normal">
-                Print its label
-                {printLabel && labelTarget.printer && <span className="text-muted-foreground"> on {labelTarget.printer.name}</span>}
+                {printLabel && labelTarget.printer
+                  ? tx('Print its label {printer}', { printer: <span className="text-muted-foreground">{t('on {name}', { name: labelTarget.printer.name })}</span> })
+                  : t('Print its label')}
               </Label>
             </div>
-            <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>Cancel</Button>
-            <Button type="submit" disabled={form.processing}>Add part</Button>
+            <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>{t('Cancel')}</Button>
+            <Button type="submit" disabled={form.processing}>{t('Add part')}</Button>
           </DialogFooter>
         </form>
       </DialogContent>

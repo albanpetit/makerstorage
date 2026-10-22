@@ -134,23 +134,23 @@ module SupplierCatalog
       response = http.request(request)
 
       unless response.is_a?(Net::HTTPSuccess)
-        raise LookupError, "LCSC refused the search (HTTP #{response.code}). LCSC has no public API, so its catalog may block or change these requests."
+        raise LookupError, I18n.t("errors.lcsc.refused", code: response.code)
       end
 
       JSON.parse(response.body)
     rescue *NETWORK_ERRORS => e
-      raise LookupError, "Could not reach LCSC: #{e.message}"
+      raise LookupError, I18n.t("errors.lcsc.unreachable", error: e.message)
     rescue JSON::ParserError
-      raise LookupError, "LCSC returned an unreadable response. Its catalog may have changed; LCSC has no public API."
+      raise LookupError, I18n.t("errors.lcsc.unreadable_changed")
     end
 
     # Every response wraps the data as { code:, msg:, result: }; 200 is success.
     def check_for_errors!(payload)
-      raise LookupError, "LCSC returned an unreadable response." unless payload.is_a?(Hash)
+      raise LookupError, I18n.t("errors.lcsc.unreadable") unless payload.is_a?(Hash)
       return if payload["code"].to_i == 200
 
       message = payload["msg"].presence || "error #{payload['code']}"
-      raise LookupError, "LCSC search failed: #{message}"
+      raise LookupError, I18n.t("errors.lcsc.failed", error: message)
     end
 
     def build_result(product)

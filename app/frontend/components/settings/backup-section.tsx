@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 
 import type { OrganizationSettings } from './types'
+import { t, tx } from '@/lib/i18n'
 
 // Download the organization as a backup archive, or restore one into a new
 // organization (BackupsController).
@@ -34,25 +35,23 @@ export function BackupSection({ organization }: { organization: OrganizationSett
   return (
     <div className="space-y-4">
       <div>
-        <h2 className="text-lg font-semibold">Backup</h2>
+        <h2 className="text-lg font-semibold">{t('Backup')}</h2>
         <p className="max-w-xl text-sm text-muted-foreground">
-          Export everything to keep a copy, or to move the organization to another MakerStorage install.
+          {t('Export everything to keep a copy, or to move the organization to another MakerStorage install.')}
         </p>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Export organization</CardTitle>
+          <CardTitle>{t('Export organization')}</CardTitle>
           <CardDescription>
-            Downloads a ZIP archive of <span className="font-medium text-foreground">{organization.name}</span>: parts,
-            categories, footprints, tags, storage zones, stock levels and movements, suppliers, orders, projects, settings
-            and attached files, as JSON with a CSV copy of each table. Members and supplier API keys are not included.
+            {tx('Downloads a ZIP archive of {name}: parts, categories, footprints, tags, storage zones, stock levels and movements, suppliers, orders, projects, settings and attached files, as JSON with a CSV copy of each table. Members and supplier API keys are not included.', { name: <span className="font-medium text-foreground">{organization.name}</span> })}
           </CardDescription>
         </CardHeader>
         <CardFooter className="justify-end border-t">
           <Button asChild>
             <a href="/backup/export" download>
-              <Download className="size-4" /> Download backup
+              <Download className="size-4" /> {t('Download backup')}
             </a>
           </Button>
         </CardFooter>
@@ -60,16 +59,15 @@ export function BackupSection({ organization }: { organization: OrganizationSett
 
       <Card>
         <CardHeader>
-          <CardTitle>Restore a backup</CardTitle>
+          <CardTitle>{t('Restore a backup')}</CardTitle>
           <CardDescription>
-            Creates a new organization from a backup archive, with you as its owner. Existing organizations are left
-            untouched; invite members again once it's restored.
+            {t('Creates a new organization from a backup archive, with you as its owner. Existing organizations are left untouched; invite members again once it\'s restored.')}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex flex-wrap items-center gap-3">
             <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()}>
-              <Upload className="size-4" /> Choose archive
+              <Upload className="size-4" /> {t('Choose archive')}
             </Button>
             {file && (
               <span className="flex min-w-0 items-center gap-1.5 text-sm text-muted-foreground">
@@ -86,21 +84,21 @@ export function BackupSection({ organization }: { organization: OrganizationSett
             />
           </div>
           <Field>
-            <FieldLabel><Label htmlFor="backup-name">Organization name</Label></FieldLabel>
+            <FieldLabel><Label htmlFor="backup-name">{t('Organization name')}</Label></FieldLabel>
             <FieldContent>
               <Input
                 id="backup-name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Keep the name from the backup"
+                placeholder={t('Keep the name from the backup')}
               />
             </FieldContent>
-            <FieldDescription>Optional. Useful to tell the copy apart from the original.</FieldDescription>
+            <FieldDescription>{t('Optional. Useful to tell the copy apart from the original.')}</FieldDescription>
           </Field>
         </CardContent>
         <CardFooter className="justify-end border-t">
           <Button type="button" disabled={!file || processing} onClick={restore}>
-            {processing ? 'Restoring…' : 'Restore into a new organization'}
+            {processing ? t('Restoring…') : t('Restore into a new organization')}
           </Button>
         </CardFooter>
       </Card>

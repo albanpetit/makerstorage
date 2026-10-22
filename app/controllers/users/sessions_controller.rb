@@ -6,7 +6,7 @@ class Users::SessionsController < Devise::SessionsController
   # generous: a makerspace class signs in all at once from one shared public IP.
   RATE_LIMIT = 60
   rate_limit to: RATE_LIMIT, within: 5.minutes, only: :create, store: AUTH_RATE_LIMIT_STORE,
-             with: -> { redirect_to new_user_session_path, alert: "Too many sign-in attempts. Please wait a few minutes and try again." }
+             with: -> { redirect_to new_user_session_path, alert: t("flash.users_sessions.too_many_sign_in_attempts_please") }
   # before_action :configure_sign_in_params, only: [:create]
 
   # GET /login

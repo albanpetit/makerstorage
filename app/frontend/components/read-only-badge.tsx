@@ -1,6 +1,7 @@
 import { Eye } from 'lucide-react'
 
 import { usePermissions } from '@/hooks/use-permissions'
+import { t } from '@/lib/i18n'
 
 /**
  * Renders a "Read only" pill when the current user's role cannot write in the
@@ -15,10 +16,10 @@ export function ReadOnlyBadge() {
   return (
     <span
       className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium text-muted-foreground"
-      title="Your role is read-only for this organization"
+      title={t('Your role is read-only for this organization')}
     >
       <Eye className="size-3.5" />
-      Read only
+      {t('Read only')}
     </span>
   )
 }

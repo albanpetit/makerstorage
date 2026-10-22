@@ -14,6 +14,8 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { StorageLocationSelect } from '@/components/storage-location-select'
+import { typeMeta } from '@/components/storage-locations/zone-meta'
+import { t, tn, tx, intlLocale } from '@/lib/i18n'
 
 interface ScanLocationOption {
   id: number
@@ -116,12 +118,12 @@ const QR_GHOST_CELLS: Array<[number, number]> = [
 
 function formatAgo(iso: string) {
   const seconds = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000)
-  if (seconds < 60) return 'just now'
+  if (seconds < 60) return t('just now')
   const minutes = Math.floor(seconds / 60)
-  if (minutes < 60) return `${minutes} min ago`
+  if (minutes < 60) return t('{minutes} min ago', { minutes })
   const hours = Math.floor(minutes / 60)
-  if (hours < 24) return `${hours} h ago`
-  return `${Math.floor(hours / 24)} d ago`
+  if (hours < 24) return t('{hours} h ago', { hours })
+  return t('{days} d ago', { days: Math.floor(hours / 24) })
 }
 
 function MatchBadge({ tone, label }: { tone: 'success' | 'error'; label: string }) {
@@ -236,23 +238,23 @@ export default function ScansIndex({ code, result, recent_scans, today_count, al
   }
 
   const matchLabel = !result ? '—'
-    : result.kind === 'part' ? 'Part'
-    : result.kind === 'location' ? 'Zone'
-    : result.kind === 'supplier_label' ? 'Supplier label'
-    : 'Unknown'
+    : result.kind === 'part' ? t('Part')
+    : result.kind === 'location' ? t('Zone')
+    : result.kind === 'supplier_label' ? t('Supplier label')
+    : t('Unknown')
 
   return (
     <AppLayout
       header={
-        <PageHeader title="Scanner" subtitle="Scan a QR code to locate a zone, count a component or receive a supplier bag">
+        <PageHeader title={t('Scanner')} subtitle={t('Scan a QR code to locate a zone, count a component or receive a supplier bag')}>
           <span className="inline-flex items-center gap-2 text-xs text-muted-foreground">
             <span className="size-1.5 animate-pulse rounded-full bg-emerald-500" />
-            Scanner ready
+            {t('Scanner ready')}
           </span>
         </PageHeader>
       }
     >
-      <Head title="Scanner" />
+      <Head title={t('Scanner')} />
 
       <div className="mx-auto max-w-5xl space-y-4">
         <FlashMessages errors={errors} />
@@ -296,9 +298,9 @@ export default function ScansIndex({ code, result, recent_scans, today_count, al
                   <div className="absolute inset-x-0 bottom-4 flex flex-col items-center gap-2 px-4">
                     <Button type="button" onClick={camera.start} disabled={camera.starting} className="h-10">
                       <Camera className="size-4" />
-                      {camera.starting ? 'Starting camera…' : 'Start camera'}
+                      {camera.starting ? t('Starting camera…') : t('Start camera')}
                     </Button>
-                    <span className="text-xs text-zinc-400">…or use a hardware scanner / type a code below</span>
+                    <span className="text-xs text-zinc-400">{t('…or use a hardware scanner / type a code below')}</span>
                   </div>
                 </>
               )}
@@ -312,7 +314,7 @@ export default function ScansIndex({ code, result, recent_scans, today_count, al
                   className="absolute top-2.5 right-2.5 h-auto gap-1.5 rounded-lg border border-white/20 bg-black/40 px-2.5 py-1.5 text-xs text-white backdrop-blur hover:bg-black/60 hover:text-white has-[>svg]:px-2.5 dark:hover:bg-black/60"
                 >
                   <CameraOff className="size-3.5" />
-                  Stop
+                  {t('Stop')}
                 </Button>
               )}
             </div>
@@ -327,22 +329,22 @@ export default function ScansIndex({ code, result, recent_scans, today_count, al
               <Input
                 value={codeInput}
                 onChange={(e) => setCodeInput(e.target.value)}
-                placeholder="IPN, barcode, SKU, MPN, or zone code…"
+                placeholder={t('IPN, barcode, SKU, MPN, or zone code…')}
                 className="h-11 border-zinc-800 bg-zinc-900 text-zinc-50 placeholder:text-zinc-500"
               />
               <Button type="submit" variant="outline" className="h-11 w-full border-zinc-700 bg-zinc-900 text-zinc-50 hover:bg-zinc-800 hover:text-zinc-50">
                 <ScanLine className="size-4" />
-                Look up code
+                {t('Look up code')}
               </Button>
             </form>
 
             <div className="mt-2.5 flex gap-2">
               <div className="flex-1 rounded-lg border border-zinc-800 bg-zinc-900 p-2 text-center">
-                <div className="text-[11px] text-zinc-400">Counts today</div>
+                <div className="text-[11px] text-zinc-400">{t('Counts today')}</div>
                 <div className="font-mono text-base font-bold text-zinc-50">{today_count}</div>
               </div>
               <div className="flex-1 rounded-lg border border-zinc-800 bg-zinc-900 p-2 text-center">
-                <div className="text-[11px] text-zinc-400">Match</div>
+                <div className="text-[11px] text-zinc-400">{t('Match')}</div>
                 <div className="mt-0.5 text-sm font-semibold text-zinc-50">{matchLabel}</div>
               </div>
             </div>
@@ -352,7 +354,7 @@ export default function ScansIndex({ code, result, recent_scans, today_count, al
           <div className="space-y-4">
             {part && code && (
               <Card className="gap-0 overflow-hidden py-0">
-                <ResultCardHeader tone="success" label="✓ Scan matched" code={code} />
+                <ResultCardHeader tone="success" label={t('✓ Scan matched')} code={code} />
                 <CardContent className="p-4">
                   <div className="flex items-start gap-3">
                     <div
@@ -372,12 +374,12 @@ export default function ScansIndex({ code, result, recent_scans, today_count, al
                       )}
                     </div>
                     <div className="shrink-0 text-right">
-                      <div className="text-[11px] text-muted-foreground">In stock</div>
+                      <div className="text-[11px] text-muted-foreground">{t('In stock')}</div>
                       <div className={`font-mono text-2xl font-bold ${STOCK_STATUS_CLASS[part.stock_status]}`}>
-                        {(selectedLocation?.quantity ?? 0).toLocaleString()}
+                        {(selectedLocation?.quantity ?? 0).toLocaleString(intlLocale())}
                       </div>
                       {part.locations.length > 1 && (
-                        <div className="text-[11px] text-muted-foreground">of {part.total_quantity.toLocaleString()} total</div>
+                        <div className="text-[11px] text-muted-foreground">{t('of {total} total', { total: part.total_quantity })}</div>
                       )}
                     </div>
                   </div>
@@ -385,31 +387,33 @@ export default function ScansIndex({ code, result, recent_scans, today_count, al
                   {part.locations.length > 1 && (
                     <div className="mt-3">
                       <StorageLocationSelect
-                        locations={part.locations.map((location) => (location.quantity > 0 ? { ...location, hint: location.quantity.toLocaleString() } : location))}
+                        locations={part.locations.map((location) => (location.quantity > 0 ? { ...location, hint: location.quantity.toLocaleString(intlLocale()) } : location))}
                         value={String(selectedLocation?.id ?? '')}
                         onValueChange={setLocationId}
-                        placeholder="Select a location"
+                        placeholder={t('Select a location')}
                       />
                     </div>
                   )}
 
                   {!canWrite ? null : part.locations.length === 0 ? (
                     <div className="mt-4 rounded-xl bg-muted p-4 text-center text-sm text-muted-foreground">
-                      No storage zone exists yet.{' '}
-                      <Link href="/storage_locations" className="font-medium text-foreground underline underline-offset-2">
-                        Create one
-                      </Link>{' '}
-                      to record movements.
+                      {tx('No storage zone exists yet. {link} to record movements.', {
+                        link: (
+                          <Link href="/storage_locations" className="font-medium text-foreground underline underline-offset-2">
+                            {t('Create one')}
+                          </Link>
+                        ),
+                      })}
                     </div>
                   ) : (
                     <div className="mt-4 rounded-xl bg-muted p-4">
-                      <div className="mb-2.5 text-center text-xs font-medium text-muted-foreground">Quick count</div>
+                      <div className="mb-2.5 text-center text-xs font-medium text-muted-foreground">{t('Quick count')}</div>
                       <div className="flex items-center justify-center gap-4">
                         <Button
                           type="button"
                           variant="outline"
                           className="size-11 rounded-xl text-xl font-semibold text-red-600 dark:text-red-400"
-                          aria-label="Remove one"
+                          aria-label={t('Remove one')}
                           disabled={!allow_negative_stock && projected <= 0}
                           onClick={() => setDelta((d) => d - 1)}
                         >
@@ -423,13 +427,13 @@ export default function ScansIndex({ code, result, recent_scans, today_count, al
                           >
                             {delta > 0 ? `+${delta}` : delta}
                           </div>
-                          <div className="mt-1 text-[11px] text-muted-foreground">→ {projected.toLocaleString()} after</div>
+                          <div className="mt-1 text-[11px] text-muted-foreground">{t('→ {quantity} after', { quantity: projected })}</div>
                         </div>
                         <Button
                           type="button"
                           variant="outline"
                           className="size-11 rounded-xl text-xl font-semibold text-emerald-600 dark:text-emerald-400"
-                          aria-label="Add one"
+                          aria-label={t('Add one')}
                           onClick={() => setDelta((d) => d + 1)}
                         >
                           +
@@ -441,7 +445,7 @@ export default function ScansIndex({ code, result, recent_scans, today_count, al
                   <div className="mt-4 flex gap-2">
                     <Button variant="outline" className="flex-1" onClick={() => setDetailPartId(part.id)}>
                       <ExternalLink className="size-4" />
-                      Open part
+                      {t('Open part')}
                     </Button>
                     {canWrite && (
                       <Button
@@ -450,7 +454,7 @@ export default function ScansIndex({ code, result, recent_scans, today_count, al
                         onClick={validateMovement}
                       >
                         <Check className="size-4" />
-                        Validate movement
+                        {t('Validate movement')}
                       </Button>
                     )}
                   </div>
@@ -460,7 +464,7 @@ export default function ScansIndex({ code, result, recent_scans, today_count, al
 
             {result?.kind === 'location' && code && (
               <Card className="gap-0 overflow-hidden py-0">
-                <ResultCardHeader tone="success" label="✓ Scan matched" code={code} />
+                <ResultCardHeader tone="success" label={t('✓ Scan matched')} code={code} />
                 <CardContent className="p-4">
                   <div className="flex items-start gap-3">
                     <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-muted">
@@ -470,10 +474,10 @@ export default function ScansIndex({ code, result, recent_scans, today_count, al
                       <div className="text-base font-bold">{result.location.name}</div>
                       <div className="truncate text-sm text-muted-foreground">{result.location.full_path}</div>
                       <div className="mt-1.5 flex items-center gap-2">
-                        <Badge variant="outline" className="capitalize">{result.location.location_type}</Badge>
+                        <Badge variant="outline">{typeMeta(result.location.location_type).label}</Badge>
                         {result.location.children_count > 0 && (
                           <span className="text-xs text-muted-foreground">
-                            {result.location.children_count} sub-zone{result.location.children_count !== 1 ? 's' : ''}
+                            {tn('{count} sub-zone', '{count} sub-zones', result.location.children_count)}
                           </span>
                         )}
                       </div>
@@ -481,19 +485,19 @@ export default function ScansIndex({ code, result, recent_scans, today_count, al
                   </div>
                   <div className="mt-4 grid grid-cols-2 gap-2">
                     <div className="rounded-xl bg-muted p-3 text-center">
-                      <div className="text-xs text-muted-foreground">Parts stored</div>
-                      <div className="font-mono text-xl font-bold">{result.location.parts_count.toLocaleString()}</div>
+                      <div className="text-xs text-muted-foreground">{t('Parts stored')}</div>
+                      <div className="font-mono text-xl font-bold">{result.location.parts_count.toLocaleString(intlLocale())}</div>
                     </div>
                     <div className="rounded-xl bg-muted p-3 text-center">
-                      <div className="text-xs text-muted-foreground">Units in stock</div>
-                      <div className="font-mono text-xl font-bold">{result.location.total_quantity.toLocaleString()}</div>
+                      <div className="text-xs text-muted-foreground">{t('Units in stock')}</div>
+                      <div className="font-mono text-xl font-bold">{result.location.total_quantity.toLocaleString(intlLocale())}</div>
                     </div>
                   </div>
                   {result.location.contents.length > 0 && (
                     <div className="mt-4 overflow-hidden rounded-xl border">
                       <div className="border-b bg-muted/50 px-3 py-2 text-xs font-medium text-muted-foreground">
-                        Contents{result.location.parts_count > result.location.contents.length
-                          ? ` · top ${result.location.contents.length} of ${result.location.parts_count}`
+                        {t('Contents')}{result.location.parts_count > result.location.contents.length
+                          ? t(' · top {shown} of {count}', { shown: result.location.contents.length, count: result.location.parts_count })
                           : ''}
                       </div>
                       <div className="max-h-80 divide-y overflow-y-auto">
@@ -509,7 +513,7 @@ export default function ScansIndex({ code, result, recent_scans, today_count, al
                               <span className="block truncate font-mono text-sm font-semibold">{item.reference}</span>
                               <span className="block truncate text-xs text-muted-foreground">{item.name}</span>
                             </span>
-                            <span className="shrink-0 font-mono text-sm font-semibold">{item.quantity.toLocaleString()}</span>
+                            <span className="shrink-0 font-mono text-sm font-semibold">{item.quantity.toLocaleString(intlLocale())}</span>
                             <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
                           </Button>
                         ))}
@@ -519,14 +523,14 @@ export default function ScansIndex({ code, result, recent_scans, today_count, al
                   <Button variant="outline" className="mt-4 w-full" asChild>
                     <Link href={`/storage_locations?zone=${result.location.id}`}>
                       <Box className="size-4" />
-                      Open zone
+                      {t('Open zone')}
                     </Link>
                   </Button>
                   {canWrite && (result.location.stocktake ? (
                     <Button variant="outline" className="mt-2 w-full" asChild>
                       <Link href={`/stocktakes/${result.location.stocktake.id}?zone=${result.location.id}`}>
                         <ClipboardCheck className="size-4" />
-                        Continue stocktake {result.location.stocktake.reference}
+                        {t('Continue stocktake {reference}', { reference: result.location.stocktake.reference ?? '' })}
                       </Link>
                     </Button>
                   ) : (
@@ -536,7 +540,7 @@ export default function ScansIndex({ code, result, recent_scans, today_count, al
                       onClick={() => router.post('/stocktakes', { stocktake: { storage_location_id: result.location.id } })}
                     >
                       <ClipboardCheck className="size-4" />
-                      Count this zone
+                      {t('Count this zone')}
                     </Button>
                   ))}
                 </CardContent>
@@ -547,20 +551,20 @@ export default function ScansIndex({ code, result, recent_scans, today_count, al
               <Card className="gap-0 overflow-hidden py-0">
                 <ResultCardHeader
                   tone={labelResult.part ? 'success' : 'error'}
-                  label={labelResult.part ? '✓ Bag matched' : 'New part'}
-                  code={`${labelResult.label.provider_name} label`}
+                  label={labelResult.part ? t('✓ Bag matched') : t('New part')}
+                  code={t('{provider} label', { provider: labelResult.label.provider_name })}
                 />
                 <CardContent className="p-4">
                   <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
                     {([
                       ['MPN', labelResult.label.mpn],
-                      ['Manufacturer', labelResult.label.manufacturer],
-                      [`${labelResult.label.provider_name} part number`, labelResult.label.supplier_sku],
-                      ['Customer part number', labelResult.label.customer_part_number],
-                      ['Quantity', labelResult.label.quantity?.toLocaleString()],
-                      ['Order', labelResult.label.order_number],
-                      ['Lot', labelResult.label.lot],
-                      ['Date code', labelResult.label.date_code],
+                      [t('Manufacturer'), labelResult.label.manufacturer],
+                      [t('{provider} part number', { provider: labelResult.label.provider_name }), labelResult.label.supplier_sku],
+                      [t('Customer part number'), labelResult.label.customer_part_number],
+                      [t('Quantity'), labelResult.label.quantity?.toLocaleString(intlLocale())],
+                      [t('Order'), labelResult.label.order_number],
+                      [t('Lot'), labelResult.label.lot],
+                      [t('Date code'), labelResult.label.date_code],
                     ] as Array<[string, string | null | undefined]>).filter(([, value]) => value).map(([term, value]) => (
                       <div key={term} className="min-w-0">
                         <dt className="text-[11px] text-muted-foreground">{term}</dt>
@@ -583,9 +587,9 @@ export default function ScansIndex({ code, result, recent_scans, today_count, al
                           <div className="truncate text-xs text-muted-foreground">{labelResult.part.name}</div>
                         </div>
                         <div className="shrink-0 text-right">
-                          <div className="text-[11px] text-muted-foreground">In stock</div>
+                          <div className="text-[11px] text-muted-foreground">{t('In stock')}</div>
                           <div className={`font-mono text-lg font-bold ${STOCK_STATUS_CLASS[labelResult.part.stock_status]}`}>
-                            {labelResult.part.total_quantity.toLocaleString()}
+                            {labelResult.part.total_quantity.toLocaleString(intlLocale())}
                           </div>
                         </div>
                       </div>
@@ -594,7 +598,11 @@ export default function ScansIndex({ code, result, recent_scans, today_count, al
                         <Alert className="mt-3">
                           <AlertTriangle className="size-4" />
                           <AlertDescription>
-                            This bag was already received {formatAgo(labelResult.previous_receipt.created_at)} (+{labelResult.previous_receipt.quantity.toLocaleString()} into {labelResult.previous_receipt.location_name}). Receiving it again counts it twice.
+                            {t('This bag was already received {ago} (+{quantity} into {location}). Receiving it again counts it twice.', {
+                              ago: formatAgo(labelResult.previous_receipt.created_at),
+                              quantity: labelResult.previous_receipt.quantity.toLocaleString(intlLocale()),
+                              location: labelResult.previous_receipt.location_name,
+                            })}
                           </AlertDescription>
                         </Alert>
                       )}
@@ -604,17 +612,17 @@ export default function ScansIndex({ code, result, recent_scans, today_count, al
                           <AlertTriangle className="size-4" />
                           <AlertDescription>
                             <span>
-                              On open order{labelResult.open_orders.length > 1 ? 's' : ''}{' '}
+                              {tn('On open order', 'On open orders', labelResult.open_orders.length)}{' '}
                               {labelResult.open_orders.map((order, index) => (
                                 <span key={order.id}>
                                   {index > 0 && ', '}
                                   <Link href={`/orders/${order.id}`} className="font-medium text-foreground underline underline-offset-2">
                                     {order.reference || `#${order.id}`}
                                   </Link>{' '}
-                                  ({order.quantity.toLocaleString()})
+                                  ({order.quantity.toLocaleString(intlLocale())})
                                 </span>
                               ))}
-                              . Receiving the bag here doesn't close the order: receive the order instead, or cancel its line, so the stock isn't counted twice.
+                              . {t('Receiving the bag here doesn\'t close the order: receive the order instead, or cancel its line, so the stock isn\'t counted twice.')}
                             </span>
                           </AlertDescription>
                         </Alert>
@@ -622,33 +630,35 @@ export default function ScansIndex({ code, result, recent_scans, today_count, al
 
                       {canWrite && (labelResult.part.locations.length === 0 ? (
                         <div className="mt-4 rounded-xl bg-muted p-4 text-center text-sm text-muted-foreground">
-                          No storage zone exists yet.{' '}
-                          <Link href="/storage_locations" className="font-medium text-foreground underline underline-offset-2">
-                            Create one
-                          </Link>{' '}
-                          to receive the bag.
+                          {tx('No storage zone exists yet. {link} to receive the bag.', {
+                            link: (
+                              <Link href="/storage_locations" className="font-medium text-foreground underline underline-offset-2">
+                                {t('Create one')}
+                              </Link>
+                            ),
+                          })}
                         </div>
                       ) : (
                         <div className="mt-4 space-y-2">
                           <StorageLocationSelect
-                            locations={labelResult.part.locations.map((location) => (location.quantity > 0 ? { ...location, hint: location.quantity.toLocaleString() } : location))}
+                            locations={labelResult.part.locations.map((location) => (location.quantity > 0 ? { ...location, hint: location.quantity.toLocaleString(intlLocale()) } : location))}
                             value={String(selectedLocation?.id ?? '')}
                             onValueChange={setLocationId}
-                            placeholder="Select a location"
+                            placeholder={t('Select a location')}
                           />
                           <div className="flex gap-2">
                             <Input
                               type="number"
                               min={1}
                               inputMode="numeric"
-                              aria-label="Quantity received"
+                              aria-label={t('Quantity received')}
                               value={receiveQuantity}
                               onChange={(e) => setReceiveQuantity(e.target.value)}
                               className="w-28 font-mono"
                             />
                             <Button className="flex-1" disabled={!canReceive || submitting} onClick={receiveBag}>
                               <PackageCheck className="size-4" />
-                              Receive {canReceive ? receiveCount.toLocaleString() : ''}
+                              {canReceive ? t('Receive {quantity}', { quantity: receiveCount.toLocaleString(intlLocale()) }) : t('Receive')}
                             </Button>
                           </div>
                         </div>
@@ -656,19 +666,19 @@ export default function ScansIndex({ code, result, recent_scans, today_count, al
 
                       <Button variant="outline" className="mt-2 w-full" onClick={() => setDetailPartId(labelResult.part!.id)}>
                         <ExternalLink className="size-4" />
-                        Open part
+                        {t('Open part')}
                       </Button>
                     </>
                   ) : (
                     <>
                       <p className="mt-4 text-sm text-muted-foreground">
-                        No part in the inventory matches this label's part numbers.
-                        {canWrite && ' Create it from the label: its quantity becomes the opening stock.'}
+                        {t('No part in the inventory matches this label\'s part numbers.')}
+                        {canWrite && ` ${t('Create it from the label: its quantity becomes the opening stock.')}`}
                       </p>
                       {canWrite && (
                         <Button className="mt-3 w-full" onClick={() => createPartFromLabel(labelResult.label)}>
                           <Plus className="size-4" />
-                          Create part
+                          {t('Create part')}
                         </Button>
                       )}
                     </>
@@ -679,9 +689,9 @@ export default function ScansIndex({ code, result, recent_scans, today_count, al
 
             {result?.kind === 'unknown' && code && (
               <Card className="gap-0 overflow-hidden py-0">
-                <ResultCardHeader tone="error" label="✗ Unknown code" code={code} />
+                <ResultCardHeader tone="error" label={t('✗ Unknown code')} code={code} />
                 <CardContent className="px-4 py-5 text-sm text-muted-foreground">
-                  No part or storage zone matches this code. Codes are matched against part IPNs, barcodes, SKUs, MPNs, zone codes, and DigiKey, Mouser or LCSC bag labels.
+                  {t('No part or storage zone matches this code. Codes are matched against part IPNs, barcodes, SKUs, MPNs, zone codes, and DigiKey, Mouser or LCSC bag labels.')}
                 </CardContent>
               </Card>
             )}
@@ -692,9 +702,9 @@ export default function ScansIndex({ code, result, recent_scans, today_count, al
                   <div className="flex size-11 items-center justify-center rounded-xl bg-muted">
                     <ScanLine className="size-5 text-muted-foreground" />
                   </div>
-                  <div className="mt-3 text-sm font-semibold">Waiting for a scan</div>
+                  <div className="mt-3 text-sm font-semibold">{t('Waiting for a scan')}</div>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    The scanned component, zone or supplier bag will appear here with its quick actions.
+                    {t('The scanned component, zone or supplier bag will appear here with its quick actions.')}
                   </p>
                 </CardContent>
               </Card>
@@ -702,10 +712,10 @@ export default function ScansIndex({ code, result, recent_scans, today_count, al
 
             {/* Recent scans */}
             <Card className="gap-0 overflow-hidden py-0">
-              <div className="border-b px-4 py-3 text-sm font-semibold">Recent scans</div>
+              <div className="border-b px-4 py-3 text-sm font-semibold">{t('Recent scans')}</div>
               {recent_scans.length === 0 ? (
                 <div className="px-4 py-6 text-sm text-muted-foreground">
-                  Counts recorded from the scanner will appear here.
+                  {t('Counts recorded from the scanner will appear here.')}
                 </div>
               ) : (
                 <div className="divide-y">

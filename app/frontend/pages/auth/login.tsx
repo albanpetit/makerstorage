@@ -8,6 +8,7 @@ import { Field, FieldContent, FieldError, FieldGroup, FieldLabel } from '@/compo
 import { Checkbox } from '@/components/ui/checkbox'
 import { FlashMessages } from '@/components/flash-messages'
 import { AuthLayout } from '@/components/auth-layout'
+import { t } from '@/lib/i18n'
 
 export default function Login() {
   const { data, setData, post, processing, errors } = useForm({
@@ -25,31 +26,31 @@ export default function Login() {
 
   return (
     <>
-      <Head title="Log in" />
+      <Head title={t('Log in')} />
 
       <AuthLayout
-        eyebrow="Stock management"
-        headline="Every resistor has its place, every withdrawal tracked."
-        description="Component inventory, physical storage locations, stock movements, and restock alerts — all in one place."
+        eyebrow={t('Stock management')}
+        headline={t('Every resistor has its place, every withdrawal tracked.')}
+        description={t('Component inventory, physical storage locations, stock movements, and restock alerts — all in one place.')}
       >
         <FlashMessages errors={errors} className="mb-6" />
 
         <div className="mb-6">
-          <h2 className="text-2xl font-semibold tracking-tight">Welcome back</h2>
-          <p className="text-muted-foreground mt-1 text-sm">Log in to access your inventory.</p>
+          <h2 className="text-2xl font-semibold tracking-tight">{t('Welcome back')}</h2>
+          <p className="text-muted-foreground mt-1 text-sm">{t('Log in to access your inventory.')}</p>
         </div>
 
         <form onSubmit={submit}>
           <FieldGroup>
             <Field>
               <FieldLabel>
-                <Label htmlFor="email">Email address</Label>
+                <Label htmlFor="email">{t('Email address')}</Label>
               </FieldLabel>
               <FieldContent>
                 <Input
                   id="email"
                   type="email"
-                  placeholder="you@workshop.io"
+                  placeholder={t('you@workshop.io')}
                   value={data.user.email}
                   onChange={(e) => setData('user', { ...data.user, email: e.target.value })}
                   required
@@ -64,13 +65,13 @@ export default function Login() {
             <Field>
               <div className="flex items-center">
                 <FieldLabel className="flex">
-                  <Label htmlFor="password">Password</Label>
+                  <Label htmlFor="password">{t('Password')}</Label>
                 </FieldLabel>
                 <Link
                   href="/forgot-password"
                   className="text-muted-foreground hover:text-foreground ml-auto text-xs transition-colors"
                 >
-                  Forgot password?
+                  {t('Forgot password?')}
                 </Link>
               </div>
               <FieldContent>
@@ -95,20 +96,20 @@ export default function Login() {
                 onCheckedChange={(checked) => setData('remember_me', checked === true)}
               />
               <Label htmlFor="remember_me" className="text-muted-foreground cursor-pointer text-sm font-normal">
-                Stay logged in on this device
+                {t('Stay logged in on this device')}
               </Label>
             </div>
 
             <Button type="submit" className="mt-1 w-full" disabled={processing}>
-              {processing ? 'Logging in...' : 'Log in'}
+              {processing ? t('Logging in...') : t('Log in')}
             </Button>
           </FieldGroup>
         </form>
 
         <div className="mt-6 text-center text-sm">
-          <span className="text-muted-foreground">Don't have an account? </span>
+          <span className="text-muted-foreground">{t('Don\'t have an account?')} </span>
           <Link href="/signup" className="font-medium underline underline-offset-4">
-            Sign up
+            {t('Sign up')}
           </Link>
         </div>
       </AuthLayout>

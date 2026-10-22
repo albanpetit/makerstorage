@@ -97,14 +97,14 @@ module SupplierCatalog
       response = http.request(request)
 
       unless response.is_a?(Net::HTTPSuccess)
-        raise LookupError, "Mouser API returned #{response.code}"
+        raise LookupError, I18n.t("errors.mouser.api_status", code: response.code)
       end
 
       JSON.parse(response.body)
     rescue *NETWORK_ERRORS => e
-      raise LookupError, "Could not reach Mouser API: #{e.message}"
+      raise LookupError, I18n.t("errors.mouser.api_unreachable", error: e.message)
     rescue JSON::ParserError
-      raise LookupError, "Mouser API returned an unreadable response"
+      raise LookupError, I18n.t("errors.mouser.api_unreadable")
     end
 
     # Mouser reports auth/quota problems in an Errors array (often with HTTP 200).
@@ -116,7 +116,7 @@ module SupplierCatalog
       # translate it into something the user can act on rather than Mouser's
       # opaque "Invalid unique identifier." text.
       if errors.any? { |e| e["PropertyName"].to_s.casecmp?("API Key") || e["ResourceKey"] == "InvalidIdentifier" }
-        raise LookupError, "Mouser rejected the API key. Check it in Settings → Integrations (it must be a Search API key)."
+        raise LookupError, I18n.t("errors.mouser.api_key_rejected")
       end
 
       messages = errors.filter_map { |e| e["Message"].presence }.join("; ")
@@ -193,7 +193,7 @@ module SupplierCatalog
     # the parsed JSON Hash. The order key is passed as an apiKey query param, the
     # same way the Search API authenticates.
     def order_request(method, path, query: {}, body: nil)
-      raise LookupError, "No Mouser Order API key is configured." if @order_api_key.blank?
+      raise LookupError, I18n.t("errors.mouser.order_key_missing") if @order_api_key.blank?
 
       uri = URI("#{ORDER_API_BASE}/#{path}")
       uri.query = URI.encode_www_form({ apiKey: @order_api_key }.merge(query))
@@ -210,13 +210,13 @@ module SupplierCatalog
 
       response = http.request(request)
 
-      raise LookupError, "Mouser Order API returned #{response.code}" unless response.is_a?(Net::HTTPSuccess)
+      raise LookupError, I18n.t("errors.mouser.order_api_status", code: response.code) unless response.is_a?(Net::HTTPSuccess)
 
       JSON.parse(response.body)
     rescue *NETWORK_ERRORS => e
-      raise LookupError, "Could not reach Mouser Order API: #{e.message}"
+      raise LookupError, I18n.t("errors.mouser.order_api_unreachable", error: e.message)
     rescue JSON::ParserError
-      raise LookupError, "Mouser Order API returned an unreadable response"
+      raise LookupError, I18n.t("errors.mouser.order_api_unreadable")
     end
 
     def build_order_result(payload, requested_number)

@@ -10,6 +10,7 @@ import { Switch } from '@/components/ui/switch'
 import { Field, FieldContent, FieldError, FieldLabel } from '@/components/ui/field'
 
 import type { IntegrationsForm, OrganizationSettings } from './types'
+import { t, tx } from '@/lib/i18n'
 
 interface IntegrationsSectionProps {
   form: IntegrationsForm
@@ -65,43 +66,44 @@ export function IntegrationsSection({ form, organization }: IntegrationsSectionP
   return (
     <form onSubmit={submitIntegrations} className="space-y-4">
       <div>
-        <h2 className="text-lg font-semibold">Integrations</h2>
+        <h2 className="text-lg font-semibold">{t('Integrations')}</h2>
         <p className="max-w-xl text-sm text-muted-foreground">
-          Connect external supplier catalogs to look up component data by part number, and GitHub to fetch projects' KiCad files.
+          {t('Connect external supplier catalogs to look up component data by part number, and GitHub to fetch projects\' KiCad files.')}
         </p>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Mouser Electronics</CardTitle>
+          <CardTitle>{t('Mouser Electronics')}</CardTitle>
           <CardDescription>
-            Fetch a component's details, datasheet and image from Mouser when adding a part.
-            Create a free API key from the{' '}
-            <a
-              href="https://www.mouser.com/api-hub/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-medium text-primary underline underline-offset-2"
-            >
-              Mouser API Hub
-            </a>
-            .
+            {tx('Fetch a component\'s details, datasheet and image from Mouser when adding a part. Create a free API key from the {link}.', {
+              link: (
+                <a
+                  href="https://www.mouser.com/api-hub/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium text-primary underline underline-offset-2"
+                >
+                  {t('Mouser API Hub')}
+                </a>
+              ),
+            })}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {organization.mouser_api_key_present && (
             <div className="flex items-center gap-2 rounded-md border border-green-600/30 bg-green-600/10 px-3 py-2 text-sm text-green-700 dark:text-green-400">
               <CircleCheck className="size-4 shrink-0" />
-              An API key is configured. Enter a new key below to replace it.
+              {t('An API key is configured. Enter a new key below to replace it.')}
             </div>
           )}
           <Field>
-            <FieldLabel><Label>API key</Label></FieldLabel>
+            <FieldLabel><Label>{t('API key')}</Label></FieldLabel>
             <FieldContent>
               <Input
                 type="password"
                 autoComplete="off"
-                placeholder={organization.mouser_api_key_present ? '••••••••••••••••' : 'Paste your Mouser API key'}
+                placeholder={organization.mouser_api_key_present ? '••••••••••••••••' : t('Paste your Mouser API key')}
                 value={form.data.organization.mouser_api_key}
                 onChange={(e) => form.setData('organization', {
                   ...form.data.organization,
@@ -114,24 +116,23 @@ export function IntegrationsSection({ form, organization }: IntegrationsSectionP
             )}
           </Field>
           <p className="text-xs text-muted-foreground">
-            Saving a key sets up a “Mouser Electronics” supplier (if it doesn’t exist yet) so looked-up prices
-            fill in automatically when you add parts.
+            {t('Saving a key sets up a “Mouser Electronics” supplier (if it doesn’t exist yet) so looked-up prices fill in automatically when you add parts.')}
           </p>
 
           <div className="border-t pt-4">
             {organization.mouser_order_api_key_present && (
               <div className="mb-3 flex items-center gap-2 rounded-md border border-green-600/30 bg-green-600/10 px-3 py-2 text-sm text-green-700 dark:text-green-400">
                 <CircleCheck className="size-4 shrink-0" />
-                An Order API key is configured. Enter a new key below to replace it.
+                {t('An Order API key is configured. Enter a new key below to replace it.')}
               </div>
             )}
             <Field>
-              <FieldLabel><Label>Order API key</Label></FieldLabel>
+              <FieldLabel><Label>{t('Order API key')}</Label></FieldLabel>
               <FieldContent>
                 <Input
                   type="password"
                   autoComplete="off"
-                  placeholder={organization.mouser_order_api_key_present ? '••••••••••••••••' : 'Paste your Mouser Order API key'}
+                  placeholder={organization.mouser_order_api_key_present ? '••••••••••••••••' : t('Paste your Mouser Order API key')}
                   value={form.data.organization.mouser_order_api_key}
                   onChange={(e) => form.setData('organization', {
                     ...form.data.organization,
@@ -144,8 +145,7 @@ export function IntegrationsSection({ form, organization }: IntegrationsSectionP
               )}
             </Field>
             <p className="mt-2 text-xs text-muted-foreground">
-              A separate key (from the same API Hub) enables pushing an order to a Mouser cart and importing a
-              placed Mouser order. Optional.
+              {t('A separate key (from the same API Hub) enables pushing an order to a Mouser cart and importing a placed Mouser order. Optional.')}
             </p>
             {organization.mouser_order_api_key_present && (
               <Button
@@ -156,7 +156,7 @@ export function IntegrationsSection({ form, organization }: IntegrationsSectionP
                 onClick={() => removeProvider('remove_mouser_order_api_key')}
                 disabled={form.processing}
               >
-                Remove order key
+                {t('Remove order key')}
               </Button>
             )}
           </div>
@@ -164,7 +164,7 @@ export function IntegrationsSection({ form, organization }: IntegrationsSectionP
         <CardFooter className="justify-end gap-2 border-t">
           {organization.mouser_api_key_present && (
             <Button type="button" variant="outline" onClick={() => removeProvider('remove_mouser_api_key')} disabled={form.processing}>
-              Remove key
+              {t('Remove key')}
             </Button>
           )}
           <Button
@@ -175,42 +175,43 @@ export function IntegrationsSection({ form, organization }: IntegrationsSectionP
                 !form.data.organization.mouser_order_api_key.trim())
             }
           >
-            Save
+            {t('Save')}
           </Button>
         </CardFooter>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle>DigiKey Electronics</CardTitle>
+          <CardTitle>{t('DigiKey Electronics')}</CardTitle>
           <CardDescription>
-            Fetch a component's details, datasheet and image from DigiKey when adding a part.
-            Create an app to get a Client ID and Secret from the{' '}
-            <a
-              href="https://developer.digikey.com/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-medium text-primary underline underline-offset-2"
-            >
-              DigiKey developer portal
-            </a>
-            .
+            {tx('Fetch a component\'s details, datasheet and image from DigiKey when adding a part. Create an app to get a Client ID and Secret from the {link}.', {
+              link: (
+                <a
+                  href="https://developer.digikey.com/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium text-primary underline underline-offset-2"
+                >
+                  {t('DigiKey developer portal')}
+                </a>
+              ),
+            })}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {organization.digikey_configured && (
             <div className="flex items-center gap-2 rounded-md border border-green-600/30 bg-green-600/10 px-3 py-2 text-sm text-green-700 dark:text-green-400">
               <CircleCheck className="size-4 shrink-0" />
-              Credentials are configured. Enter new values below to replace them.
+              {t('Credentials are configured. Enter new values below to replace them.')}
             </div>
           )}
           <Field>
-            <FieldLabel><Label>Client ID</Label></FieldLabel>
+            <FieldLabel><Label>{t('Client ID')}</Label></FieldLabel>
             <FieldContent>
               <Input
                 type="password"
                 autoComplete="off"
-                placeholder={organization.digikey_configured ? '••••••••••••••••' : 'Paste your DigiKey Client ID'}
+                placeholder={organization.digikey_configured ? '••••••••••••••••' : t('Paste your DigiKey Client ID')}
                 value={form.data.organization.digikey_client_id}
                 onChange={(e) => form.setData('organization', {
                   ...form.data.organization,
@@ -223,12 +224,12 @@ export function IntegrationsSection({ form, organization }: IntegrationsSectionP
             )}
           </Field>
           <Field>
-            <FieldLabel><Label>Client Secret</Label></FieldLabel>
+            <FieldLabel><Label>{t('Client Secret')}</Label></FieldLabel>
             <FieldContent>
               <Input
                 type="password"
                 autoComplete="off"
-                placeholder={organization.digikey_configured ? '••••••••••••••••' : 'Paste your DigiKey Client Secret'}
+                placeholder={organization.digikey_configured ? '••••••••••••••••' : t('Paste your DigiKey Client Secret')}
                 value={form.data.organization.digikey_client_secret}
                 onChange={(e) => form.setData('organization', {
                   ...form.data.organization,
@@ -241,22 +242,21 @@ export function IntegrationsSection({ form, organization }: IntegrationsSectionP
             )}
           </Field>
           <p className="text-xs text-muted-foreground">
-            Saving credentials sets up a “DigiKey” supplier (if it doesn’t exist yet) so looked-up prices fill in
-            automatically when you add parts.
+            {t('Saving credentials sets up a “DigiKey” supplier (if it doesn’t exist yet) so looked-up prices fill in automatically when you add parts.')}
           </p>
 
           <div className="border-t pt-4">
-            <Label>Order import</Label>
+            <Label>{t('Order import')}</Label>
             <p className="mt-1 mb-3 text-xs text-muted-foreground">
-              Importing a placed DigiKey order acts on behalf of your account, so it needs a one-time
-              authorization. Your DigiKey app's callback URL must be set to{' '}
-              <code className="rounded bg-muted px-1 py-0.5 text-[11px]">{`${origin}/oauth/digikey/callback`}</code>.
+              {tx('Importing a placed DigiKey order acts on behalf of your account, so it needs a one-time authorization. Your DigiKey app\'s callback URL must be set to {url}.', {
+                url: <code className="rounded bg-muted px-1 py-0.5 text-[11px]">{`${origin}/oauth/digikey/callback`}</code>,
+              })}
             </p>
             {organization.digikey_account_connected ? (
               <div className="flex items-center justify-between gap-2 rounded-md border border-green-600/30 bg-green-600/10 px-3 py-2 text-sm text-green-700 dark:text-green-400">
                 <span className="flex items-center gap-2">
                   <CircleCheck className="size-4 shrink-0" />
-                  DigiKey account connected.
+                  {t('DigiKey account connected.')}
                 </span>
                 <Button
                   type="button"
@@ -264,26 +264,26 @@ export function IntegrationsSection({ form, organization }: IntegrationsSectionP
                   size="sm"
                   onClick={() => router.delete('/oauth/digikey', { preserveScroll: true })}
                 >
-                  Disconnect
+                  {t('Disconnect')}
                 </Button>
               </div>
             ) : (
               <Button asChild type="button" variant="outline" size="sm" disabled={!organization.digikey_configured}>
                 <a href="/oauth/digikey/authorize">
                   <Plug className="size-4" />
-                  Connect DigiKey account
+                  {t('Connect DigiKey account')}
                 </a>
               </Button>
             )}
             {!organization.digikey_configured && (
-              <p className="mt-2 text-xs text-muted-foreground">Save your Client ID and Secret first.</p>
+              <p className="mt-2 text-xs text-muted-foreground">{t('Save your Client ID and Secret first.')}</p>
             )}
           </div>
         </CardContent>
         <CardFooter className="justify-end gap-2 border-t">
           {organization.digikey_configured && (
             <Button type="button" variant="outline" onClick={() => removeProvider('remove_digikey')} disabled={form.processing}>
-              Remove credentials
+              {t('Remove credentials')}
             </Button>
           )}
           <Button
@@ -294,7 +294,7 @@ export function IntegrationsSection({ form, organization }: IntegrationsSectionP
               !form.data.organization.digikey_client_secret.trim()
             }
           >
-            Save
+            {t('Save')}
           </Button>
         </CardFooter>
       </Card>
@@ -303,28 +303,25 @@ export function IntegrationsSection({ form, organization }: IntegrationsSectionP
         <CardHeader>
           <CardTitle>LCSC Electronics</CardTitle>
           <CardDescription>
-            Fetch a component's details, datasheet and image from LCSC by part number or LCSC code (e.g. C2040)
-            when adding a part. No account or key needed.
+            {t('Fetch a component\'s details, datasheet and image from LCSC by part number or LCSC code (e.g. C2040) when adding a part. No account or key needed.')}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex items-center justify-between gap-4">
             <div>
-              <div className="text-sm font-medium">Search LCSC</div>
+              <div className="text-sm font-medium">{t('Search LCSC')}</div>
               <div className="text-xs text-muted-foreground">
-                Turning it on sets up an “LCSC” supplier (if it doesn’t exist yet) so looked-up part numbers link to it.
+                {t('Turning it on sets up an “LCSC” supplier (if it doesn’t exist yet) so looked-up part numbers link to it.')}
               </div>
             </div>
             <Switch
-              aria-label="Search LCSC"
+              aria-label={t('Search LCSC')}
               checked={organization.lcsc_enabled}
               onCheckedChange={toggleLcsc}
             />
           </div>
           <p className="text-xs text-muted-foreground">
-            LCSC only offers its official API to approved partners, so this uses the search behind lcsc.com, which
-            LCSC may change or block at any time. Prices are in US dollars: they only fill a part's unit price when
-            your organization's currency is USD.
+            {t('LCSC only offers its official API to approved partners, so this uses the search behind lcsc.com, which LCSC may change or block at any time. Prices are in US dollars: they only fill a part\'s unit price when your organization\'s currency is USD.')}
           </p>
         </CardContent>
       </Card>
@@ -333,28 +330,29 @@ export function IntegrationsSection({ form, organization }: IntegrationsSectionP
         <CardHeader>
           <CardTitle>GitHub</CardTitle>
           <CardDescription>
-            Projects can be linked to a GitHub repository to fetch their KiCad files and BOM. Public repositories
-            work without a token. For private ones (or to lift GitHub's limit of 60 requests an hour), create a{' '}
-            <a
-              href="https://github.com/settings/personal-access-tokens/new"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-medium text-primary underline underline-offset-2"
-            >
-              fine-grained personal access token
-            </a>{' '}
-            with read-only access to the repositories' contents.
+            {tx('Projects can be linked to a GitHub repository to fetch their KiCad files and BOM. Public repositories work without a token. For private ones (or to lift GitHub\'s limit of 60 requests an hour), create a {link} with read-only access to the repositories\' contents.', {
+              link: (
+                <a
+                  href="https://github.com/settings/personal-access-tokens/new"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium text-primary underline underline-offset-2"
+                >
+                  {t('fine-grained personal access token')}
+                </a>
+              ),
+            })}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {organization.github_token_present && (
             <div className="flex items-center gap-2 rounded-md border border-green-600/30 bg-green-600/10 px-3 py-2 text-sm text-green-700 dark:text-green-400">
               <CircleCheck className="size-4 shrink-0" />
-              A token is configured. Enter a new token below to replace it.
+              {t('A token is configured. Enter a new token below to replace it.')}
             </div>
           )}
           <Field>
-            <FieldLabel><Label>Personal access token</Label></FieldLabel>
+            <FieldLabel><Label>{t('Personal access token')}</Label></FieldLabel>
             <FieldContent>
               <Input
                 type="password"
@@ -372,17 +370,17 @@ export function IntegrationsSection({ form, organization }: IntegrationsSectionP
             )}
           </Field>
           <p className="text-xs text-muted-foreground">
-            The token is shared by every project of this organization and only ever sent to api.github.com.
+            {t('The token is shared by every project of this organization and only ever sent to api.github.com.')}
           </p>
         </CardContent>
         <CardFooter className="justify-end gap-2 border-t">
           {organization.github_token_present && (
             <Button type="button" variant="outline" onClick={() => removeProvider('remove_github_token')} disabled={form.processing}>
-              Remove token
+              {t('Remove token')}
             </Button>
           )}
           <Button type="submit" disabled={form.processing || !form.data.organization.github_token.trim()}>
-            Save
+            {t('Save')}
           </Button>
         </CardFooter>
       </Card>

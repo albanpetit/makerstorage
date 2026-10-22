@@ -50,15 +50,15 @@ module LabelPrinting
       rescue IPAddr::InvalidAddressError
         Resolv.getaddresses(host)
       end
-      raise Error, "#{host} could not be found on the network." if addresses.empty?
-      raise Error, "#{host} isn't a local network address (10.x, 172.16–31.x, 192.168.x)." unless addresses.all? { |a| allowed_ip?(a) }
+      raise Error, I18n.t("errors.label_printing.host_not_found", host: host) if addresses.empty?
+      raise Error, I18n.t("errors.label_printing.not_local", host: host) unless addresses.all? { |a| allowed_ip?(a) }
 
       addresses.first
     end
 
     def deliver(host, port, data)
-      raise Error, "Network printing is turned off on this server." unless enabled?
-      raise Error, "Port #{port} isn't a printer port (#{PORTS.first}–#{PORTS[-2]} or #{PORTS.last})." unless allowed_port?(port)
+      raise Error, I18n.t("errors.label_printing.disabled") unless enabled?
+      raise Error, I18n.t("errors.label_printing.bad_port", port: port, first: PORTS.first, last: PORTS[-2], other: PORTS.last) unless allowed_port?(port)
 
       address = address_for(host)
       Socket.tcp(address, port.to_i, connect_timeout: CONNECT_TIMEOUT) do |socket|
@@ -70,7 +70,7 @@ module LabelPrinting
     rescue Error
       raise
     rescue SystemCallError, IOError, SocketError, Resolv::ResolvError => e
-      raise Error, "Could not reach the printer at #{host}:#{port} (#{e.message})."
+      raise Error, I18n.t("errors.label_printing.unreachable", host: host, port: port, error: e.message)
     end
   end
 end

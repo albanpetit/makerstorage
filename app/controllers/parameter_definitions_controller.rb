@@ -50,7 +50,7 @@ class ParameterDefinitionsController < ApplicationController
       end
       format.html do
         if saved
-          redirect_to parameter_definitions_path, notice: "Parameter \"#{definition.name}\" created."
+          redirect_to parameter_definitions_path, notice: t("flash.parameter_definitions.created", name: definition.name)
         else
           redirect_back_or_to parameter_definitions_path, inertia: { errors: inertia_errors(definition, as: :parameter_definition) }
         end
@@ -60,7 +60,7 @@ class ParameterDefinitionsController < ApplicationController
 
   def update
     if @definition.update(definition_params)
-      redirect_to parameter_definitions_path, notice: "Parameter updated."
+      redirect_to parameter_definitions_path, notice: t("flash.parameter_definitions.updated")
     else
       redirect_back_or_to parameter_definitions_path, inertia: { errors: inertia_errors(@definition, as: :parameter_definition) }
     end
@@ -70,7 +70,7 @@ class ParameterDefinitionsController < ApplicationController
     count = @definition.part_parameters.count
     @definition.destroy!
     redirect_to parameter_definitions_path,
-      notice: "Parameter \"#{@definition.name}\" deleted#{" with its #{count} part #{'value'.pluralize(count)}" if count.positive?}."
+      notice: count.positive? ? t("flash.parameter_definitions.deleted_with_values", name: @definition.name, count: count) : t("flash.parameter_definitions.deleted", name: @definition.name)
   end
 
   # Adds the standard parameters, their category templates, and the values
@@ -78,11 +78,12 @@ class ParameterDefinitionsController < ApplicationController
   def standard
     result = ParameterDefinition.install_standard!(current_organization)
     redirect_to parameter_definitions_path,
-      notice: "#{result[:added]} #{'parameter'.pluralize(result[:added])} added, " \
-              "#{result[:categories]} #{'category'.pluralize(result[:categories])} given a template, " \
-              "#{result[:parameters]} part #{'value'.pluralize(result[:parameters])} filled in from existing fields."
+      notice: t("flash.parameter_definitions.standard_installed",
+                added: t("flash.parameter_definitions.parameters_added", count: result[:added]),
+                categories: t("flash.parameter_definitions.categories_templated", count: result[:categories]),
+                values: t("flash.parameter_definitions.values_filled", count: result[:parameters]))
   rescue ActiveRecord::RecordInvalid => e
-    redirect_to parameter_definitions_path, alert: "Could not add the standard parameters: #{e.record.errors.full_messages.to_sentence}"
+    redirect_to parameter_definitions_path, alert: t("flash.parameter_definitions.standard_failed", errors: e.record.errors.full_messages.to_sentence)
   end
 
   private

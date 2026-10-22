@@ -14,7 +14,7 @@ class ProjectGithubController < ApplicationController
   # Sets (or changes) the link, then fetches the files.
   def update
     attributes = ProjectGithubController.link_attributes(params)
-    return redirect_to(project_path(@project), alert: "Enter a GitHub repository (owner/name or its URL).") unless attributes
+    return redirect_to(project_path(@project), alert: t("flash.project_github.enter_repository")) unless attributes
 
     @project.assign_attributes(attributes)
     # Another repository, ref or folder: fetch again even at the same commit.
@@ -32,7 +32,7 @@ class ProjectGithubController < ApplicationController
 
   def destroy
     @project.unlink_github!
-    redirect_to project_path(@project), notice: "Unlinked from GitHub. The files fetched so far stay with the project."
+    redirect_to project_path(@project), notice: t("flash.project_github.unlinked")
   end
 
   # { github_repository:, github_ref:, github_path: } from the form: the
@@ -53,14 +53,14 @@ class ProjectGithubController < ApplicationController
   def self.sync_flash(project, force: false)
     result = ProjectGithubSync.call(project, force: force)
     short = result.sha.first(7)
-    return { notice: "Already up to date with #{project.github_location} (#{short})." } if result.status == :up_to_date
+    return { notice: I18n.t("flash.project_github.up_to_date", location: project.github_location, sha: short) } if result.status == :up_to_date
 
-    notice = "Fetched #{result.file_count} KiCad file#{'s' if result.file_count != 1} from #{project.github_location} (#{short})."
-    notice +=
+    notice = I18n.t("flash.project_github.fetched", count: result.file_count, location: project.github_location, sha: short)
+    notice += " " +
       case result.bom
-      when :replaced then " BOM updated from the schematic: #{result.line_count} lines. Review the matches below."
-      when :unchanged then " The BOM hasn't changed."
-      else " No schematic with components among them, so the BOM is unchanged."
+      when :replaced then I18n.t("flash.project_files.bom_updated", count: result.line_count)
+      when :unchanged then I18n.t("flash.project_github.bom_unchanged")
+      else I18n.t("flash.project_github.no_schematic")
       end
     { notice: notice }
   rescue ProjectGithubSync::Error => e

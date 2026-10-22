@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/table'
 
 import type { PartStorageEntry } from './types'
+import { t, tn } from '@/lib/i18n'
 
 interface ZoneComponentsTableProps {
   entries: PartStorageEntry[]
@@ -38,22 +39,22 @@ export function ZoneComponentsTable({
     <div>
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-sm font-semibold">
-          Components stored here <span className="font-normal text-muted-foreground">· {entries.length}</span>
+          {t('Components stored here')} <span className="font-normal text-muted-foreground">· {entries.length}</span>
         </h2>
         {canWrite && entries.length > 0 && (
           selectedPartIds.size > 0 ? (
             <div className="flex items-center gap-1.5">
-              <span className="text-xs text-muted-foreground">{selectedPartIds.size} selected</span>
+              <span className="text-xs text-muted-foreground">{tn('{count} selected', '{count} selected', selectedPartIds.size)}</span>
               <Button size="sm" variant="outline" onClick={onBulkMove}>
                 <ArrowRightLeft className="size-3.5" />
-                Move to…
+                {t('Move to…')}
               </Button>
               <Button size="sm" variant="ghost" className="text-muted-foreground" onClick={() => onSelectionChange(new Set())}>
-                Clear
+                {t('Clear')}
               </Button>
             </div>
           ) : (
-            <span className="hidden text-xs text-muted-foreground lg:inline">Drag a row onto a zone, or select to move in bulk</span>
+            <span className="hidden text-xs text-muted-foreground lg:inline">{t('Drag a row onto a zone, or select to move in bulk')}</span>
           )
         )}
       </div>
@@ -65,7 +66,7 @@ export function ZoneComponentsTable({
                 {canWrite && (
                   <TableHead className="w-9">
                     <Checkbox
-                      aria-label="Select all components"
+                      aria-label={t('Select all components')}
                       checked={entries.every((ps) => selectedPartIds.has(ps.part.id))}
                       onCheckedChange={(checked) =>
                         onSelectionChange(checked === true ? new Set(entries.map((ps) => ps.part.id)) : new Set())
@@ -73,10 +74,10 @@ export function ZoneComponentsTable({
                     />
                   </TableHead>
                 )}
-                <TableHead>Reference</TableHead>
-                <TableHead>Name</TableHead>
-                <TableHead>Package</TableHead>
-                <TableHead className="text-right">Stock</TableHead>
+                <TableHead>{t('Reference')}</TableHead>
+                <TableHead>{t('Name')}</TableHead>
+                <TableHead>{t('Package')}</TableHead>
+                <TableHead className="text-right">{t('Stock')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -124,7 +125,7 @@ export function ZoneComponentsTable({
         </Card>
       ) : (
         <div className="rounded-lg border border-dashed p-5 text-center text-sm text-muted-foreground">
-          No component directly in this zone — they're stored in the sub-zones above.
+          {t('No component directly in this zone — they\'re stored in the sub-zones above.')}
         </div>
       )}
     </div>

@@ -40,7 +40,7 @@ class StocktakeLine < ApplicationRecord
 
   def part_must_belong_to_the_organization
     if part.present? && stocktake.present? && part.organization_id != stocktake.organization_id
-      errors.add(:part, "must belong to the same organization")
+      errors.add(:part, :same_organization)
     end
   end
 
@@ -48,7 +48,7 @@ class StocktakeLine < ApplicationRecord
     return if storage_location.nil? || stocktake.nil?
 
     if storage_location.organization_id != stocktake.organization_id || !stocktake.covers?(storage_location)
-      errors.add(:storage_location, "isn't part of this stocktake")
+      errors.add(:storage_location, :not_in_stocktake)
     end
   end
 end

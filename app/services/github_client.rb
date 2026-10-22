@@ -62,7 +62,7 @@ class GithubClient
     response = request(URI::HTTPS.build(host: API_HOST, path: path), accept: "application/vnd.github.sha")
     check!(response, repository, ref)
     sha = response.body.to_s.strip
-    raise Error, "GitHub returned an unexpected answer for #{repository}." unless sha.match?(/\A\h{40}\z/)
+    raise Error, I18n.t("errors.github.unexpected_answer", repository: repository) unless sha.match?(/\A\h{40}\z/)
 
     sha
   end
@@ -90,7 +90,7 @@ class GithubClient
   def request(uri, accept:)
     http(uri).request(get(uri, accept: accept))
   rescue *NETWORK_ERRORS => e
-    raise Error, "Could not reach GitHub: #{e.message}"
+    raise Error, I18n.t("errors.github.unreachable", error: e.message)
   end
 
   # Streams the archive into +file+: the API answers with a redirect to
@@ -107,7 +107,7 @@ class GithubClient
       size = 0
       response.read_body do |chunk|
         size += chunk.bytesize
-        raise Error, "#{repository} is too large to download (over #{ActiveSupport::NumberHelper.number_to_human_size(MAX_ARCHIVE_SIZE)})." if size > MAX_ARCHIVE_SIZE
+        raise Error, I18n.t("errors.github.too_large", repository: repository, size: ActiveSupport::NumberHelper.number_to_human_size(MAX_ARCHIVE_SIZE)) if size > MAX_ARCHIVE_SIZE
 
         file.write(chunk)
       end
@@ -115,11 +115,11 @@ class GithubClient
     return unless location
 
     unless redirects.positive? && location.is_a?(URI::HTTPS) && ARCHIVE_HOSTS.include?(location.host)
-      raise Error, "GitHub redirected the download somewhere unexpected."
+      raise Error, I18n.t("errors.github.unexpected_redirect")
     end
     fetch_archive(location, file, repository, redirects: redirects - 1)
   rescue *NETWORK_ERRORS, URI::InvalidURIError => e
-    raise Error, "Could not reach GitHub: #{e.message}"
+    raise Error, I18n.t("errors.github.unreachable", error: e.message)
   end
 
   def http(uri)
@@ -146,26 +146,26 @@ class GithubClient
     message =
       case response.code.to_i
       when 401
-        "GitHub rejected the token. Check it in Settings → Integrations."
+        I18n.t("errors.github.token_rejected")
       when 403, 429
         if response["x-ratelimit-remaining"] == "0" || response.code.to_i == 429
-          "GitHub's rate limit is reached#{' (60 requests an hour without a token: add one in Settings → Integrations)' unless @token}. Try again later."
+          I18n.t(@token ? "errors.github.rate_limited" : "errors.github.rate_limited_without_token")
         else
-          "GitHub refused access to #{repository}#{@token ? ': check that the token can read its contents' : ''}."
+          I18n.t(@token ? "errors.github.forbidden_with_token" : "errors.github.forbidden", repository: repository)
         end
       when 404, 422
         if ref.present?
-          "Could not find #{repository} at “#{ref}” on GitHub. Check the repository and the branch, tag or commit#{private_hint}."
+          I18n.t("errors.github.ref_not_found", repository: repository, ref: ref, hint: private_hint)
         else
-          "Could not find #{repository} on GitHub#{private_hint}."
+          I18n.t("errors.github.not_found", repository: repository, hint: private_hint)
         end
       else
-        "GitHub returned #{response.code} for #{repository}."
+        I18n.t("errors.github.status", code: response.code, repository: repository)
       end
     raise Error, message
   end
 
   def private_hint
-    @token ? "" : " (a private repository needs a GitHub token in Settings → Integrations)"
+    @token ? "" : " #{I18n.t('errors.github.private_hint')}"
   end
 end

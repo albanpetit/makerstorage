@@ -19,7 +19,7 @@ class PartDuplicateDismissal < ApplicationRecord
   def parts_must_differ_and_share_organization
     return unless part && other_part
 
-    errors.add(:other_part, "must be another part") if part_id >= other_part_id
-    errors.add(:other_part, "must belong to the same organization") if part.organization_id != other_part.organization_id
+    errors.add(:other_part, :another_part) if part_id >= other_part_id
+    errors.add(:other_part, :same_organization) if part.organization_id != other_part.organization_id
   end
 end

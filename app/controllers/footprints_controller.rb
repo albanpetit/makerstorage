@@ -24,23 +24,23 @@ class FootprintsController < ApplicationController
     footprint = current_organization.footprints.build(footprint_params)
 
     if footprint.save
-      redirect_to footprints_path, notice: "Footprint created successfully."
+      redirect_to footprints_path, notice: t("flash.footprints.footprint_created_successfully")
     else
-      redirect_back_or_to footprints_path, alert: "Failed to create footprint.", inertia: { errors: inertia_errors(footprint, as: :footprint) }
+      redirect_back_or_to footprints_path, alert: t("flash.footprints.failed_to_create_footprint"), inertia: { errors: inertia_errors(footprint, as: :footprint) }
     end
   end
 
   def update
     if @footprint.update(footprint_params)
-      redirect_to footprints_path, notice: "Footprint updated successfully."
+      redirect_to footprints_path, notice: t("flash.footprints.footprint_updated_successfully")
     else
-      redirect_back_or_to footprints_path, alert: "Failed to update footprint.", inertia: { errors: inertia_errors(@footprint, as: :footprint) }
+      redirect_back_or_to footprints_path, alert: t("flash.footprints.failed_to_update_footprint"), inertia: { errors: inertia_errors(@footprint, as: :footprint) }
     end
   end
 
   def destroy
     if @footprint.destroy
-      redirect_to footprints_path, notice: "Footprint deleted successfully."
+      redirect_to footprints_path, notice: t("flash.footprints.footprint_deleted_successfully")
     else
       redirect_to footprints_path, alert: @footprint.errors.full_messages.to_sentence
     end

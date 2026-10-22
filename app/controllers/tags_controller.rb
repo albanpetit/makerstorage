@@ -26,23 +26,23 @@ class TagsController < ApplicationController
     tag = current_organization.tags.build(tag_params)
 
     if tag.save
-      redirect_back_or_to tags_path, notice: "Tag \"#{tag.name}\" created."
+      redirect_back_or_to tags_path, notice: t("flash.tags.tag_created", tag_name: tag.name)
     else
-      redirect_back_or_to tags_path, alert: "Failed to create tag.", inertia: { errors: inertia_errors(tag, as: :tag) }
+      redirect_back_or_to tags_path, alert: t("flash.tags.failed_to_create_tag"), inertia: { errors: inertia_errors(tag, as: :tag) }
     end
   end
 
   def update
     if @tag.update(tag_params)
-      redirect_to tags_path, notice: "Tag updated successfully."
+      redirect_to tags_path, notice: t("flash.tags.tag_updated_successfully")
     else
-      redirect_back_or_to tags_path, alert: "Failed to update tag.", inertia: { errors: inertia_errors(@tag, as: :tag) }
+      redirect_back_or_to tags_path, alert: t("flash.tags.failed_to_update_tag"), inertia: { errors: inertia_errors(@tag, as: :tag) }
     end
   end
 
   def destroy
     if @tag.destroy
-      redirect_to tags_path, notice: "Tag deleted successfully."
+      redirect_to tags_path, notice: t("flash.tags.tag_deleted_successfully")
     else
       redirect_to tags_path, alert: @tag.errors.full_messages.to_sentence
     end

@@ -49,7 +49,7 @@ module BomParser
   end
 
   def too_large_message
-    "That file is too large to import (the limit is #{ActiveSupport::NumberHelper.number_to_human_size(MAX_FILE_SIZE)})."
+    I18n.t("errors.bom.too_large", size: ActiveSupport::NumberHelper.number_to_human_size(MAX_FILE_SIZE))
   end
 
   # Yields each raw CSV::Row (with symbolized headers) from +path+, sniffing the

@@ -14,7 +14,7 @@ class ProjectFilesController < ApplicationController
   # replace the reviewed lines.
   def create
     uploads = Array(params[:files]).select { |upload| upload.respond_to?(:original_filename) }
-    return redirect_to(project_path(@project), alert: "Please choose files to add.") if uploads.empty?
+    return redirect_to(project_path(@project), alert: t("flash.project_files.choose_files")) if uploads.empty?
 
     if (error = ProjectKicadFiles.upload_error(uploads, existing: @project.kicad_files.size))
       return redirect_to(project_path(@project), alert: error)
@@ -31,8 +31,8 @@ class ProjectFilesController < ApplicationController
       @project.replace_bom!(lines) if lines.any?
     end
 
-    notice = "Added #{uploads.size} file#{'s' if uploads.size != 1}."
-    notice += " Imported #{lines.size} BOM lines from the schematic." if lines.any?
+    notice = t("flash.project_files.added", count: uploads.size)
+    notice += " #{t('flash.project_files.imported_lines', count: lines.size)}" if lines.any?
     redirect_to project_path(@project), notice: notice
   rescue ProjectKicadFiles::Unreadable => e
     redirect_to project_path(@project), alert: e.message
@@ -43,18 +43,18 @@ class ProjectFilesController < ApplicationController
   def destroy
     file = @project.kicad_files.find(params[:id])
     file.purge
-    redirect_to project_path(@project), notice: "#{file.filename} removed."
+    redirect_to project_path(@project), notice: t("flash.project_files.removed", name: file.filename.to_s)
   end
 
   # Rebuilds the BOM from the attached schematics after a design change.
   def import_bom
     lines = ProjectKicadFiles.bom_lines_for(@project)
     if lines.empty?
-      return redirect_to(project_path(@project), alert: "No schematic (.kicad_sch) with components among this project's files.")
+      return redirect_to(project_path(@project), alert: t("flash.project_files.no_schematic"))
     end
 
     @project.replace_bom!(lines)
-    redirect_to project_path(@project), notice: "BOM updated from the schematic: #{lines.size} lines. Review the matches below."
+    redirect_to project_path(@project), notice: t("flash.project_files.bom_updated", count: lines.size)
   rescue ProjectKicadFiles::Unreadable => e
     redirect_to project_path(@project), alert: e.message
   rescue ActiveRecord::RecordInvalid => e

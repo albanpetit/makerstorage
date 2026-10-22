@@ -49,7 +49,7 @@ class StocktakesController < ApplicationController
 
   def create
     location = current_organization.storage_locations.find_by(id: stocktake_params[:storage_location_id])
-    return redirect_back_or_to(stocktakes_path, alert: "Pick the zone to count.") unless location
+    return redirect_back_or_to(stocktakes_path, alert: t("flash.stocktakes.pick_zone")) unless location
 
     stocktake = current_organization.stocktakes.new(
       storage_location: location,
@@ -63,33 +63,33 @@ class StocktakesController < ApplicationController
       stocktake.save_with_generated_reference! { Stocktake.next_reference(current_organization) }
       stocktake.snapshot_stock!
     end
-    redirect_to stocktake_path(stocktake), notice: "Stocktake #{stocktake.reference} started: #{stocktake.stocktake_lines.size} line#{'s' if stocktake.stocktake_lines.size != 1} to count."
+    redirect_to stocktake_path(stocktake), notice: t("flash.stocktakes.started", reference: stocktake.reference, count: stocktake.stocktake_lines.size)
   rescue ActiveRecord::RecordInvalid => e
-    redirect_back_or_to stocktakes_path, alert: "Could not start the stocktake: #{e.record.errors.full_messages.to_sentence}."
+    redirect_back_or_to stocktakes_path, alert: t("flash.stocktakes.could_not_start", errors: e.record.errors.full_messages.to_sentence)
   end
 
   # Only a count still in progress can be discarded: it hasn't touched stock.
   # A completed one stays as the record of the adjustments it wrote.
   def destroy
     unless @stocktake.in_progress?
-      redirect_to stocktake_path(@stocktake), alert: "A completed stocktake is kept with the adjustments it made."
+      redirect_to stocktake_path(@stocktake), alert: t("flash.stocktakes.completed_kept")
       return
     end
 
     @stocktake.destroy!
-    redirect_to stocktakes_path, notice: "Stocktake #{@stocktake.reference} discarded."
+    redirect_to stocktakes_path, notice: t("flash.stocktakes.discarded", reference: @stocktake.reference)
   end
 
   def complete
     adjusted = @stocktake.complete!(user: current_user, zero_uncounted: ActiveModel::Type::Boolean.new.cast(params[:zero_uncounted]))
     redirect_to stocktake_path(@stocktake),
-      notice: adjusted.zero? ? "Stocktake completed: stock matched the count." : "Stocktake completed: #{adjusted} adjustment#{'s' if adjusted != 1} recorded."
+      notice: adjusted.zero? ? t("flash.stocktakes.completed_matched") : t("flash.stocktakes.completed_adjusted", count: adjusted)
   rescue Stocktake::NotInProgress => e
     redirect_to stocktake_path(@stocktake), alert: e.message
   rescue ActiveRecord::RecordInvalid => e
     record = e.record
-    detail = record.is_a?(StockMovement) ? "#{record.part.reference} in #{record.storage_location.name}: " : ""
-    redirect_to stocktake_path(@stocktake), alert: "Nothing was adjusted (#{detail}#{record.errors.full_messages.to_sentence}). Recount that line and try again."
+    detail = record.is_a?(StockMovement) ? t("flash.stocktakes.adjust_detail", reference: record.part.reference, zone: record.storage_location.name) : ""
+    redirect_to stocktake_path(@stocktake), alert: t("flash.stocktakes.nothing_adjusted", detail: detail, errors: record.errors.full_messages.to_sentence)
   end
 
   # One code from the scanner (camera, hardware scanner or typed). A zone code
@@ -108,12 +108,12 @@ class StocktakesController < ApplicationController
       scan_part(part, zone)
     elsif (location = lookup.location(code))
       if @stocktake.covers?(location)
-        redirect_to stocktake_path(@stocktake, zone: location.id), notice: "Counting #{location.name}."
+        redirect_to stocktake_path(@stocktake, zone: location.id), notice: t("flash.stocktakes.counting", zone: location.name)
       else
-        redirect_to stocktake_path(@stocktake, zone: zone&.id), alert: "#{location.name} isn't part of this stocktake."
+        redirect_to stocktake_path(@stocktake, zone: zone&.id), alert: t("flash.stocktakes.zone_not_in_stocktake", zone: location.name)
       end
     else
-      redirect_to stocktake_path(@stocktake, zone: zone&.id), alert: "No part or zone matches \"#{code.truncate(60)}\"."
+      redirect_to stocktake_path(@stocktake, zone: zone&.id), alert: t("flash.stocktakes.no_match", code: code.truncate(60))
     end
   rescue Stocktake::NotInProgress => e
     redirect_to stocktake_path(@stocktake), alert: e.message
@@ -170,7 +170,7 @@ class StocktakesController < ApplicationController
     end
 
     unless line
-      redirect_to stocktake_path(@stocktake), alert: "#{part.reference} is stocked in several zones of this count: scan or pick the zone first."
+      redirect_to stocktake_path(@stocktake), alert: t("flash.stocktakes.several_zones", reference: part.reference)
       return
     end
 

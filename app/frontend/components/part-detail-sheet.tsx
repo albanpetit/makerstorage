@@ -40,6 +40,8 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { StorageLocationSelect, type StorageLocationOption } from '@/components/storage-location-select'
+import { LIFECYCLE_META } from '@/components/parts/part-meta'
+import { t, intlLocale, tx } from '@/lib/i18n'
 
 interface PartSupplierEntry {
   id: number
@@ -161,15 +163,15 @@ interface PartDetailSheetProps {
 }
 
 const STOCK_STATUS_META = {
-  out: { label: 'Out of stock', className: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400', bar: 'bg-red-500' },
-  low: { label: 'Low stock', className: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400', bar: 'bg-amber-500' },
-  ok: { label: 'In stock', className: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400', bar: 'bg-emerald-500' },
+  out: { get label() { return t('Out of stock') }, className: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400', bar: 'bg-red-500' },
+  low: { get label() { return t('Low stock') }, className: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400', bar: 'bg-amber-500' },
+  ok: { get label() { return t('In stock') }, className: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400', bar: 'bg-emerald-500' },
 }
 
 const MOVEMENT_META: Record<MovementEntry['movement_type'], { label: string; className: string; sign: string }> = {
-  in: { label: 'In', className: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400', sign: 'text-emerald-600 dark:text-emerald-400' },
-  out: { label: 'Out', className: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400', sign: 'text-red-600 dark:text-red-400' },
-  adjustment: { label: 'Adjustment', className: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400', sign: '' },
+  in: { get label() { return t('In') }, className: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400', sign: 'text-emerald-600 dark:text-emerald-400' },
+  out: { get label() { return t('Out') }, className: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400', sign: 'text-red-600 dark:text-red-400' },
+  adjustment: { get label() { return t('Adjustment') }, className: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400', sign: '' },
 }
 
 function partRef(part: PartDetail): string {
@@ -182,7 +184,7 @@ function formatDay(day: string) {
 }
 
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString(undefined, { day: '2-digit', month: '2-digit', year: 'numeric' })
+  return new Date(iso).toLocaleDateString(intlLocale(), { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
 interface MovementFormData {
@@ -229,7 +231,7 @@ export function PartDetailSheet({
       })
       .catch(() => {
         if (cancelled) return
-        setLoadError('Could not load this part. Please try again.')
+        setLoadError(t('Could not load this part. Please try again.'))
         setLoading(false)
       })
     return () => {
@@ -258,7 +260,7 @@ export function PartDetailSheet({
   const movementLocations = useMemo(() => {
     const stored = new Map((payload?.storages ?? []).map((s) => [s.location_id, s.quantity]))
     return (payload?.storage_locations ?? []).map((location) =>
-      stored.has(location.id) ? { ...location, hint: `${stored.get(location.id)!.toLocaleString()} in stock` } : location
+      stored.has(location.id) ? { ...location, hint: t('{quantity} in stock', { quantity: stored.get(location.id)! }) } : location
     )
   }, [payload])
 
@@ -314,18 +316,18 @@ export function PartDetailSheet({
 
   const specs: [string, string][] = []
   if (part) {
-    if (part.manufacturer) specs.push(['Manufacturer', part.manufacturer])
-    if (part.value) specs.push(['Value', part.value])
+    if (part.manufacturer) specs.push([t('Manufacturer'), part.manufacturer])
+    if (part.value) specs.push([t('Value'), part.value])
     // Parameters, then the older fields a parameter doesn't already show.
     part.parameters.forEach((parameter) => specs.push([parameter.name, parameter.display]))
     const named = new Set(part.parameters.map((parameter) => parameter.name.toLowerCase()))
-    if (part.tolerance && !named.has('tolerance')) specs.push(['Tolerance', part.tolerance])
-    if (part.voltage_rating && !named.has('voltage rating')) specs.push(['Voltage rating', part.voltage_rating])
-    if (part.power_rating && !named.has('power rating')) specs.push(['Power rating', part.power_rating])
-    if (part.package_type) specs.push(['Package', part.package_type])
-    if (part.footprint) specs.push(['Footprint', part.footprint.name])
-    if (part.barcode) specs.push(['Barcode', part.barcode])
-    specs.push(['RoHS', part.rohs_compliant ? 'Compliant' : 'Not verified'])
+    if (part.tolerance && !named.has('tolerance')) specs.push([t('Tolerance'), part.tolerance])
+    if (part.voltage_rating && !named.has('voltage rating')) specs.push([t('Voltage rating'), part.voltage_rating])
+    if (part.power_rating && !named.has('power rating')) specs.push([t('Power rating'), part.power_rating])
+    if (part.package_type) specs.push([t('Package'), part.package_type])
+    if (part.footprint) specs.push([t('Footprint'), part.footprint.name])
+    if (part.barcode) specs.push([t('Barcode'), part.barcode])
+    specs.push(['RoHS', part.rohs_compliant ? t('Compliant') : t('Not verified')])
   }
 
   return (
@@ -342,7 +344,7 @@ export function PartDetailSheet({
                 <CircleAlert />
                 <AlertDescription>{loadError}</AlertDescription>
               </Alert>
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>{t('Close')}</Button>
             </div>
           ) : part && payload ? (
             <>
@@ -361,7 +363,7 @@ export function PartDetailSheet({
                         {stockMeta.label}
                       </span>
                       {part.status !== 'active' && (
-                        <Badge variant="outline" className="capitalize">{part.status}</Badge>
+                        <Badge variant="outline">{LIFECYCLE_META[part.status].label}</Badge>
                       )}
                     </div>
                     <div className="mt-1 text-sm text-muted-foreground">{part.name}</div>
@@ -418,10 +420,10 @@ export function PartDetailSheet({
                 {/* Stat row */}
                 <div className="grid grid-cols-2 gap-2">
                   {[
-                    { label: 'In stock', value: part.total_quantity.toLocaleString(), className: stockKey === 'ok' ? '' : stockKey === 'low' ? 'text-amber-600 dark:text-amber-400' : 'text-destructive' },
-                    { label: 'Min. threshold', value: part.min_stock_threshold.toLocaleString(), className: '' },
-                    { label: 'Unit price', value: part.unit_price != null ? part.unit_price.toFixed(2) : '—', className: '' },
-                    { label: 'Stock value', value: part.unit_price != null ? (part.unit_price * part.total_quantity).toFixed(2) : '—', className: '' },
+                    { label: t('In stock'), value: part.total_quantity.toLocaleString(intlLocale()), className: stockKey === 'ok' ? '' : stockKey === 'low' ? 'text-amber-600 dark:text-amber-400' : 'text-destructive' },
+                    { label: t('Min. threshold'), value: part.min_stock_threshold.toLocaleString(intlLocale()), className: '' },
+                    { label: t('Unit price'), value: part.unit_price != null ? part.unit_price.toFixed(2) : '—', className: '' },
+                    { label: t('Stock value'), value: part.unit_price != null ? (part.unit_price * part.total_quantity).toFixed(2) : '—', className: '' },
                   ].map((stat) => (
                     <div key={stat.label} className="rounded-lg bg-muted p-3">
                       <div className="text-xs text-muted-foreground">{stat.label}</div>
@@ -433,9 +435,9 @@ export function PartDetailSheet({
                 {/* Stock level */}
                 <div>
                   <div className="mb-3 flex items-center justify-between">
-                    <h3 className="text-sm font-semibold">Stock level</h3>
+                    <h3 className="text-sm font-semibold">{t('Stock level')}</h3>
                     <span className="font-mono text-xs text-muted-foreground">
-                      {part.total_quantity.toLocaleString()} / {gaugeMax.toLocaleString()}
+                      {part.total_quantity.toLocaleString(intlLocale())} / {gaugeMax.toLocaleString(intlLocale())}
                     </span>
                   </div>
                   <div className="h-2.5 overflow-hidden rounded-full bg-muted">
@@ -446,24 +448,24 @@ export function PartDetailSheet({
                       className="absolute -translate-x-1/2 text-[10.5px] whitespace-nowrap text-muted-foreground"
                       style={{ left: `${thresholdPct}%` }}
                     >
-                      ▲ threshold {part.min_stock_threshold}
+                      {t('▲ threshold {threshold}', { threshold: part.min_stock_threshold })}
                     </div>
                   </div>
                   {canWrite && (
                     <div className="mt-2 flex gap-2.5">
                       <Button variant="outline" className="flex-1 text-emerald-600 dark:text-emerald-400" onClick={() => openMovement('in')}>
                         <ArrowDown className="size-4" />
-                        Stock in
+                        {t('Stock in')}
                       </Button>
                       <Button variant="outline" className="flex-1 text-red-600 dark:text-red-400" onClick={() => openMovement('out')}>
                         <ArrowUp className="size-4" />
-                        Stock out
+                        {t('Stock out')}
                       </Button>
                       {part.total_quantity > 0 && (
                         <Button variant="outline" className="flex-1" asChild>
                           <Link href={`/loans?part_id=${part.id}`}>
                             <HandHelping className="size-4" />
-                            Lend
+                            {t('Lend')}
                           </Link>
                         </Button>
                       )}
@@ -475,9 +477,9 @@ export function PartDetailSheet({
                 {payload.reservations.length > 0 && (
                   <div>
                     <div className="mb-2 flex items-center justify-between">
-                      <h3 className="text-sm font-semibold">Reserved by projects</h3>
+                      <h3 className="text-sm font-semibold">{t('Reserved by projects')}</h3>
                       <span className="font-mono text-xs text-muted-foreground">
-                        {Math.max(part.total_quantity - reservedTotal, 0).toLocaleString()} available
+                        {t('{quantity} available', { quantity: Math.max(part.total_quantity - reservedTotal, 0) })}
                       </span>
                     </div>
                     <div className="space-y-2.5 rounded-lg border p-3">
@@ -498,9 +500,9 @@ export function PartDetailSheet({
                 {payload.loans.length > 0 && (
                   <div>
                     <div className="mb-2 flex items-center justify-between">
-                      <h3 className="text-sm font-semibold">On loan</h3>
+                      <h3 className="text-sm font-semibold">{t('On loan')}</h3>
                       <span className="font-mono text-xs text-muted-foreground">
-                        {payload.loans.reduce((sum, l) => sum + l.quantity, 0).toLocaleString()} out
+                        {t('{count} out', { count: payload.loans.reduce((sum, l) => sum + l.quantity, 0) })}
                       </span>
                     </div>
                     <div className="space-y-2.5 rounded-lg border p-3">
@@ -526,7 +528,7 @@ export function PartDetailSheet({
 
                 {/* Location */}
                 <div>
-                  <h3 className="mb-2 text-sm font-semibold">Location</h3>
+                  <h3 className="mb-2 text-sm font-semibold">{t('Location')}</h3>
                   {payload.storages.length > 0 ? (
                     <div className="space-y-2.5 rounded-lg border p-3">
                       {payload.storages.map((storage) => (
@@ -546,19 +548,19 @@ export function PartDetailSheet({
                       ))}
                     </div>
                   ) : (
-                    <p className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">Not stored anywhere yet.</p>
+                    <p className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">{t('Not stored anywhere yet.')}</p>
                   )}
                   <Button variant="outline" size="sm" className="mt-3 w-full" asChild>
                     <Link href="/storage_locations">
                       <MapPin className="size-3.5" />
-                      View in zones
+                      {t('View in zones')}
                     </Link>
                   </Button>
                 </div>
 
                 {/* Specifications */}
                 <div>
-                  <h3 className="mb-2 text-sm font-semibold">Specifications</h3>
+                  <h3 className="mb-2 text-sm font-semibold">{t('Specifications')}</h3>
                   <div className="divide-y rounded-lg border">
                     {specs.map(([key, value]) => (
                       <div key={key} className="flex items-center justify-between gap-3 px-4 py-2 text-sm">
@@ -571,7 +573,7 @@ export function PartDetailSheet({
 
                 {/* Sourcing */}
                 <div>
-                  <h3 className="mb-2 text-sm font-semibold">Sourcing</h3>
+                  <h3 className="mb-2 text-sm font-semibold">{t('Sourcing')}</h3>
                   {preferred ? (
                     <div className="flex items-center gap-3 rounded-lg border p-3">
                       <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-blue-600 font-mono text-xs font-bold text-white">
@@ -580,27 +582,27 @@ export function PartDetailSheet({
                       <div className="min-w-0 flex-1">
                         <div className="truncate text-sm font-semibold">{preferred.supplier_name}</div>
                         <div className="text-xs text-muted-foreground">
-                          {preferred.unit_price != null ? `Unit ${preferred.unit_price.toFixed(2)}` : 'No price'}
-                          {preferred.lead_time_days != null ? ` · lead ${preferred.lead_time_days}d` : ''}
+                          {preferred.unit_price != null ? t('Unit {price}', { price: preferred.unit_price.toFixed(2) }) : t('No price')}
+                          {preferred.lead_time_days != null ? t(' · lead {days}d', { days: preferred.lead_time_days }) : ''}
                         </div>
                       </div>
                       <Button variant="outline" size="icon-sm" asChild>
-                        <Link href="/suppliers" aria-label="View suppliers">
+                        <Link href="/suppliers" aria-label={t('View suppliers')}>
                           <ExternalLink className="size-4" />
                         </Link>
                       </Button>
                     </div>
                   ) : (
-                    <p className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">No supplier linked to this part.</p>
+                    <p className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">{t('No supplier linked to this part.')}</p>
                   )}
                 </div>
 
                 {/* Movement history */}
                 <div>
                   <div className="mb-2 flex items-center justify-between">
-                    <h3 className="text-sm font-semibold">Movement history</h3>
+                    <h3 className="text-sm font-semibold">{t('Movement history')}</h3>
                     <Link href="/stock_movements" className="text-xs font-medium text-muted-foreground hover:text-foreground">
-                      See all →
+                      {t('See all →')}
                     </Link>
                   </div>
                   {payload.movements.length > 0 ? (
@@ -623,7 +625,7 @@ export function PartDetailSheet({
                       })}
                     </div>
                   ) : (
-                    <p className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">No movements recorded for this part yet.</p>
+                    <p className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">{t('No movements recorded for this part yet.')}</p>
                   )}
                 </div>
               </div>
@@ -632,15 +634,15 @@ export function PartDetailSheet({
                 <SheetFooter className="flex-row border-t">
                   <Button className="flex-1" onClick={() => openMovement('in')}>
                     <ArrowLeftRight className="size-4" />
-                    Stock in / out
+                    {t('Stock in / out')}
                   </Button>
-                  <Button variant="outline" onClick={() => setLabelOpen(true)} aria-label="Print label">
+                  <Button variant="outline" onClick={() => setLabelOpen(true)} aria-label={t('Print label')}>
                     <Printer className="size-4" />
                   </Button>
-                  <Button variant="outline" onClick={() => setEditOpen(true)} aria-label="Edit part">
+                  <Button variant="outline" onClick={() => setEditOpen(true)} aria-label={t('Edit part')}>
                     <Pencil className="size-4" />
                   </Button>
-                  <Button variant="outline" className="text-destructive" onClick={() => setDeleteOpen(true)} aria-label="Delete part">
+                  <Button variant="outline" className="text-destructive" onClick={() => setDeleteOpen(true)} aria-label={t('Delete part')}>
                     <Trash2 className="size-4" />
                   </Button>
                 </SheetFooter>
@@ -654,7 +656,7 @@ export function PartDetailSheet({
       <Dialog open={mvtOpen} onOpenChange={setMvtOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Record a movement</DialogTitle>
+            <DialogTitle>{t('Record a movement')}</DialogTitle>
           </DialogHeader>
           <form onSubmit={submitMovement} className="flex min-w-0 flex-col gap-4">
             <div className="grid grid-cols-2 gap-2">
@@ -669,18 +671,18 @@ export function PartDetailSheet({
                   }`}
                 >
                   {type === 'in' ? <ArrowDown className="size-4 text-emerald-600 dark:text-emerald-400" /> : <ArrowUp className="size-4 text-red-600 dark:text-red-400" />}
-                  {type === 'in' ? 'Stock in' : 'Stock out'}
+                  {type === 'in' ? t('Stock in') : t('Stock out')}
                 </Button>
               ))}
             </div>
             <Field>
-              <FieldLabel><Label>Location</Label></FieldLabel>
+              <FieldLabel><Label>{t('Location')}</Label></FieldLabel>
               <FieldContent>
                 <StorageLocationSelect
                   locations={movementLocations}
                   value={mvtForm.data.stock_movement.storage_location_id}
                   onValueChange={(value) => mvtForm.setData('stock_movement', { ...mvtForm.data.stock_movement, storage_location_id: value })}
-                  placeholder="Select a location"
+                  placeholder={t('Select a location')}
                   allowCreate
                 />
               </FieldContent>
@@ -690,7 +692,7 @@ export function PartDetailSheet({
             </Field>
             <div className="grid grid-cols-2 gap-4 [&>*]:min-w-0">
               <Field>
-                <FieldLabel><Label>Quantity</Label></FieldLabel>
+                <FieldLabel><Label>{t('Quantity')}</Label></FieldLabel>
                 <FieldContent>
                   <Input
                     inputMode="numeric"
@@ -704,10 +706,10 @@ export function PartDetailSheet({
                 )}
               </Field>
               <Field>
-                <FieldLabel><Label>Reason</Label></FieldLabel>
+                <FieldLabel><Label>{t('Reason')}</Label></FieldLabel>
                 <FieldContent>
                   <Input
-                    placeholder="e.g. Project X"
+                    placeholder={t('e.g. Project X')}
                     value={mvtForm.data.stock_movement.reason}
                     onChange={(e) => mvtForm.setData('stock_movement', { ...mvtForm.data.stock_movement, reason: e.target.value })}
                   />
@@ -715,12 +717,12 @@ export function PartDetailSheet({
               </Field>
             </div>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setMvtOpen(false)}>Cancel</Button>
+              <Button type="button" variant="outline" onClick={() => setMvtOpen(false)}>{t('Cancel')}</Button>
               <Button
                 type="submit"
                 disabled={mvtForm.processing || !mvtForm.data.stock_movement.quantity || !mvtForm.data.stock_movement.storage_location_id}
               >
-                Record movement
+                {t('Record movement')}
               </Button>
             </DialogFooter>
           </form>
@@ -731,15 +733,17 @@ export function PartDetailSheet({
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete this part?</AlertDialogTitle>
+            <AlertDialogTitle>{t('Delete this part?')}</AlertDialogTitle>
             <AlertDialogDescription>
-              {part && <span className="font-mono font-semibold text-foreground">{partRef(part)}</span>} will be removed along with its stock records. Parts with recorded movements cannot be deleted.
+              {part && tx('{part} will be removed along with its stock records. Parts with recorded movements cannot be deleted.', {
+                part: <span className="font-mono font-semibold text-foreground">{partRef(part)}</span>,
+              })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t('Cancel')}</AlertDialogCancel>
             <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-white hover:bg-destructive/90">
-              Delete
+              {t('Delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -752,7 +756,7 @@ export function PartDetailSheet({
           onOpenChange={setLabelOpen}
           count={1}
           loadItems={() => Promise.resolve([labelForPart(part)])}
-          title={`Print the label for ${part.name}`}
+          title={t('Print the label for {name}', { name: part.name })}
         />
       )}
 

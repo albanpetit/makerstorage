@@ -34,6 +34,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { t, tn, intlLocale } from '@/lib/i18n'
 
 interface Stats {
   references_count: number
@@ -146,45 +147,45 @@ const CURRENCY_SYMBOLS: Record<string, string> = {
 
 function formatMoney(value: number, currency: string) {
   const symbol = CURRENCY_SYMBOLS[currency] || currency
-  return `${Math.round(value).toLocaleString()} ${symbol}`
+  return `${Math.round(value).toLocaleString(intlLocale())} ${symbol}`
 }
 
 const MOVEMENT_META: Record<RecentMovement['movement_type'], { label: string; className: string }> = {
-  in: { label: 'In', className: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400' },
-  out: { label: 'Out', className: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400' },
-  adjustment: { label: 'Adjustment', className: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400' },
+  in: { get label() { return t('In') }, className: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400' },
+  out: { get label() { return t('Out') }, className: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400' },
+  adjustment: { get label() { return t('Adjustment') }, className: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400' },
 }
 
 const ATTENTION_META: Record<AttentionItem['kind'], { icon: LucideIcon; label: (count: number) => string; tone: string }> = {
   late_orders: {
     icon: Clock,
-    label: (n) => `${n} ${n === 1 ? 'order is' : 'orders are'} past expected delivery`,
+    label: (n) => tn('{count} order is past expected delivery', '{count} orders are past expected delivery', n),
     tone: 'text-destructive',
   },
   out_of_stock: {
     icon: PackageX,
-    label: (n) => `${n} ${n === 1 ? 'part is' : 'parts are'} out of stock`,
+    label: (n) => tn('{count} part is out of stock', '{count} parts are out of stock', n),
     tone: 'text-destructive',
   },
   low_stock: {
     icon: AlertTriangle,
-    label: (n) => `${n} ${n === 1 ? 'part is' : 'parts are'} running low`,
+    label: (n) => tn('{count} part is running low', '{count} parts are running low', n),
     tone: 'text-amber-600 dark:text-amber-500',
   },
   projects_short: {
     icon: FolderKanban,
-    label: (n) => `${n} confirmed ${n === 1 ? 'project is' : 'projects are'} short of parts`,
+    label: (n) => tn('{count} confirmed project is short of parts', '{count} confirmed projects are short of parts', n),
     tone: 'text-amber-600 dark:text-amber-500',
   },
   shipped_orders: {
     icon: Truck,
-    label: (n) => `${n} shipped ${n === 1 ? 'order' : 'orders'} to receive`,
+    label: (n) => tn('{count} shipped order to receive', '{count} shipped orders to receive', n),
     tone: 'text-sky-600 dark:text-sky-400',
   },
 }
 
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })
+  return new Date(iso).toLocaleDateString(intlLocale(), { day: 'numeric', month: 'short' })
 }
 
 // Plain dates (no time) from the server, read as local noon so they never
@@ -193,7 +194,7 @@ function formatDay(iso: string) {
   return formatDate(`${iso}T12:00:00`)
 }
 
-const RELATIVE = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' })
+const RELATIVE = new Intl.RelativeTimeFormat(intlLocale(), { numeric: 'auto' })
 
 function timeAgo(iso: string) {
   const seconds = Math.round((new Date(iso).getTime() - Date.now()) / 1000)
@@ -208,14 +209,14 @@ function timeAgo(iso: string) {
       return RELATIVE.format(Math.round(seconds / size), unit)
     }
   }
-  return 'just now'
+  return t('just now')
 }
 
 function greeting() {
   const hour = new Date().getHours()
-  if (hour < 5 || hour >= 18) return 'Good evening'
-  if (hour < 12) return 'Good morning'
-  return 'Good afternoon'
+  if (hour < 5 || hour >= 18) return t('Good evening')
+  if (hour < 12) return t('Good morning')
+  return t('Good afternoon')
 }
 
 function SectionHeader({ title, description, href }: { title: string; description?: string; href?: string }) {
@@ -227,7 +228,7 @@ function SectionHeader({ title, description, href }: { title: string; descriptio
       </div>
       {href && (
         <Link href={href} className="shrink-0 text-sm font-medium text-muted-foreground hover:text-foreground">
-          See all →
+          {t('See all →')}
         </Link>
       )}
     </CardHeader>
@@ -268,19 +269,19 @@ function StatCard({
 
 function GettingStartedCard({ steps, canWrite }: { steps: GettingStarted; canWrite: boolean }) {
   const items = [
-    { done: steps.zone, label: 'Create your storage zones', hint: 'Rooms, cabinets, drawers and boxes.', href: '/storage_locations' },
-    { done: steps.supplier, label: 'Add your suppliers', hint: 'Or connect Mouser and DigiKey in Settings.', href: '/suppliers' },
-    { done: steps.part, label: 'Add your first part', hint: 'By hand, from a supplier lookup or a CSV import.', href: '/parts?new=1' },
-    { done: steps.movement, label: 'Put stock on a shelf', hint: 'Record a stock entry or receive an order.', href: '/parts' },
+    { done: steps.zone, label: t('Create your storage zones'), hint: t('Rooms, cabinets, drawers and boxes.'), href: '/storage_locations' },
+    { done: steps.supplier, label: t('Add your suppliers'), hint: t('Or connect Mouser and DigiKey in Settings.'), href: '/suppliers' },
+    { done: steps.part, label: t('Add your first part'), hint: t('By hand, from a supplier lookup or a CSV import.'), href: '/parts?new=1' },
+    { done: steps.movement, label: t('Put stock on a shelf'), hint: t('Record a stock entry or receive an order.'), href: '/parts' },
   ]
   const doneCount = items.filter((item) => item.done).length
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Get started</CardTitle>
+        <CardTitle>{t('Get started')}</CardTitle>
         <CardDescription>
-          {doneCount} of {items.length} done. A few steps and this page fills up with your stock.
+          {t('{done} of {total} done. A few steps and this page fills up with your stock.', { done: doneCount, total: items.length })}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -356,28 +357,30 @@ export default function Dashboard({
     <AppLayout
       header={
         <PageHeader
-          title="Dashboard"
-          subtitle={`${greeting()}${firstname ? `, ${firstname}` : ''}. Here's what's happening in your inventory.`}
+          title={t('Dashboard')}
+          subtitle={firstname
+            ? t('{greeting}, {name}. Here\'s what\'s happening in your inventory.', { greeting: greeting(), name: firstname })
+            : t('{greeting}. Here\'s what\'s happening in your inventory.', { greeting: greeting() })}
         >
           <GlobalSearch />
           <Button size="sm" variant="outline" asChild>
             <Link href="/scan">
               <ScanLine className="size-4" />
-              Scan
+              {t('Scan')}
             </Link>
           </Button>
           {canWrite && (
             <Button size="sm" asChild>
               <Link href="/parts?new=1">
                 <Plus className="size-4" />
-                New component
+                {t('New component')}
               </Link>
             </Button>
           )}
         </PageHeader>
       }
     >
-      <Head title="Dashboard" />
+      <Head title={t('Dashboard')} />
 
       <div className="space-y-6">
         {getting_started && <GettingStartedCard steps={getting_started} canWrite={canWrite} />}
@@ -385,40 +388,40 @@ export default function Dashboard({
         {/* Headline figures */}
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           <StatCard
-            label="References"
-            value={stats.references_count.toLocaleString()}
+            label={t('References')}
+            value={stats.references_count.toLocaleString(intlLocale())}
             detail={
               stats.new_references_count > 0
-                ? `+${stats.new_references_count.toLocaleString()} in the last 30 days`
-                : `${stats.total_units.toLocaleString()} units in stock`
+                ? t('+{count} in the last 30 days', { count: stats.new_references_count.toLocaleString(intlLocale()) })
+                : tn('{count} unit in stock', '{count} units in stock', stats.total_units, { count: stats.total_units.toLocaleString(intlLocale()) })
             }
             icon={Package}
             href="/parts"
           />
           <StatCard
-            label="Stock value"
+            label={t('Stock value')}
             value={formatMoney(stats.stock_value, stats.currency)}
-            detail={`${stats.total_units.toLocaleString()} units in stock`}
+            detail={tn('{count} unit in stock', '{count} units in stock', stats.total_units, { count: stats.total_units.toLocaleString(intlLocale()) })}
             icon={Coins}
             href="/parts"
           />
           <StatCard
-            label="Low stock"
-            value={stats.alerts_count.toLocaleString()}
-            detail={stats.out_of_stock_count > 0 ? `${stats.out_of_stock_count.toLocaleString()} out of stock` : 'Nothing out of stock'}
+            label={t('Low stock')}
+            value={stats.alerts_count.toLocaleString(intlLocale())}
+            detail={stats.out_of_stock_count > 0 ? t('{count} out of stock', { count: stats.out_of_stock_count.toLocaleString(intlLocale()) }) : t('Nothing out of stock')}
             icon={AlertTriangle}
             href="/alerts"
             tone={stats.out_of_stock_count > 0 ? 'alert' : stats.alerts_count > 0 ? 'warning' : undefined}
           />
           <StatCard
-            label="Open orders"
-            value={stats.open_orders_count.toLocaleString()}
+            label={t('Open orders')}
+            value={stats.open_orders_count.toLocaleString(intlLocale())}
             detail={
               stats.late_orders_count > 0
-                ? `${stats.late_orders_count.toLocaleString()} late`
+                ? t('{count} late', { count: stats.late_orders_count.toLocaleString(intlLocale()) })
                 : stats.open_orders_count > 0
-                  ? `${formatMoney(stats.incoming_value, stats.currency)} incoming`
-                  : 'Nothing on its way'
+                  ? t('{amount} incoming', { amount: formatMoney(stats.incoming_value, stats.currency) })
+                  : t('Nothing on its way')
             }
             icon={Truck}
             href="/orders"
@@ -430,11 +433,11 @@ export default function Dashboard({
         <div className="grid gap-4 lg:grid-cols-[1.6fr_1fr]">
           <Card className="gap-0 py-0">
             <SectionHeader
-              title="Stock activity"
+              title={t('Stock activity')}
               description={
                 movementsCount > 0
-                  ? `${movementsCount.toLocaleString()} movements in the last 30 days: ${activityTotals.in} in, ${activityTotals.out} out, ${activityTotals.adjustment} adjustments`
-                  : 'No movements in the last 30 days'
+                  ? tn('{count} movement in the last 30 days: {in} in, {out} out, {adjustments} adjustments', '{count} movements in the last 30 days: {in} in, {out} out, {adjustments} adjustments', movementsCount, { count: movementsCount.toLocaleString(intlLocale()), in: activityTotals.in, out: activityTotals.out, adjustments: activityTotals.adjustment })
+                  : t('No movements in the last 30 days')
               }
               href="/stock_movements"
             />
@@ -444,7 +447,7 @@ export default function Dashboard({
           </Card>
 
           <Card className="gap-0 py-0">
-            <SectionHeader title="Needs attention" />
+            <SectionHeader title={t('Needs attention')} />
             <CardContent className="p-0">
               {attention.length > 0 ? (
                 <ul className="divide-y">
@@ -464,8 +467,8 @@ export default function Dashboard({
               ) : (
                 <div className="flex flex-col items-center gap-2 px-6 py-10 text-center">
                   <CircleCheck className="size-8 text-emerald-600" />
-                  <p className="text-sm font-medium">All good</p>
-                  <p className="text-xs text-muted-foreground">No low stock, late orders or blocked projects.</p>
+                  <p className="text-sm font-medium">{t('All good')}</p>
+                  <p className="text-xs text-muted-foreground">{t('No low stock, late orders or blocked projects.')}</p>
                 </div>
               )}
             </CardContent>
@@ -475,16 +478,16 @@ export default function Dashboard({
         {/* Low stock + orders */}
         <div className="grid gap-4 lg:grid-cols-[1.6fr_1fr]">
           <Card className="gap-0 py-0">
-            <SectionHeader title="Low stock" description="Under their minimum threshold, most critical first" href="/alerts" />
+            <SectionHeader title={t('Low stock')} description={t('Under their minimum threshold, most critical first')} href="/alerts" />
             <CardContent className="p-0">
               {low_stock_parts.length > 0 ? (
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Reference</TableHead>
-                      <TableHead className="hidden sm:table-cell">Location</TableHead>
-                      <TableHead className="w-[38%]">Stock</TableHead>
-                      <TableHead className="text-right">On order</TableHead>
+                      <TableHead>{t('Reference')}</TableHead>
+                      <TableHead className="hidden sm:table-cell">{t('Location')}</TableHead>
+                      <TableHead className="w-[38%]">{t('Stock')}</TableHead>
+                      <TableHead className="text-right">{t('On order')}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -526,13 +529,13 @@ export default function Dashboard({
                   </TableBody>
                 </Table>
               ) : (
-                <p className="p-6 text-sm text-muted-foreground">Nothing below threshold.</p>
+                <p className="p-6 text-sm text-muted-foreground">{t('Nothing below threshold.')}</p>
               )}
             </CardContent>
           </Card>
 
           <Card className="gap-0 py-0">
-            <SectionHeader title="Orders on their way" href="/orders" />
+            <SectionHeader title={t('Orders on their way')} href="/orders" />
             <CardContent className="p-0">
               {open_orders.length > 0 ? (
                 <ul className="divide-y">
@@ -542,20 +545,20 @@ export default function Dashboard({
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-sm font-medium">{order.supplier_name}</p>
                           <p className="truncate font-mono text-xs text-muted-foreground">
-                            {order.reference || `#${order.id}`} · {order.lines_count} {order.lines_count === 1 ? 'line' : 'lines'}
+                            {order.reference || `#${order.id}`} · {tn('{count} line', '{count} lines', order.lines_count)}
                             {order.total_amount > 0 && ` · ${formatMoney(order.total_amount, stats.currency)}`}
                           </p>
                         </div>
                         <div className="shrink-0 text-right">
-                          <Badge variant={order.status === 'shipped' ? 'secondary' : 'outline'} className="capitalize">
-                            {order.status}
+                          <Badge variant={order.status === 'shipped' ? 'secondary' : 'outline'}>
+                            {order.status === 'shipped' ? t('Shipped') : t('Pending')}
                           </Badge>
                           <p className={`mt-1 text-xs ${order.days_late > 0 ? 'font-medium text-destructive' : 'text-muted-foreground'}`}>
                             {order.days_late > 0
-                              ? `${order.days_late} ${order.days_late === 1 ? 'day' : 'days'} late`
+                              ? tn('{count} day late', '{count} days late', order.days_late)
                               : order.expected_delivery
-                                ? `Due ${formatDay(order.expected_delivery)}`
-                                : 'No date'}
+                                ? t('Due {date}', { date: formatDay(order.expected_delivery) })
+                                : t('No date')}
                           </p>
                         </div>
                       </Link>
@@ -563,7 +566,7 @@ export default function Dashboard({
                   ))}
                 </ul>
               ) : (
-                <p className="p-6 text-sm text-muted-foreground">No open orders.</p>
+                <p className="p-6 text-sm text-muted-foreground">{t('No open orders.')}</p>
               )}
             </CardContent>
           </Card>
@@ -572,7 +575,7 @@ export default function Dashboard({
         {/* Projects, consumption, categories */}
         <div className="grid gap-4 lg:grid-cols-3">
           <Card className="gap-0 py-0">
-            <SectionHeader title="Projects" description="Can they be built from stock now?" href="/projects" />
+            <SectionHeader title={t('Projects')} description={t('Can they be built from stock now?')} href="/projects" />
             <CardContent className="p-0">
               {projects.length > 0 ? (
                 <ul className="divide-y">
@@ -582,20 +585,21 @@ export default function Dashboard({
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-sm font-medium">{project.name}</p>
                           <p className="truncate text-xs text-muted-foreground">
-                            {project.status === 'draft' ? 'Draft' : project.reserved ? 'Confirmed, stock reserved' : 'Confirmed'}
-                            {project.builds_count > 0 &&
-                              ` · built ${project.builds_count}×${project.last_built_at ? `, last ${timeAgo(project.last_built_at)}` : ''}`}
+                            {project.status === 'draft' ? t('Draft') : project.reserved ? t('Confirmed, stock reserved') : t('Confirmed')}
+                            {project.builds_count > 0 && ` · ${project.last_built_at
+                              ? t('built {count}×, last {ago}', { count: project.builds_count, ago: timeAgo(project.last_built_at) })
+                              : t('built {count}×', { count: project.builds_count })}`}
                           </p>
                         </div>
                         {project.lines_count === 0 ? (
-                          <Badge variant="outline">Empty</Badge>
+                          <Badge variant="outline">{t('Empty')}</Badge>
                         ) : project.buildable ? (
                           <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400" variant="outline">
-                            Buildable
+                            {t('Buildable')}
                           </Badge>
                         ) : (
                           <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400" variant="outline">
-                            {project.short_count} short
+                            {t('{count} short', { count: project.short_count })}
                           </Badge>
                         )}
                       </Link>
@@ -603,20 +607,20 @@ export default function Dashboard({
                   ))}
                 </ul>
               ) : (
-                <p className="p-6 text-sm text-muted-foreground">No projects yet. Import a BOM to check what you can build.</p>
+                <p className="p-6 text-sm text-muted-foreground">{t('No projects yet. Import a BOM to check what you can build.')}</p>
               )}
             </CardContent>
           </Card>
 
           <Card className="gap-0 py-0">
-            <SectionHeader title="Most used" description="Units taken out in the last 30 days" />
+            <SectionHeader title={t('Most used')} description={t('Units taken out in the last 30 days')} />
             <CardContent className="space-y-3 py-4">
               {top_consumed.length > 0 ? (
                 top_consumed.map((part) => (
                   <div key={part.id} className="space-y-1">
                     <div className="flex items-center justify-between gap-2 text-sm">
                       <div className="min-w-0">{partLink(part.id, part.reference)}</div>
-                      <span className="shrink-0 font-mono text-muted-foreground">{part.units.toLocaleString()}</span>
+                      <span className="shrink-0 font-mono text-muted-foreground">{part.units.toLocaleString(intlLocale())}</span>
                     </div>
                     <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
                       <div className="h-full rounded-full bg-primary" style={{ width: `${(part.units / maxConsumed) * 100}%` }} />
@@ -624,13 +628,13 @@ export default function Dashboard({
                   </div>
                 ))
               ) : (
-                <p className="text-sm text-muted-foreground">Nothing taken out of stock lately.</p>
+                <p className="text-sm text-muted-foreground">{t('Nothing taken out of stock lately.')}</p>
               )}
             </CardContent>
           </Card>
 
           <Card className="gap-0 py-0">
-            <SectionHeader title="By category" description="Share of your references" href="/categories" />
+            <SectionHeader title={t('By category')} description={t('Share of your references')} href="/categories" />
             <CardContent className="space-y-3 py-4">
               {category_breakdown.length > 0 ? (
                 category_breakdown.map((entry) => (
@@ -647,7 +651,7 @@ export default function Dashboard({
                   </div>
                 ))
               ) : (
-                <p className="text-sm text-muted-foreground">No parts yet.</p>
+                <p className="text-sm text-muted-foreground">{t('No parts yet.')}</p>
               )}
             </CardContent>
           </Card>
@@ -655,24 +659,24 @@ export default function Dashboard({
 
         {/* Recent movements */}
         <Card className="gap-0 py-0">
-          <SectionHeader title="Recent movements" href="/stock_movements" />
+          <SectionHeader title={t('Recent movements')} href="/stock_movements" />
           <CardContent className="p-0">
             {recent_movements.length > 0 ? (
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>When</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Reference</TableHead>
-                    <TableHead className="hidden md:table-cell">Reason</TableHead>
-                    <TableHead className="hidden md:table-cell">By</TableHead>
-                    <TableHead className="text-right">Qty</TableHead>
+                    <TableHead>{t('When')}</TableHead>
+                    <TableHead>{t('Type')}</TableHead>
+                    <TableHead>{t('Reference')}</TableHead>
+                    <TableHead className="hidden md:table-cell">{t('Reason')}</TableHead>
+                    <TableHead className="hidden md:table-cell">{t('By')}</TableHead>
+                    <TableHead className="text-right">{t('Qty')}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {recent_movements.map((movement) => (
                     <TableRow key={movement.id}>
-                      <TableCell className="whitespace-nowrap text-sm text-muted-foreground" title={new Date(movement.created_at).toLocaleString()}>
+                      <TableCell className="whitespace-nowrap text-sm text-muted-foreground" title={new Date(movement.created_at).toLocaleString(intlLocale())}>
                         {timeAgo(movement.created_at)}
                       </TableCell>
                       <TableCell>
@@ -698,7 +702,7 @@ export default function Dashboard({
                 </TableBody>
               </Table>
             ) : (
-              <p className="p-6 text-sm text-muted-foreground">No stock movements yet.</p>
+              <p className="p-6 text-sm text-muted-foreground">{t('No stock movements yet.')}</p>
             )}
           </CardContent>
         </Card>

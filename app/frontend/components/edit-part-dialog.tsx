@@ -29,6 +29,7 @@ import {
   Tag,
   toFormPart,
 } from '@/components/part-form/types'
+import { t } from '@/lib/i18n'
 
 interface EditPartDialogProps {
   partId: number | null
@@ -112,7 +113,7 @@ export function EditPartDialog({
       })
       .catch(() => {
         if (cancelled) return
-        setLoadError('Could not load this part. Please try again.')
+        setLoadError(t('Could not load this part. Please try again.'))
         setLoading(false)
       })
     return () => {
@@ -177,9 +178,9 @@ export function EditPartDialog({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="flex max-h-[90svh] flex-col gap-0 p-0 sm:max-w-2xl lg:max-w-4xl">
         <DialogHeader className="border-b px-6 py-4">
-          <DialogTitle>Edit part</DialogTitle>
+          <DialogTitle>{t('Edit part')}</DialogTitle>
           <DialogDescription>
-            Update the essentials — expand the sections below for more detail.
+            {t('Update the essentials — expand the sections below for more detail.')}
           </DialogDescription>
         </DialogHeader>
 
@@ -193,7 +194,7 @@ export function EditPartDialog({
               <CircleAlert />
               <AlertDescription>{loadError}</AlertDescription>
             </Alert>
-            <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>Close</Button>
+            <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>{t('Close')}</Button>
           </div>
         ) : (
           <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col">
@@ -223,8 +224,8 @@ export function EditPartDialog({
             />
 
             <DialogFooter className="border-t px-6 py-4">
-              <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>Cancel</Button>
-              <Button type="submit" disabled={form.processing}>Save changes</Button>
+              <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>{t('Cancel')}</Button>
+              <Button type="submit" disabled={form.processing}>{t('Save changes')}</Button>
             </DialogFooter>
           </form>
         )}

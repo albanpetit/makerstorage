@@ -29,7 +29,7 @@ module Oauth
 
       organization = current_user.organizations.find_by(id: params[:organization_id])
       if organization.nil?
-        redirect_to oauth_authorize_path(request_params), alert: "Choose one of your organizations."
+        redirect_to oauth_authorize_path(request_params), alert: t("flash.oauth_authorizations.choose_one_of_your_organizations")
         return
       end
 
@@ -51,7 +51,7 @@ module Oauth
       return if @client&.redirect_uri_allowed?(@redirect_uri)
 
       render inertia: "oauth/authorize", status: :bad_request, props: {
-        error: @client ? "This application asked to send you back to an address it never registered." : "This application isn't registered with MakerStorage. Add the connector again from your client."
+        error: @client ? t("flash.oauth_authorizations.this_application_asked_to_send_you") : t("flash.oauth_authorizations.this_application_isn_t_registered_with")
       }
     end
 
@@ -62,7 +62,7 @@ module Oauth
       elsif params[:code_challenge].blank? || params[:code_challenge_method] != "S256"
         redirect_to_client(error: "invalid_request", error_description: "PKCE with S256 is required")
       elsif current_user.organizations.none?
-        redirect_to profile_path, alert: "You're not an active member of any organization."
+        redirect_to profile_path, alert: t("flash.oauth_authorizations.you_re_not_an_active_member")
       end
     end
 

@@ -69,15 +69,15 @@ class LoansController < ApplicationController
     end
 
     loan.lend!(user: current_user)
-    redirect_to loan_path(loan), notice: "Loan #{loan.reference} recorded: items taken out of stock."
+    redirect_to loan_path(loan), notice: t("flash.loans.recorded", reference: loan.reference)
   rescue ActiveRecord::RecordInvalid => e
-    redirect_back_or_to loans_path, alert: "The loan wasn't recorded: #{loan_error_message(e.record)}"
+    redirect_back_or_to loans_path, alert: t("flash.loans.not_recorded", errors: loan_error_message(e.record))
   end
 
   # Due date, contact and notes only: lines change through returns and write-offs.
   def update
     if @loan.update(params.require(:loan).permit(:due_on, :borrower_contact, :notes))
-      redirect_to loan_path(@loan), notice: "Loan updated."
+      redirect_to loan_path(@loan), notice: t("flash.loans.updated")
     else
       redirect_to loan_path(@loan), alert: @loan.errors.full_messages.to_sentence
     end
@@ -92,14 +92,14 @@ class LoansController < ApplicationController
     end
 
     @loan.return_items!(entries, user: current_user)
-    redirect_to loan_path(@loan), notice: @loan.closed? ? "Everything is back: loan closed." : "Return recorded."
+    redirect_to loan_path(@loan), notice: @loan.closed? ? t("flash.loans.closed") : t("flash.loans.return_recorded")
   rescue Loan::Error, ActiveRecord::RecordInvalid => e
     redirect_to loan_path(@loan), alert: settle_error_message(e)
   end
 
   def return_all
     @loan.return_all!(user: current_user)
-    redirect_to loan_path(@loan), notice: "Everything is back: loan closed."
+    redirect_to loan_path(@loan), notice: t("flash.loans.closed")
   rescue Loan::Error, ActiveRecord::RecordInvalid => e
     redirect_to loan_path(@loan), alert: settle_error_message(e)
   end
@@ -145,12 +145,12 @@ class LoansController < ApplicationController
     messages = loan.errors.full_messages
     if loan.is_a?(Loan)
       loan.loan_lines.each do |line|
-        messages += line.errors.full_messages.map { |message| "#{line.part&.reference || 'Item'}: #{message}" }
+        messages += line.errors.full_messages.map { |message| "#{line.part&.reference || t('flash.loans.item')}: #{message}" }
       end
     elsif loan.is_a?(StockMovement)
-      messages = [ "#{loan.part.reference}: not enough stock in #{loan.storage_location.name}" ] if loan.errors.key?(:quantity_delta)
+      messages = [ t("flash.loans.not_enough_stock", reference: loan.part.reference, zone: loan.storage_location.name) ] if loan.errors.key?(:quantity_delta)
     end
-    messages.uniq.to_sentence.presence || "check the items and quantities."
+    messages.uniq.to_sentence.presence || t("flash.loans.check_items")
   end
 
   def settle_error_message(error)

@@ -13,12 +13,12 @@ class InvitationsController < ApplicationController
   def accept
     @invitation.accept_invitation!
     session[:current_organization_id] = @invitation.organization_id
-    redirect_to root_path, notice: "You joined #{@invitation.organization.name}."
+    redirect_to root_path, notice: t("flash.invitations.you_joined", organization_name: @invitation.organization.name)
   end
 
   def decline
     @invitation.destroy!
-    redirect_to profile_path, notice: "Invitation to #{@invitation.organization.name} declined."
+    redirect_to profile_path, notice: t("flash.invitations.invitation_to_declined", organization_name: @invitation.organization.name)
   end
 
   private
@@ -28,7 +28,7 @@ class InvitationsController < ApplicationController
   def require_confirmed_email
     return if current_user.can_answer_invitations?
 
-    redirect_to profile_path, alert: "Confirm your email address to answer invitations."
+    redirect_to profile_path, alert: t("flash.invitations.confirm_your_email_address_to_answer")
   end
 
   def set_invitation

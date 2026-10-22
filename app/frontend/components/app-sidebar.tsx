@@ -66,25 +66,26 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Field, FieldContent, FieldError, FieldLabel } from '@/components/ui/field'
 import logo from '/assets/logo.svg'
+import { t, tn } from '@/lib/i18n'
 
 const navigationItems = [
-  { title: 'Dashboard', url: '/', icon: LayoutDashboard },
-  { title: 'Inventory', url: '/parts', icon: List },
-  { title: 'Categories', url: '/categories', icon: FolderTree },
-  { title: 'Footprints', url: '/footprints', icon: Cpu },
-  { title: 'Tags', url: '/tags', icon: Tag },
-  { title: 'Parameters', url: '/parameters', icon: SlidersHorizontal },
-  { title: 'Storage Zones', url: '/storage_locations', icon: Box },
-  { title: 'Scanner', url: '/scan', icon: ScanLine },
-  { title: 'Movements', url: '/stock_movements', icon: ArrowLeftRight },
-  { title: 'Stocktakes', url: '/stocktakes', icon: ClipboardCheck },
-  { title: 'Suppliers', url: '/suppliers', icon: Truck },
-  { title: 'Orders', url: '/orders', icon: ShoppingCart },
-  { title: 'Projects', url: '/projects', icon: ClipboardList },
-  { title: 'Loans', url: '/loans', icon: HandHelping, badgeKey: 'loans' as const },
-  { title: 'Alerts', url: '/alerts', icon: AlertTriangle, badgeKey: 'alerts' as const },
-  { title: 'Members & Roles', url: '/members', icon: Users },
-  { title: 'Settings', url: '/settings', icon: Settings, adminOnly: true },
+  { get title() { return t('Dashboard') }, url: '/', icon: LayoutDashboard },
+  { get title() { return t('Inventory') }, url: '/parts', icon: List },
+  { get title() { return t('Categories') }, url: '/categories', icon: FolderTree },
+  { get title() { return t('Footprints') }, url: '/footprints', icon: Cpu },
+  { get title() { return t('Tags') }, url: '/tags', icon: Tag },
+  { get title() { return t('Parameters') }, url: '/parameters', icon: SlidersHorizontal },
+  { get title() { return t('Storage Zones') }, url: '/storage_locations', icon: Box },
+  { get title() { return t('Scanner') }, url: '/scan', icon: ScanLine },
+  { get title() { return t('Movements') }, url: '/stock_movements', icon: ArrowLeftRight },
+  { get title() { return t('Stocktakes') }, url: '/stocktakes', icon: ClipboardCheck },
+  { get title() { return t('Suppliers') }, url: '/suppliers', icon: Truck },
+  { get title() { return t('Orders') }, url: '/orders', icon: ShoppingCart },
+  { get title() { return t('Projects') }, url: '/projects', icon: ClipboardList },
+  { get title() { return t('Loans') }, url: '/loans', icon: HandHelping, badgeKey: 'loans' as const },
+  { get title() { return t('Alerts') }, url: '/alerts', icon: AlertTriangle, badgeKey: 'alerts' as const },
+  { get title() { return t('Members & Roles') }, url: '/members', icon: Users },
+  { get title() { return t('Settings') }, url: '/settings', icon: Settings, adminOnly: true },
 ]
 
 const ORG_BADGE_COLORS = [
@@ -101,7 +102,7 @@ function ThemeToggle() {
     <Button
       variant="ghost"
       size="icon-sm"
-      aria-label="Toggle theme"
+      aria-label={t('Toggle theme')}
       onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
     >
       {mounted && resolvedTheme === 'light' ? <Moon /> : <Sun />}
@@ -160,7 +161,7 @@ export function AppSidebar() {
 
   const userDisplayName = user
     ? `${user.firstname} ${user.lastname}`.trim() || user.email.split('@')[0]
-    : 'User'
+    : t('User')
   const userEmail = user?.email || ''
   const userInitials = user
     ? `${user.firstname?.[0] || ''}${user.lastname?.[0] || ''}`.toUpperCase() || user.email.slice(0, 2).toUpperCase()
@@ -195,8 +196,8 @@ export function AppSidebar() {
     <Sidebar>
       <SidebarHeader>
         <Link href="/" className="flex items-center gap-2.5 px-2 pt-1 pb-2 transition-opacity hover:opacity-80">
-          <img src={logo} alt="Makerstorage" className="size-7 rounded-md" />
-          <span className="text-sm font-semibold tracking-tight">Makerstorage</span>
+          <img src={logo} alt={t('Makerstorage')} className="size-7 rounded-md" />
+          <span className="text-sm font-semibold tracking-tight">{t('Makerstorage')}</span>
         </Link>
 
         <SidebarMenu>
@@ -220,12 +221,12 @@ export function AppSidebar() {
                   </div>
                   <div className="grid flex-1 text-left text-sm leading-tight">
                     <span className="truncate font-semibold">
-                      {currentOrganization?.name || 'Select Organization'}
+                      {currentOrganization?.name || t('Select Organization')}
                     </span>
                     <span className="truncate text-xs text-muted-foreground">
                       {currentOrganization
-                        ? `Team · ${currentOrganization.member_count} member${currentOrganization.member_count !== 1 ? 's' : ''}`
-                        : 'No organization'}
+                        ? tn('Team · {count} member', 'Team · {count} members', currentOrganization.member_count)
+                        : t('No organization')}
                     </span>
                   </div>
                   <ChevronsUpDown className="ml-auto size-4" />
@@ -237,7 +238,7 @@ export function AppSidebar() {
                 sideOffset={4}
               >
                 <DropdownMenuLabel className="text-xs text-muted-foreground">
-                  Organizations
+                  {t('Organizations')}
                 </DropdownMenuLabel>
                 {organizations.map((org) => (
                   <DropdownMenuItem
@@ -263,7 +264,7 @@ export function AppSidebar() {
                   <div className="flex size-6 items-center justify-center rounded-md border bg-background">
                     <Plus className="size-4" />
                   </div>
-                  <span className="text-muted-foreground">Create organization</span>
+                  <span className="text-muted-foreground">{t('Create organization')}</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -275,7 +276,7 @@ export function AppSidebar() {
 
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>General</SidebarGroupLabel>
+          <SidebarGroupLabel>{t('General')}</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {visibleNavigationItems.map((item) => (
@@ -292,7 +293,7 @@ export function AppSidebar() {
                     </SidebarMenuBadge>
                   )}
                   {item.badgeKey === 'loans' && overdueLoansCount > 0 && (
-                    <SidebarMenuBadge className="bg-destructive/15 text-destructive" title="Overdue loans">
+                    <SidebarMenuBadge className="bg-destructive/15 text-destructive" title={t('Overdue loans')}>
                       {overdueLoansCount}
                     </SidebarMenuBadge>
                   )}
@@ -322,7 +323,7 @@ export function AppSidebar() {
                     <span className="truncate text-xs text-muted-foreground">{userEmail}</span>
                   </div>
                   {pendingInvitationsCount > 0 && (
-                    <Badge className="ml-auto" aria-label={`${pendingInvitationsCount} pending invitation${pendingInvitationsCount !== 1 ? 's' : ''}`}>
+                    <Badge className="ml-auto" aria-label={tn('{count} pending invitation', '{count} pending invitations', pendingInvitationsCount)}>
                       {pendingInvitationsCount}
                     </Badge>
                   )}
@@ -338,10 +339,10 @@ export function AppSidebar() {
                 <DropdownMenuItem asChild>
                   <Link href="/profile" className="cursor-pointer">
                     <User className="mr-2 size-4" />
-                    Profile
+                    {t('Profile')}
                     {pendingInvitationsCount > 0 && (
                       <Badge variant="secondary" className="ml-auto">
-                        {pendingInvitationsCount} invitation{pendingInvitationsCount !== 1 ? 's' : ''}
+                        {tn('{count} invitation', '{count} invitations', pendingInvitationsCount)}
                       </Badge>
                     )}
                   </Link>
@@ -350,7 +351,7 @@ export function AppSidebar() {
                 <DropdownMenuItem asChild>
                   <Link href="/logout" method="delete" as="button" className="w-full cursor-pointer">
                     <LogOut className="mr-2 size-4" />
-                    Log out
+                    {t('Log out')}
                   </Link>
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -365,22 +366,22 @@ export function AppSidebar() {
       <DialogContent>
         <form onSubmit={submitCreate}>
           <DialogHeader>
-            <DialogTitle>Create organization</DialogTitle>
+            <DialogTitle>{t('Create organization')}</DialogTitle>
             <DialogDescription>
-              You'll be added as its owner and switched to it right away.
+              {t('You\'ll be added as its owner and switched to it right away.')}
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
             <Field>
               <FieldLabel>
-                <Label htmlFor="new-org-name">Name</Label>
+                <Label htmlFor="new-org-name">{t('Name')}</Label>
               </FieldLabel>
               <FieldContent>
                 <Input
                   id="new-org-name"
                   value={createForm.data.organization.name}
                   onChange={(e) => createForm.setData('organization', { name: e.target.value })}
-                  placeholder="Acme Fablab"
+                  placeholder={t('Acme Fablab')}
                   autoFocus
                   aria-invalid={!!createForm.errors['organization.name']}
                 />
@@ -392,10 +393,10 @@ export function AppSidebar() {
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>
-              Cancel
+              {t('Cancel')}
             </Button>
             <Button type="submit" disabled={createForm.processing}>
-              Create
+              {t('Create')}
             </Button>
           </DialogFooter>
         </form>

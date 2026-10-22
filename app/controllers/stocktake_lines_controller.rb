@@ -15,11 +15,11 @@ class StocktakeLinesController < ApplicationController
     line = @stocktake.line_for!(part, zone)
     @stocktake.count!(line, counted_quantity, user: current_user) if line_params.key?(:counted_quantity) && !counted_quantity.nil?
 
-    redirect_to stocktake_path(@stocktake, zone: zone.id, line: line.id), notice: "#{part.reference} added to the count."
+    redirect_to stocktake_path(@stocktake, zone: zone.id, line: line.id), notice: t("flash.stocktakes.part_added", reference: part.reference)
   rescue Stocktake::NotInProgress => e
     redirect_to stocktake_path(@stocktake), alert: e.message
   rescue ActiveRecord::RecordInvalid => e
-    redirect_to stocktake_path(@stocktake), alert: "Could not add that part: #{e.record.errors.full_messages.to_sentence}."
+    redirect_to stocktake_path(@stocktake), alert: t("flash.stocktakes.could_not_add_part", errors: e.record.errors.full_messages.to_sentence)
   end
 
   # A blank count clears the line (back to "not counted").
@@ -31,7 +31,7 @@ class StocktakeLinesController < ApplicationController
   rescue Stocktake::NotInProgress => e
     redirect_to stocktake_path(@stocktake), alert: e.message
   rescue ActiveRecord::RecordInvalid => e
-    redirect_back_or_to stocktake_path(@stocktake), alert: "Could not save that count: #{e.record.errors.full_messages.to_sentence}."
+    redirect_back_or_to stocktake_path(@stocktake), alert: t("flash.stocktakes.could_not_save_count", errors: e.record.errors.full_messages.to_sentence)
   end
 
   private

@@ -38,6 +38,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { t, tn, tx } from '@/lib/i18n'
 
 const NONE_VALUE = '__none__'
 
@@ -162,10 +163,10 @@ export default function CategoriesIndex({ categories, parameter_definitions }: C
     const withParts = categories.filter((c) => c.parts_count > 0).length
     const totalParts = categories.reduce((sum, c) => sum + c.parts_count, 0)
     return [
-      { label: 'Categories', value: String(categories.length) },
-      { label: 'Top-level', value: String(rootCount) },
-      { label: 'In use', value: String(withParts) },
-      { label: 'Classified parts', value: String(totalParts) },
+      { label: t('Categories'), value: String(categories.length) },
+      { label: t('Top-level'), value: String(rootCount) },
+      { label: t('In use'), value: String(withParts) },
+      { label: t('Classified parts'), value: String(totalParts) },
     ]
   }, [categories, roots.length])
 
@@ -278,14 +279,14 @@ export default function CategoriesIndex({ categories, parameter_definitions }: C
           <Badge variant="outline" className="shrink-0 font-mono text-xs">{category.code}</Badge>
         )}
         <span className="shrink-0 font-mono text-xs text-muted-foreground">
-          {category.parts_count} part{category.parts_count !== 1 ? 's' : ''}
+          {tn('{count} part', '{count} parts', category.parts_count)}
         </span>
         {canWrite && (
           <div className="flex shrink-0 items-center gap-1">
             <Button
               variant="ghost"
               size="icon-sm"
-              aria-label="Add subcategory"
+              aria-label={t('Add subcategory')}
               onClick={() => openNewDialog(category.id)}
             >
               <Plus className="size-4" />
@@ -293,7 +294,7 @@ export default function CategoriesIndex({ categories, parameter_definitions }: C
             <Button
               variant="ghost"
               size="icon-sm"
-              aria-label="Edit category"
+              aria-label={t('Edit category')}
               onClick={() => openEditDialog(category)}
             >
               <Pencil className="size-4" />
@@ -301,7 +302,7 @@ export default function CategoriesIndex({ categories, parameter_definitions }: C
             <Button
               variant="ghost"
               size="icon-sm"
-              aria-label="Delete category"
+              aria-label={t('Delete category')}
               className="text-destructive"
               onClick={() => openDeleteDialog(category.id)}
             >
@@ -316,17 +317,17 @@ export default function CategoriesIndex({ categories, parameter_definitions }: C
   return (
     <AppLayout
       header={
-        <PageHeader title="Categories" subtitle="Organize your components into a hierarchy">
+        <PageHeader title={t('Categories')} subtitle={t('Organize your components into a hierarchy')}>
           {canWrite && (
             <Button size="sm" onClick={() => openNewDialog()}>
               <Plus className="size-4" />
-              Add Category
+              {t('Add Category')}
             </Button>
           )}
         </PageHeader>
       }
     >
-      <Head title="Categories" />
+      <Head title={t('Categories')} />
 
       <div className="space-y-6">
         <FlashMessages />
@@ -352,17 +353,17 @@ export default function CategoriesIndex({ categories, parameter_definitions }: C
             <CardContent className="flex flex-col items-center gap-3 py-10 text-center">
               <FolderTree className="size-8 text-muted-foreground" />
               <div>
-                <p className="font-medium">No categories yet</p>
+                <p className="font-medium">{t('No categories yet')}</p>
                 <p className="text-sm text-muted-foreground">
                   {canWrite
-                    ? 'Add your first category so parts can be classified.'
-                    : 'No categories have been added yet.'}
+                    ? t('Add your first category so parts can be classified.')
+                    : t('No categories have been added yet.')}
                 </p>
               </div>
               {canWrite && (
                 <Button onClick={() => openNewDialog()}>
                   <Plus className="size-4" />
-                  Add Category
+                  {t('Add Category')}
                 </Button>
               )}
             </CardContent>
@@ -376,7 +377,7 @@ export default function CategoriesIndex({ categories, parameter_definitions }: C
       <Dialog open={newOpen} onOpenChange={setNewOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Add category</DialogTitle>
+            <DialogTitle>{t('Add category')}</DialogTitle>
           </DialogHeader>
           <CategoryForm
             data={newForm.data.category}
@@ -388,7 +389,7 @@ export default function CategoriesIndex({ categories, parameter_definitions }: C
             onSubmit={submitNew}
             onCancel={() => setNewOpen(false)}
             processing={newForm.processing}
-            submitLabel="Add category"
+            submitLabel={t('Add category')}
           />
         </DialogContent>
       </Dialog>
@@ -397,7 +398,7 @@ export default function CategoriesIndex({ categories, parameter_definitions }: C
       <Dialog open={editId != null} onOpenChange={(open) => !open && setEditId(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Edit category</DialogTitle>
+            <DialogTitle>{t('Edit category')}</DialogTitle>
           </DialogHeader>
           <CategoryForm
             data={editForm.data.category}
@@ -409,7 +410,7 @@ export default function CategoriesIndex({ categories, parameter_definitions }: C
             onSubmit={submitEdit}
             onCancel={() => setEditId(null)}
             processing={editForm.processing}
-            submitLabel="Save"
+            submitLabel={t('Save')}
           />
         </DialogContent>
       </Dialog>
@@ -418,11 +419,11 @@ export default function CategoriesIndex({ categories, parameter_definitions }: C
       <AlertDialog open={deleteId != null} onOpenChange={(open) => !open && setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete this category?</AlertDialogTitle>
+            <AlertDialogTitle>{t('Delete this category?')}</AlertDialogTitle>
             <AlertDialogDescription>
-              <span className="font-semibold text-foreground">{deleting?.name}</span> will be removed.
+              {tx('{name} will be removed.', { name: <span className="font-semibold text-foreground">{deleting?.name}</span> })}
               {deleting && childCount(deleting.id) > 0 && (
-                <> Its {childCount(deleting.id)} subcategor{childCount(deleting.id) !== 1 ? 'ies' : 'y'} will be deleted too.</>
+                <>{' '}{tn('Its subcategory will be deleted too.', 'Its {count} subcategories will be deleted too.', childCount(deleting.id))}</>
               )}
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -430,12 +431,12 @@ export default function CategoriesIndex({ categories, parameter_definitions }: C
           {deletingPartsCount > 0 && (
             <div className="space-y-2">
               <Label>
-                Move {deletingPartsCount} part{deletingPartsCount !== 1 ? 's' : ''} to
+                {tn('Move {count} part to', 'Move {count} parts to', deletingPartsCount)}
               </Label>
               {deleteTargetOptions.length > 0 ? (
                 <Select value={reassignTarget} onValueChange={setReassignTarget}>
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select a destination category" />
+                    <SelectValue placeholder={t('Select a destination category')} />
                   </SelectTrigger>
                   <SelectContent>
                     {deleteTargetOptions.map((option) => (
@@ -445,20 +446,20 @@ export default function CategoriesIndex({ categories, parameter_definitions }: C
                 </Select>
               ) : (
                 <p className="text-sm text-destructive">
-                  Create another category first so these parts have somewhere to go.
+                  {t('Create another category first so these parts have somewhere to go.')}
                 </p>
               )}
             </div>
           )}
 
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t('Cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={confirmDelete}
               disabled={deletingPartsCount > 0 && !reassignTarget}
               className="bg-destructive text-white hover:bg-destructive/90"
             >
-              Delete
+              {t('Delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -519,11 +520,11 @@ function CategoryForm({
       <div className="grid grid-cols-3 gap-4">
         <Field className="col-span-2">
           <FieldLabel>
-            <Label>Name</Label>
+            <Label>{t('Name')}</Label>
           </FieldLabel>
           <FieldContent>
             <Input
-              placeholder="e.g. Resistors"
+              placeholder={t('e.g. Resistors')}
               value={data.name}
               onChange={(e) => onChange({ name: e.target.value })}
             />
@@ -532,11 +533,11 @@ function CategoryForm({
         </Field>
         <Field>
           <FieldLabel>
-            <Label>Code</Label>
+            <Label>{t('Code')}</Label>
           </FieldLabel>
           <FieldContent>
             <Input
-              placeholder="RES"
+              placeholder={t('RES')}
               value={data.code}
               onChange={(e) => onChange({ code: e.target.value })}
             />
@@ -547,7 +548,7 @@ function CategoryForm({
 
       <Field>
         <FieldLabel>
-          <Label>Parent category</Label>
+          <Label>{t('Parent category')}</Label>
         </FieldLabel>
         <FieldContent>
           <Select
@@ -555,10 +556,10 @@ function CategoryForm({
             onValueChange={(value) => onChange({ parent_id: value === NONE_VALUE ? '' : value })}
           >
             <SelectTrigger className="w-full">
-              <SelectValue placeholder="No parent (top-level)" />
+              <SelectValue placeholder={t('No parent (top-level)')} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value={NONE_VALUE}>No parent (top-level)</SelectItem>
+              <SelectItem value={NONE_VALUE}>{t('No parent (top-level)')}</SelectItem>
               {parentOptions.map((option) => (
                 <SelectItem key={option.id} value={String(option.id)}>{option.label}</SelectItem>
               ))}
@@ -570,7 +571,7 @@ function CategoryForm({
 
       <Field>
         <FieldLabel>
-          <Label>Color</Label>
+          <Label>{t('Color')}</Label>
         </FieldLabel>
         <FieldContent>
           <ColorSwatches value={data.color || null} onChange={(color) => onChange({ color: color ?? '' })} />
@@ -579,12 +580,12 @@ function CategoryForm({
 
       <Field>
         <FieldLabel>
-          <Label>Parameters</Label>
+          <Label>{t('Parameters')}</Label>
         </FieldLabel>
         <FieldContent>
           {parameterDefinitions.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              No parameters yet: define them on the <Link href="/parameters" className="underline underline-offset-2">Parameters</Link> page.
+              {tx('No parameters yet: define them on the {link} page.', { link: <Link href="/parameters" className="underline underline-offset-2">{t('Parameters')}</Link> })}
             </p>
           ) : (
             <div className="flex flex-wrap gap-1.5">
@@ -598,7 +599,7 @@ function CategoryForm({
                     size="sm"
                     variant={active ? 'default' : 'outline'}
                     disabled={inherited}
-                    title={inherited ? 'Inherited from the parent category' : undefined}
+                    title={inherited ? t('Inherited from the parent category') : undefined}
                     onClick={() => toggleParameter(definition.id)}
                     className="h-7 rounded-full px-2.5 text-xs shadow-none"
                   >
@@ -610,16 +611,16 @@ function CategoryForm({
             </div>
           )}
         </FieldContent>
-        <FieldDescription>The part form proposes these for this category and its sub-categories.</FieldDescription>
+        <FieldDescription>{t('The part form proposes these for this category and its sub-categories.')}</FieldDescription>
       </Field>
 
       <Field>
         <FieldLabel>
-          <Label>Description</Label>
+          <Label>{t('Description')}</Label>
         </FieldLabel>
         <FieldContent>
           <Textarea
-            placeholder="Optional notes about this category"
+            placeholder={t('Optional notes about this category')}
             value={data.description}
             onChange={(e) => onChange({ description: e.target.value })}
           />
@@ -628,24 +629,24 @@ function CategoryForm({
 
       <Field>
         <FieldLabel>
-          <Label>KiCad symbol</Label>
+          <Label>{t('KiCad symbol')}</Label>
         </FieldLabel>
         <FieldContent>
           <Input
             className="font-mono"
-            placeholder="e.g. Device:R"
+            placeholder={t('e.g. Device:R')}
             value={data.kicad_symbol}
             onChange={(e) => onChange({ kicad_symbol: e.target.value })}
           />
         </FieldContent>
         <FieldDescription>
-          Library:Symbol used for this category's parts in the KiCad library. Leave empty to inherit the parent's.
+          {t('Library:Symbol used for this category\'s parts in the KiCad library. Leave empty to inherit the parent\'s.')}
         </FieldDescription>
         {errors.kicad_symbol && <FieldError>{errors.kicad_symbol}</FieldError>}
       </Field>
 
       <DialogFooter>
-        <Button type="button" variant="outline" onClick={onCancel}>Cancel</Button>
+        <Button type="button" variant="outline" onClick={onCancel}>{t('Cancel')}</Button>
         <Button type="submit" disabled={processing}>{submitLabel}</Button>
       </DialogFooter>
     </form>

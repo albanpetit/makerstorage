@@ -25,7 +25,7 @@ module ProjectKicadFiles
   def bom_lines(files)
     BomParser::KicadSchematic.parse(schematics(files))
   rescue BomParser::KicadSchematic::NotASchematic => e
-    raise Unreadable, "#{File.basename(e.message)} isn't a KiCad schematic this version can read (KiCad 6 or later)."
+    raise Unreadable, I18n.t("errors.kicad_files.not_a_schematic", name: File.basename(e.message))
   end
 
   # Same, from the files attached to +project+.
@@ -47,11 +47,11 @@ module ProjectKicadFiles
   # holding +existing+ files, or nil when they can.
   def upload_error(uploads, existing: 0)
     if (other = uploads.find { |upload| Project.kicad_content_type(upload.original_filename).nil? })
-      "#{File.basename(other.original_filename.to_s)} isn't a KiCad file: attach .kicad_pro, .kicad_sch, .kicad_pcb… files or a ZIP of the project."
+      I18n.t("errors.kicad_files.not_kicad", name: File.basename(other.original_filename.to_s))
     elsif uploads.size + existing > Project::MAX_KICAD_FILES
-      "A project holds at most #{Project::MAX_KICAD_FILES} files: ZIP the project folder instead."
+      I18n.t("errors.kicad_files.too_many", count: Project::MAX_KICAD_FILES)
     elsif (large = uploads.find { |upload| upload.size > Project::MAX_KICAD_FILE_SIZE })
-      "#{File.basename(large.original_filename.to_s)} is too large (the limit is #{ActiveSupport::NumberHelper.number_to_human_size(Project::MAX_KICAD_FILE_SIZE)})."
+      I18n.t("errors.kicad_files.too_large", name: File.basename(large.original_filename.to_s), size: ActiveSupport::NumberHelper.number_to_human_size(Project::MAX_KICAD_FILE_SIZE))
     end
   end
 
@@ -97,7 +97,7 @@ module ProjectKicadFiles
 
   def zip_schematics(filename, path, budget)
     Zip::File.open(path) do |zip|
-      raise Unreadable, "#{filename} has too many files." if zip.size > MAX_ZIP_ENTRIES
+      raise Unreadable, I18n.t("errors.kicad_files.zip_too_many", name: filename) if zip.size > MAX_ZIP_ENTRIES
 
       zip.entries.select { |entry| entry.file? && schematic_name?(entry.name) }.sort_by(&:name).map do |entry|
         text = read_schematic(entry.name, budget) do
@@ -107,13 +107,13 @@ module ProjectKicadFiles
       end
     end
   rescue Zip::Error
-    raise Unreadable, "Could not open #{filename} as a ZIP archive."
+    raise Unreadable, I18n.t("errors.kicad_files.not_a_zip", name: filename)
   end
 
   def read_schematic(name, budget)
     text = yield.to_s
     if text.bytesize > BomParser::MAX_FILE_SIZE || text.bytesize > budget[:left]
-      raise Unreadable, "#{File.basename(name)} is too large to read the BOM from."
+      raise Unreadable, I18n.t("errors.kicad_files.too_large_for_bom", name: File.basename(name))
     end
 
     budget[:left] -= text.bytesize

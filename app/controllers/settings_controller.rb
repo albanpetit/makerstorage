@@ -33,11 +33,11 @@ class SettingsController < ApplicationController
       # when a validation error rejected the update.
       current_organization.logo.purge if remove_logo && params.dig(:organization, :logo).blank?
       created = ensure_catalog_suppliers
-      notice = "Settings updated successfully."
-      notice += " Added #{created.to_sentence} to your suppliers." if created.any?
+      notice = t("flash.settings.settings_updated_successfully")
+      notice += t("flash.settings.added_to_your_suppliers", errors: created.to_sentence) if created.any?
       redirect_to settings_path, notice: notice
     else
-      redirect_to settings_path, inertia: { errors: inertia_errors(current_organization, as: :organization) }, alert: "Failed to update settings."
+      redirect_to settings_path, inertia: { errors: inertia_errors(current_organization, as: :organization) }, alert: t("flash.settings.failed_to_update_settings")
     end
   end
 
@@ -46,18 +46,18 @@ class SettingsController < ApplicationController
   # behind a destructive confirmation first.
   def reassign_ipns
     if current_organization.ipn_generation_mode == "manual"
-      return redirect_to settings_path, alert: "Turn on an automatic numbering mode before reassigning IPNs."
+      return redirect_to settings_path, alert: t("flash.settings.turn_on_an_automatic_numbering_mode")
     end
 
     count = current_organization.reassign_ipns!(clear_unbagged: clear_unbagged?)
-    redirect_to settings_path, notice: "Updated the IPN of #{count} #{'part'.pluralize(count)}."
+    redirect_to settings_path, notice: t("flash.settings.ipns_reassigned", count: count)
   end
 
   # The IPN changes #reassign_ipns would make, part by part, for the
   # confirmation dialog.
   def reassign_ipns_preview
     if current_organization.ipn_generation_mode == "manual"
-      return render json: { error: "Turn on an automatic numbering mode before reassigning IPNs." }, status: :unprocessable_entity
+      return render json: { error: t("flash.settings.turn_on_an_automatic_numbering_mode") }, status: :unprocessable_entity
     end
 
     entries = current_organization.ipn_reassignment_plan(clear_unbagged: clear_unbagged?)[:entries]
@@ -85,7 +85,7 @@ class SettingsController < ApplicationController
 
   def destroy_kicad_token
     KicadLibrary.revoke_token!(current_organization)
-    redirect_to settings_path, notice: "KiCad library access revoked. KiCad can no longer read your parts."
+    redirect_to settings_path, notice: t("flash.settings.kicad_token_revoked")
   end
 
   private

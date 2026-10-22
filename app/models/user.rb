@@ -41,6 +41,10 @@ class User < ApplicationRecord
 
   after_create :create_personal_organization
 
+  # UI language picked in the profile; nil follows the browser (see
+  # ApplicationController#switch_locale).
+  validates :locale, inclusion: { in: ->(_) { I18n.available_locales.map(&:to_s) } }, allow_nil: true
+
   # Get the user's personal organization (the one auto-created on signup, flagged
   # via the `personal` column). Match on the flag rather than the name string so a
   # renamed org — or a changed firstname — still resolves correctly.
@@ -97,6 +101,12 @@ class User < ApplicationRecord
   end
 
   private
+
+  # Account emails go out in the language the user picked, else in the one of
+  # the request that triggered them (their browser's).
+  def send_devise_notification(notification, *args)
+    I18n.with_locale(locale || I18n.locale) { super }
+  end
 
   # Automatically create a personal organization when the user is created
   def create_personal_organization

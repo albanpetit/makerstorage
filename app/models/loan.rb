@@ -101,8 +101,8 @@ class Loan < ApplicationRecord
   def return_items!(entries, user:)
     settle!(entries) do |line, quantity, entry|
       location = entry[:storage_location] || line.storage_location || line.part.fallback_storage_location
-      raise Error, "Pick a storage zone to return #{line.part.reference} to." unless location
-      raise Error, "That storage zone isn't in this organization." unless location.organization_id == organization_id
+      raise Error, I18n.t("errors.loans.pick_return_zone", reference: line.part.reference) unless location
+      raise Error, I18n.t("errors.loans.zone_other_organization") unless location.organization_id == organization_id
 
       organization.stock_movements.create!(
         part: line.part, storage_location: location, user: user,
@@ -131,24 +131,24 @@ class Loan < ApplicationRecord
   private
 
   def settle!(entries)
-    raise Error, "This loan is already closed." if closed?
+    raise Error, I18n.t("errors.loans.closed") if closed?
 
     with_lock do
-      raise Error, "This loan is already closed." if closed?
+      raise Error, I18n.t("errors.loans.closed") if closed?
 
       lines = loan_lines.reload.to_a
       ActiveRecord::Associations::Preloader.new(records: lines, associations: { part: { part_storages: :storage_location } }).call
       lines = lines.index_by(&:id)
       entries = entries.reject { |entry| entry[:quantity].to_i.zero? }
-      raise Error, "Enter a quantity to settle." if entries.empty?
+      raise Error, I18n.t("errors.loans.enter_quantity") if entries.empty?
 
       entries.each do |entry|
         line = lines[entry[:line_id].to_i]
         quantity = entry[:quantity].to_i
-        raise Error, "That item isn't on this loan." unless line
-        raise Error, "Quantities must be positive." unless quantity.positive?
+        raise Error, I18n.t("errors.loans.not_on_loan") unless line
+        raise Error, I18n.t("errors.loans.positive") unless quantity.positive?
         if quantity > line.outstanding_quantity
-          raise Error, "Only #{line.outstanding_quantity} of #{line.part.reference} still out."
+          raise Error, I18n.t("errors.loans.only_outstanding", count: line.outstanding_quantity, reference: line.part.reference)
         end
 
         yield line, quantity, entry
@@ -162,11 +162,11 @@ class Loan < ApplicationRecord
 
   def borrower_must_be_member
     unless organization && borrower&.member_of_organization?(organization_id)
-      errors.add(:borrower, "must be a member of this organization")
+      errors.add(:borrower, :organization_member)
     end
   end
 
   def must_have_lines
-    errors.add(:base, "Add at least one item to lend") if loan_lines.empty?
+    errors.add(:base, :no_loan_lines) if loan_lines.empty?
   end
 end

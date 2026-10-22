@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/dialog'
 
 import type { LendablePart, MemberOption } from './types'
+import { t } from '@/lib/i18n'
 
 interface LendDialogProps {
   open: boolean
@@ -108,22 +109,22 @@ export function LendDialog({ open, onOpenChange, members, parts, defaultDueOn, i
       <DialogContent className="sm:max-w-2xl">
         <form onSubmit={submit}>
           <DialogHeader>
-            <DialogTitle>Lend items</DialogTitle>
+            <DialogTitle>{t('Lend items')}</DialogTitle>
             <DialogDescription>
-              The items leave stock now and go back where they came from when returned.
+              {t('The items leave stock now and go back where they came from when returned.')}
             </DialogDescription>
           </DialogHeader>
 
           <div className="max-h-[65vh] space-y-5 overflow-y-auto py-4 pr-1">
             <div className="space-y-2">
-              <Label>Borrower</Label>
+              <Label>{t('Borrower')}</Label>
               {members.length > 0 && (
                 <div className="grid grid-cols-2 gap-1 rounded-lg bg-muted p-1">
                   <Button type="button" size="sm" variant={borrowerMode === 'member' ? 'default' : 'ghost'} onClick={() => setBorrowerMode('member')}>
-                    A member
+                    {t('A member')}
                   </Button>
                   <Button type="button" size="sm" variant={borrowerMode === 'other' ? 'default' : 'ghost'} onClick={() => setBorrowerMode('other')}>
-                    Someone else
+                    {t('Someone else')}
                   </Button>
                 </div>
               )}
@@ -133,17 +134,17 @@ export function LendDialog({ open, onOpenChange, members, parts, defaultDueOn, i
                   options={memberOptions}
                   value={borrowerId}
                   onValueChange={setBorrowerId}
-                  placeholder="Pick a member"
-                  searchPlaceholder="Search members…"
+                  placeholder={t('Pick a member')}
+                  searchPlaceholder={t('Search members…')}
                   className="w-full"
                 />
               ) : (
                 <Input
                   id="loan-borrower-name"
-                  aria-label="Borrower name"
+                  aria-label={t('Borrower name')}
                   value={borrowerName}
                   onChange={(e) => setBorrowerName(e.target.value)}
-                  placeholder="Name"
+                  placeholder={t('Name')}
                   maxLength={255}
                 />
               )}
@@ -151,27 +152,27 @@ export function LendDialog({ open, onOpenChange, members, parts, defaultDueOn, i
 
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="loan-contact">Contact</Label>
+                <Label htmlFor="loan-contact">{t('Contact')}</Label>
                 <Input
                   id="loan-contact"
                   value={contact}
                   onChange={(e) => setContact(e.target.value)}
-                  placeholder={borrowerMode === 'member' ? 'Their email by default' : 'Email or phone (optional)'}
+                  placeholder={borrowerMode === 'member' ? t('Their email by default') : t('Email or phone (optional)')}
                   maxLength={255}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="loan-due">Due back</Label>
+                <Label htmlFor="loan-due">{t('Due back')}</Label>
                 <Input id="loan-due" type="date" value={dueOn} onChange={(e) => setDueOn(e.target.value)} />
-                <p className="text-xs text-muted-foreground">Clear it for a loan with no due date.</p>
+                <p className="text-xs text-muted-foreground">{t('Clear it for a loan with no due date.')}</p>
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label>Items</Label>
+              <Label>{t('Items')}</Label>
               {parts.length === 0 ? (
                 <p className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">
-                  Nothing is in stock to lend.
+                  {t('Nothing is in stock to lend.')}
                 </p>
               ) : (
                 <div className="space-y-3">
@@ -186,15 +187,15 @@ export function LendDialog({ open, onOpenChange, members, parts, defaultDueOn, i
                             options={partOptions}
                             value={line.partId}
                             onValueChange={(value) => pickPart(line.key, value)}
-                            placeholder="Pick a part or tool"
-                            searchPlaceholder="Search parts…"
+                            placeholder={t('Pick a part or tool')}
+                            searchPlaceholder={t('Search parts…')}
                             className="min-w-0 flex-1"
                           />
                           <Button
                             type="button"
                             variant="ghost"
                             size="icon-sm"
-                            aria-label="Remove item"
+                            aria-label={t('Remove item')}
                             disabled={lines.length === 1}
                             onClick={() => setLines((current) => current.filter((l) => l.key !== line.key))}
                           >
@@ -207,13 +208,13 @@ export function LendDialog({ open, onOpenChange, members, parts, defaultDueOn, i
                               locations={part.locations.map((l) => ({ id: l.id, name: l.name, hint: `${l.quantity}` }))}
                               value={line.locationId}
                               onValueChange={(value) => updateLine(line.key, { locationId: value })}
-                              placeholder="Taken from"
+                              placeholder={t('Taken from')}
                             />
                             <Input
                               type="number"
                               min={1}
                               max={location?.quantity}
-                              aria-label="Quantity"
+                              aria-label={t('Quantity')}
                               value={line.quantity}
                               onChange={(e) => updateLine(line.key, { quantity: e.target.value })}
                             />
@@ -224,19 +225,19 @@ export function LendDialog({ open, onOpenChange, members, parts, defaultDueOn, i
                   })}
                   <Button type="button" variant="outline" size="sm" onClick={() => setLines((current) => [...current, firstLine()])}>
                     <Plus className="size-4" />
-                    Add an item
+                    {t('Add an item')}
                   </Button>
                 </div>
               )}
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="loan-notes">Notes</Label>
+              <Label htmlFor="loan-notes">{t('Notes')}</Label>
               <Textarea
                 id="loan-notes"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                placeholder="What it's for, accessories handed over…"
+                placeholder={t('What it\'s for, accessories handed over…')}
                 rows={2}
               />
             </div>
@@ -244,10 +245,10 @@ export function LendDialog({ open, onOpenChange, members, parts, defaultDueOn, i
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
+              {t('Cancel')}
             </Button>
             <Button type="submit" disabled={processing || !borrowerReady || !linesReady}>
-              Lend
+              {t('Lend')}
             </Button>
           </DialogFooter>
         </form>

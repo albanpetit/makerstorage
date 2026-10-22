@@ -189,7 +189,7 @@ class PartMerge
 
     Result.new(kept: keep.reload, merged_count: duplicates.size, **%i[stock_rows movements order_lines project_lines].to_h { |key| [ key, totals[key] ] })
   rescue ActiveRecord::RecordNotDestroyed, ActiveRecord::RecordInvalid => e
-    raise Error, "The parts could not be merged: #{e.message}"
+    raise Error, I18n.t("errors.part_merge.failed", error: e.message)
   end
 
   private
@@ -201,13 +201,13 @@ class PartMerge
   end
 
   def validate!
-    raise Error, "Pick at least one other part to merge." if duplicates.empty?
-    raise Error, "Parts of another organization can't be merged." if duplicates.any? { |part| part.organization_id != keep.organization_id }
+    raise Error, I18n.t("errors.part_merge.pick_one") if duplicates.empty?
+    raise Error, I18n.t("errors.part_merge.other_organization") if duplicates.any? { |part| part.organization_id != keep.organization_id }
 
     units = duplicates.map(&:unit).uniq - [ keep.unit ]
     return if units.empty?
 
-    raise Error, "Parts counted in different units (#{([ keep.unit ] + units).join(', ')}) can't be merged."
+    raise Error, I18n.t("errors.part_merge.units", units: ([ keep.unit ] + units).join(", "))
   end
 
   # The kept part's blank details come from the duplicates (first one wins).

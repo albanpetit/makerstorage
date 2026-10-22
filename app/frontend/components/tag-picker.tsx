@@ -15,6 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { t } from '@/lib/i18n'
 
 export interface TagOption {
   id: number
@@ -61,7 +62,7 @@ export function TagPicker({ tags, value, onChange }: TagPickerProps) {
     e.preventDefault()
     const trimmed = name.trim()
     if (!trimmed) {
-      setError('Name is required.')
+      setError(t('Name is required.'))
       return
     }
 
@@ -88,7 +89,7 @@ export function TagPicker({ tags, value, onChange }: TagPickerProps) {
           setPendingName(null)
           const raw = (errors.name ?? errors.base) as string | string[] | undefined
           const message = Array.isArray(raw) ? raw[0] : raw
-          setError(message ?? 'Could not create the tag.')
+          setError(message ?? t('Could not create the tag.'))
         },
         onFinish: () => setProcessing(false),
       }
@@ -140,7 +141,7 @@ export function TagPicker({ tags, value, onChange }: TagPickerProps) {
           }}
         >
           <Plus className="size-3" />
-          New tag
+          {t('New tag')}
         </Button>
       </div>
 
@@ -148,35 +149,35 @@ export function TagPicker({ tags, value, onChange }: TagPickerProps) {
         <DialogContent className="sm:max-w-sm">
           <form onSubmit={submit}>
             <DialogHeader>
-              <DialogTitle>New tag</DialogTitle>
-              <DialogDescription>Add a tag to label this part.</DialogDescription>
+              <DialogTitle>{t('New tag')}</DialogTitle>
+              <DialogDescription>{t('Add a tag to label this part.')}</DialogDescription>
             </DialogHeader>
 
             <div className="space-y-4 py-4">
               <div className="space-y-2">
-                <Label htmlFor="new-tag-name">Name</Label>
+                <Label htmlFor="new-tag-name">{t('Name')}</Label>
                 <Input
                   id="new-tag-name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g. RoHS, favorite"
+                  placeholder={t('e.g. RoHS, favorite')}
                   autoFocus
                 />
                 {error && <p className="text-sm text-destructive">{error}</p>}
               </div>
 
               <div className="space-y-2">
-                <Label>Color</Label>
+                <Label>{t('Color')}</Label>
                 <ColorSwatches value={color} onChange={setColor} />
               </div>
             </div>
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-                Cancel
+                {t('Cancel')}
               </Button>
               <Button type="submit" disabled={processing}>
-                Create tag
+                {t('Create tag')}
               </Button>
             </DialogFooter>
           </form>

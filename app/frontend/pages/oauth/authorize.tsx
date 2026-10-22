@@ -15,6 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { t, tx } from '@/lib/i18n'
 
 interface Organization {
   id: number
@@ -50,50 +51,51 @@ export default function OauthAuthorize({
 
   return (
     <>
-      <Head title="Connect an application" />
+      <Head title={t('Connect an application')} />
 
       <AuthLayout
-        eyebrow="Connect an application"
-        headline="Ask Claude what's on your shelves."
-        description="Connected assistants can search parts, check stock and storage locations, and see whether a project or a BOM can be built. They can't change anything."
+        eyebrow={t('Connect an application')}
+        headline={t('Ask Claude what\'s on your shelves.')}
+        description={t('Connected assistants can search parts, check stock and storage locations, and see whether a project or a BOM can be built. They can\'t change anything.')}
       >
         <FlashMessages className="mb-6" />
 
         {error ? (
           <Alert variant="destructive">
             <ShieldAlert />
-            <AlertTitle>This connection request can't be used</AlertTitle>
+            <AlertTitle>{t('This connection request can\'t be used')}</AlertTitle>
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         ) : (
           <>
             <div className="mb-6">
-              <h2 className="text-2xl font-semibold tracking-tight">Allow {client_name}?</h2>
+              <h2 className="text-2xl font-semibold tracking-tight">{t('Allow {name}?', { name: client_name ?? '' })}</h2>
               <p className="text-muted-foreground mt-1 text-sm">
-                <span className="font-medium text-foreground">{client_name}</span> wants read-only access to the
-                inventory of one of your organizations. You'll be sent back to{' '}
-                <span className="font-mono text-foreground">{redirect_host}</span>.
+                {tx('{name} wants read-only access to the inventory of one of your organizations. You\'ll be sent back to {host}.', {
+                  name: <span className="font-medium text-foreground">{client_name}</span>,
+                  host: <span className="font-mono text-foreground">{redirect_host}</span>,
+                })}
               </p>
             </div>
 
             {loopback && (
               <Alert className="mb-6">
                 <ShieldAlert />
-                <AlertTitle>An application on your computer</AlertTitle>
+                <AlertTitle>{t('An application on your computer')}</AlertTitle>
                 <AlertDescription>
-                  Only allow this if you just started the connection yourself, for example from Claude Code.
+                  {t('Only allow this if you just started the connection yourself, for example from Claude Code.')}
                 </AlertDescription>
               </Alert>
             )}
 
             <Field className="mb-6">
               <FieldLabel>
-                <Label>Organization</Label>
+                <Label>{t('Organization')}</Label>
               </FieldLabel>
               <FieldContent>
                 <Select value={organizationId} onValueChange={setOrganizationId}>
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select an organization" />
+                    <SelectValue placeholder={t('Select an organization')} />
                   </SelectTrigger>
                   <SelectContent>
                     {organizations.map((organization) => (
@@ -108,15 +110,15 @@ export default function OauthAuthorize({
 
             <div className="flex gap-2">
               <Button variant="outline" className="flex-1" disabled={processing} onClick={() => decide('deny')}>
-                Deny
+                {t('Deny')}
               </Button>
               <Button className="flex-1" disabled={processing || !organizationId} onClick={() => decide('allow')}>
-                Allow access
+                {t('Allow access')}
               </Button>
             </div>
 
             <p className="text-muted-foreground mt-6 text-xs">
-              You can disconnect it at any time from your profile.
+              {t('You can disconnect it at any time from your profile.')}
             </p>
           </>
         )}

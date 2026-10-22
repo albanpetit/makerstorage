@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/dialog'
 
 import type { MoveDialogState } from './types'
+import { t, tn } from '@/lib/i18n'
 
 interface MoveStockDialogProps {
   moveDialog: MoveDialogState | null
@@ -39,14 +40,14 @@ export function MoveStockDialog({ moveDialog, setMoveDialog, zones, zoneName, va
       <DialogContent>
         <DialogHeader>
           <DialogTitle>
-            Move {moveDialog?.rows.length === 1 ? 'component' : `${moveDialog?.rows.length} components`}
+            {tn('Move component', 'Move {count} components', moveDialog?.rows.length ?? 0)}
           </DialogTitle>
         </DialogHeader>
         {moveDialog && (
           <div className="flex flex-col gap-4">
             <Field>
               <FieldLabel>
-                <Label>Destination zone</Label>
+                <Label>{t('Destination zone')}</Label>
               </FieldLabel>
               <FieldContent>
                 {moveDialog.mode === 'select' ? (
@@ -54,7 +55,7 @@ export function MoveStockDialog({ moveDialog, setMoveDialog, zones, zoneName, va
                     locations={zones}
                     value={moveDialog.toId != null ? String(moveDialog.toId) : ''}
                     onValueChange={(value) => setMoveDialog((prev) => prev && { ...prev, toId: Number(value) })}
-                    placeholder="Choose a zone…"
+                    placeholder={t('Choose a zone…')}
                     exclude={[moveDialog.fromId]}
                   />
                 ) : (
@@ -80,7 +81,7 @@ export function MoveStockDialog({ moveDialog, setMoveDialog, zones, zoneName, va
                       value={r.quantity}
                       onChange={(e) => setMoveRowQuantity(r.partId, Math.max(1, Math.min(r.max, Math.floor(Number(e.target.value) || 0))))}
                       className="h-8 w-20 text-right font-mono"
-                      aria-label={`Quantity to move for ${r.reference}`}
+                      aria-label={t('Quantity to move for {reference}', { reference: r.reference })}
                     />
                     <span className="w-14 text-xs text-muted-foreground">/ {r.max}</span>
                   </div>
@@ -89,10 +90,10 @@ export function MoveStockDialog({ moveDialog, setMoveDialog, zones, zoneName, va
             </div>
 
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setMoveDialog(null)}>Cancel</Button>
+              <Button type="button" variant="outline" onClick={() => setMoveDialog(null)}>{t('Cancel')}</Button>
               <Button type="button" onClick={onSubmit} disabled={!valid}>
                 <ArrowRightLeft className="size-4" />
-                Move
+                {t('Move')}
               </Button>
             </DialogFooter>
           </div>

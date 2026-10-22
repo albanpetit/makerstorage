@@ -1,0 +1,688 @@
+# Server-side strings: flash messages, model and service errors, statuses.
+# Keep app.en.yml and app.fr.yml in step (test/i18n_test.rb checks it).
+fr:
+  activerecord:
+    errors:
+      messages:
+        already_counted: 'est déjà en cours de comptage dans %{stocktake} : terminez-le ou abandonnez-le d’abord'
+        another_part: doit être un autre composant
+        attachment_size: doit faire moins de %{size}
+        attachment_type: doit être un fichier %{types}
+        bag_codes_taken: 'donnerait aux sachets des codes déjà utilisés : %{codes}'
+        bag_held_by: '%{code} est le sachet de %{part} : choisissez un autre sachet'
+        bag_is_other_ipn: '%{code} est déjà l''IPN d''un autre composant'
+        bag_other_organization: doit être un sachet de cette organisation
+        bag_parent_not_box: 'doit être une boîte : un sachet se range dans une boîte'
+        bag_parent_without_code: doit avoir un code (A, B, C…) avant de pouvoir contenir des sachets
+        bag_taken: '%{code} contient déjà un autre composant'
+        box_code_needed: doit être rempli tant que la boîte contient des sachets
+        descendant_parent: ne peut pas être une sous-catégorie de cette catégorie
+        image_host: doit être une image https d'un catalogue fournisseur (%{hosts})
+        more_than_lent: Impossible de rendre ou de passer en perte plus que ce qui a été prêté
+        needs_active_owner: L'organisation doit avoir au moins un propriétaire actif
+        needs_owner: L'organisation doit avoir au moins un propriétaire
+        negative_for_outgoing: doit être négative pour une sortie
+        negative_stock: rendrait le stock négatif à cet emplacement
+        no_loan_lines: Ajoutez au moins un article à prêter
+        not_a_number_value: « %{value} » n’est pas un nombre
+        not_a_value_in_unit: « %{value} » n’est pas une valeur en %{unit}
+        not_in_stocktake: ne fait pas partie de ce comptage
+        not_users_organization: doit être l'une des organisations de l'utilisateur
+        or_designation_required: ou une désignation est obligatoire
+        order_status_final: ne peut plus changer une fois la commande %{status}
+        organization_member: doit être membre de cette organisation
+        own_parent: ne peut pas être elle-même
+        positive_for_incoming: doit être positive pour une entrée
+        printer_port: doit être un port d’imprimante (9100–9109 ou 6101)
+        received_only_by_marking: ne peut devenir « reçue » qu'en marquant la commande comme reçue
+        redirect_uris_insecure: doit contenir des URI https, ou http sur localhost
+        redirect_uris_missing: doit contenir au moins une URI
+        redirect_uris_too_many: peut contenir au plus %{count} URI
+        same_organization: doit appartenir à la même organisation
+        same_organization_as_category: doit appartenir à la même organisation que la catégorie
+        same_organization_as_part: doit appartenir à la même organisation que le composant
+        too_many_files: ne peuvent pas dépasser %{count} fichiers
+        under_own_subzone: ne peut pas être déplacée sous l'une de ses propres sous-zones
+        values_not_in_unit:
+          one: '%{count} valeur de %{name} n’est pas un nombre en %{unit} (%{examples}).'
+          other: '%{count} valeurs de %{name} ne sont pas des nombres en %{unit} (%{examples}).'
+        values_not_numbers:
+          one: '%{count} valeur de %{name} n’est pas un nombre (%{examples}).'
+          other: '%{count} valeurs de %{name} ne sont pas des nombres (%{examples}).'
+  attributes:
+    bag: Sachet
+    barcode: Code-barres
+    category: Catégorie
+    code: Code
+    color: Couleur
+    currency: Devise
+    current_password: Mot de passe actuel
+    datasheet: Datasheet
+    default_low_stock_threshold: Seuil de stock bas par défaut
+    description: Description
+    designators: Repères
+    email: E-mail
+    expected_delivery: Livraison prévue
+    footprint: Empreinte
+    image: Image
+    image_source_url: Image
+    images: Images
+    ipn: IPN
+    ipn_charset: Jeu de caractères des IPN
+    ipn_digits: Chiffres des IPN
+    ipn_generation_mode: Mode de numérotation des IPN
+    ipn_next_sequence: Prochain numéro d'IPN
+    ipn_prefix: Préfixe des IPN
+    ipn_separator: Séparateur des IPN
+    lead_time_days: Délai (jours)
+    locale: Langue
+    location_type: Type de zone
+    logo: Logo
+    match_type: Type de correspondance
+    min_stock_threshold: Seuil de stock minimum
+    mounting_type: Type de montage
+    movement_type: Type de mouvement
+    mpn: MPN
+    name: Nom
+    notes: Notes
+    notification_frequency: Fréquence des notifications
+    ordered_at: Date de commande
+    organization: Organisation
+    parent: Parent
+    parent_id: Parent
+    part: Composant
+    password: Mot de passe
+    password_confirmation: Confirmation du mot de passe
+    position: Position
+    quantity: Quantité
+    quantity_delta: Variation de quantité
+    redirect_uris: URI de redirection
+    reference: Référence
+    role: Rôle
+    sku: SKU
+    status: Statut
+    storage_location: Zone de stockage
+    supplier: Fournisseur
+    tag: Tag
+    target_stock: Stock cible
+    timezone: Fuseau horaire
+    total_amount: Montant total
+    unit: Unité
+    unit_price: Prix unitaire
+    url: URL
+    user: Utilisateur
+    value: Valeur
+    website: Site web
+  errors:
+    backup:
+      data_too_large: '%{file} est trop volumineux.'
+      inconsistent: 'La sauvegarde n''a pas pu être restaurée (%{error}) : ses données sont incohérentes.'
+      invalid_json: '%{file} n''est pas un JSON valide.'
+      invalid_settings: 'Les réglages de l''organisation sont invalides : %{errors}.'
+      newer_version: Cette sauvegarde a été faite par une version plus récente de MakerStorage (format %{version}). Mettez d'abord cette installation à jour.
+      no_data: 'L''archive ne contient pas de %{file} : est-ce bien une sauvegarde MakerStorage ?'
+      no_organization: La sauvegarde ne contient pas de données d'organisation.
+      not_an_archive: Le fichier n'est pas une archive de sauvegarde valide.
+      too_large: Le fichier dépasse %{size}.
+      too_many_files: L'archive contient trop de fichiers.
+      wrong_format: L'archive n'est pas une sauvegarde d'organisation MakerStorage.
+    bom:
+      too_large: Ce fichier est trop volumineux pour être importé (la limite est de %{size}).
+    digikey:
+      account_not_connected: Le compte DigiKey n'est pas connecté.
+      api_token_unreadable: L'API DigiKey a renvoyé un jeton illisible
+      api_unreachable: 'Impossible de joindre l''API DigiKey : %{error}'
+      api_unreadable: L'API DigiKey a renvoyé une réponse illisible
+      authorization_rejected: DigiKey a refusé l'autorisation. Vérifiez le Client ID et le Secret, et que l'URL de retour correspond à votre application DigiKey.
+      credentials_rejected: DigiKey a refusé les identifiants. Vérifiez le Client ID et le Secret dans Réglages → Intégrations.
+      invalid_sales_order: Saisissez un numéro de commande DigiKey (lettres, chiffres et tirets uniquement).
+      no_access_token: DigiKey n'a pas renvoyé de jeton d'accès.
+      order_api_unreachable: 'Impossible de joindre l''API DigiKey Order : %{error}'
+      order_api_unreadable: L'API DigiKey Order a renvoyé une réponse illisible
+      token_unreadable: DigiKey a renvoyé un jeton illisible
+      unreachable: 'Impossible de joindre DigiKey : %{error}'
+    github:
+      file_too_large: '%{name} est trop volumineux pour être conservé.'
+      files_too_large: Les fichiers KiCad de %{location} sont trop volumineux pour être conservés (plus de %{size} compressés).
+      forbidden: GitHub a refusé l’accès à %{repository}.
+      forbidden_with_token: 'GitHub a refusé l’accès à %{repository} : vérifiez que le jeton peut lire son contenu.'
+      no_kicad_files: Aucun fichier KiCad dans %{location}.
+      not_found: Impossible de trouver %{repository} sur GitHub%{hint}.
+      not_linked: Ce projet n’est pas lié à un dépôt GitHub.
+      private_hint: (un dépôt privé nécessite un jeton GitHub dans Réglages → Intégrations)
+      rate_limited: La limite de requêtes GitHub est atteinte. Réessayez plus tard.
+      rate_limited_without_token: 'La limite de requêtes GitHub est atteinte (60 requêtes par heure sans jeton : ajoutez-en un dans Réglages → Intégrations). Réessayez plus tard.'
+      ref_not_found: Impossible de trouver %{repository} à « %{ref} » sur GitHub. Vérifiez le dépôt et la branche, le tag ou le commit%{hint}.
+      status: GitHub a renvoyé %{code} pour %{repository}.
+      token_rejected: GitHub a refusé le jeton. Vérifiez-le dans Réglages → Intégrations.
+      too_large: '%{repository} est trop volumineux pour être téléchargé (plus de %{size}).'
+      too_many_files: '%{repository} contient trop de fichiers à lire.'
+      too_many_kicad_files: '%{location} contient plus de %{count} fichiers KiCad.'
+      unexpected_answer: GitHub a renvoyé une réponse inattendue pour %{repository}.
+      unexpected_redirect: GitHub a redirigé le téléchargement vers une adresse inattendue.
+      unreachable: 'Impossible de joindre GitHub : %{error}'
+      unreadable_archive: Impossible de lire l’archive envoyée par GitHub pour %{repository}.
+    kicad_files:
+      not_a_schematic: '%{name} n’est pas un schéma KiCad que cette version sait lire (KiCad 6 ou plus récent).'
+      not_a_zip: Impossible d’ouvrir %{name} comme archive ZIP.
+      not_kicad: '%{name} n’est pas un fichier KiCad : joignez des fichiers .kicad_pro, .kicad_sch, .kicad_pcb… ou un ZIP du projet.'
+      too_large: '%{name} est trop volumineux (la limite est de %{size}).'
+      too_large_for_bom: '%{name} est trop volumineux pour en lire la nomenclature.'
+      too_many: 'Un projet contient au plus %{count} fichiers : compressez plutôt le dossier du projet en ZIP.'
+      zip_too_many: '%{name} contient trop de fichiers.'
+    label_printing:
+      bad_port: Le port %{port} n’est pas un port d’imprimante (%{first}–%{last} ou %{other}).
+      disabled: L’impression réseau est désactivée sur ce serveur.
+      host_not_found: '%{host} est introuvable sur le réseau.'
+      not_local: '%{host} n’est pas une adresse du réseau local (10.x, 172.16–31.x, 192.168.x).'
+      unreachable: Impossible de joindre l’imprimante à %{host}:%{port} (%{error}).
+    lcsc:
+      failed: 'La recherche LCSC a échoué : %{error}'
+      refused: LCSC a refusé la recherche (HTTP %{code}). LCSC n’a pas d’API publique, son catalogue peut donc bloquer ou modifier ces requêtes.
+      unreachable: 'Impossible de joindre LCSC : %{error}'
+      unreadable: LCSC a renvoyé une réponse illisible.
+      unreadable_changed: LCSC a renvoyé une réponse illisible. Son catalogue a peut-être changé ; LCSC n’a pas d’API publique.
+    loans:
+      closed: Ce prêt est déjà clôturé.
+      enter_quantity: Saisissez une quantité à régler.
+      not_on_loan: Cet article ne fait pas partie de ce prêt.
+      only_outstanding: Seulement %{count} de %{reference} encore dehors.
+      pick_return_zone: Choisissez une zone de stockage où remettre %{reference}.
+      positive: Les quantités doivent être positives.
+      zone_other_organization: Cette zone de stockage n’appartient pas à cette organisation.
+    mouser:
+      api_key_rejected: Mouser a refusé la clé d'API. Vérifiez-la dans Réglages → Intégrations (ce doit être une clé Search API).
+      api_status: L'API Mouser a répondu %{code}
+      api_unreachable: 'Impossible de joindre l''API Mouser : %{error}'
+      api_unreadable: L'API Mouser a renvoyé une réponse illisible
+      order_api_status: L'API Mouser Order a répondu %{code}
+      order_api_unreachable: 'Impossible de joindre l''API Mouser Order : %{error}'
+      order_api_unreadable: L'API Mouser Order a renvoyé une réponse illisible
+      order_key_missing: Aucune clé Mouser Order API n'est configurée.
+    organization_merge:
+      into_itself: Une organisation ne peut pas être fusionnée avec elle-même.
+      personal: Une organisation personnelle ne peut pas être fusionnée dans une autre.
+      source_not_deleted: '%{name} n''a pas pu être supprimée une fois ses données déplacées.'
+    part_merge:
+      failed: 'Les composants n’ont pas pu être fusionnés : %{error}'
+      other_organization: Les composants d’une autre organisation ne peuvent pas être fusionnés.
+      pick_one: Choisissez au moins un autre composant à fusionner.
+      units: Des composants comptés dans des unités différentes (%{units}) ne peuvent pas être fusionnés.
+    stocktakes:
+      already_completed: Ce comptage est déjà terminé.
+      another: un autre comptage
+    supplier_catalog:
+      not_configured: Aucun catalogue fournisseur n'est configuré pour cette organisation
+  flash:
+    alerts:
+      no_alert_has_a_preferred_supplier: Aucune alerte n'a de fournisseur préféré chez qui commander.
+      no_purchase_order_was_created: 'Aucune commande n''a été créée : %{errors}.'
+      order_marked_as: Commande %{reference} marquée comme %{status}.
+      order_marked_as_received: Commande %{reference} marquée comme reçue.
+      these_parts_are_already_covered_by: Ces composants sont déjà couverts par des commandes en cours.
+      this_order_is_already_received_or: Cette commande est déjà reçue ou annulée.
+    application:
+      you_don_t_have_access_to: Vous n'avez pas accès à cette organisation
+      you_don_t_have_admin_access: Vous n'avez pas les droits d'administration de cette organisation
+      you_must_be_an_owner_to: Vous devez être propriétaire pour effectuer cette action
+      you_re_not_an_active_member: Vous n'êtes membre actif d'aucune organisation. Créez-en une, ou demandez à un administrateur de réactiver votre accès.
+      your_role_is_read_only_for: Votre rôle est en lecture seule pour cette organisation.
+    backups:
+      confirm_your_email_address_before_restoring: Confirmez votre adresse e-mail avant de restaurer une sauvegarde.
+      could_not_restore_the_backup: Impossible de restaurer la sauvegarde. %{message}
+      files:
+        one: '%{count} fichier'
+        other: '%{count} fichiers'
+      please_choose_a_backup_file_to: Choisissez un fichier de sauvegarde à restaurer.
+      records:
+        one: '%{count} enregistrement'
+        other: '%{count} enregistrements'
+      restored: « %{name} » restaurée (%{records}, %{files}).
+      skipped_files:
+        one: ' %{count} fichier n''a pas pu être restauré et a été ignoré.'
+        other: ' %{count} fichiers n''ont pas pu être restaurés et ont été ignorés.'
+      too_many_restores_please_try_again: Trop de restaurations. Réessayez plus tard.
+    categories:
+      category_created: Catégorie « %{category_name} » créée.
+      category_deleted_successfully: Catégorie supprimée.
+      category_updated_successfully: Catégorie mise à jour.
+      deleted_and_moved:
+        one: Catégorie supprimée. %{count} composant déplacé vers « %{category} ».
+        other: Catégorie supprimée. %{count} composants déplacés vers « %{category} ».
+      failed_to_create_category: Impossible de créer la catégorie.
+      failed_to_update_category: Impossible de mettre à jour la catégorie.
+      select_another_category_to_move_this: Choisissez une autre catégorie où déplacer les composants de celle-ci avant de la supprimer.
+    footprints:
+      failed_to_create_footprint: Impossible de créer l'empreinte.
+      failed_to_update_footprint: Impossible de mettre à jour l'empreinte.
+      footprint_created_successfully: Empreinte créée.
+      footprint_deleted_successfully: Empreinte supprimée.
+      footprint_updated_successfully: Empreinte mise à jour.
+    invitations:
+      confirm_your_email_address_to_answer: Confirmez votre adresse e-mail pour répondre aux invitations.
+      invitation_to_declined: Invitation à %{organization_name} refusée.
+      you_joined: Vous avez rejoint %{organization_name}.
+    label_printers:
+      add_failed: Échec de l’ajout de l’imprimante.
+      added: Imprimante « %{name} » ajoutée.
+      removed: Imprimante « %{name} » retirée.
+      update_failed: Échec de la mise à jour de l’imprimante.
+      updated: Imprimante mise à jour.
+    loans:
+      check_items: vérifiez les articles et les quantités.
+      closed: 'Tout est revenu : prêt clôturé.'
+      item: Article
+      not_enough_stock: '%{reference} : stock insuffisant dans %{zone}'
+      not_recorded: 'Le prêt n’a pas été enregistré : %{errors}'
+      recorded: 'Prêt %{reference} enregistré : articles sortis du stock.'
+      return_recorded: Retour enregistré.
+      updated: Prêt mis à jour.
+    members:
+      choose_a_valid_role: Choisissez un rôle valide.
+      failed_to_add_member: Impossible d'ajouter le membre.
+      invitation_sent: Si %{email} a un compte Makerstorage, cette personne est invitée et rejoindra l'organisation dès qu'elle aura accepté depuis son profil. Sinon, demandez-lui de s'inscrire d'abord, puis invitez-la à nouveau.
+      member_removed_from_the_organization: Membre retiré de l'organisation.
+      only_an_owner_can_assign_or: Seul un propriétaire peut attribuer ou modifier le rôle de propriétaire.
+      only_an_owner_can_remove_another: Seul un propriétaire peut retirer un autre propriétaire.
+      role_updated_successfully: Rôle mis à jour.
+    oauth_authorizations:
+      choose_one_of_your_organizations: Choisissez l'une de vos organisations.
+      this_application_asked_to_send_you: Cette application a demandé à vous renvoyer vers une adresse qu'elle n'a jamais enregistrée.
+      this_application_isn_t_registered_with: Cette application n'est pas enregistrée auprès de MakerStorage. Ajoutez à nouveau le connecteur depuis votre client.
+      you_re_not_an_active_member: Vous n'êtes membre actif d'aucune organisation.
+    oauth_digikey:
+      add_your_digikey_client_id_and: Ajoutez votre Client ID et votre Secret DigiKey avant de connecter un compte.
+      digikey_account_connected: Compte DigiKey connecté.
+      digikey_account_disconnected: Compte DigiKey déconnecté.
+      digikey_authorization_could_not_be_verified: L'autorisation DigiKey n'a pas pu être vérifiée. Réessayez de vous connecter.
+      digikey_authorization_was_cancelled: L'autorisation DigiKey a été annulée.
+      you_switched_organization_during_the_digikey: Vous avez changé d'organisation pendant la connexion DigiKey. Reconnectez-vous depuis cette organisation.
+    order_lines:
+      a_chosen_storage_zone_doesn_t: Une zone de stockage choisie n'appartient pas à cette organisation.
+      added_to_the_order: '%{reference} ajouté à la commande.'
+      choose_a_category_for_the_new: Choisissez une catégorie pour le nouveau composant.
+      choose_a_part_to_add_to: Choisissez un composant à ajouter à cette commande.
+      could_not_add_that_component: Impossible d'ajouter ce composant.
+      could_not_add_that_part: Impossible d'ajouter ce composant.
+      could_not_create_the_component: Impossible de créer le composant.
+      could_not_update_that_line: Impossible de mettre à jour cette ligne.
+      line_removed: Ligne supprimée.
+      line_updated: Ligne mise à jour.
+      the_storage_split_must_add_up: La répartition doit totaliser la quantité de la ligne (%{quantity}).
+      this_order_is_and_can_no: Cette commande est %{status} et ne peut plus être modifiée.
+    orders:
+      add_a_mouser_order_api_key: Ajoutez une clé Mouser Order API dans Réglages → Intégrations pour créer un panier.
+      add_a_mouser_order_api_key_2: Ajoutez une clé Mouser Order API dans Réglages → Intégrations pour importer des commandes.
+      checkout: ' Paiement : %{checkout_url}'
+      choose_a_storage_zone_to_assign: Choisissez une zone de stockage à affecter.
+      choose_a_supplier_to_create_an: Choisissez un fournisseur pour créer une commande.
+      connect_your_digikey_account_in_settings: Connectez votre compte DigiKey dans Réglages → Intégrations pour importer des commandes.
+      could_not_create_order: Impossible de créer la commande.
+      could_not_import_that_order: 'Impossible d''importer cette commande : %{errors}.'
+      could_not_update_order: Impossible de mettre à jour la commande.
+      enter_an_order_number_to_import: Saisissez un numéro de commande à importer.
+      imported_from_project:
+        one: '%{count} ligne importée depuis %{project}.'
+        other: '%{count} lignes importées depuis %{project}.'
+      lines_without_mouser_number_skipped:
+        one: ' %{count} ligne sans référence Mouser a été ignorée.'
+        other: ' %{count} lignes sans référence Mouser ont été ignorées.'
+      mouser_cart_built:
+        one: Panier Mouser créé avec %{count} ligne.
+        other: Panier Mouser créé avec %{count} lignes.
+      mouser_cart_built_with_total:
+        one: Panier Mouser créé avec %{count} ligne, pour un total de %{total}.
+        other: Panier Mouser créé avec %{count} lignes, pour un total de %{total}.
+      no_line_has_a_mouser_part: Aucune ligne n'a de référence Mouser. Ajoutez d'abord des composants via une recherche dans le catalogue Mouser.
+      no_stock_recorded:
+        one: 'Aucun stock n''a été enregistré pour %{parts} : il n''a pas d''emplacement de stockage. Ajoutez un emplacement et enregistrez le mouvement à la main.'
+        other: 'Aucun stock n''a été enregistré pour %{parts} : ils n''ont pas d''emplacement de stockage. Ajoutez un emplacement et enregistrez le mouvement à la main.'
+      nothing_to_import_from_no_matched: 'Rien à importer depuis %{project_name} : aucune ligne associée n''est à commander.'
+      nothing_was_imported: 'Rien n''a été importé : %{errors}.'
+      order_created: Commande %{reference} créée.
+      order_deleted: Commande supprimée.
+      order_marked_as: Commande %{reference} marquée comme %{status}.
+      order_marked_as_received: Commande %{reference} marquée comme reçue.
+      order_updated: Commande mise à jour.
+      storage_zone_set:
+        one: Zone de stockage définie pour %{count} ligne.
+        other: Zone de stockage définie pour %{count} lignes.
+      supplier_order_imported:
+        one: Commande %{supplier} %{reference} importée avec %{count} ligne.
+        other: Commande %{supplier} %{reference} importée avec %{count} lignes.
+      this_order_is_already_received_or: Cette commande est déjà reçue ou annulée.
+      this_order_is_and_can_no: Cette commande est %{status} et ne peut plus être modifiée.
+      unmatched_bom_lines_skipped:
+        one: '%{count} ligne de nomenclature sans composant correspondant a été ignorée.'
+        other: '%{count} lignes de nomenclature sans composant correspondant ont été ignorées.'
+      use_mark_received_to_receive_an: Utilisez « Marquer comme reçue » pour réceptionner une commande et créditer le stock.
+    organizations:
+      choose_an_organization_you_own_to: Choisissez une organisation dont vous êtes propriétaire pour la fusion.
+      could_not_delete: Impossible de supprimer « %{organization_name} ». %{reason}
+      could_not_merge: Impossible de fusionner « %{source_name} ». %{message}
+      could_not_reset_some_of_its: Impossible de réinitialiser « %{organization_name} ». Certaines de ses données n'ont pas pu être supprimées.
+      failed_to_create_organization: Impossible de créer l'organisation.
+      organization_created: Organisation « %{organization_name} » créée.
+      organization_not_found: Organisation introuvable
+      organization_was_deleted: L'organisation « %{organization_name} » a été supprimée.
+      some_of_its_data_could_not: Certaines de ses données n'ont pas pu être supprimées.
+      switched_to: Vous êtes maintenant sur %{organization_name}
+      type_the_organization_s_name_to: Saisissez le nom de l'organisation pour confirmer.
+      you_can_t_delete_a_personal: Vous ne pouvez pas supprimer une organisation personnelle.
+      you_can_t_delete_your_only: Vous ne pouvez pas supprimer votre seule organisation.
+      you_must_be_an_owner_of: Vous devez être propriétaire de « %{organization_name} » pour faire cela.
+      you_must_be_an_owner_to: Vous devez être propriétaire pour supprimer une organisation.
+    parameter_definitions:
+      categories_templated:
+        one: '%{count} catégorie dotée d’un modèle'
+        other: '%{count} catégories dotées d’un modèle'
+      created: Paramètre « %{name} » créé.
+      deleted: Paramètre « %{name} » supprimé.
+      deleted_with_values:
+        one: Paramètre « %{name} » supprimé avec sa %{count} valeur de composant.
+        other: Paramètre « %{name} » supprimé avec ses %{count} valeurs de composants.
+      parameters_added:
+        one: '%{count} paramètre ajouté'
+        other: '%{count} paramètres ajoutés'
+      standard_failed: 'Impossible d’ajouter les paramètres standard : %{errors}'
+      standard_installed: '%{added}, %{categories}, %{values} à partir des champs existants.'
+      updated: Paramètre mis à jour.
+      values_filled:
+        one: '%{count} valeur de composant remplie'
+        other: '%{count} valeurs de composants remplies'
+    part_duplicates:
+      dismissed: Ces %{count} composants ne seront plus proposés comme doublons les uns des autres.
+      merged:
+        one: '%{count} composant fusionné dans %{name}.'
+        other: '%{count} composants fusionnés dans %{name}.'
+      moved: 'Déplacés : %{items}.'
+      moved_movements:
+        one: '%{count} mouvement'
+        other: '%{count} mouvements'
+      moved_order_lines:
+        one: '%{count} ligne de commande'
+        other: '%{count} lignes de commande'
+      moved_project_lines:
+        one: '%{count} ligne de projet'
+        other: '%{count} lignes de projet'
+      moved_stock_rows:
+        one: '%{count} ligne de stock'
+        other: '%{count} lignes de stock'
+      pick_two: Choisissez au moins deux composants.
+    part_suppliers:
+      supplier_added_successfully: Fournisseur ajouté.
+      supplier_removed_successfully: Fournisseur retiré.
+      supplier_updated_successfully: Fournisseur mis à jour.
+    parts:
+      bulk_category:
+        one: Catégorie %{category} appliquée à %{count} composant.
+        other: Catégorie %{category} appliquée à %{count} composants.
+      bulk_moved:
+        one: Stock de %{count} composant déplacé vers %{location}.
+        other: Stock de %{count} composants déplacé vers %{location}.
+      bulk_status:
+        one: Statut %{status} appliqué à %{count} composant.
+        other: Statut %{status} appliqué à %{count} composants.
+      bulk_supplier:
+        one: '%{supplier} défini comme fournisseur préféré pour %{count} composant.'
+        other: '%{supplier} défini comme fournisseur préféré pour %{count} composants.'
+      bulk_tags_added:
+        one: '%{tags} ajouté(s) à %{count} composant.'
+        other: '%{tags} ajouté(s) à %{count} composants.'
+      bulk_tags_removed:
+        one: '%{tags} retiré(s) de %{count} composant.'
+        other: '%{tags} retiré(s) de %{count} composants.'
+      choose_a_category: Choisissez une catégorie.
+      choose_a_destination_location: Choisissez un emplacement de destination.
+      choose_a_supplier: Choisissez un fournisseur.
+      choose_a_valid_status: Choisissez un statut valide.
+      choose_at_least_one_tag: Choisissez au moins un tag.
+      could_not_parse_that_file_as: Impossible de lire ce fichier comme un CSV.
+      enter_a_part_number_to_search: Saisissez une référence à rechercher.
+      import_complete_created_updated_skipped: 'Import terminé : %{created} créé(s), %{updated} mis à jour, %{skipped} ignoré(s).'
+      no_supplier_catalog_is_configured_add: Aucun catalogue fournisseur n’est configuré. Ajoutez une clé Mouser ou DigiKey, ou activez LCSC, dans les Réglages.
+      no_supplier_was_assigned: 'Aucun fournisseur n''a été affecté : %{errors}.'
+      part_created_successfully: Composant créé.
+      part_deleted_successfully: Composant supprimé.
+      part_updated_successfully: Composant mis à jour.
+      please_choose_a_csv_file_to: Choisissez un fichier CSV à importer.
+      quantity_is_too_large: La quantité est trop grande
+      select_at_least_one_part: Sélectionnez au moins un composant.
+      tags:
+        one: '%{count} tag'
+        other: '%{count} tags'
+    profiles:
+      confirm_from_the_email_we_sent: ' Confirmez %{unconfirmed_email} depuis l''e-mail que nous y avons envoyé pour vous connecter avec cette adresse.'
+      enter_your_current_password_to_change: Saisissez votre mot de passe actuel pour changer d'adresse e-mail.
+      failed_to_update_password: Impossible de mettre à jour le mot de passe.
+      failed_to_update_profile: Impossible de mettre à jour le profil.
+      locale_updated: Langue mise à jour.
+      notifications_off: Notifications par e-mail désactivées pour %{organization}.
+      notifications_on: Notifications par e-mail activées pour %{organization}.
+      password_updated_successfully: Mot de passe mis à jour.
+      profile_updated_successfully: Profil mis à jour.
+    project_files:
+      added:
+        one: '%{count} fichier ajouté.'
+        other: '%{count} fichiers ajoutés.'
+      bom_updated:
+        one: 'Nomenclature mise à jour depuis le schéma : %{count} ligne. Vérifiez les correspondances ci-dessous.'
+        other: 'Nomenclature mise à jour depuis le schéma : %{count} lignes. Vérifiez les correspondances ci-dessous.'
+      choose_files: Choisissez les fichiers à ajouter.
+      imported_lines:
+        one: '%{count} ligne de nomenclature importée depuis le schéma.'
+        other: '%{count} lignes de nomenclature importées depuis le schéma.'
+      no_schematic: Aucun schéma (.kicad_sch) avec des composants parmi les fichiers de ce projet.
+      removed: '%{name} retiré.'
+    project_github:
+      bom_unchanged: La nomenclature n’a pas changé.
+      enter_repository: Saisissez un dépôt GitHub (propriétaire/nom ou son URL).
+      fetched:
+        one: '%{count} fichier KiCad récupéré depuis %{location} (%{sha}).'
+        other: '%{count} fichiers KiCad récupérés depuis %{location} (%{sha}).'
+      no_schematic: Aucun schéma avec des composants parmi eux, la nomenclature est donc inchangée.
+      unlinked: Délié de GitHub. Les fichiers déjà récupérés restent dans le projet.
+      up_to_date: Déjà à jour avec %{location} (%{sha}).
+    project_lines:
+      added: Ligne ajoutée.
+      line_removed: Ligne supprimée.
+      line_updated: Ligne mise à jour.
+    projects:
+      build_kits_between: Fabriquez entre 1 et %{max} kits à la fois.
+      could_not_deduct_stock: 'Impossible de déduire le stock : %{errors}.'
+      could_not_import_that_bom: Impossible d'importer cette nomenclature.
+      could_not_parse_that_file_as: Impossible de lire ce fichier comme un CSV.
+      could_not_read_that_file_as: Impossible de lire ce fichier comme une nomenclature KiCad (XML).
+      created_empty: Projet créé. Ajoutez ses composants ci-dessous.
+      imported_bom_lines_review_the_matches: '%{project_lines_count} lignes de nomenclature importées. Vérifiez les correspondances ci-dessous.'
+      matches_confirmed: Correspondances confirmées.
+      matches_confirmed_and_stock_reserved: Correspondances confirmées et stock réservé.
+      name_or_file: Donnez un nom au projet, ou choisissez un fichier de nomenclature à importer.
+      no_purchase_order_was_created: 'Aucune commande n''a été créée : %{errors}.'
+      not_enough_stock_for_kits: Il n’y a pas assez de stock pour fabriquer %{kits} kits.
+      nothing_left_to_order_short_parts: 'Plus rien à commander : les composants manquants n''ont pas de fournisseur préféré ou sont déjà sur des commandes en cours.'
+      only_a_confirmed_project_can_reserve: Seul un projet confirmé peut réserver du stock, avec les réservations activées dans les Réglages.
+      please_choose_a_bom_file_to: Choisissez un fichier de nomenclature à importer.
+      project_deleted: Projet supprimé.
+      reservation_released: Réservation libérée.
+      revision_created: Révision %{revision} créée à partir de %{source}.
+      stock_deducted:
+        one: Stock déduit pour %{count} référence.
+        other: Stock déduit pour %{count} références.
+      stock_deducted_kits:
+        one: Stock déduit pour %{count} référence (%{kits} kits).
+        other: Stock déduit pour %{count} références (%{kits} kits).
+      stock_reserved_for_this_project: Stock réservé pour ce projet.
+      that_file_has_no_usable_bom: Ce fichier ne contient aucune ligne de nomenclature exploitable.
+      this_kit_was_already_built_from: Ce kit a déjà été assemblé depuis cette page. Rechargez-la pour en assembler un autre.
+      this_project_isn_t_buildable_yet: 'Ce projet n''est pas encore assemblable : réglez d''abord les manques et les lignes non associées.'
+      updated: Projet mis à jour.
+    purchase_orders_created:
+      one: '%{count} commande créée pour %{references}.'
+      other: '%{count} commandes créées pour %{references}.'
+    references:
+      one: '%{count} référence'
+      other: '%{count} références'
+    scans:
+      bag_receive_failed: Échec de la réception du sachet.
+      bag_received: '%{quantity} × %{reference} réceptionné dans %{zone}.'
+      failed_to_record_movement: Impossible d'enregistrer le mouvement.
+      movement_recorded_successfully: Mouvement enregistré.
+    settings:
+      added_to_your_suppliers: ' %{errors} ajouté(s) à vos fournisseurs.'
+      failed_to_update_settings: Impossible de mettre à jour les réglages.
+      ipns_reassigned:
+        one: IPN de %{count} composant mis à jour.
+        other: IPN de %{count} composants mis à jour.
+      kicad_token_revoked: Accès à la bibliothèque KiCad révoqué. KiCad ne peut plus lire vos composants.
+      settings_updated_successfully: Réglages mis à jour.
+      turn_on_an_automatic_numbering_mode: Activez un mode de numérotation automatique avant de réattribuer les IPN.
+    stock_movements:
+      failed_to_record_movement: Impossible d'enregistrer le mouvement.
+      movement_recorded_successfully: Mouvement enregistré.
+    stocktakes:
+      adjust_detail: '%{reference} dans %{zone} : '
+      completed_adjusted:
+        one: 'Comptage terminé : %{count} ajustement enregistré.'
+        other: 'Comptage terminé : %{count} ajustements enregistrés.'
+      completed_kept: Un comptage terminé est conservé avec les ajustements qu’il a faits.
+      completed_matched: 'Comptage terminé : le stock correspondait au comptage.'
+      could_not_add_part: 'Impossible d’ajouter ce composant : %{errors}.'
+      could_not_save_count: 'Impossible d’enregistrer ce compte : %{errors}.'
+      could_not_start: 'Impossible de commencer le comptage : %{errors}.'
+      counting: Comptage de %{zone}.
+      discarded: Comptage %{reference} abandonné.
+      no_match: Aucun composant ni aucune zone ne correspond à « %{code} ».
+      nothing_adjusted: Rien n’a été ajusté (%{detail}%{errors}). Recomptez cette ligne et réessayez.
+      part_added: '%{reference} ajouté au comptage.'
+      pick_zone: Choisissez la zone à compter.
+      several_zones: '%{reference} est stocké dans plusieurs zones de ce comptage : scannez ou choisissez d’abord la zone.'
+      started:
+        one: 'Comptage %{reference} commencé : %{count} ligne à compter.'
+        other: 'Comptage %{reference} commencé : %{count} lignes à compter.'
+      zone_not_in_stocktake: '%{zone} ne fait pas partie de ce comptage.'
+    storage_locations:
+      add_between_and_bags_at_a: Ajoutez entre 1 et %{max} sachets à la fois.
+      bag_added: 1 sachet ajouté (%{code}).
+      bags_added: '%{count} sachets ajoutés (de %{first} à %{last}).'
+      cannot_delete_a_zone_that_contains: Impossible de supprimer une zone qui contient des sous-zones.
+      cannot_move_quantity: '%{reference} : impossible de déplacer %{quantity} (seulement %{available} dans %{zone}).'
+      components_moved:
+        one: '%{count} composant déplacé vers %{zone}.'
+        other: '%{count} composants déplacés vers %{zone}.'
+      could_not_move: Impossible de déplacer %{reference}.
+      no_components_selected_to_move: Aucun composant sélectionné à déplacer.
+      only_a_box_can_hold_bags: Seule une boîte peut contenir des sachets.
+      pick_a_different_destination_zone: Choisissez une autre zone de destination.
+      storage_zone_created_successfully: Zone de stockage créée.
+      storage_zone_deleted_successfully: Zone de stockage supprimée.
+      storage_zone_updated_successfully: Zone de stockage mise à jour.
+      unknown_storage_zone: Zone de stockage inconnue.
+    suppliers:
+      failed_to_create_supplier: Impossible de créer le fournisseur.
+      failed_to_update_supplier: Impossible de mettre à jour le fournisseur.
+      only_an_admin_can_delete_a: Seul un administrateur peut supprimer un fournisseur de catalogue, car cela déconnecte l'intégration.
+      supplier_created_successfully: Fournisseur créé.
+      supplier_deleted_successfully: Fournisseur supprimé.
+      supplier_deleted_the_catalog_integration_has: Fournisseur supprimé. L'intégration du catalogue %{label} a été désactivée.
+      supplier_updated_successfully: Fournisseur mis à jour.
+    tags:
+      failed_to_create_tag: Impossible de créer le tag.
+      failed_to_update_tag: Impossible de mettre à jour le tag.
+      tag_created: Tag « %{tag_name} » créé.
+      tag_deleted_successfully: Tag supprimé.
+      tag_updated_successfully: Tag mis à jour.
+    users_confirmations:
+      that_confirmation_link_is_invalid_or: Ce lien de confirmation est invalide ou a expiré. Connectez-vous et demandez-en un nouveau depuis votre profil.
+      too_many_confirmation_emails_requested_please: Trop d'e-mails de confirmation demandés. Patientez quelques minutes puis réessayez.
+      we_sent_a_confirmation_link_to: Nous avons envoyé un lien de confirmation à %{address}.
+      your_email_address_is_already_confirmed: Votre adresse e-mail est déjà confirmée.
+      your_email_address_is_confirmed: Votre adresse e-mail %{email} est confirmée.
+    users_passwords:
+      enter_your_email_address: Saisissez votre adresse e-mail.
+      too_many_reset_requests_please_wait: Trop de demandes de réinitialisation. Patientez quelques minutes puis réessayez.
+    users_registrations:
+      too_many_sign_ups_from_this: Trop d'inscriptions depuis ce réseau. Réessayez plus tard.
+    users_sessions:
+      too_many_sign_in_attempts_please: Trop de tentatives de connexion. Patientez quelques minutes puis réessayez.
+  mail:
+    account_footer: Vous recevez cet e-mail suite à une action sur votre compte. Si ce n'était pas vous, vous pouvez l'ignorer.
+    confirmation:
+      body: 'Confirmez que cette adresse est bien la vôtre pour l''utiliser sur Makerstorage. Les organisations invitent leurs membres par e-mail : les invitations envoyées à cette adresse n''apparaissent qu''une fois celle-ci confirmée.'
+      button: Confirmer l'adresse
+      expires:
+        one: Ce lien expire dans %{count} jour.
+        other: Ce lien expire dans %{count} jours.
+      ignore: Si vous ne vous êtes pas inscrit ni n'avez changé d'adresse sur Makerstorage, vous pouvez ignorer cet e-mail.
+      title: Confirmez votre adresse e-mail
+    copy_url: 'Si le bouton ne fonctionne pas, copiez-collez cette adresse dans votre navigateur :'
+    digest:
+      days_late:
+        one: '%{count} jour de retard'
+        other: '%{count} jours de retard'
+      footer_html: Vous recevez ce récapitulatif en tant que membre de %{organization}. Désactivez-le depuis votre %{profile} ; les administrateurs choisissent les alertes envoyées dans Réglages → Notifications.
+      footer_text: 'Vous recevez ce récapitulatif en tant que membre de %{organization}.
+
+        Désactivez-le depuis votre profil : %{url}'
+      intro: Bonjour %{name}, voici ce qui demande votre attention au %{date}.
+      items:
+        one: '%{count} article'
+        other: '%{count} articles'
+      late_orders: Commandes en retard (%{count})
+      loan: Prêt n° %{id}
+      low_stock: Stock bas (%{count})
+      more: Et %{count} de plus.
+      open_alerts: Voir les alertes
+      order: Commande n° %{id}
+      overdue_loans: Prêts en retard (%{count})
+      profile: profil
+      subject: '%{organization} : %{counts}'
+      subject_late_orders:
+        one: '%{count} commande en retard'
+        other: '%{count} commandes en retard'
+      subject_low_stock:
+        one: '%{count} composant en stock bas'
+        other: '%{count} composants en stock bas'
+      subject_overdue_loans:
+        one: '%{count} prêt en retard'
+        other: '%{count} prêts en retard'
+      title: Alertes %{organization}
+    email_changed:
+      being_changed: Nous vous informons que l'adresse e-mail de votre compte Makerstorage est en train d'être remplacée par %{email}.
+      being_changed_html: 'Nous vous informons que l''adresse e-mail de votre compte Makerstorage est en train d''être remplacée par <strong style="color: #09090b;">%{email}</strong>.'
+      changed: Nous vous informons que l'adresse e-mail de votre compte Makerstorage a été remplacée par %{email}.
+      changed_html: 'Nous vous informons que l''adresse e-mail de votre compte Makerstorage a été remplacée par <strong style="color: #09090b;">%{email}</strong>.'
+      not_you: Si vous n'êtes pas à l'origine de ce changement, contactez immédiatement le propriétaire de votre organisation.
+      title: Votre adresse e-mail a changé
+    hello: Bonjour %{name},
+    open_link: 'Ouvrez le lien ci-dessous :'
+    password_change:
+      body: Nous vous confirmons que le mot de passe de votre compte Makerstorage vient d'être modifié.
+      not_you: Si c'est vous, il n'y a rien à faire. Sinon, réinitialisez votre mot de passe immédiatement et contactez le propriétaire de votre organisation.
+      title: Votre mot de passe a changé
+    reset_password:
+      body: Quelqu'un a demandé un lien pour changer le mot de passe de votre compte Makerstorage. Utilisez le bouton ci-dessous pour en choisir un nouveau.
+      button: Réinitialiser le mot de passe
+      expires:
+        one: Ce lien expire dans %{count} heure.
+        other: Ce lien expire dans %{count} heures.
+      ignore: 'Si vous n''avez rien demandé, vous pouvez ignorer cet e-mail : votre mot de passe ne changera pas tant que vous n''aurez pas ouvert le lien ci-dessus et choisi un nouveau mot de passe.'
+      title: Réinitialisez votre mot de passe
+    tagline: Gestion de stock de composants électroniques pour makerspaces.
+  order_statuses:
+    cancelled: annulée
+    pending: en attente
+    received: reçue
+    shipped: expédiée
+  part_duplicates:
+    same_category: Même catégorie, valeur et empreinte
+    same_name: Même nom, valeur et empreinte
+    same_part_number: Même référence « %{code} »
+  part_statuses:
+    active: actif
+    discontinued: arrêté
+    obsolete: obsolète
+  stock_statuses:
+    low: Stock bas
+    ok: En stock
+    out: Rupture

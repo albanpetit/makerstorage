@@ -75,7 +75,7 @@ class LabelPrinter < ApplicationRecord
   def port_is_a_printer_port
     return if LabelPrinting::Network.allowed_port?(port)
 
-    errors.add(:port, "must be a printer port (9100–9109 or 6101)")
+    errors.add(:port, :printer_port)
   end
 
   def format_mm(value)

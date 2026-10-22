@@ -5,6 +5,7 @@
 import { csrfToken } from '@/components/parts/csv'
 import { type LabelGeometry, bitmapToBase64, renderLabelBitmap } from '@/lib/label-bitmap'
 import type { LabelItem } from '@/lib/labels'
+import { t } from '@/lib/i18n'
 
 export interface LabelPrinter extends LabelGeometry {
   id: number
@@ -40,7 +41,7 @@ export async function printOnLabelPrinter(printer: LabelPrinter, items: LabelIte
     })
     if (!response.ok) {
       const data = await response.json().catch(() => null)
-      throw new Error(data?.error || `The printer could not be reached (HTTP ${response.status}).`)
+      throw new Error(data?.error || t('The printer could not be reached (HTTP {status}).', { status: response.status }))
     }
   }
 }

@@ -24,9 +24,9 @@ class ProjectLinesController < ApplicationController
     line.quantity ||= 1
 
     if line.designation.blank? && line.raw_reference.blank?
-      line.errors.add(:part_id, "or a designation is required")
+      line.errors.add(:part_id, :or_designation_required)
     elsif line.save
-      return redirect_to(project_path(project), notice: "Line added.")
+      return redirect_to(project_path(project), notice: t("flash.project_lines.added"))
     end
 
     redirect_to project_path(project),
@@ -53,7 +53,7 @@ class ProjectLinesController < ApplicationController
     end
 
     if @line.update(attributes)
-      redirect_to project_path(@line.project), notice: "Line updated."
+      redirect_to project_path(@line.project), notice: t("flash.project_lines.line_updated")
     else
       redirect_to project_path(@line.project),
         alert: @line.errors.full_messages.to_sentence,
@@ -64,7 +64,7 @@ class ProjectLinesController < ApplicationController
   def destroy
     project = @line.project
     @line.destroy!
-    redirect_to project_path(project), notice: "Line removed."
+    redirect_to project_path(project), notice: t("flash.project_lines.line_removed")
   end
 
   private

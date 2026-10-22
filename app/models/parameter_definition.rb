@@ -111,7 +111,7 @@ class ParameterDefinition < ApplicationRecord
     return if misfits.empty?
 
     examples = misfits.first(3).map { |parameter| "“#{parameter.value}”" }.to_sentence
-    errors.add(:base, "#{misfits.size} #{'value'.pluralize(misfits.size)} of #{name} #{misfits.size == 1 ? 'is' : 'are'} not #{unit ? "a number in #{unit}" : 'a number'} (#{examples}).")
+    errors.add(:base, unit ? :values_not_in_unit : :values_not_numbers, count: misfits.size, name: name, unit: unit, examples: examples)
   end
 
   def recompute_values

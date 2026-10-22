@@ -7,6 +7,8 @@ class ApplicationController < ActionController::Base
   AUTH_RATE_LIMIT_STORE = Rails.application.config.x.rate_limit_store || Rails.cache
 
   inertia_share flash: -> { flash.to_hash }
+  # The React UI translates itself from this (app/frontend/lib/i18n.ts).
+  inertia_share locale: -> { I18n.locale.to_s }
 
   inertia_share auth: -> {
     if user_signed_in?
@@ -38,6 +40,11 @@ class ApplicationController < ActionController::Base
   # than the server's (UTC).
   around_action :use_organization_time_zone
 
+  # UI language: the user's choice (profile), else the best match for the
+  # browser's Accept-Language, else English. Flash messages, validation errors
+  # and the React UI all follow it.
+  around_action :switch_locale
+
   def current_organization
     return nil unless user_signed_in?
 
@@ -54,6 +61,22 @@ class ApplicationController < ActionController::Base
   end
 
   private
+
+  def switch_locale(&action)
+    I18n.with_locale(user_signed_in? && current_user.locale.presence || browser_locale, &action)
+  end
+
+  # First Accept-Language entry (by q-value) whose language we have, e.g.
+  # "fr-CA,fr;q=0.9,en;q=0.8" → :fr. Region subtags are ignored.
+  def browser_locale
+    available = I18n.available_locales.map(&:to_s)
+    request.headers["Accept-Language"].to_s.split(",").filter_map { |entry|
+      tag, *params = entry.strip.split(";")
+      quality = params.find { |param| param.strip.start_with?("q=") }&.strip&.delete_prefix("q=")&.to_f || 1.0
+      language = tag.to_s.strip.downcase.split("-").first
+      [ language, quality ] if available.include?(language) && quality.positive?
+    }.max_by.with_index { |(_, quality), index| [ quality, -index ] }&.first || I18n.default_locale
+  end
 
   def use_organization_time_zone(&action)
     Time.use_zone(current_organization&.timezone || Time.zone_default, &action)
@@ -98,9 +121,9 @@ class ApplicationController < ActionController::Base
     # needs an organization too, so sending them there would loop forever. The
     # profile page doesn't, and its sidebar offers "Create organization".
     if current_organization.nil?
-      redirect_to profile_path, alert: "You're not an active member of any organization. Create one, or ask an admin to reactivate your access."
+      redirect_to profile_path, alert: t("flash.application.you_re_not_an_active_member")
     elsif !current_user.member_of_organization?(current_organization.id)
-      redirect_to root_path, alert: "You don't have access to this organization"
+      redirect_to root_path, alert: t("flash.application.you_don_t_have_access_to")
     end
   end
 
@@ -108,7 +131,7 @@ class ApplicationController < ActionController::Base
   def verify_organization_writer
     return if current_organization && current_user.writer_of?(current_organization)
 
-    message = "Your role is read-only for this organization."
+    message = t("flash.application.your_role_is_read_only_for")
     if request.format.json?
       render json: { error: message }, status: :forbidden
     else
@@ -119,14 +142,14 @@ class ApplicationController < ActionController::Base
   # Verify user is admin/owner of current organization (for sensitive operations)
   def verify_organization_admin
     unless current_organization && current_user.admin_of?(current_organization)
-      redirect_to root_path, alert: "You don't have admin access to this organization"
+      redirect_to root_path, alert: t("flash.application.you_don_t_have_admin_access")
     end
   end
 
   # Verify user is owner of current organization (for critical operations)
   def verify_organization_owner
     unless current_organization && current_user.owner_of?(current_organization)
-      redirect_to root_path, alert: "You must be an owner to perform this action"
+      redirect_to root_path, alert: t("flash.application.you_must_be_an_owner_to")
     end
   end
 end

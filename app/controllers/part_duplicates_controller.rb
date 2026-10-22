@@ -44,10 +44,10 @@ class PartDuplicatesController < ApplicationController
 
   def dismiss
     parts = current_organization.parts.where(id: Array(params[:part_ids])).to_a
-    return redirect_back_or_to(part_duplicates_path, alert: "Pick at least two parts.") if parts.size < 2
+    return redirect_back_or_to(part_duplicates_path, alert: t("flash.part_duplicates.pick_two")) if parts.size < 2
 
     PartDuplicateDismissal.dismiss!(parts)
-    redirect_to part_duplicates_path, notice: "#{parts.size} parts won't be suggested as duplicates of each other again."
+    redirect_to part_duplicates_path, notice: t("flash.part_duplicates.dismissed", count: parts.size)
   end
 
   private
@@ -109,10 +109,10 @@ class PartDuplicatesController < ApplicationController
 
   def merge_notice(result)
     moved = {
-      "stock row" => result.stock_rows, "movement" => result.movements,
-      "order line" => result.order_lines, "project line" => result.project_lines
-    }.filter_map { |label, count| "#{count} #{label.pluralize(count)}" if count.positive? }
-    notice = "Merged #{result.merged_count} #{'part'.pluralize(result.merged_count)} into #{result.kept.name}."
-    moved.any? ? "#{notice} Moved #{moved.to_sentence}." : notice
+      stock_rows: result.stock_rows, movements: result.movements,
+      order_lines: result.order_lines, project_lines: result.project_lines
+    }.filter_map { |label, count| t("flash.part_duplicates.moved_#{label}", count: count) if count.positive? }
+    notice = t("flash.part_duplicates.merged", count: result.merged_count, name: result.kept.name)
+    moved.any? ? "#{notice} #{t('flash.part_duplicates.moved', items: moved.to_sentence)}" : notice
   end
 end

@@ -1,9 +1,10 @@
 import { createInertiaApp, router, type ResolvedComponent } from '@inertiajs/react'
-import { StrictMode } from 'react'
+import { StrictMode, createElement } from 'react'
 import { createRoot } from 'react-dom/client'
 import { ThemeProvider } from 'next-themes'
 
 import { Toaster } from '@/components/ui/sonner'
+import { setLocale } from '@/lib/i18n'
 
 // Disable the error modal - errors handled via flash messages.
 // Inertia v3 renamed the event that guards the modal from 'invalid' to
@@ -43,11 +44,20 @@ void createInertiaApp({
 
   setup({ el, App, props }) {
     if (!el) return
+    setLocale(props.initialPage.props.locale)
 
     createRoot(el).render(
       <StrictMode>
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
-          <App {...props} />
+          <App {...props}>
+            {/* The UI language comes with every page (see ApplicationController#
+                inertia_share locale); set it before the page renders so `t()`
+                calls in the page and its children all use it. */}
+            {({ Component, props: pageProps, key }) => {
+              setLocale(pageProps.locale)
+              return createElement(Component, { key, ...pageProps })
+            }}
+          </App>
           <Toaster />
         </ThemeProvider>
       </StrictMode>

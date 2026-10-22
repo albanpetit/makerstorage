@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label'
 import { Field, FieldContent, FieldError, FieldGroup, FieldLabel, FieldDescription } from '@/components/ui/field'
 import { FlashMessages } from '@/components/flash-messages'
 import { AuthLayout } from '@/components/auth-layout'
+import { t } from '@/lib/i18n'
 
 export default function Signup() {
   const { data, setData, post, processing, errors } = useForm({
@@ -27,18 +28,18 @@ export default function Signup() {
 
   return (
     <>
-      <Head title="Sign up" />
+      <Head title={t('Sign up')} />
 
       <AuthLayout
-        eyebrow="Stock management"
-        headline="Every resistor has its place, every withdrawal tracked."
-        description="Component inventory, physical storage locations, stock movements, and restock alerts — all in one place."
+        eyebrow={t('Stock management')}
+        headline={t('Every resistor has its place, every withdrawal tracked.')}
+        description={t('Component inventory, physical storage locations, stock movements, and restock alerts — all in one place.')}
       >
         <FlashMessages errors={errors} className="mb-6" />
 
         <div className="mb-6">
-          <h2 className="text-2xl font-semibold tracking-tight">Create an account</h2>
-          <p className="text-muted-foreground mt-1 text-sm">Start managing your component inventory.</p>
+          <h2 className="text-2xl font-semibold tracking-tight">{t('Create an account')}</h2>
+          <p className="text-muted-foreground mt-1 text-sm">{t('Start managing your component inventory.')}</p>
         </div>
 
         <form onSubmit={submit}>
@@ -46,7 +47,7 @@ export default function Signup() {
             <div className="grid grid-cols-2 gap-4">
               <Field>
                 <FieldLabel>
-                  <Label htmlFor="firstname">First name</Label>
+                  <Label htmlFor="firstname">{t('First name')}</Label>
                 </FieldLabel>
                 <FieldContent>
                   <Input
@@ -65,7 +66,7 @@ export default function Signup() {
 
               <Field>
                 <FieldLabel>
-                  <Label htmlFor="lastname">Last name</Label>
+                  <Label htmlFor="lastname">{t('Last name')}</Label>
                 </FieldLabel>
                 <FieldContent>
                   <Input
@@ -84,13 +85,13 @@ export default function Signup() {
 
             <Field>
               <FieldLabel>
-                <Label htmlFor="email">Email address</Label>
+                <Label htmlFor="email">{t('Email address')}</Label>
               </FieldLabel>
               <FieldContent>
                 <Input
                   id="email"
                   type="email"
-                  placeholder="you@workshop.io"
+                  placeholder={t('you@workshop.io')}
                   value={data.user.email}
                   onChange={(e) => setData('user', { ...data.user, email: e.target.value })}
                   required
@@ -103,7 +104,7 @@ export default function Signup() {
 
             <Field>
               <FieldLabel>
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password">{t('Password')}</Label>
               </FieldLabel>
               <FieldContent>
                 <Input
@@ -116,14 +117,14 @@ export default function Signup() {
                   autoComplete="new-password"
                   aria-invalid={!!errors['user.password']}
                 />
-                <FieldDescription>At least 8 characters.</FieldDescription>
+                <FieldDescription>{t('At least 8 characters.')}</FieldDescription>
               </FieldContent>
               {errors['user.password'] && <FieldError>{errors['user.password']}</FieldError>}
             </Field>
 
             <Field>
               <FieldLabel>
-                <Label htmlFor="password_confirmation">Confirm password</Label>
+                <Label htmlFor="password_confirmation">{t('Confirm password')}</Label>
               </FieldLabel>
               <FieldContent>
                 <Input
@@ -145,21 +146,20 @@ export default function Signup() {
             <div className="bg-muted flex items-start gap-2.5 rounded-lg p-3">
               <Users className="text-muted-foreground mt-0.5 size-4 shrink-0" />
               <p className="text-muted-foreground text-xs leading-relaxed">
-                A personal organization is created automatically when you sign up. You can create additional
-                organizations later to manage stock with a team.
+                {t('A personal organization is created automatically when you sign up. You can create additional organizations later to manage stock with a team.')}
               </p>
             </div>
 
             <Button type="submit" className="mt-1 w-full" disabled={processing}>
-              {processing ? 'Creating account...' : 'Create account'}
+              {processing ? t('Creating account...') : t('Create account')}
             </Button>
           </FieldGroup>
         </form>
 
         <div className="mt-6 text-center text-sm">
-          <span className="text-muted-foreground">Already have an account? </span>
+          <span className="text-muted-foreground">{t('Already have an account?')} </span>
           <Link href="/login" className="font-medium underline underline-offset-4">
-            Log in
+            {t('Log in')}
           </Link>
         </div>
       </AuthLayout>

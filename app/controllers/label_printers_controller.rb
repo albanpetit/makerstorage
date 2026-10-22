@@ -29,25 +29,25 @@ class LabelPrintersController < ApplicationController
     printer = current_organization.label_printers.build(printer_params)
 
     if printer.save
-      redirect_to settings_path(section: "printers"), notice: "Printer \"#{printer.name}\" added."
+      redirect_to settings_path(section: "printers"), notice: t("flash.label_printers.added", name: printer.name)
     else
-      redirect_to settings_path(section: "printers"), alert: "Failed to add the printer.",
+      redirect_to settings_path(section: "printers"), alert: t("flash.label_printers.add_failed"),
                                                      inertia: { errors: inertia_errors(printer, as: :label_printer) }
     end
   end
 
   def update
     if @printer.update(printer_params)
-      redirect_to settings_path(section: "printers"), notice: "Printer updated."
+      redirect_to settings_path(section: "printers"), notice: t("flash.label_printers.updated")
     else
-      redirect_to settings_path(section: "printers"), alert: "Failed to update the printer.",
+      redirect_to settings_path(section: "printers"), alert: t("flash.label_printers.update_failed"),
                                                      inertia: { errors: inertia_errors(@printer, as: :label_printer) }
     end
   end
 
   def destroy
     @printer.destroy!
-    redirect_to settings_path(section: "printers"), notice: "Printer \"#{@printer.name}\" removed."
+    redirect_to settings_path(section: "printers"), notice: t("flash.label_printers.removed", name: @printer.name)
   end
 
   # Body: { labels: [base64 bitmap, …] }, each a packed 1-bit image at the

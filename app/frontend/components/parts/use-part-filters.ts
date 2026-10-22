@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { router } from '@inertiajs/react'
 
 import type { ParameterFilter, PartListFacets, PartListFilters } from './types'
+import { t } from '@/lib/i18n'
 
 type FacetKey = 'status' | 'package' | 'footprint' | 'supplier'
 
@@ -100,14 +101,14 @@ export function usePartFilters(filters: PartListFilters, facets: PartListFacets)
   const activePills: { key: string; label: string; remove: () => void }[] = []
   if (filters.category != null) {
     const chip = facets.categories.find((c) => c.id === filters.category)
-    activePills.push({ key: 'cat', label: `Category: ${chip?.name || filters.category}`, remove: () => setCategory(null) })
+    activePills.push({ key: 'cat', label: t('Category: {name}', { name: chip?.name || filters.category }), remove: () => setCategory(null) })
   }
   if (filters.search) {
-    activePills.push({ key: 'q', label: `Search: "${filters.search}"`, remove: clearSearch })
+    activePills.push({ key: 'q', label: t('Search: “{query}”', { query: filters.search }), remove: clearSearch })
   }
   filters.status.forEach((v) => activePills.push({ key: `status-${v}`, label: facetLabel('status', v), remove: () => toggleFacet('status', v) }))
-  filters.package.forEach((v) => activePills.push({ key: `pkg-${v}`, label: `Package: ${v}`, remove: () => toggleFacet('package', v) }))
-  filters.footprint.forEach((v) => activePills.push({ key: `fp-${v}`, label: `Footprint: ${v}`, remove: () => toggleFacet('footprint', v) }))
+  filters.package.forEach((v) => activePills.push({ key: `pkg-${v}`, label: t('Package: {name}', { name: v }), remove: () => toggleFacet('package', v) }))
+  filters.footprint.forEach((v) => activePills.push({ key: `fp-${v}`, label: t('Footprint: {name}', { name: v }), remove: () => toggleFacet('footprint', v) }))
   filters.supplier.forEach((v) => activePills.push({ key: `sup-${v}`, label: v, remove: () => toggleFacet('supplier', v) }))
   filters.parameters.forEach((filter) =>
     activePills.push({ key: `param-${filter.id}`, label: parameterLabel(filter), remove: () => setParameterFilter(filter.id, null) }))

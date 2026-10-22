@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { t } from '@/lib/i18n'
 
 // Shape of ParameterDefinitionsController#serialize_option.
 export interface ParameterDefinitionOption {
@@ -66,5 +67,5 @@ export function parameterPlaceholder(definition: ParameterDefinitionOption) {
     Hz: 'e.g. 16MHz',
     '%': 'e.g. 1%',
   }
-  return examples[definition.unit ?? ''] ?? (definition.unit ? `Number in ${definition.unit}` : 'Number')
+  return examples[definition.unit ?? ''] ?? (definition.unit ? t('Number in {unit}', { unit: definition.unit }) : t('Number'))
 }

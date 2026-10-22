@@ -1,40 +1,38 @@
 <% content_for :mailer_footer do %>
-You receive this digest as a member of <%= @organization.name %>.
-Turn it off from your profile: <%= profile_url %>
+<%= t("mail.digest.footer_text", organization: @organization.name, url: profile_url) %>
 <% end -%>
-<%= @organization.name %> alerts
+<%= t("mail.digest.title", organization: @organization.name) %>
 
-Hello <%= @user.firstname.presence || @user.email %>, here is what needs
-attention as of <%= l(@digest.date, format: :long) %>.
+<%= t("mail.digest.intro", name: @user.firstname.presence || @user.email, date: l(@digest.date, format: :long)) %>
 <% if @digest.low_stock.any? %>
 
-Low stock (<%= @digest.low_stock.size %>)
+<%= t("mail.digest.low_stock", count: @digest.low_stock.size) %>
 <% @digest.low_stock.first(NotificationDigest::LIMIT).each do |item| -%>
 - <%= item.name %><%= " (#{item.code})" if item.code.present? %>: <%= item.quantity %> / <%= item.threshold %>
 <% end -%>
 <% if @digest.low_stock.size > NotificationDigest::LIMIT -%>
-And <%= @digest.low_stock.size - NotificationDigest::LIMIT %> more.
+<%= t("mail.digest.more", count: @digest.low_stock.size - NotificationDigest::LIMIT) %>
 <% end -%>
 <% end -%>
 <% if @digest.late_orders.any? %>
 
-Late orders (<%= @digest.late_orders.size %>)
+<%= t("mail.digest.late_orders", count: @digest.late_orders.size) %>
 <% @digest.late_orders.first(NotificationDigest::LIMIT).each do |item| -%>
-- <%= item.reference.presence || "Order ##{item.order_id}" %> (<%= item.supplier_name %>): <%= pluralize(item.days_late, "day") %> late
+- <%= item.reference.presence || t("mail.digest.order", id: item.order_id) %> (<%= item.supplier_name %>): <%= t("mail.digest.days_late", count: item.days_late) %>
 <% end -%>
 <% if @digest.late_orders.size > NotificationDigest::LIMIT -%>
-And <%= @digest.late_orders.size - NotificationDigest::LIMIT %> more.
+<%= t("mail.digest.more", count: @digest.late_orders.size - NotificationDigest::LIMIT) %>
 <% end -%>
 <% end -%>
 <% if @digest.overdue_loans.any? %>
 
-Overdue loans (<%= @digest.overdue_loans.size %>)
+<%= t("mail.digest.overdue_loans", count: @digest.overdue_loans.size) %>
 <% @digest.overdue_loans.first(NotificationDigest::LIMIT).each do |item| -%>
-- <%= item.reference.presence || "Loan ##{item.loan_id}" %> (<%= item.borrower_name %>, <%= pluralize(item.outstanding, "item") %>): <%= pluralize(item.days_late, "day") %> late
+- <%= item.reference.presence || t("mail.digest.loan", id: item.loan_id) %> (<%= item.borrower_name %>, <%= t("mail.digest.items", count: item.outstanding) %>): <%= t("mail.digest.days_late", count: item.days_late) %>
 <% end -%>
 <% if @digest.overdue_loans.size > NotificationDigest::LIMIT -%>
-And <%= @digest.overdue_loans.size - NotificationDigest::LIMIT %> more.
+<%= t("mail.digest.more", count: @digest.overdue_loans.size - NotificationDigest::LIMIT) %>
 <% end -%>
 <% end -%>
 
-Open alerts: <%= alerts_url(organization_id: @organization.id) %>
+<%= t("mail.digest.open_alerts") %>: <%= alerts_url(organization_id: @organization.id) %>

@@ -274,7 +274,7 @@ class Project < ApplicationRecord
 
   def kicad_files_count_within_limit
     if kicad_files.size > MAX_KICAD_FILES
-      errors.add(:kicad_files, "can't be more than #{MAX_KICAD_FILES} files")
+      errors.add(:kicad_files, :too_many_files, count: MAX_KICAD_FILES)
     end
   end
 end

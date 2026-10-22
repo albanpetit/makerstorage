@@ -17,7 +17,7 @@ class OrderLineAllocation < ApplicationRecord
     return unless order_line&.part && storage_location
 
     if storage_location.organization_id != order_line.part.organization_id
-      errors.add(:storage_location, "must belong to the same organization")
+      errors.add(:storage_location, :same_organization)
     end
   end
 end

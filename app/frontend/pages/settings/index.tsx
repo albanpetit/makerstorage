@@ -19,17 +19,18 @@ import { PrintersSection } from '@/components/settings/printers-section'
 import type {
   GeneralFormData, IntegrationsFormData, InventoryFormData, IpnFormData, NotificationsFormData, SettingsPageProps,
 } from '@/components/settings/types'
+import { t } from '@/lib/i18n'
 
 const SECTIONS = [
-  { key: 'general', label: 'General', icon: Building2 },
-  { key: 'ipn', label: 'Numbering (IPN)', icon: Hash },
-  { key: 'inventory', label: 'Inventory', icon: Package },
-  { key: 'notifications', label: 'Notifications', icon: Bell },
-  { key: 'integrations', label: 'Integrations', icon: Plug },
-  { key: 'kicad', label: 'KiCad library', icon: CircuitBoard },
-  { key: 'printers', label: 'Label printers', icon: Printer },
-  { key: 'backup', label: 'Backup', icon: DatabaseBackup },
-  { key: 'danger', label: 'Danger zone', icon: ShieldAlert },
+  { key: 'general', get label() { return t('General') }, icon: Building2 },
+  { key: 'ipn', get label() { return t('Numbering (IPN)') }, icon: Hash },
+  { key: 'inventory', get label() { return t('Inventory') }, icon: Package },
+  { key: 'notifications', get label() { return t('Notifications') }, icon: Bell },
+  { key: 'integrations', get label() { return t('Integrations') }, icon: Plug },
+  { key: 'kicad', get label() { return t('KiCad library') }, icon: CircuitBoard },
+  { key: 'printers', get label() { return t('Label printers') }, icon: Printer },
+  { key: 'backup', get label() { return t('Backup') }, icon: DatabaseBackup },
+  { key: 'danger', get label() { return t('Danger zone') }, icon: ShieldAlert },
 ] as const
 
 type SectionKey = (typeof SECTIONS)[number]['key']
@@ -114,8 +115,8 @@ export default function SettingsIndex({
   // The forms live here rather than in each section so unsaved edits survive
   // switching between sections.
   return (
-    <AppLayout header={<PageHeader title="Settings" subtitle="Organization configuration and preferences" />}>
-      <Head title="Settings" />
+    <AppLayout header={<PageHeader title={t('Settings')} subtitle={t('Organization configuration and preferences')} />}>
+      <Head title={t('Settings')} />
 
       <div className="space-y-6">
         <FlashMessages />
