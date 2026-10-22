@@ -160,6 +160,12 @@ git push origin v0.4.0   # → creates the GitHub Release and deploys to product
 
 The `/commit` command will suggest a version bump and print these commands when a commit is a good moment to release — it never tags automatically.
 
+## AI-assisted contributions
+
+Using an AI coding assistant is fine. Whatever tools you use, you're responsible for
+the change: understand every line, include tests, and keep the pull request focused.
+`CLAUDE.md` describes the project's conventions for assistants.
+
 ## Quality checks
 
 ```bash
