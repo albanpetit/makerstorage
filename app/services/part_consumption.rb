@@ -58,8 +58,9 @@ class PartConsumption
     scope = organization.stock_movements.outbound
     loan_references = organization.loans.where.not(reference: nil).select(:reference)
     scope = scope.where(reference: nil).or(scope.where.not(reference: loan_references))
-    transfer = TRANSFER_REASON_PATTERNS.map { "stock_movements.reason LIKE ?" }.join(" OR ")
-    scope.where("stock_movements.reason IS NULL OR NOT (#{transfer})", *TRANSFER_REASON_PATTERNS)
+    reason = StockMovement.arel_table[:reason]
+    transfer = TRANSFER_REASON_PATTERNS.map { |pattern| reason.matches(pattern) }.reduce(:or)
+    scope.where(reason.eq(nil).or(transfer.not))
   end
 
   # { part_id => Entry } for the given parts (ids or relation) that were used in
