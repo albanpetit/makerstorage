@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_21_190000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_21_210000) do
   create_table "active_storage_attachments", force: :cascade do |t|
     t.bigint "blob_id", null: false
     t.datetime "created_at", null: false
@@ -277,6 +277,16 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_21_190000) do
     t.datetime "updated_at", null: false
     t.index "organization_id, LOWER(name)", name: "index_parameter_definitions_on_organization_id_and_lower_name", unique: true
     t.index ["organization_id"], name: "index_parameter_definitions_on_organization_id"
+  end
+
+  create_table "part_duplicate_dismissals", force: :cascade do |t|
+    t.integer "part_id", null: false
+    t.integer "other_part_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["other_part_id"], name: "index_part_duplicate_dismissals_on_other_part_id"
+    t.index ["part_id", "other_part_id"], name: "index_part_duplicate_dismissals_on_pair", unique: true
+    t.index ["part_id"], name: "index_part_duplicate_dismissals_on_part_id"
   end
 
   create_table "part_parameters", force: :cascade do |t|
@@ -583,6 +593,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_21_190000) do
   add_foreign_key "organization_memberships", "users"
   add_foreign_key "organization_memberships", "users", column: "invited_by_id"
   add_foreign_key "parameter_definitions", "organizations"
+  add_foreign_key "part_duplicate_dismissals", "parts"
+  add_foreign_key "part_duplicate_dismissals", "parts", column: "other_part_id"
   add_foreign_key "part_parameters", "parameter_definitions"
   add_foreign_key "part_parameters", "parts"
   add_foreign_key "part_storages", "parts"

@@ -62,7 +62,8 @@ class PartsController < ApplicationController
       bag_options: bag_options,
       bag_boxes: bag_boxes,
       open_add: params[:new].present?,
-      add_prefill: add_prefill
+      add_prefill: add_prefill,
+      duplicate_groups_count: PartDuplicates.new(current_organization).count
     }
   end
 

@@ -304,52 +304,12 @@ class OrganizationMerge
   end
 
   # Gives +to+ everything hanging off +from+ (left empty, deleted with the
-  # source organization). Stock rows are moved together with the movements
-  # behind them, so each quantity still matches its ledger.
+  # source organization), the way merging duplicate parts does.
   def fold_part(from, to)
-    PartStorage.where(part_id: from).find_each do |storage|
-      existing = PartStorage.find_by(part_id: to, storage_location_id: storage.storage_location_id)
-      if existing
-        existing.update_columns(quantity: existing.quantity + storage.quantity)
-        storage.delete
-      else
-        storage.update_columns(part_id: to)
-      end
-    end
-
-    StockMovement.where(part_id: from).update_all(part_id: to)
-    OrderLine.where(part_id: from).update_all(part_id: to)
-    ProjectLine.where(part_id: from).update_all(part_id: to)
-    fold_stocktake_lines(from, to)
-    LoanLine.where(part_id: from).update_all(part_id: to)
-    repoint_links(PartTag, :part_id, from, to, :tag_id)
-    repoint_links(PartParameter, :part_id, from, to, :parameter_definition_id)
-    PartSupplier.where(part_id: from).update_all(is_preferred: false) if PartSupplier.exists?(part_id: to, is_preferred: true)
-    repoint_links(PartSupplier, :part_id, from, to, :supplier_id)
-    move_attachments("Part", from, to, "images")
-    move_attachments("Part", from, to, "datasheet")
+    PartMerge.fold(from, to)
     Part.where(id: from).update_all(bag_id: nil, bag_assigned_at: nil)
   end
 
-  # A stocktake belongs to one organization, so +to+ (a target part) is never
-  # on a source stocktake, but two source parts folded into it can share a
-  # zone of one: their lines become one, adding up what each expected and
-  # counted.
-  def fold_stocktake_lines(from, to)
-    StocktakeLine.where(part_id: from).find_each do |line|
-      existing = StocktakeLine.find_by(stocktake_id: line.stocktake_id, part_id: to, storage_location_id: line.storage_location_id)
-      unless existing
-        line.update_columns(part_id: to)
-        next
-      end
-
-      counted = [ existing.counted_quantity, line.counted_quantity ].compact
-      existing.update_columns(expected_quantity: existing.expected_quantity + line.expected_quantity,
-                              counted_quantity: counted.empty? ? nil : counted.sum,
-                              stock_movement_id: existing.stock_movement_id || line.stock_movement_id)
-      line.delete
-    end
-  end
 
   # New IPNs from the target's numbering for the moved parts whose IPN was
   # taken. Manual and box & bag modes have nothing to draw from: those parts

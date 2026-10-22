@@ -43,6 +43,10 @@ Rails.application.routes.draw do
   end
 
   # Inventory resources
+  # Before `resources :parts` so "duplicates" isn't read as a part id.
+  get "parts/duplicates", to: "part_duplicates#index", as: :part_duplicates
+  post "parts/duplicates/merge", to: "part_duplicates#merge", as: :merge_part_duplicates
+  post "parts/duplicates/dismiss", to: "part_duplicates#dismiss", as: :dismiss_part_duplicates
   resources :parts, except: %i[new] do
     collection do
       post :import
