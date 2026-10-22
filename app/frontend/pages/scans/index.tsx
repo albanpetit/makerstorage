@@ -178,6 +178,17 @@ export default function ScansIndex({ code: serverCode, result: serverResult, rec
 
   const projected = (selectedLocation?.quantity ?? 0) + delta
 
+  // Back online, once the queued scans are sent: ask the server again for
+  // what's on screen, so its stock and actions come back. Not while a count
+  // is being typed.
+  const waiting = offline.pending.filter((scan) => !scan.error).length
+  useEffect(() => {
+    if (localScan && offline.online && !offline.syncing && waiting === 0 && delta === 0) {
+      lookupCode(localScan.code, localScan.zoneId)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [offline.online, offline.syncing, waiting])
+
   const submitScan = (e: FormEvent) => {
     e.preventDefault()
     const trimmed = codeInput.trim()
@@ -316,7 +327,7 @@ export default function ScansIndex({ code: serverCode, result: serverResult, rec
           </Alert>
         )}
 
-        <div className="grid items-start gap-4 lg:grid-cols-2">
+        <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
           {/* Viewfinder */}
           <div className="rounded-2xl border border-zinc-800 bg-zinc-950 p-4 shadow-sm">
             <div className="relative aspect-square overflow-hidden rounded-xl bg-[radial-gradient(circle_at_50%_40%,#1c1c22_0%,#0c0c0e_75%)]">
