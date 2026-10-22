@@ -143,12 +143,14 @@ class OrganizationBackupTest < ActiveSupport::TestCase
   end
 
   test "the archive leaves out other organizations, members and secrets" do
+    KicadLibrary.issue_token!(@org)
     Zip::File.open_buffer(export_zip(@org)) do |zip|
       data = JSON.parse(zip.read("data.json"))
 
       assert_equal OrganizationBackup::FORMAT, data["format"]
       assert_equal [ "FOREIGN-1" ], [ "FOREIGN-1" ] - data["tables"]["parts"].map { |row| row["mpn"] }
       assert_not data["organization"].key?("mouser_api_key")
+      assert_not data["organization"].key?("kicad_token_digest")
       assert_not data["tables"].key?("organization_memberships")
       assert data["tables"]["stock_movements"].none? { |row| row.key?("user_id") }
       assert data["tables"]["parts"].none? { |row| row.key?("organization_id") }

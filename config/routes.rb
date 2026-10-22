@@ -96,6 +96,16 @@ Rails.application.routes.draw do
   post "oauth/token", to: "oauth/tokens#create", as: :oauth_token
   post "oauth/revoke", to: "oauth/tokens#revoke", as: :oauth_revoke
 
+  # KiCad HTTP library (KicadLibrary): the organization's parts in KiCad's
+  # symbol chooser, behind the organization's KiCad token. KiCad appends the
+  # API version to the root URL; the bare paths answer too.
+  scope "kicad(/v1)", controller: :kicad_library, format: false, constraints: { id: /\d+/, category_id: /\d+/ } do
+    get "/", action: :index, as: :kicad_library
+    get "categories.json", action: :categories
+    get "parts/category/:category_id.json", action: :category_parts
+    get "parts/:id.json", action: :part
+  end
+
   # DigiKey account connection (3-legged OAuth) for the user-scoped Order API.
   get "oauth/digikey/authorize", to: "oauth/digikey#authorize", as: :oauth_digikey_authorize
   get "oauth/digikey/callback", to: "oauth/digikey#callback", as: :oauth_digikey_callback
@@ -149,6 +159,8 @@ Rails.application.routes.draw do
   resource :settings, only: %i[show update] do
     post :reassign_ipns
     get :reassign_ipns_preview
+    post :kicad_token, action: :create_kicad_token
+    delete :kicad_token, action: :destroy_kicad_token
   end
 
   # Organization backup: download the current organization, or restore an

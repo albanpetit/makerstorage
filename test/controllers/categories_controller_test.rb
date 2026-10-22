@@ -52,6 +52,18 @@ class CategoriesControllerTest < ActionDispatch::IntegrationTest
     assert_equal "RES", category.code
   end
 
+  test "update sets a KiCad symbol and rejects a malformed one" do
+    user = create_user
+    category = create_category(organization: user.organizations.first, name: "Resistors")
+
+    sign_in user
+    patch category_path(category), params: { category: { name: "Resistors", kicad_symbol: " Device:R " } }
+    assert_equal "Device:R", category.reload.kicad_symbol
+
+    patch category_path(category), params: { category: { name: "Resistors", kicad_symbol: "just-a-name" } }
+    assert_equal "Device:R", category.reload.kicad_symbol
+  end
+
   test "update rejects a parent that is a descendant" do
     user = create_user
     org = user.organizations.first

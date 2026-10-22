@@ -51,6 +51,15 @@ export interface MergeTarget {
   name: string
 }
 
+export interface KicadSettings {
+  enabled: boolean
+  token_created_at: string | null
+  token_last_used_at: string | null
+  root_url: string
+  listed_parts_count: number
+  parts_without_symbol_count: number
+}
+
 export interface SettingsPageProps {
   organization: OrganizationSettings
   merge_targets: MergeTarget[]
@@ -58,6 +67,7 @@ export interface SettingsPageProps {
   ipn_separators: string[]
   timezones: string[]
   email_notifications_available: boolean
+  kicad: KicadSettings
 }
 
 export type NotificationFrequency = 'daily' | 'weekly'

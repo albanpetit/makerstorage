@@ -49,6 +49,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_21_190000) do
     t.integer "organization_id", null: false
     t.integer "parent_id"
     t.datetime "updated_at", null: false
+    t.string "kicad_symbol"
     t.index "organization_id, LOWER(name)", name: "index_categories_on_organization_id_and_lower_name", unique: true
     t.index ["organization_id", "code"], name: "index_categories_on_organization_id_and_code"
     t.index ["organization_id"], name: "index_categories_on_organization_id"
@@ -62,6 +63,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_21_190000) do
     t.string "name", null: false
     t.integer "organization_id", null: false
     t.datetime "updated_at", null: false
+    t.string "kicad_footprint"
     t.index ["mounting_type"], name: "index_footprints_on_mounting_type"
     t.index ["organization_id", "name"], name: "index_footprints_on_organization_id_and_name", unique: true
     t.index ["organization_id"], name: "index_footprints_on_organization_id"
@@ -195,8 +197,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_21_190000) do
     t.date "notifications_sent_on"
     t.boolean "stock_reservations_enabled", default: true, null: false
     t.boolean "lcsc_enabled", default: false, null: false
+    t.string "kicad_token_digest"
+    t.datetime "kicad_token_created_at"
+    t.datetime "kicad_token_last_used_at"
     t.string "github_token"
     t.index ["email"], name: "index_organizations_on_email"
+    t.index ["kicad_token_digest"], name: "index_organizations_on_kicad_token_digest", unique: true
     t.index ["name"], name: "index_organizations_on_name"
   end
 
@@ -267,6 +273,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_21_190000) do
     t.string "ipn"
     t.integer "bag_id"
     t.datetime "bag_assigned_at"
+    t.string "kicad_symbol"
+    t.string "kicad_footprint"
     t.index ["bag_id"], name: "index_parts_on_bag_id", unique: true, where: "bag_id IS NOT NULL"
     t.index ["category_id"], name: "index_parts_on_category_id"
     t.index ["footprint_id"], name: "index_parts_on_footprint_id"
