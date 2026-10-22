@@ -84,6 +84,42 @@ export function InventorySection({ form }: { form: InventoryForm }) {
             />
           </div>
         </CardContent>
+        <CardContent className="divide-y border-t pt-4">
+          <div className="flex items-center justify-between gap-4 py-3 first:pt-0">
+            <div>
+              <div className="text-sm font-medium">{t('Consumption period (days)')}</div>
+              <div className="text-xs text-muted-foreground">{t('Stock-outs over this period give each component\'s usage rate.')}</div>
+            </div>
+            <Input
+              type="number"
+              min={14}
+              max={3650}
+              className="w-28 text-center font-mono"
+              value={form.data.organization.consumption_window_days}
+              onChange={(e) => form.setData('organization', {
+                ...form.data.organization,
+                consumption_window_days: Number(e.target.value) || 0,
+              })}
+            />
+          </div>
+          <div className="flex items-center justify-between gap-4 py-3 last:pb-0">
+            <div>
+              <div className="text-sm font-medium">{t('Days covered by a threshold')}</div>
+              <div className="text-xs text-muted-foreground">{t('Suggested thresholds hold this many days of use, or the supplier lead time plus a week when longer.')}</div>
+            </div>
+            <Input
+              type="number"
+              min={1}
+              max={3650}
+              className="w-28 text-center font-mono"
+              value={form.data.organization.threshold_cover_days}
+              onChange={(e) => form.setData('organization', {
+                ...form.data.organization,
+                threshold_cover_days: Number(e.target.value) || 0,
+              })}
+            />
+          </div>
+        </CardContent>
         <CardFooter className="justify-end border-t">
           <Button type="submit" disabled={form.processing}>{t('Save')}</Button>
         </CardFooter>

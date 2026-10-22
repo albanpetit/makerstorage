@@ -285,6 +285,18 @@ class SettingsControllerTest < ActionDispatch::IntegrationTest
     assert_equal 10, org.reload.default_loan_days
   end
 
+  test "update sets the consumption period and the days a threshold covers" do
+    user = create_user
+    org = user.organizations.first
+    sign_in user
+
+    patch settings_path, params: { organization: { consumption_window_days: 180, threshold_cover_days: 21 } }
+    assert_equal [ 180, 21 ], [ org.reload.consumption_window_days, org.threshold_cover_days ]
+
+    patch settings_path, params: { organization: { consumption_window_days: 3, threshold_cover_days: 0 } }
+    assert_equal [ 180, 21 ], [ org.reload.consumption_window_days, org.threshold_cover_days ]
+  end
+
   test "update rejects an unknown notification frequency" do
     user = create_user
     org = user.organizations.first

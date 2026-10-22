@@ -30,6 +30,17 @@ class OrganizationTest < ActiveSupport::TestCase
     assert_includes org.errors[:ipn_separator], "is not included in the list"
   end
 
+  test "bounds the consumption period and the days a threshold covers" do
+    org = create_organization
+    assert_equal [ 90, 30 ], [ org.consumption_window_days, org.threshold_cover_days ]
+
+    org.consumption_window_days = 13
+    org.threshold_cover_days = 0
+    assert_not org.valid?
+    assert org.errors[:consumption_window_days].any?
+    assert org.errors[:threshold_cover_days].any?
+  end
+
   test "rejects ipn_digits outside 3..8" do
     org = create_organization
     org.ipn_digits = 2

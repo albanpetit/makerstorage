@@ -38,6 +38,8 @@ export interface OrganizationSettings {
   notification_frequency: NotificationFrequency
   stock_reservations_enabled: boolean
   default_loan_days: number
+  consumption_window_days: number
+  threshold_cover_days: number
   mouser_api_key_present: boolean
   mouser_order_api_key_present: boolean
   digikey_configured: boolean
@@ -141,6 +143,8 @@ export interface InventoryFormData {
     allow_negative_stock: boolean
     stock_reservations_enabled: boolean
     default_loan_days: number
+    consumption_window_days: number
+    threshold_cover_days: number
   }
 }
 

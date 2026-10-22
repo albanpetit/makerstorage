@@ -1,6 +1,6 @@
-import { Head, router } from '@inertiajs/react'
+import { Head, Link, router } from '@inertiajs/react'
 import { useMemo, useState } from 'react'
-import { AlertTriangle, CheckCircle2, FileText, Printer } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, FileText, Gauge, Printer } from 'lucide-react'
 
 import { AppLayout } from '@/layouts/app-layout'
 import { html, printDocument } from '@/lib/print-document'
@@ -170,6 +170,12 @@ export default function AlertsIndex({ alerts, orders }: AlertsPageProps) {
     <AppLayout
       header={
         <PageHeader title={t('Alerts')} subtitle={t('References under their minimum threshold to restock')}>
+          <Button variant="outline" size="sm" asChild>
+            <Link href="/alerts/thresholds">
+              <Gauge className="size-4" />
+              {t('Suggested thresholds')}
+            </Link>
+          </Button>
           {canWrite && groups.length > 0 && (
             <Button size="sm" onClick={() => setPoOpen(true)}>
               <FileText className="size-4" />

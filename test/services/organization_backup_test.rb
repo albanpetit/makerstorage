@@ -7,7 +7,8 @@ class OrganizationBackupTest < ActiveSupport::TestCase
                                allow_negative_stock: false, stock_reservations_enabled: false,
                                mouser_api_key: "secret-mouser-key",
                                notify_late_orders: false, notification_frequency: "weekly", notifications_sent_on: Date.current,
-                               notify_overdue_loans: false, default_loan_days: 21)
+                               notify_overdue_loans: false, default_loan_days: 21,
+                               consumption_window_days: 120, threshold_cover_days: 45)
     @org.organization_memberships.create!(user: @owner, role: "owner")
     @org.logo.attach(io: file_fixture("logo.png").open, filename: "logo.png", content_type: "image/png")
 
@@ -125,6 +126,7 @@ class OrganizationBackupTest < ActiveSupport::TestCase
 
     assert_not org.notify_overdue_loans
     assert_equal 21, org.default_loan_days
+    assert_equal [ 120, 45 ], [ org.consumption_window_days, org.threshold_cover_days ]
     loan = org.loans.find_by!(reference: @loan.reference)
     assert_equal [ "Ada", nil, nil, Date.new(2026, 11, 2) ], [ loan.borrower_name, loan.borrower_id, loan.lent_by_id, loan.due_on ]
     line = loan.loan_lines.sole

@@ -528,6 +528,13 @@ en:
       tag_created: Tag "%{tag_name}" created.
       tag_deleted_successfully: Tag deleted successfully.
       tag_updated_successfully: Tag updated successfully.
+    threshold_suggestions:
+      applied:
+        one: Threshold updated on %{count} component.
+        other: Thresholds updated on %{count} components.
+        zero: No threshold changed.
+      not_applied: 'No threshold was changed: %{errors}.'
+      select_a_part: Select at least one component.
     users_confirmations:
       that_confirmation_link_is_invalid_or: That confirmation link is invalid or has expired. Sign in and request a new one from your profile.
       too_many_confirmation_emails_requested_please: Too many confirmation emails requested. Please wait a few minutes and try again.

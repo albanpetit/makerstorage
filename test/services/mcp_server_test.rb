@@ -97,6 +97,7 @@ class McpServerTest < ActiveSupport::TestCase
     assert_equal "2026-11-01", data[:open_orders].sole[:expected_delivery]
     assert_equal [ { project_id: project.id, project: "Clock", reference: nil, quantity: 12 } ], data[:reserved_by]
     assert_equal "Clock", data[:used_in_projects].sole[:name]
+    assert_equal({ period_days: 90, used: 0, per_month: 0, days_of_stock_left: nil, suggested_min_stock_threshold: nil }, data[:consumption])
 
     assert_equal @r10k.id, call("get_part", "id" => @r10k.id)[:id]
     assert_raises_tool_error { call("get_part", {}) }

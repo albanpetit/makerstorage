@@ -101,6 +101,7 @@ class PartsController < ApplicationController
           movements: movements.map { |movement| serialize_part_movement(movement) },
           reservations: serialize_part_reservations(@part),
           loans: serialize_part_loans(@part),
+          consumption: serialize_part_consumption(@part),
           storage_locations: serialize_storage_locations,
           categories: serialize_categories,
           footprints: serialize_footprints,
@@ -829,6 +830,25 @@ class PartsController < ApplicationController
         { loan_id: loan.id, reference: loan.reference, borrower_name: loan.borrower_name,
           quantity: lines.sum(&:outstanding_quantity), due_on: loan.due_on&.iso8601, overdue: loan.overdue?(today) }
       end
+  end
+
+  # Usage over the organization's window and the threshold it suggests
+  # (PartConsumption), plus the last months for the sparkline.
+  def serialize_part_consumption(part)
+    consumption = PartConsumption.new(current_organization)
+    entry = consumption.for_part(part)
+
+    {
+      window_days: consumption.window_days,
+      consumed: entry&.consumed || 0,
+      movements: entry&.movements || 0,
+      monthly_rate: entry ? entry.monthly_rate.round(1) : 0,
+      days_left: entry&.days_left(part.total_quantity),
+      cover_days: entry&.cover_days,
+      suggested_threshold: entry&.suggested_threshold,
+      last_used_at: entry&.last_used_at&.iso8601,
+      months: consumption.monthly(part)
+    }
   end
 
   def serialize_part_full(part)
