@@ -25,6 +25,8 @@ class Organization < ApplicationRecord
   has_many :parts, dependent: :destroy
   has_many :storage_locations, dependent: :destroy
   has_many :categories, dependent: :destroy
+  # After parts and categories, whose parameters and templates point at them.
+  has_many :parameter_definitions, dependent: :destroy
   has_many :footprints, dependent: :destroy
   has_many :tags, dependent: :destroy
   has_many :suppliers, dependent: :destroy
@@ -85,10 +87,10 @@ class Organization < ApplicationRecord
   # Methods - Reset
   #
   # The inventory associations a reset clears, in the destroy order above.
-  DATA_ASSOCIATIONS = %i[stock_movements projects orders parts storage_locations categories footprints tags suppliers].freeze
+  DATA_ASSOCIATIONS = %i[stock_movements projects orders parts storage_locations categories parameter_definitions footprints tags suppliers].freeze
 
   # Deletes every inventory record (movements, projects, orders, parts, zones,
-  # categories, footprints, tags, suppliers) and keeps the organization itself:
+  # categories, parameters, footprints, tags, suppliers) and keeps the organization itself:
   # its settings, integrations, logo and members. The IPN counter starts over
   # and the catalog suppliers are seeded again, as for a new organization.
   # Returns the number of parts removed.

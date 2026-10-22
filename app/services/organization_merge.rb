@@ -11,6 +11,10 @@
 #   categories   same name (any case) as a target category: the target's is
 #                kept and the source's parts and sub-categories move under it;
 #                a code already used in the target is cleared
+#   parameters   same name (any case), type and unit: the target's is kept,
+#                with the source's part values and category templates (a part
+#                or category that has both keeps the target's); same name but
+#                another type or unit: moved and renamed ("Gain (2)")
 #   footprints   same name: the target's is kept
 #   tags         same name: the target's is kept
 #   suppliers    same catalog provider (Mouser, DigiKey) or same name (any
@@ -51,11 +55,19 @@ class OrganizationMerge
       source.lock!
 
       category_ids = merge_categories
+      parameter_ids = merge_parameter_definitions
       footprint_ids = merge_by_name(Footprint)
       tag_ids = merge_by_name(Tag)
       supplier_ids = merge_suppliers
 
-      category_ids.each { |from, to| Part.where(category_id: from).update_all(category_id: to) }
+      parameter_ids.each do |from, to|
+        repoint_links(CategoryParameter, :parameter_definition_id, from, to, :category_id)
+        repoint_links(PartParameter, :parameter_definition_id, from, to, :part_id)
+      end
+      category_ids.each do |from, to|
+        Part.where(category_id: from).update_all(category_id: to)
+        repoint_links(CategoryParameter, :category_id, from, to, :parameter_definition_id)
+      end
       footprint_ids.each do |from, to|
         Part.where(footprint_id: from).update_all(footprint_id: to)
         move_attachments("Footprint", from, to, "image")
@@ -113,6 +125,34 @@ class OrganizationMerge
 
     merged.each do |from, to|
       Category.where(parent_id: from, organization_id: target.id).update_all(parent_id: to)
+    end
+    merged
+  end
+
+  # Moves the source parameters with no namesake in the target, renaming
+  # those whose namesake has another type or unit, and returns the others as
+  # source id => target id.
+  def merge_parameter_definitions
+    existing = target.parameter_definitions.pluck(:name, :id, :value_type, :unit)
+      .to_h { |name, id, type, unit| [ name.downcase, [ id, type, unit ] ] }
+    taken = existing.keys.to_set
+    merged = {}
+
+    source.parameter_definitions.order(:id).pluck(:id, :name, :value_type, :unit).each do |id, name, type, unit|
+      match_id, match_type, match_unit = existing[name.downcase]
+      if match_id && match_type == type && match_unit.to_s == unit.to_s
+        merged[id] = match_id
+        next
+      end
+
+      updates = { organization_id: target.id }
+      if taken.include?(name.downcase)
+        suffix = 2
+        suffix += 1 while taken.include?("#{name} (#{suffix})".downcase)
+        updates[:name] = "#{name} (#{suffix})"
+      end
+      taken << (updates[:name] || name).downcase
+      ParameterDefinition.where(id: id).update_all(updates)
     end
     merged
   end
@@ -277,6 +317,7 @@ class OrganizationMerge
     OrderLine.where(part_id: from).update_all(part_id: to)
     ProjectLine.where(part_id: from).update_all(part_id: to)
     repoint_links(PartTag, :part_id, from, to, :tag_id)
+    repoint_links(PartParameter, :part_id, from, to, :parameter_definition_id)
     PartSupplier.where(part_id: from).update_all(is_preferred: false) if PartSupplier.exists?(part_id: to, is_preferred: true)
     repoint_links(PartSupplier, :part_id, from, to, :supplier_id)
     move_attachments("Part", from, to, "images")

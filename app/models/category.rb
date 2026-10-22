@@ -4,6 +4,9 @@ class Category < ApplicationRecord
   belongs_to :parent, class_name: "Category", optional: true
   has_many :children, class_name: "Category", foreign_key: :parent_id, dependent: :destroy
   has_many :parts, dependent: :restrict_with_error
+  # Its parameter template (see #parameter_template_ids).
+  has_many :category_parameters, -> { order(:position, :id) }, dependent: :destroy, autosave: true, inverse_of: :category
+  has_many :parameter_definitions, through: :category_parameters
 
   # Validations
   validates :name, presence: true, length: { minimum: 2, maximum: 100 }
@@ -69,6 +72,43 @@ class Category < ApplicationRecord
   # disappear if this one were destroyed (children cascade-delete).
   def self_and_descendant_ids
     [ id ] + descendants.map(&:id)
+  end
+
+  # Sets the category's own template to the parameter ids given, in that
+  # order. Saved with the category.
+  def parameter_template=(ids)
+    ids = Array(ids).map(&:to_i).uniq
+    existing = category_parameters.index_by(&:parameter_definition_id)
+    existing.each { |id, link| link.mark_for_destruction unless ids.include?(id) }
+    ids.each_with_index do |id, index|
+      link = existing[id] || category_parameters.build(parameter_definition_id: id)
+      link.position = index
+    end
+  end
+
+  # The parameters the part form proposes for this category: its ancestors'
+  # template first (root down), then its own, each parameter once.
+  def parameter_template_ids
+    self.class.parameter_templates(organization)[id] || []
+  end
+
+  # category id => template parameter ids (inherited, as above) for every
+  # category of +organization+, in two queries.
+  def self.parameter_templates(organization)
+    parents = organization.categories.pluck(:id, :parent_id).to_h
+    own = CategoryParameter.joins(:category).where(categories: { organization_id: organization.id })
+      .order(:position, :id).pluck(:category_id, :parameter_definition_id)
+      .group_by(&:first).transform_values { |pairs| pairs.map(&:last) }
+
+    parents.keys.to_h do |category_id|
+      chain = []
+      current = category_id
+      while current && chain.exclude?(current)
+        chain.unshift(current)
+        current = parents[current]
+      end
+      [ category_id, chain.flat_map { |id| own.fetch(id, []) }.uniq ]
+    end
   end
 
   private

@@ -22,6 +22,7 @@ import {
   EMPTY_PART,
   Footprint,
   lookupResultPatch,
+  partPayload,
   StorageLocationOption,
   Supplier,
   Tag,
@@ -126,7 +127,7 @@ export function AddPartDialog({
     image_url: attach.image_url,
     ...(activePrefill ? { return_to: 'scan' } : {}),
     part: {
-      ...payload.part,
+      ...partPayload(payload.part),
       ...(imageFile ? { images: [imageFile] } : {}),
       part_suppliers_attributes: suppliersController.suppliersAttributes(),
     },

@@ -69,6 +69,11 @@ Rails.application.routes.draw do
 
   resources :tags, only: %i[index create update destroy]
 
+  # Technical parameters (Resistance, Tolerance…) and their category templates.
+  resources :parameter_definitions, path: "parameters", only: %i[index create update destroy] do
+    post :standard, on: :collection
+  end
+
   resources :storage_locations, only: %i[index create update destroy] do
     post :move_stock, on: :collection
     post :add_bags, on: :member

@@ -74,6 +74,7 @@ interface PartDetail {
   footprint: { id: number; name: string } | null
   tags: { id: number; name: string; color: string | null }[]
   part_suppliers: PartSupplierEntry[]
+  parameters: { id: number; name: string; value: string; display: string }[]
 }
 
 interface StorageEntry {
@@ -295,9 +296,12 @@ export function PartDetailSheet({
   if (part) {
     if (part.manufacturer) specs.push(['Manufacturer', part.manufacturer])
     if (part.value) specs.push(['Value', part.value])
-    if (part.tolerance) specs.push(['Tolerance', part.tolerance])
-    if (part.voltage_rating) specs.push(['Voltage rating', part.voltage_rating])
-    if (part.power_rating) specs.push(['Power rating', part.power_rating])
+    // Parameters, then the older fields a parameter doesn't already show.
+    part.parameters.forEach((parameter) => specs.push([parameter.name, parameter.display]))
+    const named = new Set(part.parameters.map((parameter) => parameter.name.toLowerCase()))
+    if (part.tolerance && !named.has('tolerance')) specs.push(['Tolerance', part.tolerance])
+    if (part.voltage_rating && !named.has('voltage rating')) specs.push(['Voltage rating', part.voltage_rating])
+    if (part.power_rating && !named.has('power rating')) specs.push(['Power rating', part.power_rating])
     if (part.package_type) specs.push(['Package', part.package_type])
     if (part.footprint) specs.push(['Footprint', part.footprint.name])
     if (part.barcode) specs.push(['Barcode', part.barcode])

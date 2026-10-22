@@ -243,6 +243,23 @@ class OrganizationBackupTest < ActiveSupport::TestCase
     assert_not result.organization.parts.first.images.attached?
   end
 
+  test "parameters, category templates and part values come back" do
+    resistance = @org.parameter_definitions.create!(name: "Resistance", unit: "Ω", description: "Nominal")
+    dielectric = @org.parameter_definitions.create!(name: "Dielectric", value_type: "text")
+    @category.update!(parameter_template: [ resistance.id ])
+    @part.update!(parameter_values: { resistance.id => "10k", dielectric.id => "n/a" })
+
+    org = restore(export_zip(@org)).organization
+
+    restored = org.parameter_definitions.find_by!(name: "Resistance")
+    assert_equal [ "Ω", "number", "Nominal" ], [ restored.unit, restored.value_type, restored.description ]
+    assert_equal [ restored.id ], org.categories.find_by!(name: "Resistors").parameter_template_ids
+    part = org.parts.find_by!(mpn: "RC0603-10K")
+    assert_equal({ "Resistance" => [ "10k", 10_000.0 ], "Dielectric" => [ "n/a", nil ] },
+                 part.part_parameters.includes(:parameter_definition).to_h { |p| [ p.name, [ p.value, p.numeric_value ] ] })
+    assert_equal [ org.id ], ParameterDefinition.where(id: part.part_parameters.select(:parameter_definition_id)).distinct.pluck(:organization_id)
+  end
+
   private
 
   def export_zip(organization)

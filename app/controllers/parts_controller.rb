@@ -42,6 +42,8 @@ class PartsController < ApplicationController
       filters: query.filters,
       pagination: query.pagination,
       facets: query.facets,
+      # Parameters shown as columns: the selected category's template.
+      parameter_columns: query.parameter_columns,
       total_count: query.total_count,
       total_units: query.total_units,
       # Every matching id, so "select all matching" and the "hidden by filters"
@@ -703,6 +705,8 @@ class PartsController < ApplicationController
       :kicad_symbol, :kicad_footprint,
       images: [],
       tag_ids: [],
+      # Parameter definition id => value ("" removes it).
+      parameter_values: {},
       part_suppliers_attributes: [
         :id, :supplier_id, :supplier_sku, :unit_price, :lead_time_days,
         :url, :is_preferred, :notes, :_destroy
@@ -712,6 +716,12 @@ class PartsController < ApplicationController
     # foreign tag then fails PartTag's validation as an exception (a 500). Keep
     # only this organization's tags.
     permitted[:tag_ids] = current_organization.tags.where(id: permitted[:tag_ids]).pluck(:id) if permitted.key?(:tag_ids)
+    # Same for parameters: drop ids that aren't this organization's.
+    if permitted.key?(:parameter_values)
+      values = permitted[:parameter_values].to_h
+      owned = current_organization.parameter_definitions.where(id: values.keys.map(&:to_i)).pluck(:id).to_set
+      permitted[:parameter_values] = values.select { |id, _| owned.include?(id.to_i) }
+    end
     # In box & bag mode the IPN is the bag's code: pick the bag, not the IPN.
     # Other modes don't use bags at all.
     if box_bag_mode?
@@ -744,7 +754,8 @@ class PartsController < ApplicationController
   # the order given, with the associations serialize_part reads preloaded.
   def serialize_parts_in_order(ids)
     parts = current_organization.parts.where(id: ids)
-      .includes(:category, :footprint, :tags, :part_storages, :storage_locations, part_suppliers: :supplier)
+      .includes(:category, :footprint, :tags, :part_storages, :storage_locations, part_suppliers: :supplier,
+                part_parameters: :parameter_definition)
       .with_attached_images
       .index_by(&:id)
     ids.filter_map { |id| parts[id] }.map { |part| serialize_part(part) }
@@ -779,8 +790,15 @@ class PartsController < ApplicationController
       location_names: part.storage_locations.map(&:name),
       supplier_name: part.part_suppliers.find(&:is_preferred)&.supplier&.name,
       category: part.category ? { id: part.category.id, name: part.category.name, color: part.category.color } : nil,
-      footprint: part.footprint ? { id: part.footprint.id, name: part.footprint.name } : nil
+      footprint: part.footprint ? { id: part.footprint.id, name: part.footprint.name } : nil,
+      parameters: serialize_part_parameters(part)
     }
+  end
+
+  def serialize_part_parameters(part)
+    part.part_parameters.sort_by { |parameter| parameter.name.downcase }.map do |parameter|
+      { id: parameter.parameter_definition_id, name: parameter.name, value: parameter.value, display: parameter.display_value }
+    end
   end
 
   # Confirmed projects holding this part (empty when reservations are off).
