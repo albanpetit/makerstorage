@@ -80,6 +80,21 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_21_190000) do
     t.index ["organization_id"], name: "index_footprints_on_organization_id"
   end
 
+  create_table "label_printers", force: :cascade do |t|
+    t.integer "organization_id", null: false
+    t.string "name", null: false
+    t.string "protocol", null: false
+    t.string "host", null: false
+    t.integer "port", default: 9100, null: false
+    t.string "media"
+    t.decimal "width_mm", precision: 6, scale: 1
+    t.decimal "length_mm", precision: 6, scale: 1
+    t.integer "dpi"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["organization_id"], name: "index_label_printers_on_organization_id"
+  end
+
   create_table "loan_lines", force: :cascade do |t|
     t.integer "loan_id", null: false
     t.integer "part_id", null: false
@@ -548,6 +563,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_21_190000) do
   add_foreign_key "category_parameters", "categories"
   add_foreign_key "category_parameters", "parameter_definitions"
   add_foreign_key "footprints", "organizations"
+  add_foreign_key "label_printers", "organizations"
   add_foreign_key "loan_lines", "loans"
   add_foreign_key "loan_lines", "parts"
   add_foreign_key "loan_lines", "storage_locations"

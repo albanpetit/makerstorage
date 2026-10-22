@@ -156,6 +156,11 @@ class PartsController < ApplicationController
 
     if saved
       attach_remote_datasheet(part)
+      # What the add-part dialog needs to print the new part's label.
+      flash[:created_part] = {
+        id: part.id, name: part.name, ipn: part.ipn, mpn: part.mpn, sku: part.sku, barcode: part.barcode,
+        location_names: part.storage_locations.reload.map(&:name)
+      }
       # Created from a scanned supplier label: back to the scanner, on the new
       # part, ready for the next bag.
       if params[:return_to] == "scan"

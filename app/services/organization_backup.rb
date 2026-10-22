@@ -109,7 +109,8 @@ module OrganizationBackup
           excluded: %w[counted_by_id]),
     table("loans", Loan, ->(org) { org.loans }, excluded: %w[borrower_id lent_by_id]),
     table("loan_lines", LoanLine, ->(org) { LoanLine.where(loan_id: org.loans.select(:id)) },
-          references: { "loan_id" => "loans", "part_id" => "parts", "storage_location_id" => "storage_locations" })
+          references: { "loan_id" => "loans", "part_id" => "parts", "storage_location_id" => "storage_locations" }),
+    table("label_printers", LabelPrinter, ->(org) { org.label_printers }, enums: { "protocol" => LabelPrinter::PROTOCOLS })
   ].freeze
 
   TABLES_BY_NAME = TABLES.index_by(&:name).freeze

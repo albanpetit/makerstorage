@@ -33,6 +33,8 @@ class Organization < ApplicationRecord
   has_many :footprints, dependent: :destroy
   has_many :tags, dependent: :destroy
   has_many :suppliers, dependent: :destroy
+  # Settings rather than inventory: kept by a reset, not carried by a merge.
+  has_many :label_printers, dependent: :destroy
 
   # Active Storage
   has_one_attached :logo

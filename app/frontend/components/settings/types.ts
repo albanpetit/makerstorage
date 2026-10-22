@@ -1,5 +1,7 @@
 import type { InertiaFormProps } from '@inertiajs/react'
 
+import type { LabelGeometry } from '@/lib/label-bitmap'
+
 // Prop and form shapes for the Settings page (SettingsController#show).
 
 export interface IpnPreview {
@@ -62,9 +64,36 @@ export interface KicadSettings {
   parts_without_symbol_count: number
 }
 
+export type LabelPrinterProtocol = 'brother_ql' | 'zpl'
+
+// What a printer's settings row and its test print need.
+export interface LabelPrinterSettings extends LabelGeometry {
+  id: number
+  name: string
+  protocol: LabelPrinterProtocol
+  host: string
+  port: number
+  media: string | null
+  width_mm: number | null
+  length_mm: number | null
+  dpi: number | null
+  // "62 × 29 mm"
+  size: string
+}
+
+// A Brother DK roll (LabelPrinting::BrotherQl::MEDIA).
+export interface LabelPrinterMedia {
+  id: string
+  name: string
+  continuous: boolean
+}
+
 export interface SettingsPageProps {
   organization: OrganizationSettings
   merge_targets: MergeTarget[]
+  label_printers: LabelPrinterSettings[]
+  label_printer_media: LabelPrinterMedia[]
+  network_printing_enabled: boolean
   currencies: string[]
   ipn_separators: string[]
   timezones: string[]

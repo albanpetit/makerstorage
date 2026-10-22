@@ -18,7 +18,10 @@ class SettingsController < ApplicationController
       email_notifications_available: NotificationDigest.available?,
       # Danger zone: the other organizations this one can be merged into.
       merge_targets: merge_targets,
-      kicad: serialize_kicad_settings
+      kicad: serialize_kicad_settings,
+      label_printers: current_organization.label_printers.alphabetical.map { |printer| serialize_label_printer(printer) },
+      label_printer_media: LabelPrinting::BrotherQl::MEDIA.map { |key, media| { id: key, name: media.name, continuous: media.continuous? } },
+      network_printing_enabled: LabelPrinting::Network.enabled?
     }
   end
 
@@ -103,6 +106,12 @@ class SettingsController < ApplicationController
       listed_parts_count: coverage[:listed],
       parts_without_symbol_count: coverage[:without_symbol]
     }
+  end
+
+  def serialize_label_printer(printer)
+    printer.slice(:id, :name, :protocol, :host, :port, :media, :dpi).merge(
+      width_mm: printer.width_mm&.to_f, length_mm: printer.length_mm&.to_f, size: printer.size_label, **printer.geometry
+    )
   end
 
   def merge_targets

@@ -1,6 +1,6 @@
 import { Head, useForm } from '@inertiajs/react'
 import { useMemo, useState } from 'react'
-import { Bell, Building2, CircuitBoard, DatabaseBackup, Hash, Package, ShieldAlert, Plug } from 'lucide-react'
+import { Bell, Building2, CircuitBoard, DatabaseBackup, Hash, Package, Printer, ShieldAlert, Plug } from 'lucide-react'
 
 import { AppLayout } from '@/layouts/app-layout'
 import { PageHeader } from '@/components/page-header'
@@ -15,6 +15,7 @@ import { InventorySection } from '@/components/settings/inventory-section'
 import { KicadSection } from '@/components/settings/kicad-section'
 import { IpnSection } from '@/components/settings/ipn-section'
 import { NotificationsSection } from '@/components/settings/notifications-section'
+import { PrintersSection } from '@/components/settings/printers-section'
 import type {
   GeneralFormData, IntegrationsFormData, InventoryFormData, IpnFormData, NotificationsFormData, SettingsPageProps,
 } from '@/components/settings/types'
@@ -26,17 +27,25 @@ const SECTIONS = [
   { key: 'notifications', label: 'Notifications', icon: Bell },
   { key: 'integrations', label: 'Integrations', icon: Plug },
   { key: 'kicad', label: 'KiCad library', icon: CircuitBoard },
+  { key: 'printers', label: 'Label printers', icon: Printer },
   { key: 'backup', label: 'Backup', icon: DatabaseBackup },
   { key: 'danger', label: 'Danger zone', icon: ShieldAlert },
 ] as const
 
 type SectionKey = (typeof SECTIONS)[number]['key']
 
+// ?section=printers opens that section (e.g. after adding a printer).
+function initialSection(): SectionKey {
+  const requested = new URLSearchParams(window.location.search).get('section')
+  return SECTIONS.find((s) => s.key === requested)?.key ?? 'general'
+}
+
 export default function SettingsIndex({
   organization, merge_targets, currencies, ipn_separators, timezones, email_notifications_available, kicad,
+  label_printers, label_printer_media, network_printing_enabled,
 }: SettingsPageProps) {
   const { isOwner } = usePermissions()
-  const [section, setSection] = useState<SectionKey>('general')
+  const [section, setSection] = useState<SectionKey>(initialSection)
 
   const sections = useMemo(() => SECTIONS.filter((s) => s.key !== 'danger' || isOwner), [isOwner])
 
@@ -153,6 +162,9 @@ export default function SettingsIndex({
             {section === 'integrations' && <IntegrationsSection form={integrationsForm} organization={organization} />}
 
             {section === 'kicad' && <KicadSection kicad={kicad} />}
+            {section === 'printers' && (
+              <PrintersSection printers={label_printers} media={label_printer_media} enabled={network_printing_enabled} />
+            )}
 
             {section === 'backup' && <BackupSection organization={organization} />}
 
