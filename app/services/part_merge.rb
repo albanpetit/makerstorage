@@ -174,17 +174,23 @@ class PartMerge
     ActiveRecord::Base.transaction do
       organization.lock!
       keep.reload
-      fill_details
+      merged_labels = duplicates.map { |duplicate| ActivityEvent.label_for(duplicate) }
 
-      duplicates.each do |duplicate|
-        duplicate.reload
-        bag = duplicate.bag
-        duplicate.update_columns(bag_id: nil, bag_assigned_at: nil, ipn: nil)
-        self.class.fold(duplicate.id, keep.id).each { |key, count| totals[key] += count }
-        take_bag(bag) if bag
-        duplicate.reload.destroy!
+      # One "merge" event rather than an update and a deletion per part.
+      ActivityEvent.without_recording do
+        fill_details
+
+        duplicates.each do |duplicate|
+          duplicate.reload
+          bag = duplicate.bag
+          duplicate.update_columns(bag_id: nil, bag_assigned_at: nil, ipn: nil)
+          self.class.fold(duplicate.id, keep.id).each { |key, count| totals[key] += count }
+          take_bag(bag) if bag
+          duplicate.reload.destroy!
+        end
+        keep.sync_unit_price_from_preferred!
       end
-      keep.sync_unit_price_from_preferred!
+      ActivityEvent.record!(organization, "merge", keep, details: { "merged" => merged_labels })
     end
 
     Result.new(kept: keep.reload, merged_count: duplicates.size, **%i[stock_rows movements order_lines project_lines].to_h { |key| [ key, totals[key] ] })

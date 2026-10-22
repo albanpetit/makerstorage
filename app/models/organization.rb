@@ -1,4 +1,12 @@
 class Organization < ApplicationRecord
+  # Activity log (Auditable): settings changes. Secrets are logged as
+  # "changed"; tokens refreshed or stamped behind the user's back are ignored.
+  audited on: %i[update],
+    ignore: %i[ipn_next_sequence notifications_sent_on digikey_access_token digikey_refresh_token
+               digikey_token_expires_at kicad_token_created_at kicad_token_last_used_at],
+    secret: %i[mouser_api_key mouser_order_api_key digikey_client_id digikey_client_secret
+               kicad_token_digest github_token]
+
   # Set before the dependent-destroy cascade runs so a membership's last-owner
   # guard can tell "the whole org is going away" apart from "someone is removing
   # the sole owner", and allow the former. `prepend` puts it ahead of the
@@ -35,6 +43,9 @@ class Organization < ApplicationRecord
   has_many :suppliers, dependent: :destroy
   # Settings rather than inventory: kept by a reset, not carried by a merge.
   has_many :label_printers, dependent: :destroy
+  # Last: deleting an organization writes no events (see #destroy), but this
+  # clears any the cascade above would leave behind.
+  has_many :activity_events, dependent: :delete_all
 
   # Active Storage
   has_one_attached :logo
@@ -90,6 +101,11 @@ class Organization < ApplicationRecord
   scope :alphabetical, -> { order(:name) }
   scope :recent, -> { order(created_at: :desc) }
 
+  # Deleting the organization isn't logged, nor is the cascade of records it takes.
+  def destroy
+    ActivityEvent.without_recording { super }
+  end
+
   # Methods - Reset
   #
   # The inventory associations a reset clears, in the destroy order above.
@@ -99,21 +115,25 @@ class Organization < ApplicationRecord
   # categories, parameters, footprints, tags, suppliers) and keeps the organization itself:
   # its settings, integrations, logo and members. The IPN counter starts over
   # and the catalog suppliers are seeded again, as for a new organization.
-  # Returns the number of parts removed.
+  # Returns the number of parts removed. Logged as one "reset" event, not one
+  # per record deleted.
   def reset_data!
     transaction do
       lock!
       parts_count = parts.count
 
-      DATA_ASSOCIATIONS.each do |name|
-        scope = public_send(name).reset
-        # Trees go from their roots: destroying a parent takes its children with it.
-        scope = scope.where(parent_id: nil) if name.in?(%i[storage_locations categories])
-        scope.find_each { |record| record.destroy! }
-      end
+      ActivityEvent.without_recording do
+        DATA_ASSOCIATIONS.each do |name|
+          scope = public_send(name).reset
+          # Trees go from their roots: destroying a parent takes its children with it.
+          scope = scope.where(parent_id: nil) if name.in?(%i[storage_locations categories])
+          scope.find_each { |record| record.destroy! }
+        end
 
-      update_columns(ipn_next_sequence: 1, notifications_sent_on: nil)
-      seed_catalog_suppliers
+        update_columns(ipn_next_sequence: 1, notifications_sent_on: nil)
+        seed_catalog_suppliers
+      end
+      ActivityEvent.record!(self, "reset", details: { "parts" => parts_count })
       parts_count
     end
   end
@@ -163,6 +183,7 @@ class Organization < ApplicationRecord
         entry[:part].update_columns(columns)
       end
       update_column(:ipn_next_sequence, plan[:next_sequence]) if plan[:next_sequence]
+      ActivityEvent.record!(self, "update", self, details: { "ipns_reassigned" => changes.size }) if changes.any?
       changes.size
     end
   end

@@ -7,6 +7,9 @@
 # Overdue is computed from the due date and the organization's local date, never
 # stored, so extending a loan or a time zone change needs no bookkeeping.
 class Loan < ApplicationRecord
+  # Activity log (Auditable).
+  audited ignore: %i[lent_by_id borrower_id]
+
   include GeneratedReference
 
   class Error < StandardError; end
@@ -126,6 +129,10 @@ class Loan < ApplicationRecord
     settle!([ { line_id: line_id, quantity: quantity } ]) do |line, amount, _entry|
       line.lost_quantity += amount
     end
+  end
+
+  def activity_label
+    [ reference, borrower_name ].compact_blank.join(" · ")
   end
 
   private

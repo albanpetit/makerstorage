@@ -1,4 +1,7 @@
 class Part < ApplicationRecord
+  # Activity log (Auditable).
+  audited ignore: %i[bag_assigned_at]
+
   # Associations
   belongs_to :organization
   belongs_to :category
@@ -294,6 +297,10 @@ class Part < ApplicationRecord
 
       part_parameters.create(parameter_definition: definition, value: text).persisted?
     end
+  end
+
+  def activity_label
+    [ ipn, name ].compact_blank.join(" · ")
   end
 
   private
