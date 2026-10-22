@@ -285,6 +285,18 @@ class OrganizationBackupTest < ActiveSupport::TestCase
     assert_not result.organization.parts.first.images.attached?
   end
 
+  test "a part's attached files of any type come back" do
+    @part.attachments.attach(io: StringIO.new("ISO-10303-21;"), filename: "body.step")
+    @part.attachments.attach(io: StringIO.new(":100000000C9434000C"), filename: "firmware.hex")
+
+    result = restore(export_zip(@org))
+
+    part = result.organization.parts.find_by!(mpn: "RC0603-10K")
+    assert_equal %w[body.step firmware.hex], part.attachments.map { |file| file.filename.to_s }.sort
+    assert_equal "ISO-10303-21;", part.attachments.find { |file| file.filename.to_s == "body.step" }.download
+    assert_empty result.skipped_files
+  end
+
   test "parameters, category templates and part values come back" do
     resistance = @org.parameter_definitions.create!(name: "Resistance", unit: "Ω", description: "Nominal")
     dielectric = @org.parameter_definitions.create!(name: "Dielectric", value_type: "text")

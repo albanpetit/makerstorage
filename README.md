@@ -14,7 +14,7 @@ A multi-tenant inventory manager for makerspaces and fablabs, purpose-built for 
 ## Features
 
 **Inventory**
-- **Parts**: SKU / MPN / IPN / barcode, manufacturer, datasheets, images and per-supplier pricing
+- **Parts**: SKU / MPN / IPN / barcode, manufacturer, datasheets, images, attached files (app notes, 3D models, firmware…) and per-supplier pricing
 - **Classification**: hierarchical categories, reusable footprints and free-form tags
 - **Parameters & parametric search**: typed values with units ("4k7", "100nF", "3V3") and range filters, e.g. every 0603 resistor between 1 kΩ and 10 kΩ; categories carry parameter templates
 - **Duplicate finder**: spots parts sharing a part number or the same value and footprint, and merges them with their stock and history

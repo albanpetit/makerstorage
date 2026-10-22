@@ -65,6 +65,7 @@ Rails.application.routes.draw do
         post :set_preferred
       end
     end
+    resources :attachments, controller: "part_attachments", only: %i[create destroy]
   end
 
   resources :categories, only: %i[index create update destroy]

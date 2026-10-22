@@ -88,6 +88,7 @@ class McpServerTest < ActiveSupport::TestCase
     OrderLine.create!(order: order, part: @r10k, quantity: 100)
     project = create_project(organization: @org, name: "Clock", status: "confirmed", reserved_at: Time.current)
     ProjectLine.create!(project: project, part: @r10k, quantity: 12, match_type: "mpn")
+    @r10k.attachments.attach(io: StringIO.new("notes"), filename: "notes.txt")
 
     data = call("get_part", "reference" => "rc0603fr-0710kl")
     assert_equal @r10k.id, data[:id]
@@ -97,6 +98,7 @@ class McpServerTest < ActiveSupport::TestCase
     assert_equal "2026-11-01", data[:open_orders].sole[:expected_delivery]
     assert_equal [ { project_id: project.id, project: "Clock", reference: nil, quantity: 12 } ], data[:reserved_by]
     assert_equal "Clock", data[:used_in_projects].sole[:name]
+    assert_equal [ { filename: "notes.txt", content_type: "text/plain", byte_size: 5 } ], data[:files]
 
     assert_equal @r10k.id, call("get_part", "id" => @r10k.id)[:id]
     assert_raises_tool_error { call("get_part", {}) }
