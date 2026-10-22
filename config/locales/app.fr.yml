@@ -452,6 +452,7 @@ fr:
         one: '%{count} tag'
         other: '%{count} tags'
     profiles:
+      changes_allowed: "%{name} peut désormais modifier l’inventaire."
       confirm_from_the_email_we_sent: ' Confirmez %{unconfirmed_email} depuis l''e-mail que nous y avons envoyé pour vous connecter avec cette adresse.'
       enter_your_current_password_to_change: Saisissez votre mot de passe actuel pour changer d'adresse e-mail.
       failed_to_update_password: Impossible de mettre à jour le mot de passe.
@@ -459,8 +460,10 @@ fr:
       locale_updated: Langue mise à jour.
       notifications_off: Notifications par e-mail désactivées pour %{organization}.
       notifications_on: Notifications par e-mail activées pour %{organization}.
+      now_read_only: "%{name} est désormais en lecture seule."
       password_updated_successfully: Mot de passe mis à jour.
       profile_updated_successfully: Profil mis à jour.
+      viewers_can_t_allow_changes: Un lecteur ne peut pas autoriser une application à modifier l’inventaire.
     project_files:
       added:
         one: '%{count} fichier ajouté.'

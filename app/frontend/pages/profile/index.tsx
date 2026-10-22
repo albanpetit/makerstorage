@@ -42,13 +42,17 @@ interface NotificationMembership {
   email_notifications: boolean
 }
 
-// An MCP client (Claude…) the user granted read-only access to an organization.
+// An MCP client (Claude…) the user granted access to an organization:
+// read-only, or allowed to change the inventory (write).
 interface ConnectedApp {
   id: number
   name: string
   organization_name: string
   connected_at: string
   last_used_at: string | null
+  write: boolean
+  // False for a viewer of that organization: changes can't be turned on.
+  can_write: boolean
 }
 
 interface PageProps {
@@ -325,7 +329,7 @@ export default function Profile({
           <CardHeader>
             <CardTitle>{t('Claude & AI assistants')}</CardTitle>
             <CardDescription>
-              {t('Add this URL as a custom connector in Claude (or any MCP client) to ask about parts, stock and projects. You\'ll pick an organization and allow read-only access.')}
+              {t('Add this URL as a custom connector in Claude (or any MCP client) to ask about parts, stock and projects. You\'ll pick an organization, and whether the assistant may also change the inventory.')}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -349,6 +353,17 @@ export default function Profile({
                         {t('Connected on {date}', { date: new Date(app.connected_at).toLocaleDateString(intlLocale()) })}
                         {app.last_used_at && t(' · last used {date}', { date: new Date(app.last_used_at).toLocaleString(intlLocale()) })}
                       </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        id={`connected_app_write_${app.id}`}
+                        checked={app.write && app.can_write}
+                        disabled={!app.can_write}
+                        onCheckedChange={(checked) => router.patch(`/profile/connected_apps/${app.id}`, { write: checked }, { preserveScroll: true })}
+                      />
+                      <Label htmlFor={`connected_app_write_${app.id}`} className="text-sm font-normal">
+                        {app.can_write ? t('Allow changes') : t('Read-only (viewer)')}
+                      </Label>
                     </div>
                     <Button
                       variant="outline"

@@ -87,6 +87,29 @@ class OauthAuthorizationTest < ActiveSupport::TestCase
     assert_nil OauthAuthorization.authenticate(tokens[:access_token])
   end
 
+  test "writes only with the write scope and a writing role, and keeps the scope across refreshes" do
+    read_only = OauthAuthorization.find_by(code_digest: OauthAuthorization.digest(grant))
+    assert_equal "mcp:read", read_only.scope
+    assert_not read_only.can_write?
+
+    @verifier, @challenge = pkce_pair
+    code = OauthAuthorization.grant!(client: @client, user: @user, organization: @org, redirect_uri: @redirect_uri,
+                                     code_challenge: @challenge, write: true)
+    tokens = exchange(code)
+    assert_equal "mcp:read mcp:write", tokens[:scope]
+    authorization = OauthAuthorization.authenticate(tokens[:access_token])
+    assert authorization.can_write?
+
+    assert_equal "mcp:read mcp:write", OauthAuthorization.refresh!(client: @client, refresh_token: tokens[:refresh_token])[:scope]
+
+    @user.organization_memberships.find_by(organization: @org).update_column(:role, "viewer")
+    assert authorization.reload.write_scope?
+    assert_not authorization.can_write?, "a viewer's grant can't write"
+
+    authorization.allow_write!(false)
+    assert_equal "mcp:read", authorization.reload.scope
+  end
+
   test "can't be granted on an organization the user doesn't belong to" do
     assert_raises(ActiveRecord::RecordInvalid) do
       OauthAuthorization.grant!(client: @client, user: @user, organization: create_organization,
