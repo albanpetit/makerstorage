@@ -67,6 +67,7 @@ import { Label } from '@/components/ui/label'
 import { Field, FieldContent, FieldError, FieldLabel } from '@/components/ui/field'
 import logo from '/assets/logo.svg'
 import { t, tn } from '@/lib/i18n'
+import { clearOfflineData } from '@/lib/offline-scanner'
 
 const navigationItems = [
   { get title() { return t('Dashboard') }, url: '/', icon: LayoutDashboard },
@@ -349,7 +350,7 @@ export function AppSidebar() {
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
-                  <Link href="/logout" method="delete" as="button" className="w-full cursor-pointer">
+                  <Link href="/logout" method="delete" as="button" className="w-full cursor-pointer" onClick={() => void clearOfflineData()}>
                     <LogOut className="mr-2 size-4" />
                     {t('Log out')}
                   </Link>

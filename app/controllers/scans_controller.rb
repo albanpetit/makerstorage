@@ -4,7 +4,7 @@ class ScansController < ApplicationController
   include Auth
 
   before_action :verify_organization_access
-  before_action :verify_organization_writer, only: %i[create_movement receive]
+  before_action :verify_organization_writer, only: %i[create_movement receive sync]
 
   # Movements created from the scanner page carry this reason so the
   # "Recent scans" feed can be rebuilt from the ledger without a scan table.
@@ -73,6 +73,25 @@ class ScansController < ApplicationController
     else
       redirect_back_or_to scan_path, alert: t("flash.scans.bag_receive_failed"), inertia: { errors: inertia_errors(movement, as: :stock_movement) }
     end
+  end
+
+  # What the page keeps on the device to scan without a network (see
+  # OfflineScanSnapshot), plus a fresh CSRF token: a page reopened from the
+  # service worker's cache carries a stale one.
+  def offline
+    render json: OfflineScanSnapshot.new(current_organization).as_json.merge(csrf_token: form_authenticity_token)
+  end
+
+  # Writes the scans queued offline (see OfflineScanSync). Scans queued in
+  # another organization than the current one are left for the device to send
+  # once that organization is selected again.
+  def sync
+    if params[:organization_id].to_i != current_organization.id
+      return render json: { error: "organization_mismatch" }, status: :conflict
+    end
+
+    operations = params.permit(operations: %i[id kind part_id storage_location_id quantity reference scanned_at])[:operations]
+    render json: { results: OfflineScanSync.new(current_organization, current_user).call(operations&.map(&:to_h)) }
   end
 
   private

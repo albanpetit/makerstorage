@@ -199,6 +199,9 @@ fr:
       order_api_unreachable: 'Impossible de joindre l''API Mouser Order : %{error}'
       order_api_unreadable: L'API Mouser Order a renvoyé une réponse illisible
       order_key_missing: Aucune clé Mouser Order API n'est configurée.
+    offline_scan:
+      invalid: "Ce scan est illisible."
+      not_found: "Le composant ou la zone n’existe plus."
     organization_merge:
       into_itself: Une organisation ne peut pas être fusionnée avec elle-même.
       personal: Une organisation personnelle ne peut pas être fusionnée dans une autre.
