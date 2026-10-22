@@ -10,8 +10,8 @@
 #
 # Left out on purpose: members and users (accounts belong to an install, not to
 # an organization), the encrypted supplier API keys and DigiKey tokens (secrets,
-# encrypted with the install's own keys), and the author of each stock movement
-# and project build.
+# encrypted with the install's own keys), and the author of each stock movement,
+# project build and stocktake.
 #
 # A restore always creates a new organization owned by the importing user, so
 # it never merges into (or overwrites) existing data. Every reference in the
@@ -94,10 +94,18 @@ module OrganizationBackup
           references: { "project_id" => "projects", "part_id" => "parts" }, enums: { "match_type" => ProjectLine::MATCH_TYPES }),
     table("project_builds", ProjectBuild, ->(org) { ProjectBuild.where(project_id: org.projects.select(:id)) },
           references: { "project_id" => "projects" }, excluded: %w[user_id]),
-    # Last: a movement can point at the project build that wrote it.
+    # A movement can point at the project build that wrote it, and a stocktake
+    # line at the adjustment it wrote.
     table("stock_movements", StockMovement, ->(org) { org.stock_movements },
           references: { "part_id" => "parts", "storage_location_id" => "storage_locations", "project_build_id" => "project_builds" },
-          excluded: %w[user_id], enums: { "movement_type" => StockMovement::MOVEMENT_TYPES })
+          excluded: %w[user_id], enums: { "movement_type" => StockMovement::MOVEMENT_TYPES }),
+    table("stocktakes", Stocktake, ->(org) { org.stocktakes },
+          references: { "storage_location_id" => "storage_locations" },
+          excluded: %w[user_id completed_by_id], enums: { "status" => Stocktake::STATUSES }),
+    table("stocktake_lines", StocktakeLine, ->(org) { StocktakeLine.where(stocktake_id: org.stocktakes.select(:id)) },
+          references: { "stocktake_id" => "stocktakes", "part_id" => "parts", "storage_location_id" => "storage_locations",
+                        "stock_movement_id" => "stock_movements" },
+          excluded: %w[counted_by_id])
   ].freeze
 
   TABLES_BY_NAME = TABLES.index_by(&:name).freeze

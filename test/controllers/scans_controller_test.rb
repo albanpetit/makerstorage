@@ -104,6 +104,23 @@ class ScansControllerTest < ActionDispatch::IntegrationTest
     assert_equal 1, result["location"]["children_count"]
   end
 
+  test "index points a scanned zone at the stocktake already counting it" do
+    user = create_user
+    org = user.organizations.first
+    cabinet = create_storage_location(organization: org, name: "Cabinet", code: "CAB")
+    drawer = create_storage_location(organization: org, name: "Drawer", code: "DR", parent: cabinet)
+    other = create_storage_location(organization: org, name: "Shelf", code: "SH")
+    stocktake = org.stocktakes.create!(storage_location: cabinet, reference: "ST-1")
+    org.stocktakes.create!(storage_location: other, reference: "ST-0", status: "completed")
+
+    sign_in user
+    get scan_path(code: "DR")
+    assert_equal({ "id" => stocktake.id, "reference" => "ST-1" }, inertia_props["result"]["location"]["stocktake"])
+
+    get scan_path(code: "SH")
+    assert_nil inertia_props["result"]["location"]["stocktake"]
+  end
+
   test "index finds a part by IPN before a part whose MPN matches it" do
     user = create_user
     org = user.organizations.first

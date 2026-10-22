@@ -83,6 +83,17 @@ Rails.application.routes.draw do
     get :export, on: :collection
   end
 
+  # Stocktakes (cycle counts): count a zone, then adjust stock to the count.
+  resources :stocktakes, only: %i[index show create destroy] do
+    member do
+      post :complete
+      post :scan
+      get :export
+    end
+
+    resources :stocktake_lines, only: %i[create update], path: "lines"
+  end
+
   get "scan", to: "scans#index", as: :scan
   post "scan/movements", to: "scans#create_movement", as: :scan_movements
   post "scan/receipts", to: "scans#receive", as: :scan_receipts

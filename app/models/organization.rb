@@ -19,6 +19,8 @@ class Organization < ApplicationRecord
   # restrict deletion while movements, order lines, allocations, or orders still
   # point at them, so the records doing the pointing must go first — otherwise
   # destroying a populated organization silently returns false.
+  # Stocktake lines point at the adjustments they wrote: they go first.
+  has_many :stocktakes, dependent: :destroy
   has_many :stock_movements, dependent: :destroy
   has_many :projects, dependent: :destroy
   has_many :orders, dependent: :destroy
@@ -87,9 +89,9 @@ class Organization < ApplicationRecord
   # Methods - Reset
   #
   # The inventory associations a reset clears, in the destroy order above.
-  DATA_ASSOCIATIONS = %i[stock_movements projects orders parts storage_locations categories parameter_definitions footprints tags suppliers].freeze
+  DATA_ASSOCIATIONS = %i[stocktakes stock_movements projects orders parts storage_locations categories parameter_definitions footprints tags suppliers].freeze
 
-  # Deletes every inventory record (movements, projects, orders, parts, zones,
+  # Deletes every inventory record (stocktakes, movements, projects, orders, parts, zones,
   # categories, parameters, footprints, tags, suppliers) and keeps the organization itself:
   # its settings, integrations, logo and members. The IPN counter starts over
   # and the catalog suppliers are seeded again, as for a new organization.

@@ -396,6 +396,46 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_21_190000) do
     t.index ["user_id"], name: "index_stock_movements_on_user_id"
   end
 
+  create_table "stocktake_lines", force: :cascade do |t|
+    t.integer "stocktake_id", null: false
+    t.integer "part_id", null: false
+    t.integer "storage_location_id", null: false
+    t.integer "expected_quantity", default: 0, null: false
+    t.integer "counted_quantity"
+    t.datetime "counted_at"
+    t.integer "counted_by_id"
+    t.integer "stock_movement_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["counted_by_id"], name: "index_stocktake_lines_on_counted_by_id"
+    t.index ["part_id"], name: "index_stocktake_lines_on_part_id"
+    t.index ["stock_movement_id"], name: "index_stocktake_lines_on_stock_movement_id"
+    t.index ["stocktake_id", "part_id", "storage_location_id"], name: "index_stocktake_lines_uniqueness", unique: true
+    t.index ["stocktake_id"], name: "index_stocktake_lines_on_stocktake_id"
+    t.index ["storage_location_id"], name: "index_stocktake_lines_on_storage_location_id"
+  end
+
+  create_table "stocktakes", force: :cascade do |t|
+    t.integer "organization_id", null: false
+    t.integer "storage_location_id", null: false
+    t.boolean "include_sub_zones", default: true, null: false
+    t.boolean "blind", default: false, null: false
+    t.string "reference"
+    t.string "status", default: "in_progress", null: false
+    t.text "notes"
+    t.integer "user_id"
+    t.integer "completed_by_id"
+    t.datetime "completed_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["completed_by_id"], name: "index_stocktakes_on_completed_by_id"
+    t.index ["organization_id", "reference"], name: "index_stocktakes_on_organization_id_and_reference", unique: true
+    t.index ["organization_id", "status"], name: "index_stocktakes_on_organization_id_and_status"
+    t.index ["organization_id"], name: "index_stocktakes_on_organization_id"
+    t.index ["storage_location_id"], name: "index_stocktakes_on_storage_location_id"
+    t.index ["user_id"], name: "index_stocktakes_on_user_id"
+  end
+
   create_table "storage_locations", force: :cascade do |t|
     t.string "code"
     t.datetime "created_at", null: false
@@ -508,6 +548,15 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_21_190000) do
   add_foreign_key "stock_movements", "project_builds"
   add_foreign_key "stock_movements", "storage_locations"
   add_foreign_key "stock_movements", "users"
+  add_foreign_key "stocktake_lines", "parts"
+  add_foreign_key "stocktake_lines", "stock_movements"
+  add_foreign_key "stocktake_lines", "stocktakes"
+  add_foreign_key "stocktake_lines", "storage_locations"
+  add_foreign_key "stocktake_lines", "users", column: "counted_by_id"
+  add_foreign_key "stocktakes", "organizations"
+  add_foreign_key "stocktakes", "storage_locations"
+  add_foreign_key "stocktakes", "users"
+  add_foreign_key "stocktakes", "users", column: "completed_by_id"
   add_foreign_key "storage_locations", "organizations"
   add_foreign_key "storage_locations", "storage_locations", column: "parent_id"
   add_foreign_key "suppliers", "organizations"

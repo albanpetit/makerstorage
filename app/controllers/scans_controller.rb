@@ -12,14 +12,10 @@ class ScansController < ApplicationController
   # Bags received by scanning their supplier label (see SupplierLabel).
   LABEL_REASON = "Received from supplier label"
   RECENT_SCANS_LIMIT = 6
-  # Printed labels fall back to these record-id codes when a part has no IPN,
-  # barcode or SKU, or a zone has no code (see app/frontend/lib/labels.ts).
-  PART_CODE = /\Apart:(\d+)\z/i
-  ZONE_CODE = /\Azone:(\d+)\z/i
   ZONE_CONTENTS_LIMIT = 50
 
   def index
-    code = normalize_code(params[:code])
+    code = ScanCode.normalize(params[:code])
 
     render inertia: "scans/index", props: {
       code: code.presence,
@@ -90,44 +86,16 @@ class ScansController < ApplicationController
   end
 
   def lookup(code)
+    scan = ScanCode.new(current_organization)
     if (label = SupplierLabel.parse(code))
       label_lookup(label)
-    elsif (part = find_part(code))
+    elsif (part = scan.part(code))
       { kind: "part", part: serialize_part(part) }
-    elsif (location = find_location(code))
+    elsif (location = scan.location(code))
       { kind: "location", location: serialize_location(location) }
     else
       { kind: "unknown" }
     end
-  end
-
-  # Label QR codes hold a link to this page (`https://host/scan?code=MS-00042`)
-  # so a phone's own camera app opens the right record. The in-app camera and
-  # hardware scanners read that link as plain text: keep only its code, from
-  # whichever host printed it.
-  def normalize_code(raw)
-    code = raw.to_s.strip
-    return code unless code.match?(%r{\Ahttps?://}i)
-
-    uri = URI.parse(code)
-    return code unless uri.path.to_s.chomp("/").end_with?("/scan")
-
-    URI.decode_www_form(uri.query.to_s).to_h["code"].to_s.strip.presence || code
-  rescue URI::InvalidURIError, ArgumentError
-    code
-  end
-
-  # IPNs are matched first: they are unique per organization and what labels
-  # print, whereas an MPN can be shared by several parts.
-  def find_part(code)
-    parts = current_organization.parts
-    if (match = code.match(PART_CODE))
-      return parts.find_by(id: match[1])
-    end
-
-    downcased = code.downcase
-    parts.find_by("LOWER(ipn) = ?", downcased) ||
-      parts.where("LOWER(barcode) = :code OR LOWER(sku) = :code OR LOWER(mpn) = :code", code: downcased).first
   end
 
   def label_lookup(label)
@@ -195,15 +163,6 @@ class ScansController < ApplicationController
       .map { |line| { id: line.order.id, reference: line.order.reference, quantity: line.quantity } }
   end
 
-  def find_location(code)
-    locations = current_organization.storage_locations
-    if (match = code.match(ZONE_CODE))
-      return locations.find_by(id: match[1])
-    end
-
-    locations.where("LOWER(code) = ?", code.downcase).first
-  end
-
   def serialize_part(part)
     # Resolve every zone's full path from one preloaded org-wide map rather than
     # walking the parent chain with a query per level (see #full_path).
@@ -257,7 +216,11 @@ class ScansController < ApplicationController
       parts_count: stored.count,
       total_quantity: location.total_quantity,
       children_count: location.children.count,
-      contents: contents
+      contents: contents,
+      # The count already running over this zone, which "Count this zone" opens
+      # instead of starting a second one.
+      stocktake: current_organization.stocktakes.in_progress.find { |stocktake| stocktake.covers?(location) }
+        &.then { |stocktake| { id: stocktake.id, reference: stocktake.reference } }
     }
   end
 
