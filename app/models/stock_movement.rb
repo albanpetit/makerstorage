@@ -4,6 +4,8 @@ class StockMovement < ApplicationRecord
   belongs_to :part
   belongs_to :storage_location
   belongs_to :user, optional: true
+  # Set on the "out" movements a project build wrote.
+  belongs_to :project_build, optional: true
 
   # Constants
   MOVEMENT_TYPES = %w[in out adjustment].freeze

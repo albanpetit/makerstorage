@@ -44,6 +44,7 @@ interface ProjectSummary {
   id: number
   name: string
   reference: string | null
+  revision: string | null
   status: 'draft' | 'confirmed'
   reserved: boolean
   line_count: number
@@ -75,7 +76,7 @@ export default function ProjectsIndex({ projects }: ProjectsPageProps) {
   const submit = (e: FormEvent) => {
     e.preventDefault()
     const files = Array.from(fileInput.current?.files ?? [])
-    if (files.length === 0) return
+    if (files.length === 0 && !name.trim()) return
 
     const formData = new FormData()
     if (files.length === 1 && !KICAD_FILE.test(files[0].name)) {
@@ -99,7 +100,7 @@ export default function ProjectsIndex({ projects }: ProjectsPageProps) {
   return (
     <AppLayout
       header={
-        <PageHeader title="Projects" subtitle="Import a project's KiCad files or BOM and check stock availability">
+        <PageHeader title="Projects" subtitle="Build a project BOM by hand or import its KiCad files or BOM, and check stock availability">
           {canWrite ? (
             <Button size="sm" onClick={() => setOpen(true)}>
               <Plus className="size-4" />
@@ -124,7 +125,7 @@ export default function ProjectsIndex({ projects }: ProjectsPageProps) {
               </div>
               <p className="font-semibold">No projects yet</p>
               <p className="max-w-sm text-sm text-muted-foreground">
-                Upload a KiCad project (its files or a ZIP of the folder) or a bill of materials (CSV, or a KiCad / EasyEDA export) to match each component against your inventory and see what you can build.
+                Start a project and add its parts by hand, or upload a KiCad project (its files or a ZIP of the folder) or a bill of materials (CSV, or a KiCad / EasyEDA export) to match each component against your inventory and see what you can build.
               </p>
             </CardContent>
           </Card>
@@ -150,6 +151,9 @@ export default function ProjectsIndex({ projects }: ProjectsPageProps) {
                         <Link href={`/projects/${project.id}`} className="hover:underline" onClick={(e) => e.stopPropagation()}>
                           {project.name}
                         </Link>
+                        {project.revision && (
+                          <Badge variant="outline" className="font-mono text-xs">rev {project.revision}</Badge>
+                        )}
                         {project.file_count > 0 && (
                           <span
                             className="inline-flex items-center gap-0.5 text-xs font-normal text-muted-foreground"
@@ -173,7 +177,9 @@ export default function ProjectsIndex({ projects }: ProjectsPageProps) {
                       </div>
                     </TableCell>
                     <TableCell>
-                      {project.buildable ? (
+                      {project.line_count === 0 ? (
+                        <span className="text-xs text-muted-foreground">No lines yet</span>
+                      ) : project.buildable ? (
                         <Badge variant="outline" className="bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400">
                           <CheckCircle2 className="size-3.5" /> Buildable
                         </Badge>
@@ -216,7 +222,7 @@ export default function ProjectsIndex({ projects }: ProjectsPageProps) {
             <DialogHeader>
               <DialogTitle>New project</DialogTitle>
               <DialogDescription>
-                Upload the KiCad project files (.kicad_pro, .kicad_sch, .kicad_pcb…) or a ZIP of the project folder: they're kept with the project and the BOM is read from the schematics. A BOM export also works: a CSV, a KiCad BOM CSV or netlist XML, or an EasyEDA BOM. Lines are matched by MPN, supplier part number, then value + footprint. Review the matches before building.
+                Give it a name to start empty and add parts by hand, or upload the KiCad project files (.kicad_pro, .kicad_sch, .kicad_pcb…) or a ZIP of the project folder: they're kept with the project and the BOM is read from the schematics. A BOM export also works: a CSV, a KiCad BOM CSV or netlist XML, or an EasyEDA BOM. Lines are matched by MPN, supplier part number, then value + footprint. Review the matches before building.
               </DialogDescription>
             </DialogHeader>
 
@@ -230,11 +236,11 @@ export default function ProjectsIndex({ projects }: ProjectsPageProps) {
                   placeholder="e.g. Weather station v2"
                   autoFocus
                 />
-                <p className="text-xs text-muted-foreground">Optional — defaults to the file name.</p>
+                <p className="text-xs text-muted-foreground">Required without a file; defaults to the file name otherwise.</p>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="project-file">KiCad files or BOM</Label>
+                <Label htmlFor="project-file">KiCad files or BOM, optional</Label>
                 <Input
                   ref={fileInput}
                   id="project-file"
@@ -242,7 +248,6 @@ export default function ProjectsIndex({ projects }: ProjectsPageProps) {
                   multiple
                   accept={`${KICAD_ACCEPT},.csv,text/csv,.xml,application/xml,text/xml`}
                   onChange={(e) => setFileName(e.target.value.split(/[\\/]/).pop() ?? '')}
-                  required
                 />
                 <p className="text-xs text-muted-foreground">Select several KiCad files at once, or a single ZIP or BOM file.</p>
               </div>
@@ -252,9 +257,9 @@ export default function ProjectsIndex({ projects }: ProjectsPageProps) {
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={processing || !fileName}>
-                <Upload className="size-4" />
-                Import & match
+              <Button type="submit" disabled={processing || (!fileName && !name.trim())}>
+                {fileName ? <Upload className="size-4" /> : <Plus className="size-4" />}
+                {fileName ? 'Import & match' : 'Create empty project'}
               </Button>
             </DialogFooter>
           </form>
@@ -267,7 +272,7 @@ export default function ProjectsIndex({ projects }: ProjectsPageProps) {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete this project?</AlertDialogTitle>
             <AlertDialogDescription>
-              This removes the BOM and its matches. Stock and movements are not affected.
+              This removes the BOM, its matches and its build history. Stock and movements are not affected.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -10,7 +10,8 @@
 #
 # Left out on purpose: members and users (accounts belong to an install, not to
 # an organization), the encrypted supplier API keys and DigiKey tokens (secrets,
-# encrypted with the install's own keys), and the author of each stock movement.
+# encrypted with the install's own keys), and the author of each stock movement
+# and project build.
 #
 # A restore always creates a new organization owned by the importing user, so
 # it never merges into (or overwrites) existing data. Every reference in the
@@ -76,9 +77,6 @@ module OrganizationBackup
           references: { "part_id" => "parts", "supplier_id" => "suppliers" }),
     table("part_storages", PartStorage, ->(org) { PartStorage.where(part_id: org.parts.select(:id)) },
           references: { "part_id" => "parts", "storage_location_id" => "storage_locations" }),
-    table("stock_movements", StockMovement, ->(org) { org.stock_movements },
-          references: { "part_id" => "parts", "storage_location_id" => "storage_locations" },
-          excluded: %w[user_id], enums: { "movement_type" => StockMovement::MOVEMENT_TYPES }),
     table("orders", Order, ->(org) { org.orders }, references: { "supplier_id" => "suppliers" }, enums: { "status" => Order::STATUSES }),
     table("order_lines", OrderLine, ->(org) { OrderLine.where(order_id: org.orders.select(:id)) },
           references: { "order_id" => "orders", "part_id" => "parts" }),
@@ -87,7 +85,13 @@ module OrganizationBackup
           references: { "order_line_id" => "order_lines", "storage_location_id" => "storage_locations" }),
     table("projects", Project, ->(org) { org.projects }, enums: { "status" => Project::STATUSES }),
     table("project_lines", ProjectLine, ->(org) { ProjectLine.where(project_id: org.projects.select(:id)) },
-          references: { "project_id" => "projects", "part_id" => "parts" }, enums: { "match_type" => ProjectLine::MATCH_TYPES })
+          references: { "project_id" => "projects", "part_id" => "parts" }, enums: { "match_type" => ProjectLine::MATCH_TYPES }),
+    table("project_builds", ProjectBuild, ->(org) { ProjectBuild.where(project_id: org.projects.select(:id)) },
+          references: { "project_id" => "projects" }, excluded: %w[user_id]),
+    # Last: a movement can point at the project build that wrote it.
+    table("stock_movements", StockMovement, ->(org) { org.stock_movements },
+          references: { "part_id" => "parts", "storage_location_id" => "storage_locations", "project_build_id" => "project_builds" },
+          excluded: %w[user_id], enums: { "movement_type" => StockMovement::MOVEMENT_TYPES })
   ].freeze
 
   TABLES_BY_NAME = TABLES.index_by(&:name).freeze

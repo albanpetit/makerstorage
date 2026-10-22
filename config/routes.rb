@@ -121,8 +121,9 @@ Rails.application.routes.draw do
   end
 
   # Project BOM availability checks
-  resources :projects, only: %i[index show create destroy] do
+  resources :projects, only: %i[index show create update destroy] do
     member do
+      post :duplicate
       post :confirm
       post :reserve
       post :release
@@ -130,7 +131,7 @@ Rails.application.routes.draw do
       post :build
     end
 
-    resources :project_lines, only: %i[update destroy]
+    resources :project_lines, only: %i[create update destroy]
     resources :project_files, path: "files", only: %i[create destroy] do
       post :import_bom, on: :collection
     end
