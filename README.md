@@ -13,19 +13,38 @@ A multi-tenant inventory manager for makerspaces and fablabs, purpose-built for 
 
 ## Features
 
-- **Inventory**: parts with SKU / MPN / barcode, manufacturer, technical specs, datasheets, and per-supplier pricing
-- **Classification**: organize parts with hierarchical categories, reusable footprints, and free-form tags, each managed from its own page
-- **Stock tracking**: quantities per storage location, backed by an append-only stock-movement ledger
-- **Storage zones**: a hierarchical location tree (room → cabinet → shelf → bench → drawer → box), with stock moves between zones
-- **Barcode scanner**: look up parts and record stock movements straight from a phone or webcam scan
-- **Suppliers & purchase orders**: preferred suppliers, pricing, lead times, and orders tracked from pending to received, with deliveries split across storage zones
-- **Mouser & DigiKey**: look parts up in the supplier catalogs, import orders, and push a Mouser cart
-- **Projects**: import a BOM, check what you can build, order the shortfall, and deduct parts when you build
+**Inventory**
+- **Parts**: SKU / MPN / IPN / barcode, manufacturer, datasheets, images and per-supplier pricing
+- **Classification**: hierarchical categories, reusable footprints and free-form tags
+- **Parameters & parametric search**: typed values with units ("4k7", "100nF", "3V3") and range filters, e.g. every 0603 resistor between 1 kΩ and 10 kΩ; categories carry parameter templates
+- **Duplicate finder**: spots parts sharing a part number or the same value and footprint, and merges them with their stock and history
+
+**Stock**
+- **Storage zones**: a location tree (room → cabinet → shelf → bench → drawer → box), with stock per zone and moves between zones
+- **Ledger**: every quantity change is an append-only stock movement
+- **Scanning**: look up parts and zones from a phone camera, a webcam or a hardware scanner
+- **Supplier bags**: scan the label on a DigiKey, Mouser or LCSC bag to receive it into stock, or to create the part when it's new
+- **QR labels**: print part and zone labels from the browser, or send them straight to a Brother QL or Zebra printer on the local network
+- **Stocktakes**: count a zone (typed or scanned, blind counts optional) and post the differences as adjustments, with a list of zones due for a count
+- **Loans**: lend tools and parts to members with a due date, then record returns or losses
 - **Low-stock alerts**: reorder suggestions from per-part thresholds that account for what's already on order
-- **Dashboard**: at-a-glance stock value, low-stock counts, and category breakdowns
-- **Multi-tenant**: every organization has isolated data, its own members invited with roles (owner / admin / member / viewer), and a configurable internal part-number (IPN) scheme
-- **CSV import**: bulk-load parts (UTF-8 or Excel's Windows-1252), auto-creating categories and locations as needed
+
+**Buying**
+- **Suppliers & purchase orders**: preferred suppliers, pricing, lead times, and orders tracked from pending to received, with deliveries split across storage zones
+- **Mouser, DigiKey & LCSC**: look parts up in the supplier catalogs, import orders, and push a Mouser cart
+- **Email digest**: a daily or weekly email of low-stock parts and late orders (needs SMTP)
+
+**Projects & KiCad**
+- **Projects**: import a BOM (KiCad, EasyEDA or CSV) or build it by hand, check what you can build, order the shortfall, and deduct parts when you build, with revisions and build history
+- **KiCad files**: attach a KiCad project (or link a GitHub repository) and read the BOM straight from its schematics
 - **KiCad library**: browse stocked parts in KiCad's symbol chooser (HTTP library) and place them with footprint, MPN, IPN and supplier filled in
+- **Reservations**: confirmed projects hold their parts, first come first served, so two projects never count the same stock
+
+**Organizations**
+- **Multi-tenant**: every organization has isolated data, its own members invited with roles (owner / admin / member / viewer), and a configurable internal part-number (IPN) scheme
+- **Dashboard**: stock value, 30 days of activity, what needs attention, open orders and project buildability
+- **CSV import & backups**: bulk-load parts (UTF-8 or Excel's Windows-1252), export a whole organization as a ZIP and restore it
+- **English & French interface**, chosen per user or from the browser
 - **Claude & MCP**: a built-in, read-only MCP server so Claude (or any MCP client) can check stock, storage locations, project buildability and BOMs against your inventory
 
 ## Tech stack
@@ -213,6 +232,12 @@ An admin turns it on in Settings → KiCad library, which downloads a
 (shown once; a new file replaces the token, *Revoke* turns access off). In
 KiCad, add that file in Preferences → Manage Symbol Libraries. KiCad must be
 able to reach the server: use its LAN or public address, not `localhost`.
+
+## How this project is developed
+
+Makerstorage is designed and maintained by Alban Petit, with AI-assisted tooling
+([Claude Code](https://claude.com/claude-code)) used during development. Every change
+is reviewed, covered by tests and checked in CI before it's merged.
 
 ## Contributing
 
