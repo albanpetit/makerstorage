@@ -235,9 +235,20 @@ class Part < ApplicationRecord
 
   # Best price to put on an order line for +supplier_id+: the link to that
   # supplier, then the preferred supplier link, then the part's own cost basis.
-  def order_unit_price(supplier_id)
+  # With a +quantity+, the link's price break for that quantity applies.
+  def order_unit_price(supplier_id, quantity = nil)
     link = part_suppliers.find_by(supplier_id: supplier_id) || preferred_part_supplier
-    link&.unit_price || unit_price
+    link&.unit_price_for(quantity) || unit_price
+  end
+
+  # Price history: this part's priced lines on orders that weren't cancelled,
+  # oldest first (by order date, else the day the order was created), or
+  # newest first with +direction+ :desc.
+  def purchase_price_lines(direction = :asc)
+    sql = direction == :desc ? "DESC" : "ASC"
+    order_lines.joins(:order).where.not(orders: { status: "cancelled" }).where.not(unit_price: nil)
+      .includes(order: :supplier)
+      .order(Arel.sql("COALESCE(orders.ordered_at, DATE(orders.created_at)) #{sql}, order_lines.id #{sql}"))
   end
 
   # Mirrors unit_price (the part's cost basis for stock valuation) onto the

@@ -42,6 +42,8 @@ import {
 import { StorageLocationSelect, type StorageLocationOption } from '@/components/storage-location-select'
 import { LIFECYCLE_META } from '@/components/parts/part-meta'
 import { t, intlLocale, tx } from '@/lib/i18n'
+import { formatUnitPrice, type PriceBreak } from '@/lib/money'
+import { PriceHistory, type PricePoint } from '@/components/parts/price-history'
 
 interface PartSupplierEntry {
   id: number
@@ -52,6 +54,7 @@ interface PartSupplierEntry {
   lead_time_days: number | null
   url: string | null
   is_preferred: boolean
+  price_breaks: PriceBreak[]
 }
 
 interface PartDetail {
@@ -147,6 +150,7 @@ interface PartShowPayload {
   movements: MovementEntry[]
   reservations: ReservationEntry[]
   loans: LoanEntry[]
+  price_history: PricePoint[]
   storage_locations: StorageLocationOption[]
   categories: Category[]
   footprints: Footprint[]
@@ -422,7 +426,7 @@ export function PartDetailSheet({
                   {[
                     { label: t('In stock'), value: part.total_quantity.toLocaleString(intlLocale()), className: stockKey === 'ok' ? '' : stockKey === 'low' ? 'text-amber-600 dark:text-amber-400' : 'text-destructive' },
                     { label: t('Min. threshold'), value: part.min_stock_threshold.toLocaleString(intlLocale()), className: '' },
-                    { label: t('Unit price'), value: part.unit_price != null ? part.unit_price.toFixed(2) : '—', className: '' },
+                    { label: t('Unit price'), value: part.unit_price != null ? formatUnitPrice(part.unit_price) : '—', className: '' },
                     { label: t('Stock value'), value: part.unit_price != null ? (part.unit_price * part.total_quantity).toFixed(2) : '—', className: '' },
                   ].map((stat) => (
                     <div key={stat.label} className="rounded-lg bg-muted p-3">
@@ -582,7 +586,7 @@ export function PartDetailSheet({
                       <div className="min-w-0 flex-1">
                         <div className="truncate text-sm font-semibold">{preferred.supplier_name}</div>
                         <div className="text-xs text-muted-foreground">
-                          {preferred.unit_price != null ? t('Unit {price}', { price: preferred.unit_price.toFixed(2) }) : t('No price')}
+                          {preferred.unit_price != null ? t('Unit {price}', { price: formatUnitPrice(preferred.unit_price) }) : t('No price')}
                           {preferred.lead_time_days != null ? t(' · lead {days}d', { days: preferred.lead_time_days }) : ''}
                         </div>
                       </div>
@@ -595,6 +599,21 @@ export function PartDetailSheet({
                   ) : (
                     <p className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">{t('No supplier linked to this part.')}</p>
                   )}
+                  {preferred && preferred.price_breaks.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-1.5" aria-label={t('Price breaks')}>
+                      {preferred.price_breaks.map((row) => (
+                        <span key={row.quantity} className="rounded-md bg-muted px-2 py-1 font-mono text-xs">
+                          {t('{quantity}+: {price}', { quantity: row.quantity.toLocaleString(intlLocale()), price: formatUnitPrice(row.unit_price) })}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Price history */}
+                <div>
+                  <h3 className="mb-2 text-sm font-semibold">{t('Price history')}</h3>
+                  <PriceHistory points={payload.price_history} />
                 </div>
 
                 {/* Movement history */}

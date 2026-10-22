@@ -1,7 +1,7 @@
 import { useState } from 'react'
 
 import { LookupResult, matchProviderSupplier } from '@/components/supplier-lookup'
-import { EMPTY_SUPPLIER, NewSupplier, PartSupplier, PendingSupplier, Supplier } from './types'
+import { EMPTY_SUPPLIER, NewSupplier, PartSupplier, PendingPriceBreak, PendingSupplier, Supplier } from './types'
 
 // Encapsulates the supplier-management logic shared by the add and edit part
 // dialogs: the pending-supplier list, the "add a supplier" form row, catalog
@@ -32,6 +32,7 @@ export function usePartSuppliers(suppliers: Supplier[]) {
         url: ps.url || '',
         is_preferred: ps.is_preferred,
         notes: ps.notes || '',
+        price_breaks: (ps.price_breaks ?? []).map((row) => ({ quantity: row.quantity.toString(), unit_price: row.unit_price.toString() })),
       }))
     )
   }
@@ -57,6 +58,9 @@ export function usePartSuppliers(suppliers: Supplier[]) {
   const setPreferred = (tempId: string) =>
     setPendingSuppliers((prev) => prev.map((ps) => ({ ...ps, is_preferred: ps.tempId === tempId })))
 
+  const setPriceBreaks = (tempId: string, priceBreaks: PendingPriceBreak[]) =>
+    setPendingSuppliers((prev) => prev.map((ps) => (ps.tempId === tempId ? { ...ps, price_breaks: priceBreaks } : ps)))
+
   // Pre-fill from a catalog match: link the provider's own supplier
   // (Mouser/DigiKey) with the fetched price, SKU and product URL. Only runs when
   // that supplier exists in the org and the result carries data; re-running a
@@ -66,6 +70,7 @@ export function usePartSuppliers(suppliers: Supplier[]) {
     const supplier = matchProviderSupplier(suppliers, result.provider)
     if (!supplier) return
     if (!result.unit_price && !result.supplier_sku && !result.product_url) return
+    const priceBreaks = (result.price_breaks ?? []).map((row) => ({ quantity: row.quantity.toString(), unit_price: row.unit_price }))
 
     const supplierId = supplier.id.toString()
     setPendingSuppliers((prev) => {
@@ -77,6 +82,7 @@ export function usePartSuppliers(suppliers: Supplier[]) {
                 ...ps,
                 supplier_sku: result.supplier_sku || ps.supplier_sku,
                 unit_price: result.unit_price || ps.unit_price,
+                price_breaks: priceBreaks.length > 0 ? priceBreaks : ps.price_breaks,
                 url: result.product_url || ps.url,
               }
             : ps
@@ -94,6 +100,7 @@ export function usePartSuppliers(suppliers: Supplier[]) {
           url: result.product_url || '',
           is_preferred: prev.length === 0,
           notes: '',
+          price_breaks: priceBreaks,
         },
       ]
     })
@@ -113,6 +120,8 @@ export function usePartSuppliers(suppliers: Supplier[]) {
       url: ps.url || null,
       is_preferred: ps.is_preferred,
       notes: ps.notes || null,
+      // Rows left empty are dropped; the server checks the rest.
+      price_breaks: ps.price_breaks.filter((row) => row.quantity.trim() !== '' || row.unit_price.trim() !== ''),
     })),
     ...removedSupplierIds.map((id) => ({ id, _destroy: true })),
   ]
@@ -132,6 +141,7 @@ export function usePartSuppliers(suppliers: Supplier[]) {
     addPendingSupplier,
     removePendingSupplier,
     setPreferred,
+    setPriceBreaks,
     applySupplierFromResult,
     suppliersAttributes,
     reset,

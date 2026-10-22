@@ -102,6 +102,19 @@ class McpServerTest < ActiveSupport::TestCase
     assert_raises_tool_error { call("get_part", {}) }
   end
 
+  test "get_part lists price breaks and recent purchase prices, newest first" do
+    supplier = create_supplier(organization: @org, name: "LCSC")
+    PartSupplier.create!(part: @r10k, supplier: supplier, unit_price: 0.01, price_breaks: [ { quantity: 1000, unit_price: "0.004" } ])
+    create_order(organization: @org, supplier: supplier, reference: "PO-OLD", ordered_at: Date.new(2026, 1, 1))
+      .order_lines.create!(part: @r10k, quantity: 100, unit_price: "0.012")
+    create_order(organization: @org, supplier: supplier, reference: "PO-NEW", ordered_at: Date.new(2026, 8, 1))
+      .order_lines.create!(part: @r10k, quantity: 1000, unit_price: "0.004")
+
+    data = call("get_part", "id" => @r10k.id)
+    assert_equal [ { quantity: 1000, unit_price: 0.004 } ], data[:suppliers].sole[:price_breaks]
+    assert_equal [ [ "PO-NEW", 0.004 ], [ "PO-OLD", 0.012 ] ], data[:recent_purchases].map { |p| p.values_at(:reference, :unit_price) }
+  end
+
   test "check_bom matches lines, reports shortfalls and how many builds fit" do
     data = call("check_bom", "builds" => 2, "lines" => [
       { "designators" => "R1-R5", "value" => "10k", "footprint" => "Resistor_SMD:R_0603_1608Metric", "quantity" => 5 },

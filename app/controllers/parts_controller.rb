@@ -22,6 +22,9 @@ class PartsController < ApplicationController
   # Raised when the add-part form's opening stock can't be recorded.
   class InitialStockError < StandardError; end
 
+  # Purchase prices shown in the part detail's price history.
+  PRICE_HISTORY_LIMIT = 50
+
   # Part attribute => BomParser field for the optional CSV import columns.
   IMPORTED_ATTRIBUTES = {
     mpn: :mpn,
@@ -101,6 +104,7 @@ class PartsController < ApplicationController
           movements: movements.map { |movement| serialize_part_movement(movement) },
           reservations: serialize_part_reservations(@part),
           loans: serialize_part_loans(@part),
+          price_history: serialize_price_history(@part),
           storage_locations: serialize_storage_locations,
           categories: serialize_categories,
           footprints: serialize_footprints,
@@ -716,7 +720,7 @@ class PartsController < ApplicationController
       parameter_values: {},
       part_suppliers_attributes: [
         :id, :supplier_id, :supplier_sku, :unit_price, :lead_time_days,
-        :url, :is_preferred, :notes, :_destroy
+        :url, :is_preferred, :notes, :_destroy, { price_breaks: %i[quantity unit_price] }
       ]
     )
     # Through-association ids are looked up across every organization, and a
@@ -831,6 +835,22 @@ class PartsController < ApplicationController
       end
   end
 
+  # The part's purchase prices, oldest first (the last PRICE_HISTORY_LIMIT).
+  def serialize_price_history(part)
+    part.purchase_price_lines(:desc).limit(PRICE_HISTORY_LIMIT).reverse.map do |line|
+      order = line.order
+      {
+        order_id: order.id,
+        order_reference: order.reference,
+        status: order.status,
+        supplier_name: order.supplier.name,
+        date: (order.ordered_at || order.created_at.to_date).iso8601,
+        quantity: line.quantity,
+        unit_price: line.unit_price.to_f
+      }
+    end
+  end
+
   def serialize_part_full(part)
     serialize_part(part).merge(
       tolerance: part.tolerance,
@@ -889,7 +909,8 @@ class PartsController < ApplicationController
       lead_time_days: ps.lead_time_days,
       url: ps.url,
       is_preferred: ps.is_preferred,
-      notes: ps.notes
+      notes: ps.notes,
+      price_breaks: ps.price_breaks_for_json
     }
   end
 end

@@ -90,6 +90,15 @@ class SupplierCatalog::LcscTest < ActiveSupport::TestCase
     assert_includes eur.attributes, { name: "Unit price (USD)", value: "0.0015" }
   end
 
+  test "returns the price ladder only when the organization works in US dollars" do
+    product = list_product
+    responses = { "product/query/list" => list_payload([ product ]), "product/detail" => detail_payload(product) }
+
+    assert_equal [ { quantity: 20, unit_price: "0.0015" }, { quantity: 100, unit_price: "0.0011" } ],
+                 build_provider(responses, currency: "USD").search("x").first.price_breaks
+    assert_equal [], build_provider(responses, currency: "EUR").search("x").first.price_breaks
+  end
+
   test "a code search keeps only the exact product, not codes that start with it" do
     exact = list_product(code: "C2040", id: 1)
     longer = list_product(code: "C20401", id: 2)

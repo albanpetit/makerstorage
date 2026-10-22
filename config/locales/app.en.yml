@@ -18,6 +18,7 @@ en:
         box_code_needed: can't be blank while the box holds bags
         descendant_parent: cannot be a descendant of this category
         image_host: must be an https image from a supplier catalog (%{hosts})
+        invalid_price_breaks: need a whole quantity above zero and a price of zero or more on every row
         more_than_lent: Can't return or write off more than was lent
         needs_active_owner: Organization must have at least one active owner
         needs_owner: Organization must have at least one owner
@@ -42,6 +43,7 @@ en:
         same_organization_as_category: must belong to the same organization as the category
         same_organization_as_part: must belong to the same organization as the part
         too_many_files: can't be more than %{count} files
+        too_many_price_breaks: can't be more than %{count}
         under_own_subzone: cannot be moved under one of its own sub-zones
         values_not_in_unit:
           one: '%{count} value of %{name} is not a number in %{unit} (%{examples}).'

@@ -167,13 +167,15 @@ class PartMergeTest < ActiveSupport::TestCase
     keep = create_part(organization: @org, category: @category)
     duplicate = create_part(organization: @org, category: @category)
     keep_link = keep.part_suppliers.create!(supplier: mouser, is_preferred: true)
-    duplicate.part_suppliers.create!(supplier: mouser, supplier_sku: "595-NE555P", unit_price: 0.3)
+    duplicate.part_suppliers.create!(supplier: mouser, supplier_sku: "595-NE555P", unit_price: 0.3,
+                                     price_breaks: [ { quantity: 100, unit_price: "0.2" } ])
     farnell_link = duplicate.part_suppliers.create!(supplier: farnell, supplier_sku: "9589899", is_preferred: false)
 
     merge!(keep, duplicate)
 
     assert_equal 2, keep.part_suppliers.count
     assert_equal "595-NE555P", keep_link.reload.supplier_sku
+    assert_equal [ { "quantity" => 100, "unit_price" => "0.2" } ], keep_link.price_breaks
     assert keep_link.is_preferred
     assert_equal keep.id, farnell_link.reload.part_id
     assert_not farnell_link.is_preferred

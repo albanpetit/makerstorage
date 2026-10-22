@@ -32,6 +32,8 @@ A multi-tenant inventory manager for makerspaces and fablabs, purpose-built for 
 **Buying**
 - **Suppliers & purchase orders**: preferred suppliers, pricing, lead times, and orders tracked from pending to received, with deliveries split across storage zones
 - **Mouser, DigiKey & LCSC**: look parts up in the supplier catalogs, import orders, and push a Mouser cart
+- **Price breaks & price history**: quantity price breaks per supplier (filled from the catalogs) that orders follow, and each part's purchase prices over time
+- **Stock value**: what the stock is worth by category, zone and part, at current, last or average purchase prices, with a CSV export
 - **Email digest**: a daily or weekly email of low-stock parts and late orders (needs SMTP)
 
 **Projects & KiCad**

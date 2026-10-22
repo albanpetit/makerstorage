@@ -260,4 +260,60 @@ class OrderLinesControllerTest < ActionDispatch::IntegrationTest
     assert_equal 8, line.reload.quantity
     assert_empty line.allocations
   end
+
+  test "create with a blank price uses the supplier's price break for the quantity" do
+    @part.part_suppliers.create!(supplier: @supplier, unit_price: 0.1, price_breaks: [ { quantity: 100, unit_price: "0.04" } ])
+    sign_in @user
+
+    post order_order_lines_path(@order), params: { order_line: { part_id: @part.id, quantity: 250, unit_price: "" } }
+
+    assert_equal 0.04, @order.order_lines.last.unit_price.to_f
+    assert_equal 10.0, @order.reload.total_amount.to_f
+  end
+
+  test "topping a line up past a break moves it to the break's price" do
+    @part.part_suppliers.create!(supplier: @supplier, unit_price: 0.1, price_breaks: [ { quantity: 100, unit_price: "0.04" } ])
+    line = @order.order_lines.create!(part: @part, quantity: 60, unit_price: 0.1)
+    sign_in @user
+
+    post order_order_lines_path(@order), params: { order_line: { part_id: @part.id, quantity: 50 } }
+
+    assert_equal 110, line.reload.quantity
+    assert_equal 0.04, line.unit_price.to_f
+  end
+
+  test "changing the quantity follows the price breaks, a typed price stays" do
+    @part.part_suppliers.create!(supplier: @supplier, unit_price: 0.1, price_breaks: [ { quantity: 100, unit_price: "0.04" } ])
+    line = @order.order_lines.create!(part: @part, quantity: 10, unit_price: 0.1)
+    typed = @order.order_lines.create!(part: create_part(organization: @org, category: @category), quantity: 10, unit_price: 0.5)
+    sign_in @user
+
+    patch order_order_line_path(@order, line), params: { order_line: { quantity: 100 } }
+    assert_equal 0.04, line.reload.unit_price.to_f
+
+    patch order_order_line_path(@order, line), params: { order_line: { quantity: 20 } }
+    assert_equal 0.1, line.reload.unit_price.to_f
+
+    patch order_order_line_path(@order, typed), params: { order_line: { quantity: 200 } }
+    assert_equal 0.5, typed.reload.unit_price.to_f
+
+    patch order_order_line_path(@order, line), params: { order_line: { quantity: 500, unit_price: 0.07 } }
+    assert_equal 0.07, line.reload.unit_price.to_f, "a price sent with the quantity wins"
+  end
+
+  test "catalog keeps the result's price breaks on the supplier link and prices the line with them" do
+    sign_in @user
+    post catalog_order_order_lines_path(@order), params: {
+      category_id: @category.id,
+      order_line: { quantity: 100 },
+      supplier_sku: "MO-555",
+      price_breaks: [ { quantity: 1, unit_price: "0.42" }, { quantity: 100, unit_price: "0.0215" } ],
+      part: { name: "LM358 op-amp", mpn: "LM358-BRK", unit_price: "0.42" }
+    }
+
+    part = Part.find_by!(mpn: "LM358-BRK")
+    link = part.part_suppliers.find_by!(supplier: @supplier)
+    assert_equal [ 1, 100 ], link.price_breaks.map { |row| row["quantity"] }
+    assert_equal BigDecimal("0.0215"), @order.order_lines.find_by!(part: part).unit_price
+  end
 end

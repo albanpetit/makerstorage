@@ -25,7 +25,8 @@ class OrganizationBackupTest < ActiveSupport::TestCase
     @part = create_part(organization: @org, category: @category, footprint: @footprint, name: "10k resistor",
                         mpn: "RC0603-10K", unit_price: "0.02", min_stock_threshold: 10)
     @part.tags << @tag
-    @part.part_suppliers.create!(supplier: @supplier, supplier_sku: "F-10K", unit_price: "0.03", is_preferred: true)
+    @part.part_suppliers.create!(supplier: @supplier, supplier_sku: "F-10K", unit_price: "0.0315", is_preferred: true,
+                                 price_breaks: [ { quantity: 100, unit_price: "0.0125" } ])
     @part.part_suppliers.create!(supplier: @mouser, supplier_sku: "M-10K")
     @part.images.attach(io: file_fixture("logo.png").open, filename: "photo.png", content_type: "image/png")
 
@@ -134,6 +135,9 @@ class OrganizationBackupTest < ActiveSupport::TestCase
     assert_equal 1, org.suppliers.where(catalog_provider: "mouser").count
     assert_equal "Account 1234", org.suppliers.find_by!(catalog_provider: "mouser").notes
     assert_equal "M-10K", part.part_suppliers.joins(:supplier).find_by!(suppliers: { catalog_provider: "mouser" }).supplier_sku
+    preferred = part.part_suppliers.find_by!(is_preferred: true)
+    assert_equal BigDecimal("0.0315"), preferred.unit_price
+    assert_equal [ { "quantity" => 100, "unit_price" => "0.0125" } ], preferred.price_breaks
 
     assert org.logo.attached?
     assert_equal [ "photo.png" ], part.images.map { |image| image.filename.to_s }
