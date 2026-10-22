@@ -21,6 +21,8 @@ class Part < ApplicationRecord
   accepts_nested_attributes_for :part_suppliers, allow_destroy: true, reject_if: :all_blank
 
   has_many :order_lines, dependent: :restrict_with_error
+  # Loan history: a part that was ever lent keeps its loans, like its movements.
+  has_many :loan_lines, dependent: :restrict_with_error
   has_many :orders, through: :order_lines
 
   # Technical parameters ("Resistance: 4k7"). Saved with the part; their

@@ -166,6 +166,15 @@ Rails.application.routes.draw do
     end
   end
 
+  # Tools and parts lent to members: out of stock until returned.
+  resources :loans, only: %i[index show create update] do
+    member do
+      post :return_items
+      post :return_all
+      post :write_off
+    end
+  end
+
   get "alerts", to: "alerts#index"
   post "alerts/purchase_orders", to: "alerts#create_purchase_orders", as: :alert_purchase_orders
   patch "alerts/orders/:id/advance", to: "alerts#advance_order", as: :advance_alert_order

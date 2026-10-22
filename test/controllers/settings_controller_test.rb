@@ -262,14 +262,27 @@ class SettingsControllerTest < ActionDispatch::IntegrationTest
 
     sign_in user
     patch settings_path, params: { organization: {
-      notify_low_stock: false, notify_late_orders: true, notification_frequency: "weekly"
+      notify_low_stock: false, notify_late_orders: true, notify_overdue_loans: false, notification_frequency: "weekly"
     } }
 
     assert_redirected_to settings_path
     org.reload
     assert_not org.notify_low_stock
     assert org.notify_late_orders
+    assert_not org.notify_overdue_loans
     assert_equal "weekly", org.notification_frequency
+  end
+
+  test "update sets the default loan duration within bounds" do
+    user = create_user
+    org = user.organizations.first
+    sign_in user
+
+    patch settings_path, params: { organization: { default_loan_days: 10 } }
+    assert_equal 10, org.reload.default_loan_days
+
+    patch settings_path, params: { organization: { default_loan_days: 0 } }
+    assert_equal 10, org.reload.default_loan_days
   end
 
   test "update rejects an unknown notification frequency" do

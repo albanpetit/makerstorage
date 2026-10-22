@@ -75,6 +75,7 @@ export default function SettingsIndex({
       default_low_stock_threshold: organization.default_low_stock_threshold,
       allow_negative_stock: organization.allow_negative_stock,
       stock_reservations_enabled: organization.stock_reservations_enabled,
+      default_loan_days: organization.default_loan_days,
     },
   })
 
@@ -82,6 +83,7 @@ export default function SettingsIndex({
     organization: {
       notify_low_stock: organization.notify_low_stock,
       notify_late_orders: organization.notify_late_orders,
+      notify_overdue_loans: organization.notify_overdue_loans,
       notification_frequency: organization.notification_frequency,
     },
   })

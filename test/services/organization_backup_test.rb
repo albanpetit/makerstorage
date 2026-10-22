@@ -6,7 +6,8 @@ class OrganizationBackupTest < ActiveSupport::TestCase
     @org = create_organization(name: "Fablab Amiens", currency: "USD", ipn_prefix: "FA", ipn_next_sequence: 42,
                                allow_negative_stock: false, stock_reservations_enabled: false,
                                mouser_api_key: "secret-mouser-key",
-                               notify_late_orders: false, notification_frequency: "weekly", notifications_sent_on: Date.current)
+                               notify_late_orders: false, notification_frequency: "weekly", notifications_sent_on: Date.current,
+                               notify_overdue_loans: false, default_loan_days: 21)
     @org.organization_memberships.create!(user: @owner, role: "owner")
     @org.logo.attach(io: file_fixture("logo.png").open, filename: "logo.png", content_type: "image/png")
 
@@ -52,6 +53,11 @@ class OrganizationBackupTest < ActiveSupport::TestCase
     @stocktake.count!(@stocktake.stocktake_lines.first, 60, user: @owner)
     @stocktake.complete!(user: @owner)
 
+    @loan = @org.loans.new(borrower: @owner, borrower_name: "Ada", due_on: Date.new(2026, 11, 2))
+    @loan.loan_lines.build(part: @part, storage_location: @drawer, quantity: 3)
+    @loan.lend!(user: @owner)
+    @loan.write_off!(line_id: @loan.loan_lines.first.id, quantity: 1)
+
     # Another tenant's data must stay out of the archive.
     @other = create_organization(name: "Other Lab")
     create_part(organization: @other, name: "Foreign part", mpn: "FOREIGN-1")
@@ -87,8 +93,9 @@ class OrganizationBackupTest < ActiveSupport::TestCase
     assert_equal "0603", part.footprint.name
     assert_equal [ "Kit" ], part.tags.map(&:name)
     assert_equal @part.reload.unit_price, part.unit_price
+    assert_equal 57, part.total_quantity
     assert_equal "Farnell", part.preferred_supplier.name
-    assert_equal [ 100, -30, -8, -2 ], org.stock_movements.order(:created_at, :id).pluck(:quantity_delta)
+    assert_equal [ 100, -30, -8, -2, -3 ], org.stock_movements.order(:created_at, :id).pluck(:quantity_delta)
     assert_equal [ nil ], org.stock_movements.distinct.pluck(:user_id)
     assert_equal @org.stock_movements.order(:id).pluck(:created_at).map(&:to_i),
                  org.stock_movements.order(:id).pluck(:created_at).map(&:to_i)
@@ -114,7 +121,15 @@ class OrganizationBackupTest < ActiveSupport::TestCase
     assert_equal [ part, "Tiroir 1", 62, 60, nil ],
                  [ stocktake_line.part, stocktake_line.storage_location.name, stocktake_line.expected_quantity, stocktake_line.counted_quantity, stocktake_line.counted_by_id ]
     assert_equal org.stock_movements.find_by!(movement_type: "adjustment"), stocktake_line.stock_movement
-    assert_equal 60, part.total_quantity
+    assert_equal 57, part.total_quantity, "counted 60, then 3 lent"
+
+    assert_not org.notify_overdue_loans
+    assert_equal 21, org.default_loan_days
+    loan = org.loans.find_by!(reference: @loan.reference)
+    assert_equal [ "Ada", nil, nil, Date.new(2026, 11, 2) ], [ loan.borrower_name, loan.borrower_id, loan.lent_by_id, loan.due_on ]
+    line = loan.loan_lines.sole
+    assert_equal [ part.id, org.storage_locations.find_by!(code: "T1").id, 3, 1 ],
+                 [ line.part_id, line.storage_location_id, line.quantity, line.lost_quantity ]
 
     assert_equal 1, org.suppliers.where(catalog_provider: "mouser").count
     assert_equal "Account 1234", org.suppliers.find_by!(catalog_provider: "mouser").notes

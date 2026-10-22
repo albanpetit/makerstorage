@@ -32,6 +32,9 @@ class OrganizationMergeTest < ActiveSupport::TestCase
     order.order_lines.create!(part: part, quantity: 2)
     project = create_project(organization: @source, reference: "PRJ-1")
     project.project_lines.create!(part: part, quantity: 1)
+    loan = @source.loans.new(borrower_name: "Ada")
+    loan.loan_lines.build(part: part, storage_location: room, quantity: 1)
+    loan.lend!(user: @owner)
 
     result = merge!
 
@@ -40,9 +43,11 @@ class OrganizationMergeTest < ActiveSupport::TestCase
     assert_equal @target.id, room.reload.organization_id
     assert_equal @target.id, order.reload.organization_id
     assert_equal @target.id, project.reload.organization_id
+    assert_equal @target.id, loan.reload.organization_id
+    assert_equal part.id, loan.loan_lines.sole.part_id
     assert_equal @target.id, part.category.organization_id
     assert_equal [ @target.id ], StockMovement.where(part: part).distinct.pluck(:organization_id)
-    assert_equal 4, part.part_storages.sum(:quantity)
+    assert_equal 3, part.part_storages.sum(:quantity)
     assert_equal "Fablab", @target.reload.name
     assert_equal 1, result.parts_moved
     assert_equal 0, result.parts_merged

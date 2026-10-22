@@ -23,6 +23,7 @@ class Organization < ApplicationRecord
   has_many :stocktakes, dependent: :destroy
   has_many :stock_movements, dependent: :destroy
   has_many :projects, dependent: :destroy
+  has_many :loans, dependent: :destroy
   has_many :orders, dependent: :destroy
   has_many :parts, dependent: :destroy
   has_many :storage_locations, dependent: :destroy
@@ -74,6 +75,7 @@ class Organization < ApplicationRecord
   validates :timezone, inclusion: { in: TIMEZONES }
   validates :default_low_stock_threshold, numericality: { only_integer: true, greater_than_or_equal_to: 0, less_than_or_equal_to: MAX_INTEGER }
   validates :notification_frequency, inclusion: { in: NOTIFICATION_FREQUENCIES }
+  validates :default_loan_days, numericality: { only_integer: true, greater_than: 0, less_than_or_equal_to: Loan::MAX_DAYS }
 
   # Callbacks
   validate :must_have_at_least_one_owner, on: :update
@@ -89,9 +91,9 @@ class Organization < ApplicationRecord
   # Methods - Reset
   #
   # The inventory associations a reset clears, in the destroy order above.
-  DATA_ASSOCIATIONS = %i[stocktakes stock_movements projects orders parts storage_locations categories parameter_definitions footprints tags suppliers].freeze
+  DATA_ASSOCIATIONS = %i[stocktakes stock_movements projects loans orders parts storage_locations categories parameter_definitions footprints tags suppliers].freeze
 
-  # Deletes every inventory record (stocktakes, movements, projects, orders, parts, zones,
+  # Deletes every inventory record (stocktakes, movements, projects, loans, orders, parts, zones,
   # categories, parameters, footprints, tags, suppliers) and keeps the organization itself:
   # its settings, integrations, logo and members. The IPN counter starts over
   # and the catalog suppliers are seeded again, as for a new organization.
@@ -283,7 +285,7 @@ class Organization < ApplicationRecord
   #
   # Whether any alert type is switched on for this organization.
   def email_notifications_enabled?
-    notify_low_stock || notify_late_orders
+    notify_low_stock || notify_late_orders || notify_overdue_loans
   end
 
   # Whether this period's digest is still to be sent at `now`: from 8am local

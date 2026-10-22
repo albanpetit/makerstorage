@@ -29,8 +29,8 @@
 #                suppliers and files of both; the target's details are kept
 #   IPNs         a moved part whose IPN is already taken gets a new one from the
 #                target's numbering (left blank in manual and box & bag modes)
-#   references   an order, project or stocktake reference already used gets a
-#                suffix
+#   references   an order, project, stocktake or loan reference already used
+#                gets a suffix
 #   members      the source's members join the target with their role (owners
 #                as admins); members already there keep theirs
 #
@@ -86,6 +86,7 @@ class OrganizationMerge
       move_with_references(Order)
       move_with_references(Project)
       move_with_references(Stocktake)
+      move_with_references(Loan)
       members_added = add_members
 
       source.reload.destroy!
@@ -319,6 +320,7 @@ class OrganizationMerge
     OrderLine.where(part_id: from).update_all(part_id: to)
     ProjectLine.where(part_id: from).update_all(part_id: to)
     fold_stocktake_lines(from, to)
+    LoanLine.where(part_id: from).update_all(part_id: to)
     repoint_links(PartTag, :part_id, from, to, :tag_id)
     repoint_links(PartParameter, :part_id, from, to, :parameter_definition_id)
     PartSupplier.where(part_id: from).update_all(is_preferred: false) if PartSupplier.exists?(part_id: to, is_preferred: true)

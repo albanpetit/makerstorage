@@ -80,6 +80,39 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_21_190000) do
     t.index ["organization_id"], name: "index_footprints_on_organization_id"
   end
 
+  create_table "loan_lines", force: :cascade do |t|
+    t.integer "loan_id", null: false
+    t.integer "part_id", null: false
+    t.integer "storage_location_id"
+    t.integer "quantity", null: false
+    t.integer "returned_quantity", default: 0, null: false
+    t.integer "lost_quantity", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["loan_id"], name: "index_loan_lines_on_loan_id"
+    t.index ["part_id"], name: "index_loan_lines_on_part_id"
+    t.index ["storage_location_id"], name: "index_loan_lines_on_storage_location_id"
+  end
+
+  create_table "loans", force: :cascade do |t|
+    t.integer "organization_id", null: false
+    t.string "reference"
+    t.integer "borrower_id"
+    t.string "borrower_name", null: false
+    t.string "borrower_contact"
+    t.integer "lent_by_id"
+    t.date "due_on"
+    t.text "notes"
+    t.datetime "closed_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["borrower_id"], name: "index_loans_on_borrower_id"
+    t.index ["lent_by_id"], name: "index_loans_on_lent_by_id"
+    t.index ["organization_id", "closed_at", "due_on"], name: "index_loans_on_organization_id_and_closed_at_and_due_on"
+    t.index ["organization_id", "reference"], name: "index_loans_on_organization_id_and_reference", unique: true, where: "reference IS NOT NULL AND reference != ''"
+    t.index ["organization_id"], name: "index_loans_on_organization_id"
+  end
+
   create_table "oauth_authorizations", force: :cascade do |t|
     t.integer "oauth_client_id", null: false
     t.integer "user_id", null: false
@@ -211,6 +244,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_21_190000) do
     t.string "kicad_token_digest"
     t.datetime "kicad_token_created_at"
     t.datetime "kicad_token_last_used_at"
+    t.integer "default_loan_days", default: 14, null: false
+    t.boolean "notify_overdue_loans", default: true, null: false
     t.string "github_token"
     t.index ["email"], name: "index_organizations_on_email"
     t.index ["kicad_token_digest"], name: "index_organizations_on_kicad_token_digest", unique: true
@@ -513,6 +548,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_21_190000) do
   add_foreign_key "category_parameters", "categories"
   add_foreign_key "category_parameters", "parameter_definitions"
   add_foreign_key "footprints", "organizations"
+  add_foreign_key "loan_lines", "loans"
+  add_foreign_key "loan_lines", "parts"
+  add_foreign_key "loan_lines", "storage_locations"
+  add_foreign_key "loans", "organizations"
+  add_foreign_key "loans", "users", column: "borrower_id"
+  add_foreign_key "loans", "users", column: "lent_by_id"
   add_foreign_key "oauth_authorizations", "oauth_clients"
   add_foreign_key "oauth_authorizations", "organizations"
   add_foreign_key "oauth_authorizations", "users"

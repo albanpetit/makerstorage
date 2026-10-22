@@ -16,6 +16,8 @@ class StorageLocation < ApplicationRecord
   # zone would break their split (allocations must sum to the line quantity),
   # so it's blocked until the order is re-targeted.
   has_many :order_line_allocations, dependent: :restrict_with_error
+  # Only the default zone for returns: the loan outlives the zone.
+  has_many :loan_lines, dependent: :nullify
   # Box & bag numbering: the part whose IPN is this bag's code (see
   # #release_bag_occupant, which also clears that IPN when the bag goes away).
   has_one :bag_occupant, class_name: "Part", foreign_key: :bag_id, inverse_of: :bag, dependent: :nullify

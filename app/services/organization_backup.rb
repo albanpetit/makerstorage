@@ -10,8 +10,9 @@
 #
 # Left out on purpose: members and users (accounts belong to an install, not to
 # an organization), the encrypted supplier API keys and DigiKey tokens (secrets,
-# encrypted with the install's own keys), and the author of each stock movement,
-# project build and stocktake.
+# encrypted with the install's own keys), the author of each stock movement,
+# project build and stocktake, and the member accounts on loans (the
+# borrower's name is kept).
 #
 # A restore always creates a new organization owned by the importing user, so
 # it never merges into (or overwrites) existing data. Every reference in the
@@ -37,7 +38,7 @@ module OrganizationBackup
     currency timezone
     ipn_generation_mode ipn_charset ipn_prefix ipn_separator ipn_digits ipn_use_category_code ipn_next_sequence
     default_low_stock_threshold allow_negative_stock stock_reservations_enabled
-    notify_low_stock notify_late_orders notification_frequency
+    notify_low_stock notify_late_orders notify_overdue_loans notification_frequency default_loan_days
     lcsc_enabled
   ].freeze
 
@@ -105,7 +106,10 @@ module OrganizationBackup
     table("stocktake_lines", StocktakeLine, ->(org) { StocktakeLine.where(stocktake_id: org.stocktakes.select(:id)) },
           references: { "stocktake_id" => "stocktakes", "part_id" => "parts", "storage_location_id" => "storage_locations",
                         "stock_movement_id" => "stock_movements" },
-          excluded: %w[counted_by_id])
+          excluded: %w[counted_by_id]),
+    table("loans", Loan, ->(org) { org.loans }, excluded: %w[borrower_id lent_by_id]),
+    table("loan_lines", LoanLine, ->(org) { LoanLine.where(loan_id: org.loans.select(:id)) },
+          references: { "loan_id" => "loans", "part_id" => "parts", "storage_location_id" => "storage_locations" })
   ].freeze
 
   TABLES_BY_NAME = TABLES.index_by(&:name).freeze

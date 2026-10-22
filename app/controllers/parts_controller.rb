@@ -99,6 +99,7 @@ class PartsController < ApplicationController
             .map { |ps| serialize_part_storage(ps, location_paths) },
           movements: movements.map { |movement| serialize_part_movement(movement) },
           reservations: serialize_part_reservations(@part),
+          loans: serialize_part_loans(@part),
           storage_locations: serialize_storage_locations,
           categories: serialize_categories,
           footprints: serialize_footprints,
@@ -811,6 +812,17 @@ class PartsController < ApplicationController
       .order("projects.reserved_at", "projects.id")
       .sum("project_lines.quantity")
       .map { |(id, reference, name), quantity| { project_id: id, reference: reference, name: name, quantity: quantity } }
+  end
+
+  # Open loans holding some of this part, oldest first.
+  def serialize_part_loans(part)
+    today = current_organization.local_date
+    part.loan_lines.outstanding.joins(:loan).merge(Loan.active).includes(:loan).order("loans.created_at", :id)
+      .group_by(&:loan)
+      .map do |loan, lines|
+        { loan_id: loan.id, reference: loan.reference, borrower_name: loan.borrower_name,
+          quantity: lines.sum(&:outstanding_quantity), due_on: loan.due_on&.iso8601, overdue: loan.overdue?(today) }
+      end
   end
 
   def serialize_part_full(part)
