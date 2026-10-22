@@ -131,6 +131,9 @@ Rails.application.routes.draw do
     end
 
     resources :project_lines, only: %i[update destroy]
+    resources :project_files, path: "files", only: %i[create destroy] do
+      post :import_bom, on: :collection
+    end
   end
 
   get "alerts", to: "alerts#index"
