@@ -41,6 +41,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { StorageLocationSelect, type StorageLocationOption } from '@/components/storage-location-select'
 import { LIFECYCLE_META } from '@/components/parts/part-meta'
+import { PartFiles, type PartFile } from '@/components/parts/part-files'
 import { t, intlLocale, tx } from '@/lib/i18n'
 import { formatUnitPrice, type PriceBreak } from '@/lib/money'
 import { PriceHistory, type PricePoint } from '@/components/parts/price-history'
@@ -84,6 +85,7 @@ interface PartDetail {
   part_suppliers: PartSupplierEntry[]
   parameters: { id: number; name: string; value: string; display: string }[]
   location_names: string[]
+  files: PartFile[]
 }
 
 interface StorageEntry {
@@ -615,6 +617,8 @@ export function PartDetailSheet({
                   <h3 className="mb-2 text-sm font-semibold">{t('Price history')}</h3>
                   <PriceHistory points={payload.price_history} />
                 </div>
+
+                <PartFiles partId={part.id} files={part.files} canWrite={canWrite} onChange={load} />
 
                 {/* Movement history */}
                 <div>

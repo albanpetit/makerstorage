@@ -242,6 +242,7 @@ class McpServer
         target_stock: part.target_stock,
         lead_time_days: part.lead_time_days,
         has_datasheet: part.datasheet.attached?,
+        files: part.attachments.map { |file| { filename: file.filename.to_s, content_type: file.content_type, byte_size: file.byte_size } },
         tags: part.tags.order(:name).pluck(:name),
         parameters: part.part_parameters.includes(:parameter_definition).sort_by { |parameter| parameter.name.downcase }
           .to_h { |parameter| [ parameter.name, parameter.display_value ] },

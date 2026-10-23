@@ -299,6 +299,27 @@ class PartTest < ActiveSupport::TestCase
     assert part.valid?
   end
 
+  test "attachments take any type of file, up to a size and a count" do
+    part = create_part(organization: @org)
+    part.attachments.attach(io: StringIO.new("<html></html>"), filename: "page.html")
+    part.attachments.attach(io: StringIO.new("ISO-10303-21;"), filename: "body.step")
+    assert part.valid?, part.errors.full_messages.to_sentence
+
+    part.attachments.attach(io: StringIO.new("x"), filename: "big.bin")
+    part.attachments.blobs.find { |blob| blob.filename.to_s == "big.bin" }.update_column(:byte_size, 50.megabytes + 1)
+    assert_not part.reload.valid?
+    assert_match(/must be smaller than 50 MB/, part.errors[:attachments].join)
+  end
+
+  test "a part holds at most MAX_ATTACHMENTS files" do
+    part = create_part(organization: @org)
+    files = Array.new(Part::MAX_ATTACHMENTS + 1) { |i| { io: StringIO.new("f#{i}"), filename: "f#{i}.txt" } }
+    assert_not part.attachments.attach(files)
+    assert_includes part.errors[:attachments].join, "can't be more than #{Part::MAX_ATTACHMENTS} files"
+
+    assert part.reload.update(name: "Renamed part"), "other saves don't count the files"
+  end
+
   test "a datasheet must be a pdf" do
     part = create_part(organization: create_organization)
     part.datasheet.attach(io: StringIO.new("not a pdf"), filename: "ds.txt", content_type: "text/plain", identify: false)
