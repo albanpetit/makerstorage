@@ -37,6 +37,8 @@ class Part < ApplicationRecord
   # "none", like an unresolved import line) rather than blocking the delete or
   # leaving a dangling foreign key.
   has_many :project_lines, dependent: nil
+  # Projects whose built kits become this part: deleting it leaves them with no built item.
+  has_many :built_by_projects, class_name: "Project", foreign_key: :output_part_id, inverse_of: :output_part, dependent: :nullify
 
   # Pairs marked "not duplicates" (PartDuplicateDismissal), from either side.
   has_many :duplicate_dismissals, class_name: "PartDuplicateDismissal", dependent: :delete_all

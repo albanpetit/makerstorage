@@ -6,6 +6,8 @@ en:
       messages:
         already_counted: 'is already being counted in %{stocktake}: complete or discard it first'
         another_part: must be another part
+        assembly_loop: can't use this project, or a project that uses it
+        assembly_too_deep: would nest sub-assemblies more than %{count} levels deep
         attachment_size: must be smaller than %{size}
         attachment_type: must be a %{types} file
         bag_codes_taken: 'would give bags codes already in use: %{codes}'
@@ -33,6 +35,7 @@ en:
         order_status_final: can't change once the order is %{status}
         organization_member: must be a member of this organization
         own_parent: cannot be itself
+        part_or_subproject: can't be set together with a part
         positive_for_incoming: must be positive for an incoming movement
         printer_port: must be a printer port (9100–9109 or 6101)
         received_only_by_marking: can only become received by marking the order received
@@ -441,6 +444,9 @@ en:
       line_updated: Line updated.
     projects:
       build_kits_between: Build between 1 and %{max} kits at a time.
+      built_item_added:
+        one: '%{count} %{part} added to stock.'
+        other: '%{count} × %{part} added to stock.'
       could_not_deduct_stock: 'Could not deduct stock: %{errors}.'
       could_not_import_that_bom: Could not import that BOM.
       could_not_parse_that_file_as: Could not parse that file as CSV.
@@ -454,6 +460,7 @@ en:
       not_enough_stock_for_kits: There isn't enough stock to build %{kits} kits.
       nothing_left_to_order_short_parts: 'Nothing left to order: short parts have no preferred supplier or are already on open purchase orders.'
       only_a_confirmed_project_can_reserve: Only a confirmed project can reserve stock, with reservations turned on in Settings.
+      pick_a_zone_for_the_built_item: '%{part} has no storage zone yet: pick where the built kits go.'
       please_choose_a_bom_file_to: Please choose a BOM file to import.
       project_deleted: Project deleted.
       reservation_released: Reservation released.

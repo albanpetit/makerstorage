@@ -94,9 +94,10 @@ module OrganizationBackup
     table("order_line_allocations", OrderLineAllocation,
           ->(org) { OrderLineAllocation.where(order_line_id: OrderLine.where(order_id: org.orders.select(:id)).select(:id)) },
           references: { "order_line_id" => "order_lines", "storage_location_id" => "storage_locations" }),
-    table("projects", Project, ->(org) { org.projects }, enums: { "status" => Project::STATUSES }),
+    table("projects", Project, ->(org) { org.projects }, references: { "output_part_id" => "parts" }, enums: { "status" => Project::STATUSES }),
     table("project_lines", ProjectLine, ->(org) { ProjectLine.where(project_id: org.projects.select(:id)) },
-          references: { "project_id" => "projects", "part_id" => "parts" }, enums: { "match_type" => ProjectLine::MATCH_TYPES }),
+          references: { "project_id" => "projects", "part_id" => "parts", "subproject_id" => "projects" },
+          enums: { "match_type" => ProjectLine::MATCH_TYPES }),
     table("project_builds", ProjectBuild, ->(org) { ProjectBuild.where(project_id: org.projects.select(:id)) },
           references: { "project_id" => "projects" }, excluded: %w[user_id]),
     # A movement can point at the project build that wrote it, and a stocktake
