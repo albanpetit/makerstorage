@@ -19,13 +19,22 @@ class PartAlternative < ApplicationRecord
   scope :involving, ->(part_ids) { where(part_id: part_ids).or(where(alternative_part_id: part_ids)) }
 
   # Links +a+ and +b+ (in any order), or returns their existing link with
-  # +note+ updated when one is given.
+  # +note+ updated when one is given. A concurrent link of the same pair
+  # (double click) finds the row the other request wrote.
   def self.link!(a, b, note: nil)
     first, second = [ a, b ].sort_by(&:id)
-    link = find_or_initialize_by(part_id: first.id, alternative_part_id: second.id)
-    link.note = note unless note.nil?
-    link.save!
-    link
+    retried = false
+    begin
+      link = find_or_initialize_by(part_id: first.id, alternative_part_id: second.id)
+      link.note = note unless note.nil?
+      link.save!
+      link
+    rescue ActiveRecord::RecordNotUnique
+      raise if retried
+
+      retried = true
+      retry
+    end
   end
 
   # The link between +a+ and +b+, if any.

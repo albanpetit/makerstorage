@@ -61,6 +61,18 @@ class PartEquivalentsTest < ActiveSupport::TestCase
     assert_equal [ "Tolerance", "Voltage rating" ], suggested.last.missing.sort
   end
 
+  test "only loads candidates sharing a defining value" do
+    cap("Other value", "1uF", "25V", "10%", "Y5V")
+    same = cap("Same", "100nF", "25V", "10%", "X7R")
+    queries = []
+    callback = ->(*, payload) { queries << payload[:sql] if payload[:sql].match?(/FROM "parts"/) }
+
+    ActiveSupport::Notifications.subscribed(callback, "sql.active_record") do
+      assert_equal [ same ], suggested.map(&:part)
+    end
+    assert queries.any? { |sql| sql.include?("part_parameters") }, "candidates are filtered on their parameters in SQL"
+  end
+
   test "a rating alone isn't enough to suggest a part" do
     cap("Only rating", "", "25V", nil, nil)
     assert_empty suggested

@@ -36,7 +36,8 @@ class PartEquivalents
   def suggestions
     @suggestions ||= begin
       key = key_parameters
-      found = candidates.filter_map { |candidate| key.empty? ? compare_value(candidate) : compare(candidate, key) }
+      scope = key.empty? ? candidates : sharing_a_defining_value(candidates, key)
+      found = scope.filter_map { |candidate| key.empty? ? compare_value(candidate) : compare(candidate, key) }
       found.sort_by do |suggestion|
         [ -(suggestion.matched.size + suggestion.better.size), suggestion.missing.size,
           -stock(suggestion.part), suggestion.part.name.downcase, suggestion.part.id ]
@@ -57,6 +58,26 @@ class PartEquivalents
       .includes(:part_storages, :footprint, part_parameters: :parameter_definition)
     scope = scope.where(footprint_id: [ part.footprint_id, nil ]) if part.footprint_id
     scope
+  end
+
+  # Only the candidates with one of the part's defining values (a suggestion
+  # needs one equal), picked in SQL so a big category isn't loaded whole.
+  # Number bounds are a little wider than RELATIVE_TOLERANCE: #verdict decides.
+  def sharing_a_defining_value(scope, key)
+    conditions = key.reject { |parameter| rating?(parameter) }.filter_map do |parameter|
+      values = PartParameter.where(parameter_definition_id: parameter.parameter_definition_id)
+      if parameter.parameter_definition.number?
+        next if parameter.numeric_value.nil?
+
+        margin = 2 * RELATIVE_TOLERANCE * parameter.numeric_value.abs
+        values.where(numeric_value: (parameter.numeric_value - margin)..(parameter.numeric_value + margin))
+      else
+        values.where("LOWER(TRIM(part_parameters.value)) = ?", parameter.value.to_s.strip.downcase)
+      end
+    end
+    return scope.none if conditions.empty?
+
+    scope.where(id: conditions.map { |values| values.select(:part_id) }.reduce { |all, values| all.or(values) })
   end
 
   # The part's parameters to compare on (see the class comment).
