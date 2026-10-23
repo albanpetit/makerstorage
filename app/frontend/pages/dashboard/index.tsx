@@ -403,7 +403,7 @@ export default function Dashboard({
             value={formatMoney(stats.stock_value, stats.currency)}
             detail={tn('{count} unit in stock', '{count} units in stock', stats.total_units, { count: stats.total_units.toLocaleString(intlLocale()) })}
             icon={Coins}
-            href="/parts"
+            href="/stock_value"
           />
           <StatCard
             label={t('Low stock')}

@@ -57,6 +57,12 @@ class SupplierCatalog::MouserTest < ActiveSupport::TestCase
     assert_equal "0.1", result.unit_price
   end
 
+  test "returns every price break, by quantity" do
+    result = build_provider(sample_payload(parts: [ sample_part ])).search("x").first
+    assert_equal [ { quantity: 1, unit_price: "0.1" }, { quantity: 10, unit_price: "0.05" } ], result.price_breaks
+    assert_equal result.price_breaks, result.as_json[:price_breaks]
+  end
+
   test "recovers value/package/tolerance/power from the description when attributes are only packaging" do
     part = {
       "Description" => "Thick Film Resistors - SMD General Purpose Chip Resistor 0805, 10kOhms, 1%, 1/8W",

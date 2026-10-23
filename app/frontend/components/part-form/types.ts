@@ -1,4 +1,5 @@
 import { LookupResult } from '@/components/supplier-lookup'
+import type { PriceBreak } from '@/lib/money'
 
 export interface Category {
   id: number
@@ -39,6 +40,13 @@ export interface PartSupplier {
   url: string | null
   is_preferred: boolean
   notes: string | null
+  price_breaks: PriceBreak[]
+}
+
+// A price break row being edited (both fields as typed).
+export interface PendingPriceBreak {
+  quantity: string
+  unit_price: string
 }
 
 // A supplier row being edited in the form. Existing links carry their `id` (so
@@ -55,6 +63,7 @@ export interface PendingSupplier {
   url: string
   is_preferred: boolean
   notes: string
+  price_breaks: PendingPriceBreak[]
 }
 
 export type NewSupplier = Omit<PendingSupplier, 'tempId' | 'id' | 'supplier_name'>
@@ -143,6 +152,7 @@ export const EMPTY_SUPPLIER: NewSupplier = {
   url: '',
   is_preferred: false,
   notes: '',
+  price_breaks: [],
 }
 
 export const EMPTY_PART: PartFormData = {

@@ -167,13 +167,15 @@ class PartMergeTest < ActiveSupport::TestCase
     keep = create_part(organization: @org, category: @category)
     duplicate = create_part(organization: @org, category: @category)
     keep_link = keep.part_suppliers.create!(supplier: mouser, is_preferred: true)
-    duplicate.part_suppliers.create!(supplier: mouser, supplier_sku: "595-NE555P", unit_price: 0.3)
+    duplicate.part_suppliers.create!(supplier: mouser, supplier_sku: "595-NE555P", unit_price: 0.3,
+                                     price_breaks: [ { quantity: 100, unit_price: "0.2" } ])
     farnell_link = duplicate.part_suppliers.create!(supplier: farnell, supplier_sku: "9589899", is_preferred: false)
 
     merge!(keep, duplicate)
 
     assert_equal 2, keep.part_suppliers.count
     assert_equal "595-NE555P", keep_link.reload.supplier_sku
+    assert_equal [ { "quantity" => 100, "unit_price" => "0.2" } ], keep_link.price_breaks
     assert keep_link.is_preferred
     assert_equal keep.id, farnell_link.reload.part_id
     assert_not farnell_link.is_preferred
@@ -203,6 +205,22 @@ class PartMergeTest < ActiveSupport::TestCase
     keep.reload
     assert_equal "keep.pdf", keep.datasheet.filename.to_s
     assert_equal [ "photo.png" ], keep.images.map { |image| image.filename.to_s }
+  end
+
+  test "moves attached files, and a second datasheet joins them" do
+    keep = create_part(organization: @org, category: @category)
+    duplicate = create_part(organization: @org, category: @category)
+    keep.datasheet.attach(io: StringIO.new("%PDF-1.4 keep"), filename: "keep.pdf", content_type: "application/pdf")
+    keep.attachments.attach(io: StringIO.new("notes"), filename: "notes.txt")
+    duplicate.datasheet.attach(io: StringIO.new("%PDF-1.4 dup"), filename: "dup.pdf", content_type: "application/pdf")
+    duplicate.attachments.attach(io: StringIO.new("ISO-10303-21;"), filename: "body.step")
+
+    merge!(keep, duplicate)
+
+    keep.reload
+    assert_equal "keep.pdf", keep.datasheet.filename.to_s
+    assert_equal %w[body.step dup.pdf notes.txt], keep.attachments.map { |file| file.filename.to_s }.sort
+    assert_equal "%PDF-1.4 dup", keep.attachments.find { |file| file.filename.to_s == "dup.pdf" }.download
   end
 
   test "merges several duplicates at once" do

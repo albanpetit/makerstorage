@@ -21,7 +21,8 @@
 #   suppliers    links move; on a supplier both parts are linked to, the kept
 #                part's link stays and takes the duplicate's blank fields; a
 #                preferred link only stays preferred if the kept part had none
-#   files        images move; the datasheet only if the kept part has none
+#   files        images and attached files move; a datasheet joins the kept
+#                part's files when it already has one
 #   details      the kept part's own details win; its blank fields (MPN, SKU,
 #                barcode, manufacturer, value, footprint, description, price…)
 #                are filled from the duplicates, in the order given
@@ -72,7 +73,8 @@ class PartMerge
     repoint_links(PartParameter, :part_id, from, to, :parameter_definition_id)
     fold_supplier_links(from, to)
     move_attachments(from, to, "images")
-    move_attachments(from, to, "datasheet")
+    move_attachments(from, to, "datasheet", else_as: "attachments")
+    move_attachments(from, to, "attachments")
     PartDuplicateDismissal.where(part_id: from).or(PartDuplicateDismissal.where(other_part_id: from)).delete_all
     counts
   end
@@ -142,7 +144,7 @@ class PartMerge
     PartSupplier.where(part_id: from).find_each do |link|
       kept = kept_links[link.supplier_id]
       if kept
-        blanks = %i[supplier_sku url unit_price lead_time_days notes].select { |column| kept[column].blank? && link[column].present? }
+        blanks = %i[supplier_sku url unit_price price_breaks lead_time_days notes].select { |column| kept[column].blank? && link[column].present? }
         kept.update_columns(blanks.to_h { |column| [ column, link[column] ] }) if blanks.any?
         link.delete
       else
@@ -153,12 +155,15 @@ class PartMerge
   end
 
   # Moves +from+'s files of attachment +name+ to +to+. A single attachment the
-  # kept part already has stays where it is (and is deleted with +from+).
-  def self.move_attachments(from, to, name)
+  # kept part already has is filed under +else_as+ instead, or else stays
+  # where it is (and is deleted with +from+).
+  def self.move_attachments(from, to, name, else_as: nil)
     single = Part.reflect_on_attachment(name).macro == :has_one_attached
-    return if single && ActiveStorage::Attachment.exists?(record_type: "Part", record_id: to, name: name)
+    taken = single && ActiveStorage::Attachment.exists?(record_type: "Part", record_id: to, name: name)
+    return if taken && else_as.nil?
 
-    ActiveStorage::Attachment.where(record_type: "Part", record_id: from, name: name).update_all(record_id: to)
+    ActiveStorage::Attachment.where(record_type: "Part", record_id: from, name: name)
+      .update_all(record_id: to, name: taken ? else_as : name)
   end
 
   def initialize(keep:, duplicates:, user: nil)

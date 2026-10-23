@@ -19,11 +19,13 @@ class OrderLinesController < ApplicationController
       return
     end
 
+    previous_quantity = line_quantity_before(part)
     line = line_for(part, line_params[:quantity].presence || 1)
-    if line_params.key?(:unit_price)
+    # The add dialog sends a blank price for "Auto".
+    if line_params[:unit_price].present?
       line.unit_price = line_params[:unit_price]
-    elsif line.new_record?
-      line.unit_price = default_price(part)
+    else
+      line.follow_price_breaks(previous_quantity)
     end
 
     if line.save
@@ -39,7 +41,10 @@ class OrderLinesController < ApplicationController
     ActiveRecord::Base.transaction do
       # A quantity change drops the old split (OrderLine#clear_stale_allocations);
       # a split sent alongside it is applied after.
-      line.update!(line_params)
+      previous_quantity = line.quantity
+      line.assign_attributes(line_params)
+      line.follow_price_breaks(previous_quantity) if line.quantity_changed? && !line_params.key?(:unit_price)
+      line.save!
 
       if (allocs = allocation_params)
         apply_allocations(line, allocs)
@@ -80,8 +85,9 @@ class OrderLinesController < ApplicationController
       part.save! unless part.persisted?
       link_order_supplier(part)
 
+      previous_quantity = line_quantity_before(part)
       line = line_for(part, line_params[:quantity].presence || 1)
-      line.unit_price ||= catalog_unit_price(part)
+      line.follow_price_breaks(previous_quantity)
       line.save!
       @order.recalculate_total!
     end
@@ -104,6 +110,11 @@ class OrderLinesController < ApplicationController
     # validation rejects, rather than silently adding nothing.
     line.quantity = added.positive? ? line.quantity.to_i + added : 0
     line
+  end
+
+  # The quantity already on the order for +part+ (nil when it isn't on it).
+  def line_quantity_before(part)
+    @order.order_lines.find_by(part: part)&.quantity
   end
 
   def set_order
@@ -191,18 +202,13 @@ class OrderLinesController < ApplicationController
     link.supplier_sku = params[:supplier_sku].presence if link.supplier_sku.blank?
     link.url = params[:product_url].presence if link.url.blank?
     link.unit_price ||= catalog_part_params[:unit_price].presence
+    link.price_breaks = catalog_price_breaks if link.price_breaks.blank?
     link.is_preferred = true unless part.part_suppliers.preferred.where.not(id: link.id).exists?
     link.save
   end
 
-  def catalog_unit_price(part)
-    catalog_part_params[:unit_price].presence ||
-      part.part_suppliers.find_by(supplier_id: @order.supplier_id)&.unit_price ||
-      part.unit_price
-  end
-
-  # Best available price for prefilling a new line, keyed to this order's supplier.
-  def default_price(part)
-    part.order_unit_price(@order.supplier_id)
+  # The catalog result's price breaks, as the lookup returned them.
+  def catalog_price_breaks
+    Array(params[:price_breaks]).filter_map { |row| row.permit(:quantity, :unit_price).to_h if row.respond_to?(:permit) }
   end
 end

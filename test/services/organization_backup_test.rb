@@ -7,7 +7,8 @@ class OrganizationBackupTest < ActiveSupport::TestCase
                                allow_negative_stock: false, stock_reservations_enabled: false,
                                mouser_api_key: "secret-mouser-key",
                                notify_late_orders: false, notification_frequency: "weekly", notifications_sent_on: Date.current,
-                               notify_overdue_loans: false, default_loan_days: 21)
+                               notify_overdue_loans: false, default_loan_days: 21,
+                               consumption_window_days: 120, threshold_cover_days: 45)
     @org.organization_memberships.create!(user: @owner, role: "owner")
     @org.logo.attach(io: file_fixture("logo.png").open, filename: "logo.png", content_type: "image/png")
 
@@ -25,7 +26,8 @@ class OrganizationBackupTest < ActiveSupport::TestCase
     @part = create_part(organization: @org, category: @category, footprint: @footprint, name: "10k resistor",
                         mpn: "RC0603-10K", unit_price: "0.02", min_stock_threshold: 10)
     @part.tags << @tag
-    @part.part_suppliers.create!(supplier: @supplier, supplier_sku: "F-10K", unit_price: "0.03", is_preferred: true)
+    @part.part_suppliers.create!(supplier: @supplier, supplier_sku: "F-10K", unit_price: "0.0315", is_preferred: true,
+                                 price_breaks: [ { quantity: 100, unit_price: "0.0125" } ])
     @part.part_suppliers.create!(supplier: @mouser, supplier_sku: "M-10K")
     @part.images.attach(io: file_fixture("logo.png").open, filename: "photo.png", content_type: "image/png")
 
@@ -125,6 +127,7 @@ class OrganizationBackupTest < ActiveSupport::TestCase
 
     assert_not org.notify_overdue_loans
     assert_equal 21, org.default_loan_days
+    assert_equal [ 120, 45 ], [ org.consumption_window_days, org.threshold_cover_days ]
     loan = org.loans.find_by!(reference: @loan.reference)
     assert_equal [ "Ada", nil, nil, Date.new(2026, 11, 2) ], [ loan.borrower_name, loan.borrower_id, loan.lent_by_id, loan.due_on ]
     line = loan.loan_lines.sole
@@ -134,6 +137,9 @@ class OrganizationBackupTest < ActiveSupport::TestCase
     assert_equal 1, org.suppliers.where(catalog_provider: "mouser").count
     assert_equal "Account 1234", org.suppliers.find_by!(catalog_provider: "mouser").notes
     assert_equal "M-10K", part.part_suppliers.joins(:supplier).find_by!(suppliers: { catalog_provider: "mouser" }).supplier_sku
+    preferred = part.part_suppliers.find_by!(is_preferred: true)
+    assert_equal BigDecimal("0.0315"), preferred.unit_price
+    assert_equal [ { "quantity" => 100, "unit_price" => "0.0125" } ], preferred.price_breaks
 
     assert org.logo.attached?
     assert_equal [ "photo.png" ], part.images.map { |image| image.filename.to_s }
@@ -283,6 +289,18 @@ class OrganizationBackupTest < ActiveSupport::TestCase
     assert_equal 1, result.files_count # the project's KiCad file
     assert_not result.organization.logo.attached?
     assert_not result.organization.parts.first.images.attached?
+  end
+
+  test "a part's attached files of any type come back" do
+    @part.attachments.attach(io: StringIO.new("ISO-10303-21;"), filename: "body.step")
+    @part.attachments.attach(io: StringIO.new(":100000000C9434000C"), filename: "firmware.hex")
+
+    result = restore(export_zip(@org))
+
+    part = result.organization.parts.find_by!(mpn: "RC0603-10K")
+    assert_equal %w[body.step firmware.hex], part.attachments.map { |file| file.filename.to_s }.sort
+    assert_equal "ISO-10303-21;", part.attachments.find { |file| file.filename.to_s == "body.step" }.download
+    assert_empty result.skipped_files
   end
 
   test "parameters, category templates and part values come back" do

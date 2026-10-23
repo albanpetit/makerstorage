@@ -18,6 +18,7 @@ en:
         box_code_needed: can't be blank while the box holds bags
         descendant_parent: cannot be a descendant of this category
         image_host: must be an https image from a supplier catalog (%{hosts})
+        invalid_price_breaks: need a whole quantity above zero and a price of zero or more on every row
         more_than_lent: Can't return or write off more than was lent
         needs_active_owner: Organization must have at least one active owner
         needs_owner: Organization must have at least one owner
@@ -42,6 +43,7 @@ en:
         same_organization_as_category: must belong to the same organization as the category
         same_organization_as_part: must belong to the same organization as the part
         too_many_files: can't be more than %{count} files
+        too_many_price_breaks: can't be more than %{count}
         under_own_subzone: cannot be moved under one of its own sub-zones
         values_not_in_unit:
           one: '%{count} value of %{name} is not a number in %{unit} (%{examples}).'
@@ -326,6 +328,14 @@ en:
       values_filled:
         one: '%{count} part value'
         other: '%{count} part values'
+    part_attachments:
+      added:
+        one: Added %{count} file.
+        other: Added %{count} files.
+      choose_files: Please choose files to add.
+      removed: '%{name} removed.'
+      too_large: '%{name} is larger than %{size}.'
+      too_many: A part can hold up to %{count} files.
     part_duplicates:
       dismissed: '%{count} parts won''t be suggested as duplicates of each other again.'
       merged:
@@ -388,6 +398,7 @@ en:
         one: '%{count} tag'
         other: '%{count} tags'
     profiles:
+      changes_allowed: "%{name} can now change the inventory."
       confirm_from_the_email_we_sent: ' Confirm %{unconfirmed_email} from the email we sent there to start signing in with it.'
       enter_your_current_password_to_change: Enter your current password to change your email.
       failed_to_update_password: Failed to update password.
@@ -395,8 +406,10 @@ en:
       locale_updated: Language updated.
       notifications_off: Email notifications off for %{organization}.
       notifications_on: Email notifications on for %{organization}.
+      now_read_only: "%{name} is now read-only."
       password_updated_successfully: Password updated successfully.
       profile_updated_successfully: Profile updated successfully.
+      viewers_can_t_allow_changes: Viewers can't let an application change the inventory.
     project_files:
       added:
         one: Added %{count} file.
@@ -528,6 +541,13 @@ en:
       tag_created: Tag "%{tag_name}" created.
       tag_deleted_successfully: Tag deleted successfully.
       tag_updated_successfully: Tag updated successfully.
+    threshold_suggestions:
+      applied:
+        one: Threshold updated on %{count} component.
+        other: Thresholds updated on %{count} components.
+        zero: No threshold changed.
+      not_applied: 'No threshold was changed: %{errors}.'
+      select_a_part: Select at least one component.
     users_confirmations:
       that_confirmation_link_is_invalid_or: That confirmation link is invalid or has expired. Sign in and request a new one from your profile.
       too_many_confirmation_emails_requested_please: Too many confirmation emails requested. Please wait a few minutes and try again.

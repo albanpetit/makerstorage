@@ -24,7 +24,7 @@ module Oauth
           token_endpoint_auth_method: "none",
           grant_types: %w[authorization_code refresh_token],
           response_types: [ "code" ],
-          scope: OauthAuthorization::SCOPE
+          scope: OauthAuthorization::SCOPES.join(" ")
         }
       else
         render status: :bad_request, json: {

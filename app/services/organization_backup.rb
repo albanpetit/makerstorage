@@ -39,6 +39,7 @@ module OrganizationBackup
     ipn_generation_mode ipn_charset ipn_prefix ipn_separator ipn_digits ipn_use_category_code ipn_next_sequence
     default_low_stock_threshold allow_negative_stock stock_reservations_enabled
     notify_low_stock notify_late_orders notify_overdue_loans notification_frequency default_loan_days
+    consumption_window_days threshold_cover_days
     lcsc_enabled
   ].freeze
 

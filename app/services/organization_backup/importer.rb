@@ -232,7 +232,7 @@ module OrganizationBackup
         filename: entry["filename"].to_s.presence || File.basename(file.name),
         content_type: entry["content_type"].presence
       )
-      unless limits[:content_types].include?(blob.content_type) && blob.byte_size <= limits[:max_size]
+      unless AttachmentValidation.allowed_type?(limits[:content_types], blob.content_type) && blob.byte_size <= limits[:max_size]
         blob.purge
         return false
       end

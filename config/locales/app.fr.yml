@@ -18,6 +18,7 @@ fr:
         box_code_needed: doit être rempli tant que la boîte contient des sachets
         descendant_parent: ne peut pas être une sous-catégorie de cette catégorie
         image_host: doit être une image https d'un catalogue fournisseur (%{hosts})
+        invalid_price_breaks: doivent avoir sur chaque ligne une quantité entière supérieure à zéro et un prix positif ou nul
         more_than_lent: Impossible de rendre ou de passer en perte plus que ce qui a été prêté
         needs_active_owner: L'organisation doit avoir au moins un propriétaire actif
         needs_owner: L'organisation doit avoir au moins un propriétaire
@@ -42,6 +43,7 @@ fr:
         same_organization_as_category: doit appartenir à la même organisation que la catégorie
         same_organization_as_part: doit appartenir à la même organisation que le composant
         too_many_files: ne peuvent pas dépasser %{count} fichiers
+        too_many_price_breaks: ne peuvent pas dépasser %{count}
         under_own_subzone: ne peut pas être déplacée sous l'une de ses propres sous-zones
         values_not_in_unit:
           one: '%{count} valeur de %{name} n’est pas un nombre en %{unit} (%{examples}).'
@@ -50,6 +52,7 @@ fr:
           one: '%{count} valeur de %{name} n’est pas un nombre (%{examples}).'
           other: '%{count} valeurs de %{name} ne sont pas des nombres (%{examples}).'
   attributes:
+    attachments: Fichiers joints
     bag: Sachet
     barcode: Code-barres
     category: Catégorie
@@ -94,6 +97,7 @@ fr:
     password: Mot de passe
     password_confirmation: Confirmation du mot de passe
     position: Position
+    price_breaks: Prix par quantité
     quantity: Quantité
     quantity_delta: Variation de quantité
     redirect_uris: URI de redirection
@@ -390,6 +394,14 @@ fr:
       values_filled:
         one: '%{count} valeur de composant remplie'
         other: '%{count} valeurs de composants remplies'
+    part_attachments:
+      added:
+        one: '%{count} fichier ajouté.'
+        other: '%{count} fichiers ajoutés.'
+      choose_files: Choisissez les fichiers à ajouter.
+      removed: '%{name} retiré.'
+      too_large: '%{name} dépasse %{size}.'
+      too_many: Un composant peut avoir jusqu’à %{count} fichiers.
     part_duplicates:
       dismissed: Ces %{count} composants ne seront plus proposés comme doublons les uns des autres.
       merged:
@@ -452,6 +464,7 @@ fr:
         one: '%{count} tag'
         other: '%{count} tags'
     profiles:
+      changes_allowed: "%{name} peut désormais modifier l’inventaire."
       confirm_from_the_email_we_sent: ' Confirmez %{unconfirmed_email} depuis l''e-mail que nous y avons envoyé pour vous connecter avec cette adresse.'
       enter_your_current_password_to_change: Saisissez votre mot de passe actuel pour changer d'adresse e-mail.
       failed_to_update_password: Impossible de mettre à jour le mot de passe.
@@ -459,8 +472,10 @@ fr:
       locale_updated: Langue mise à jour.
       notifications_off: Notifications par e-mail désactivées pour %{organization}.
       notifications_on: Notifications par e-mail activées pour %{organization}.
+      now_read_only: "%{name} est désormais en lecture seule."
       password_updated_successfully: Mot de passe mis à jour.
       profile_updated_successfully: Profil mis à jour.
+      viewers_can_t_allow_changes: Un lecteur ne peut pas autoriser une application à modifier l’inventaire.
     project_files:
       added:
         one: '%{count} fichier ajouté.'
@@ -592,6 +607,13 @@ fr:
       tag_created: Tag « %{tag_name} » créé.
       tag_deleted_successfully: Tag supprimé.
       tag_updated_successfully: Tag mis à jour.
+    threshold_suggestions:
+      applied:
+        one: Seuil mis à jour sur %{count} composant.
+        other: Seuils mis à jour sur %{count} composants.
+        zero: Aucun seuil modifié.
+      not_applied: 'Aucun seuil n’a été modifié : %{errors}.'
+      select_a_part: Sélectionnez au moins un composant.
     users_confirmations:
       that_confirmation_link_is_invalid_or: Ce lien de confirmation est invalide ou a expiré. Connectez-vous et demandez-en un nouveau depuis votre profil.
       too_many_confirmation_emails_requested_please: Trop d'e-mails de confirmation demandés. Patientez quelques minutes puis réessayez.

@@ -65,6 +65,7 @@ Rails.application.routes.draw do
         post :set_preferred
       end
     end
+    resources :attachments, controller: "part_attachments", only: %i[create destroy]
   end
 
   resources :categories, only: %i[index create update destroy]
@@ -104,8 +105,9 @@ Rails.application.routes.draw do
 
   get "search", to: "search#index", as: :search
 
-  # MCP server for Claude (claude.ai, Claude Desktop, Claude Code): read-only
-  # inventory tools behind OAuth 2.1 (dynamic client registration + PKCE).
+  # MCP server for Claude (claude.ai, Claude Desktop, Claude Code): inventory
+  # tools (read, plus write when allowed) behind OAuth 2.1 (dynamic client
+  # registration + PKCE).
   post "mcp", to: "mcp#create", as: :mcp, format: false
   match "mcp", to: "mcp#method_not_allowed", via: %i[get delete], format: false
   get ".well-known/oauth-protected-resource(/*resource)", to: "oauth/metadata#protected_resource", format: false
@@ -180,6 +182,9 @@ Rails.application.routes.draw do
   end
 
   get "alerts", to: "alerts#index"
+  get "stock_value", to: "stock_values#show", as: :stock_value
+  get "alerts/thresholds", to: "threshold_suggestions#index", as: :threshold_suggestions
+  post "alerts/thresholds", to: "threshold_suggestions#apply", as: :apply_threshold_suggestions
   post "alerts/purchase_orders", to: "alerts#create_purchase_orders", as: :alert_purchase_orders
   patch "alerts/orders/:id/advance", to: "alerts#advance_order", as: :advance_alert_order
 
@@ -209,6 +214,7 @@ Rails.application.routes.draw do
   patch "profile/locale", to: "profiles#update_locale", as: :profile_locale
   patch "profile/notifications/:id", to: "profiles#update_notifications", as: :profile_notifications
   delete "profile/connected_apps/:id", to: "profiles#revoke_connected_app", as: :profile_connected_app
+  patch "profile/connected_apps/:id", to: "profiles#update_connected_app"
 
   # Organization invitations addressed to the signed-in user.
   resources :invitations, only: [] do

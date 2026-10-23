@@ -14,7 +14,7 @@ A multi-tenant inventory manager for makerspaces and fablabs, purpose-built for 
 ## Features
 
 **Inventory**
-- **Parts**: SKU / MPN / IPN / barcode, manufacturer, datasheets, images and per-supplier pricing
+- **Parts**: SKU / MPN / IPN / barcode, manufacturer, datasheets, images, attached files (app notes, 3D models, firmware…) and per-supplier pricing
 - **Classification**: hierarchical categories, reusable footprints and free-form tags
 - **Parameters & parametric search**: typed values with units ("4k7", "100nF", "3V3") and range filters, e.g. every 0603 resistor between 1 kΩ and 10 kΩ; categories carry parameter templates
 - **Duplicate finder**: spots parts sharing a part number or the same value and footprint, and merges them with their stock and history
@@ -32,6 +32,8 @@ A multi-tenant inventory manager for makerspaces and fablabs, purpose-built for 
 **Buying**
 - **Suppliers & purchase orders**: preferred suppliers, pricing, lead times, and orders tracked from pending to received, with deliveries split across storage zones
 - **Mouser, DigiKey & LCSC**: look parts up in the supplier catalogs, import orders, and push a Mouser cart
+- **Price breaks & price history**: quantity price breaks per supplier (filled from the catalogs) that orders follow, and each part's purchase prices over time
+- **Stock value**: what the stock is worth by category, zone and part, at current, last or average purchase prices, with a CSV export
 - **Email digest**: a daily or weekly email of low-stock parts and late orders (needs SMTP)
 
 **Projects & KiCad**
@@ -46,7 +48,7 @@ A multi-tenant inventory manager for makerspaces and fablabs, purpose-built for 
 - **Activity log**: admins see who created, changed or deleted parts, zones, orders, projects, members and settings, with before and after values, per member or per record
 - **CSV import & backups**: bulk-load parts (UTF-8 or Excel's Windows-1252), export a whole organization as a ZIP and restore it
 - **English & French interface**, chosen per user or from the browser
-- **Claude & MCP**: a built-in, read-only MCP server so Claude (or any MCP client) can check stock, storage locations, project buildability and BOMs against your inventory
+- **Claude & MCP**: a built-in MCP server so Claude (or any MCP client) can check stock, storage locations, project buildability and BOMs against your inventory, and, if you allow it, record stock movements and create or edit parts and projects
 
 ## Tech stack
 
@@ -192,17 +194,26 @@ sending domain as instructed by your mail provider.
 
 Makerstorage serves a [Model Context Protocol](https://modelcontextprotocol.io)
 server at `/mcp`, so you can ask Claude things like "do I have what I need to
-build this BOM?" or "where are my 0603 10k resistors?". Its tools are
-read-only: search parts (with value and package filters to find substitutes),
-part details (stock per zone, suppliers, open orders, reservations), checking
-a BOM or a list of components against stock, projects and their shortfalls,
-storage zones, and an inventory overview.
+build this BOM?" or "where are my 0603 10k resistors?". The read tools search
+parts (with value and package filters to find substitutes), show part details
+(stock per zone, suppliers, open orders, reservations), check a BOM or a list
+of components against stock, list projects and their shortfalls, loans,
+storage zones, and give an inventory overview.
+
+If you tick *Allow changes*, Claude can also write: take stock in or out, move
+it between zones, record a count, create or edit a part, and create a draft
+project from a list of components. Every change goes through the same rules as
+the app (no negative stock, one part per bag, unique MPN/SKU) and lands in the
+stock ledger under your name, with the assistant's name in the reason
+("Used for the workshop (via Claude)"). Nothing can be deleted from Claude.
 
 Access goes through OAuth: when you add the connector, Claude opens a
-Makerstorage page where you sign in, pick one of your organizations, and allow
-read-only access. Your profile shows the server URL and the connected apps,
-each of which you can disconnect. A member who loses access to the
-organization loses API access with it.
+Makerstorage page where you sign in, pick one of your organizations, and choose
+read-only access or *Allow changes* (viewers only get read-only). Your profile
+shows the server URL and the connected apps; each one can be switched between
+read-only and changes, or disconnected. A member who loses access to the
+organization loses API access with it, and one who becomes a viewer loses the
+write tools.
 
 - **Claude (web, desktop, mobile)**: Settings → Connectors → *Add custom
   connector*, URL `https://parts.example.org/mcp`, no client ID or secret.

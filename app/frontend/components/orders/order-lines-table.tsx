@@ -15,6 +15,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { formatMoney } from '@/pages/orders/helpers'
+import { formatUnitPrice } from '@/lib/money'
 
 import type { Order, OrderLine } from './types'
 import { t } from '@/lib/i18n'
@@ -98,16 +99,18 @@ export function OrderLinesTable({ order, onEditAllocation }: OrderLinesTableProp
                 <TableCell className="text-right">
                   {canWrite && order.editable ? (
                     <Input
+                      // Remount when the server reprices the line (a quantity change moves it to another price break).
+                      key={line.unit_price ?? ''}
                       type="number"
                       min={0}
-                      step="0.01"
+                      step="0.0001"
                       defaultValue={line.unit_price ?? ''}
                       placeholder="—"
                       className="ml-auto h-8 w-24 text-right font-mono"
                       onBlur={(e) => changePrice(line, e.target.value)}
                     />
                   ) : (
-                    <span className="font-mono">{line.unit_price != null ? formatMoney(line.unit_price) : '—'}</span>
+                    <span className="font-mono">{line.unit_price != null ? `${formatUnitPrice(line.unit_price)} €` : '—'}</span>
                   )}
                 </TableCell>
                 <TableCell className="text-right font-mono">

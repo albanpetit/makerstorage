@@ -6,7 +6,7 @@ require "active_support/concern"
 module OauthUrls
   extend ActiveSupport::Concern
 
-  SCOPES = [ OauthAuthorization::SCOPE ].freeze
+  SCOPES = OauthAuthorization::SCOPES
 
   private
 
