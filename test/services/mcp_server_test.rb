@@ -88,6 +88,7 @@ class McpServerTest < ActiveSupport::TestCase
     OrderLine.create!(order: order, part: @r10k, quantity: 100)
     project = create_project(organization: @org, name: "Clock", status: "confirmed", reserved_at: Time.current)
     ProjectLine.create!(project: project, part: @r10k, quantity: 12, match_type: "mpn")
+    @r10k.attachments.attach(io: StringIO.new("notes"), filename: "notes.txt")
 
     data = call("get_part", "reference" => "rc0603fr-0710kl")
     assert_equal @r10k.id, data[:id]
@@ -97,9 +98,24 @@ class McpServerTest < ActiveSupport::TestCase
     assert_equal "2026-11-01", data[:open_orders].sole[:expected_delivery]
     assert_equal [ { project_id: project.id, project: "Clock", reference: nil, quantity: 12 } ], data[:reserved_by]
     assert_equal "Clock", data[:used_in_projects].sole[:name]
+    assert_equal [ { filename: "notes.txt", content_type: "text/plain", byte_size: 5 } ], data[:files]
+    assert_equal({ period_days: 90, used: 0, per_month: 0, days_of_stock_left: nil, suggested_min_stock_threshold: nil }, data[:consumption])
 
     assert_equal @r10k.id, call("get_part", "id" => @r10k.id)[:id]
     assert_raises_tool_error { call("get_part", {}) }
+  end
+
+  test "get_part lists price breaks and recent purchase prices, newest first" do
+    supplier = create_supplier(organization: @org, name: "LCSC")
+    PartSupplier.create!(part: @r10k, supplier: supplier, unit_price: 0.01, price_breaks: [ { quantity: 1000, unit_price: "0.004" } ])
+    create_order(organization: @org, supplier: supplier, reference: "PO-OLD", ordered_at: Date.new(2026, 1, 1))
+      .order_lines.create!(part: @r10k, quantity: 100, unit_price: "0.012")
+    create_order(organization: @org, supplier: supplier, reference: "PO-NEW", ordered_at: Date.new(2026, 8, 1))
+      .order_lines.create!(part: @r10k, quantity: 1000, unit_price: "0.004")
+
+    data = call("get_part", "id" => @r10k.id)
+    assert_equal [ { quantity: 1000, unit_price: 0.004 } ], data[:suppliers].sole[:price_breaks]
+    assert_equal [ [ "PO-NEW", 0.004 ], [ "PO-OLD", 0.012 ] ], data[:recent_purchases].map { |p| p.values_at(:reference, :unit_price) }
   end
 
   test "check_bom matches lines, reports shortfalls and how many builds fit" do

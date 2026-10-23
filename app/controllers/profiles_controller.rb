@@ -44,7 +44,10 @@ class ProfilesController < ApplicationController
             name: authorization.oauth_client.name,
             organization_name: authorization.organization.name,
             connected_at: authorization.created_at.iso8601,
-            last_used_at: authorization.last_used_at&.iso8601
+            last_used_at: authorization.last_used_at&.iso8601,
+            write: authorization.write_scope?,
+            # Viewers can't let a client write (and lose it on demotion).
+            can_write: current_user.writer_of?(authorization.organization)
           }
         end
     }
@@ -56,6 +59,19 @@ class ProfilesController < ApplicationController
     authorization.destroy!
 
     redirect_to profile_path, notice: "#{authorization.oauth_client.name} disconnected."
+  end
+
+  # Lets a connected MCP client change the inventory, or makes it read-only
+  # again. Applies from the client's next call.
+  def update_connected_app
+    authorization = current_user.oauth_authorizations.connected.find(params[:id])
+    write = ActiveModel::Type::Boolean.new.cast(params[:write]) || false
+    if write && !current_user.writer_of?(authorization.organization)
+      return redirect_to profile_path, alert: t("flash.profiles.viewers_can_t_allow_changes")
+    end
+
+    authorization.allow_write!(write)
+    redirect_to profile_path, notice: t(write ? "flash.profiles.changes_allowed" : "flash.profiles.now_read_only", name: authorization.oauth_client.name)
   end
 
   # UI language: "en", "fr", or blank to follow the browser.

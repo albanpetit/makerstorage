@@ -26,6 +26,22 @@ class OrderLine < ApplicationRecord
     quantity * unit_price
   end
 
+  # The supplier's price for this line's quantity (price breaks), see
+  # Part#order_unit_price.
+  def default_unit_price
+    part.order_unit_price(order.supplier_id, quantity)
+  end
+
+  # After a quantity change, moves a price that was the default for
+  # +previous_quantity+ (or blank) to the default for the new quantity, so a
+  # line follows the supplier's price breaks. A price typed by hand stays.
+  def follow_price_breaks(previous_quantity)
+    return unless part && order
+
+    previous_default = previous_quantity.to_i.positive? ? part.order_unit_price(order.supplier_id, previous_quantity) : nil
+    self.unit_price = default_unit_price if unit_price.nil? || unit_price == previous_default
+  end
+
   def allocated_quantity
     allocations.sum(&:quantity)
   end

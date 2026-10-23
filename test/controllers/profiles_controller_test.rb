@@ -270,6 +270,33 @@ class ProfilesControllerTest < ActionDispatch::IntegrationTest
     assert_equal "http://www.example.com/mcp", inertia_props["mcp_url"]
     app = inertia_props["connected_apps"].sole
     assert_equal [ "Claude Code", org.name ], [ app["name"], app["organization_name"] ]
+    assert_equal [ false, true ], [ app["write"], app["can_write"] ]
+  end
+
+  test "update_connected_app turns changes on and off, never for a viewer or another user" do
+    user = create_user
+    connect_mcp_client(user: user, organization: user.organizations.first)
+    authorization = user.oauth_authorizations.sole
+
+    sign_in create_user
+    patch profile_connected_app_path(authorization), params: { write: true }
+    assert_response :not_found
+
+    sign_in user
+    patch profile_connected_app_path(authorization), params: { write: true }
+    assert_redirected_to profile_path
+    assert authorization.reload.can_write?
+
+    patch profile_connected_app_path(authorization), params: { write: false }
+    assert_equal "mcp:read", authorization.reload.scope
+
+    viewed = create_organization
+    OrganizationMembership.create!(organization: viewed, user: user, role: "viewer")
+    connect_mcp_client(user: user, organization: viewed)
+    viewer_grant = user.oauth_authorizations.find_by(organization: viewed)
+    patch profile_connected_app_path(viewer_grant), params: { write: true }
+    assert_redirected_to profile_path
+    assert_equal "mcp:read", viewer_grant.reload.scope
   end
 
   test "revoke_connected_app disconnects an app, only for its own user" do

@@ -19,6 +19,7 @@ import {
   HandHelping,
   Users,
   Settings,
+  History,
   ChevronUp,
   LogOut,
   User,
@@ -86,6 +87,7 @@ const navigationItems = [
   { get title() { return t('Loans') }, url: '/loans', icon: HandHelping, badgeKey: 'loans' as const },
   { get title() { return t('Alerts') }, url: '/alerts', icon: AlertTriangle, badgeKey: 'alerts' as const },
   { get title() { return t('Members & Roles') }, url: '/members', icon: Users },
+  { get title() { return t('Activity') }, url: '/activity', icon: History, adminOnly: true },
   { get title() { return t('Settings') }, url: '/settings', icon: Settings, adminOnly: true },
 ]
 

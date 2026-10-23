@@ -423,6 +423,18 @@ class ProjectsControllerTest < ActionDispatch::IntegrationTest
     assert_equal 7, line.quantity
   end
 
+  test "create_purchase_orders uses the preferred supplier's price break for the shortfall" do
+    supplier = create_supplier(organization: @org)
+    PartSupplier.create!(part: @resistor, supplier: supplier, is_preferred: true, unit_price: 0.10,
+                         price_breaks: [ { quantity: 5, unit_price: "0.07" } ])
+    project = build_project([ @resistor, 12, "mpn" ]) # shortfall 7
+
+    sign_in @user
+    post create_purchase_orders_project_path(project)
+
+    assert_equal 0.07, OrderLine.order(:created_at).last.unit_price.to_f
+  end
+
   test "create_purchase_orders creates no order at all when one supplier's order fails" do
     [ @resistor, @cap ].each_with_index do |part, i|
       PartSupplier.create!(part: part, supplier: create_supplier(organization: @org, name: "Supplier #{i}"), is_preferred: true)

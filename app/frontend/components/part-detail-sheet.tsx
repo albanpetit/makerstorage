@@ -2,7 +2,7 @@ import { Link, router, useForm } from '@inertiajs/react'
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
 import {
   ArrowDown, ArrowUp, ArrowLeftRight, Cpu, MapPin,
-  Pencil, Printer, Trash2, ExternalLink, Loader2, CircleAlert, HandHelping,
+  Pencil, Printer, Trash2, ExternalLink, Loader2, CircleAlert, HandHelping, History,
 } from 'lucide-react'
 
 import { usePermissions } from '@/hooks/use-permissions'
@@ -41,7 +41,10 @@ import {
 } from '@/components/ui/alert-dialog'
 import { StorageLocationSelect, type StorageLocationOption } from '@/components/storage-location-select'
 import { LIFECYCLE_META } from '@/components/parts/part-meta'
-import { t, intlLocale, tx } from '@/lib/i18n'
+import { PartFiles, type PartFile } from '@/components/parts/part-files'
+import { formatUnitPrice, type PriceBreak } from '@/lib/money'
+import { PriceHistory, type PricePoint } from '@/components/parts/price-history'
+import { t, intlLocale, tn, tx } from '@/lib/i18n'
 
 interface PartSupplierEntry {
   id: number
@@ -52,6 +55,7 @@ interface PartSupplierEntry {
   lead_time_days: number | null
   url: string | null
   is_preferred: boolean
+  price_breaks: PriceBreak[]
 }
 
 interface PartDetail {
@@ -81,6 +85,7 @@ interface PartDetail {
   part_suppliers: PartSupplierEntry[]
   parameters: { id: number; name: string; value: string; display: string }[]
   location_names: string[]
+  files: PartFile[]
 }
 
 interface StorageEntry {
@@ -116,6 +121,19 @@ interface LoanEntry {
   overdue: boolean
 }
 
+// Usage read from the ledger (PartConsumption) and the threshold it suggests.
+interface ConsumptionEntry {
+  window_days: number
+  consumed: number
+  movements: number
+  monthly_rate: number
+  days_left: number | null
+  cover_days: number | null
+  suggested_threshold: number | null
+  last_used_at: string | null
+  months: { month: string; quantity: number }[]
+}
+
 interface Category {
   id: number
   name: string
@@ -147,6 +165,8 @@ interface PartShowPayload {
   movements: MovementEntry[]
   reservations: ReservationEntry[]
   loans: LoanEntry[]
+  price_history: PricePoint[]
+  consumption: ConsumptionEntry
   storage_locations: StorageLocationOption[]
   categories: Category[]
   footprints: Footprint[]
@@ -202,7 +222,7 @@ export function PartDetailSheet({
   open,
   onOpenChange,
 }: PartDetailSheetProps) {
-  const { canWrite } = usePermissions()
+  const { canWrite, canAdminister } = usePermissions()
   const [loading, setLoading] = useState(false)
   const [loadError, setLoadError] = useState('')
   const [payload, setPayload] = useState<PartShowPayload | null>(null)
@@ -286,6 +306,15 @@ export function PartDetailSheet({
         setMvtOpen(false)
         load()
       },
+    })
+  }
+
+  const applySuggestedThreshold = () => {
+    if (!payload) return
+    router.post('/alerts/thresholds', { part_ids: [payload.part.id] }, {
+      preserveScroll: true,
+      preserveState: true,
+      onSuccess: () => load(),
     })
   }
 
@@ -422,7 +451,7 @@ export function PartDetailSheet({
                   {[
                     { label: t('In stock'), value: part.total_quantity.toLocaleString(intlLocale()), className: stockKey === 'ok' ? '' : stockKey === 'low' ? 'text-amber-600 dark:text-amber-400' : 'text-destructive' },
                     { label: t('Min. threshold'), value: part.min_stock_threshold.toLocaleString(intlLocale()), className: '' },
-                    { label: t('Unit price'), value: part.unit_price != null ? part.unit_price.toFixed(2) : '—', className: '' },
+                    { label: t('Unit price'), value: part.unit_price != null ? formatUnitPrice(part.unit_price) : '—', className: '' },
                     { label: t('Stock value'), value: part.unit_price != null ? (part.unit_price * part.total_quantity).toFixed(2) : '—', className: '' },
                   ].map((stat) => (
                     <div key={stat.label} className="rounded-lg bg-muted p-3">
@@ -472,6 +501,14 @@ export function PartDetailSheet({
                     </div>
                   )}
                 </div>
+
+                {/* Consumption */}
+                <ConsumptionBlock
+                  consumption={payload.consumption}
+                  threshold={part.min_stock_threshold}
+                  canWrite={canWrite}
+                  onApply={applySuggestedThreshold}
+                />
 
                 {/* Project reservations */}
                 {payload.reservations.length > 0 && (
@@ -582,7 +619,7 @@ export function PartDetailSheet({
                       <div className="min-w-0 flex-1">
                         <div className="truncate text-sm font-semibold">{preferred.supplier_name}</div>
                         <div className="text-xs text-muted-foreground">
-                          {preferred.unit_price != null ? t('Unit {price}', { price: preferred.unit_price.toFixed(2) }) : t('No price')}
+                          {preferred.unit_price != null ? t('Unit {price}', { price: formatUnitPrice(preferred.unit_price) }) : t('No price')}
                           {preferred.lead_time_days != null ? t(' · lead {days}d', { days: preferred.lead_time_days }) : ''}
                         </div>
                       </div>
@@ -595,7 +632,24 @@ export function PartDetailSheet({
                   ) : (
                     <p className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">{t('No supplier linked to this part.')}</p>
                   )}
+                  {preferred && preferred.price_breaks.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-1.5" aria-label={t('Price breaks')}>
+                      {preferred.price_breaks.map((row) => (
+                        <span key={row.quantity} className="rounded-md bg-muted px-2 py-1 font-mono text-xs">
+                          {t('{quantity}+: {price}', { quantity: row.quantity.toLocaleString(intlLocale()), price: formatUnitPrice(row.unit_price) })}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
+
+                {/* Price history */}
+                <div>
+                  <h3 className="mb-2 text-sm font-semibold">{t('Price history')}</h3>
+                  <PriceHistory points={payload.price_history} />
+                </div>
+
+                <PartFiles partId={part.id} files={part.files} canWrite={canWrite} onChange={load} />
 
                 {/* Movement history */}
                 <div>
@@ -639,6 +693,13 @@ export function PartDetailSheet({
                   <Button variant="outline" onClick={() => setLabelOpen(true)} aria-label={t('Print label')}>
                     <Printer className="size-4" />
                   </Button>
+                  {canAdminister && partId !== null && (
+                    <Button variant="outline" asChild>
+                      <Link href={`/activity?subject_type=Part&subject_id=${partId}`} aria-label={t('History of this record')}>
+                        <History className="size-4" />
+                      </Link>
+                    </Button>
+                  )}
                   <Button variant="outline" onClick={() => setEditOpen(true)} aria-label={t('Edit part')}>
                     <Pencil className="size-4" />
                   </Button>
@@ -775,5 +836,74 @@ export function PartDetailSheet({
         ipnManualEntry={payload?.ipn_manual_entry ?? false}
       />
     </>
+  )
+}
+
+function ConsumptionBlock({ consumption, threshold, canWrite, onApply }: {
+  consumption: ConsumptionEntry
+  threshold: number
+  canWrite: boolean
+  onApply: () => void
+}) {
+  const peak = Math.max(...consumption.months.map((m) => m.quantity), 1)
+  const suggested = consumption.suggested_threshold
+
+  return (
+    <div>
+      <div className="mb-2 flex items-center justify-between">
+        <h3 className="text-sm font-semibold">{t('Consumption')}</h3>
+        <span className="text-xs text-muted-foreground">{t('last {days} days', { days: consumption.window_days })}</span>
+      </div>
+      {consumption.consumed === 0 && consumption.months.every((m) => m.quantity === 0) ? (
+        <p className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">
+          {t('No use recorded yet. Builds, scanner and manual stock-outs count; moves and loans don’t.')}
+        </p>
+      ) : (
+        <div className="space-y-3 rounded-lg border p-3">
+          <div className="grid grid-cols-3 gap-2 text-center">
+            {[
+              { label: t('Used'), value: consumption.consumed.toLocaleString(intlLocale()) },
+              { label: t('Per month'), value: consumption.monthly_rate.toLocaleString(intlLocale(), { maximumFractionDigits: 1 }) },
+              { label: t('Stock lasts'), value: consumption.days_left != null ? tn('{count} day', '{count} days', consumption.days_left) : '—' },
+            ].map((stat) => (
+              <div key={stat.label}>
+                <div className="text-xs text-muted-foreground">{stat.label}</div>
+                <div className="font-mono text-sm font-semibold">{stat.value}</div>
+              </div>
+            ))}
+          </div>
+          <div className="flex items-end gap-1.5" aria-label={t('Units used per month')}>
+            {consumption.months.map((m) => (
+              <div key={m.month} className="flex flex-1 flex-col items-center gap-1" title={`${m.quantity}`}>
+                <div className="flex h-12 w-full items-end">
+                  <div
+                    className="w-full rounded-sm bg-primary/70"
+                    style={{ height: `${m.quantity > 0 ? Math.max((m.quantity / peak) * 100, 4) : 0}%` }}
+                  />
+                </div>
+                <span className="text-[10px] text-muted-foreground">
+                  {new Date(`${m.month}-01T00:00:00`).toLocaleDateString(intlLocale(), { month: 'short' })}
+                </span>
+              </div>
+            ))}
+          </div>
+          <div className="flex items-center justify-between gap-2 border-t pt-3 text-sm">
+            {suggested != null ? (
+              <>
+                <span className="text-muted-foreground">
+                  {tx('Suggested threshold {value}', { value: <span className="font-mono font-semibold text-foreground">{suggested}</span> })}
+                  <span className="block text-xs">{tn('Covers {count} day of use', 'Covers {count} days of use', consumption.cover_days ?? 0)}</span>
+                </span>
+                {canWrite && suggested !== threshold && (
+                  <Button variant="outline" size="sm" onClick={onApply}>{t('Use {value}', { value: suggested })}</Button>
+                )}
+              </>
+            ) : (
+              <span className="text-xs text-muted-foreground">{t('Not enough uses yet to suggest a threshold.')}</span>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
   )
 }

@@ -19,6 +19,7 @@ export interface LookupResult {
   voltage_rating: string | null
   power_rating: string | null
   unit_price: string | null
+  price_breaks: { quantity: number; unit_price: string }[]
   rohs_compliant: boolean
   datasheet_url: string | null
   image_url: string | null

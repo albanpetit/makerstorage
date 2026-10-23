@@ -1,4 +1,7 @@
 class OrganizationMembership < ApplicationRecord
+  # Activity log (Auditable).
+  audited ignore: %i[invitation_token invitation_sent_at invited_by_id], on_create: %i[role]
+
   belongs_to :user
   belongs_to :organization, inverse_of: :organization_memberships
   belongs_to :invited_by, class_name: "User", optional: true
@@ -76,6 +79,10 @@ class OrganizationMembership < ApplicationRecord
 
   def activate!
     update!(active: true)
+  end
+
+  def activity_label
+    user&.display_name || "##{id}"
   end
 
   private

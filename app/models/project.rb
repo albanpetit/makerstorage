@@ -1,4 +1,7 @@
 class Project < ApplicationRecord
+  # Activity log (Auditable).
+  audited ignore: %i[checked_at builds_count last_built_at github_synced_sha github_synced_at]
+
   include GeneratedReference
   include AttachmentValidation
 

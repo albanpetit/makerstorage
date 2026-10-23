@@ -22,6 +22,9 @@ class PartsController < ApplicationController
   # Raised when the add-part form's opening stock can't be recorded.
   class InitialStockError < StandardError; end
 
+  # Purchase prices shown in the part detail's price history.
+  PRICE_HISTORY_LIMIT = 50
+
   # Part attribute => BomParser field for the optional CSV import columns.
   IMPORTED_ATTRIBUTES = {
     mpn: :mpn,
@@ -101,6 +104,8 @@ class PartsController < ApplicationController
           movements: movements.map { |movement| serialize_part_movement(movement) },
           reservations: serialize_part_reservations(@part),
           loans: serialize_part_loans(@part),
+          price_history: serialize_price_history(@part),
+          consumption: serialize_part_consumption(@part),
           storage_locations: serialize_storage_locations,
           categories: serialize_categories,
           footprints: serialize_footprints,
@@ -343,53 +348,61 @@ class PartsController < ApplicationController
     skipped = 0
 
     begin
-      BomParser.each_row(file.path) do |row|
-        name = import_value(row, :name)
-        category_name = import_value(row, :category)
+      # One "import" event for the file, not one per part.
+      ActivityEvent.without_recording do
+        BomParser.each_row(file.path) do |row|
+          name = import_value(row, :name)
+          category_name = import_value(row, :category)
 
-        if name.blank? || category_name.blank?
-          skipped += 1
-          next
-        end
-
-        part = find_existing_part(row)
-        is_new = part.nil?
-
-        # One transaction per row: a row that fails anywhere (invalid category,
-        # part, location, or a stock level the ledger refuses) is skipped as a
-        # whole instead of leaving a half-imported part or aborting the file.
-        imported = ActiveRecord::Base.transaction do
-          part ||= current_organization.parts.build(min_stock_threshold: 0, status: "active", skip_bag_claim: true)
-          part.assign_attributes(name: name, category: import_category(category_name))
-          # Only what the sheet actually states: a column the file doesn't have,
-          # or a blank cell, leaves an existing part's value alone instead of
-          # wiping it (a re-import of a partial sheet must not erase data).
-          IMPORTED_ATTRIBUTES.each do |attribute, field|
-            value = import_value(row, field)
-            next if value.nil?
-
-            value = value.tr(",", ".") if attribute == :unit_price
-            part.assign_attributes(attribute => value)
+          if name.blank? || category_name.blank?
+            skipped += 1
+            next
           end
-          part.save!
-          claim_import_bag(part, row)
-          assign_stock(part, row)
-          true
-        rescue ActiveRecord::RecordInvalid, ActiveRecord::RecordNotSaved, AmbiguousLocationError, InvalidQuantityError
-          raise ActiveRecord::Rollback
-        end
 
-        if imported
-          is_new ? created += 1 : updated += 1
-        else
-          # A zone the row created was rolled back with it: reload the zone
-          # index rather than hand a later row a zone that no longer exists.
-          @import_zones = nil
-          skipped += 1
+          part = find_existing_part(row)
+          is_new = part.nil?
+
+          # One transaction per row: a row that fails anywhere (invalid category,
+          # part, location, or a stock level the ledger refuses) is skipped as a
+          # whole instead of leaving a half-imported part or aborting the file.
+          imported = ActiveRecord::Base.transaction do
+            part ||= current_organization.parts.build(min_stock_threshold: 0, status: "active", skip_bag_claim: true)
+            part.assign_attributes(name: name, category: import_category(category_name))
+            # Only what the sheet actually states: a column the file doesn't have,
+            # or a blank cell, leaves an existing part's value alone instead of
+            # wiping it (a re-import of a partial sheet must not erase data).
+            IMPORTED_ATTRIBUTES.each do |attribute, field|
+              value = import_value(row, field)
+              next if value.nil?
+
+              value = value.tr(",", ".") if attribute == :unit_price
+              part.assign_attributes(attribute => value)
+            end
+            part.save!
+            claim_import_bag(part, row)
+            assign_stock(part, row)
+            true
+          rescue ActiveRecord::RecordInvalid, ActiveRecord::RecordNotSaved, AmbiguousLocationError, InvalidQuantityError
+            raise ActiveRecord::Rollback
+          end
+
+          if imported
+            is_new ? created += 1 : updated += 1
+          else
+            # A zone the row created was rolled back with it: reload the zone
+            # index rather than hand a later row a zone that no longer exists.
+            @import_zones = nil
+            skipped += 1
+          end
         end
       end
     rescue CSV::MalformedCSVError
       return redirect_to(parts_path, alert: t("flash.parts.could_not_parse_that_file_as"))
+    end
+
+    if created + updated > 0
+      ActivityEvent.record!(current_organization, "import",
+        details: { "file" => file.original_filename.to_s, "created" => created, "updated" => updated, "skipped" => skipped })
     end
 
     redirect_to parts_path, notice: t("flash.parts.import_complete_created_updated_skipped", created: created, updated: updated, skipped: skipped)
@@ -716,7 +729,7 @@ class PartsController < ApplicationController
       parameter_values: {},
       part_suppliers_attributes: [
         :id, :supplier_id, :supplier_sku, :unit_price, :lead_time_days,
-        :url, :is_preferred, :notes, :_destroy
+        :url, :is_preferred, :notes, :_destroy, { price_breaks: %i[quantity unit_price] }
       ]
     )
     # Through-association ids are looked up across every organization, and a
@@ -831,6 +844,41 @@ class PartsController < ApplicationController
       end
   end
 
+  # The part's purchase prices, oldest first (the last PRICE_HISTORY_LIMIT).
+  def serialize_price_history(part)
+    part.purchase_price_lines(:desc).limit(PRICE_HISTORY_LIMIT).reverse.map do |line|
+      order = line.order
+      {
+        order_id: order.id,
+        order_reference: order.reference,
+        status: order.status,
+        supplier_name: order.supplier.name,
+        date: (order.ordered_at || order.created_at.to_date).iso8601,
+        quantity: line.quantity,
+        unit_price: line.unit_price.to_f
+      }
+    end
+  end
+
+  # Usage over the organization's window and the threshold it suggests
+  # (PartConsumption), plus the last months for the sparkline.
+  def serialize_part_consumption(part)
+    consumption = PartConsumption.new(current_organization)
+    entry = consumption.for_part(part)
+
+    {
+      window_days: consumption.window_days,
+      consumed: entry&.consumed || 0,
+      movements: entry&.movements || 0,
+      monthly_rate: entry ? entry.monthly_rate.round(1) : 0,
+      days_left: entry&.days_left(part.total_quantity),
+      cover_days: entry&.cover_days,
+      suggested_threshold: entry&.suggested_threshold,
+      last_used_at: entry&.last_used_at&.iso8601,
+      months: consumption.monthly(part)
+    }
+  end
+
   def serialize_part_full(part)
     serialize_part(part).merge(
       tolerance: part.tolerance,
@@ -848,8 +896,26 @@ class PartsController < ApplicationController
       bag_id: part.bag_id,
       tag_ids: part.tag_ids,
       tags: part.tags.map { |tag| { id: tag.id, name: tag.name, color: tag.color } },
-      part_suppliers: part.part_suppliers.includes(:supplier).map { |ps| serialize_part_supplier(ps) }
+      part_suppliers: part.part_suppliers.includes(:supplier).map { |ps| serialize_part_supplier(ps) },
+      files: serialize_part_files(part)
     )
+  end
+
+  # The datasheet first, then the other files in the order they were added.
+  def serialize_part_files(part)
+    files = part.attachments_attachments.includes(:blob).order(:created_at, :id).to_a
+    files.unshift(part.datasheet_attachment) if part.datasheet.attached?
+    files.map do |file|
+      {
+        id: file.id,
+        filename: file.filename.to_s,
+        content_type: file.content_type,
+        byte_size: file.byte_size,
+        created_at: file.created_at.iso8601,
+        url: stored_file_path_for(file),
+        datasheet: file.name == "datasheet"
+      }
+    end
   end
 
   def serialize_part_storage(ps, paths)
@@ -889,7 +955,8 @@ class PartsController < ApplicationController
       lead_time_days: ps.lead_time_days,
       url: ps.url,
       is_preferred: ps.is_preferred,
-      notes: ps.notes
+      notes: ps.notes,
+      price_breaks: ps.price_breaks_for_json
     }
   end
 end

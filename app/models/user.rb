@@ -38,6 +38,9 @@ class User < ApplicationRecord
            inverse_of: :completed_by, dependent: :nullify
   has_many :counted_stocktake_lines, class_name: "StocktakeLine", foreign_key: :counted_by_id,
            inverse_of: :counted_by, dependent: :nullify
+  # The activity log keeps the name it was written with (user_name). Last, so
+  # it also covers events the cascade above writes.
+  has_many :activity_events, dependent: :nullify
 
   after_create :create_personal_organization
 
@@ -56,6 +59,10 @@ class User < ApplicationRecord
   # "Firstname Lastname", or the email when no name was given.
   def display_name
     "#{firstname} #{lastname}".strip.presence || email
+  end
+
+  def activity_label
+    display_name
   end
 
   # Check if the user is a member of an organization by ID (more efficient)

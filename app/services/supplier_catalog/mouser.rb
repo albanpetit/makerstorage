@@ -141,6 +141,7 @@ module SupplierCatalog
         voltage_rating: attribute_value(attributes, :voltage_rating) || parsed[:voltage_rating],
         power_rating: attribute_value(attributes, :power_rating) || parsed[:power_rating],
         unit_price: first_price(part["PriceBreaks"]),
+        price_breaks: price_breaks(part["PriceBreaks"]),
         rohs_compliant: rohs?(part["ROHSStatus"]),
         datasheet_url: part["DataSheetUrl"].presence,
         image_url: (part["ImagePath"] || part["ImageURL"]).presence,
@@ -168,6 +169,15 @@ module SupplierCatalog
     def first_price(price_breaks)
       break_row = Array(price_breaks).min_by { |b| b["Quantity"].to_i }
       numeric_price(break_row&.dig("Price"))
+    end
+
+    # Every break as { quantity:, unit_price: }, by quantity.
+    def price_breaks(rows)
+      Array(rows).filter_map do |row|
+        quantity = row["Quantity"].to_i
+        price = numeric_price(row["Price"])
+        { quantity: quantity, unit_price: price } if quantity.positive? && price
+      end.sort_by { |row| row[:quantity] }
     end
 
     # Normalizes a Mouser price string to a numeric string (strips currency

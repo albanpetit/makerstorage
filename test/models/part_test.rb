@@ -299,11 +299,60 @@ class PartTest < ActiveSupport::TestCase
     assert part.valid?
   end
 
+  test "attachments take any type of file, up to a size and a count" do
+    part = create_part(organization: @org)
+    part.attachments.attach(io: StringIO.new("<html></html>"), filename: "page.html")
+    part.attachments.attach(io: StringIO.new("ISO-10303-21;"), filename: "body.step")
+    assert part.valid?, part.errors.full_messages.to_sentence
+
+    part.attachments.attach(io: StringIO.new("x"), filename: "big.bin")
+    part.attachments.blobs.find { |blob| blob.filename.to_s == "big.bin" }.update_column(:byte_size, 50.megabytes + 1)
+    assert_not part.reload.valid?
+    assert_match(/must be smaller than 50 MB/, part.errors[:attachments].join)
+  end
+
+  test "a part holds at most MAX_ATTACHMENTS files" do
+    part = create_part(organization: @org)
+    files = Array.new(Part::MAX_ATTACHMENTS + 1) { |i| { io: StringIO.new("f#{i}"), filename: "f#{i}.txt" } }
+    assert_not part.attachments.attach(files)
+    assert_includes part.errors[:attachments].join, "can't be more than #{Part::MAX_ATTACHMENTS} files"
+
+    assert part.reload.update(name: "Renamed part"), "other saves don't count the files"
+  end
+
   test "a datasheet must be a pdf" do
     part = create_part(organization: create_organization)
     part.datasheet.attach(io: StringIO.new("not a pdf"), filename: "ds.txt", content_type: "text/plain", identify: false)
 
     assert_not part.valid?
     assert_match(/must be a PDF file/, part.errors[:datasheet].join)
+  end
+
+  test "order_unit_price applies the supplier's price break for the quantity" do
+    org = create_organization
+    part = create_part(organization: org, unit_price: 1)
+    supplier = create_supplier(organization: org)
+    part.part_suppliers.create!(supplier: supplier, unit_price: 0.2, price_breaks: [ { quantity: 100, unit_price: "0.1" } ])
+
+    assert_equal 0.2, part.order_unit_price(supplier.id).to_f
+    assert_equal 0.2, part.order_unit_price(supplier.id, 10).to_f
+    assert_equal 0.1, part.order_unit_price(supplier.id, 100).to_f
+  end
+
+  test "purchase_price_lines lists priced lines of orders not cancelled, oldest order first" do
+    org = create_organization
+    part = create_part(organization: org)
+    supplier = create_supplier(organization: org)
+    late = create_order(organization: org, supplier: supplier, reference: "PO-LATE", ordered_at: Date.new(2026, 5, 1))
+    early = create_order(organization: org, supplier: supplier, reference: "PO-EARLY", ordered_at: Date.new(2026, 1, 1))
+    cancelled = create_order(organization: org, supplier: supplier, reference: "PO-CANCELLED", ordered_at: Date.new(2026, 3, 1), status: "cancelled")
+    unpriced = create_order(organization: org, supplier: supplier, reference: "PO-UNPRICED", ordered_at: Date.new(2026, 2, 1))
+    late.order_lines.create!(part: part, quantity: 10, unit_price: 0.5)
+    early.order_lines.create!(part: part, quantity: 10, unit_price: 0.7)
+    cancelled.order_lines.create!(part: part, quantity: 10, unit_price: 0.1)
+    unpriced.order_lines.create!(part: part, quantity: 10)
+
+    assert_equal %w[PO-EARLY PO-LATE], part.purchase_price_lines.map { |line| line.order.reference }
+    assert_equal %w[PO-LATE PO-EARLY], part.purchase_price_lines(:desc).map { |line| line.order.reference }
   end
 end

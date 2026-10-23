@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_22_203717) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_22_204700) do
   create_table "active_storage_attachments", force: :cascade do |t|
     t.bigint "blob_id", null: false
     t.datetime "created_at", null: false
@@ -37,6 +37,21 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_22_203717) do
     t.bigint "blob_id", null: false
     t.string "variation_digest", null: false
     t.index ["blob_id", "variation_digest"], name: "index_active_storage_variant_records_uniqueness", unique: true
+  end
+
+  create_table "activity_events", force: :cascade do |t|
+    t.integer "organization_id", null: false
+    t.integer "user_id"
+    t.string "user_name"
+    t.string "action", null: false
+    t.string "subject_type"
+    t.integer "subject_id"
+    t.string "subject_label"
+    t.json "details", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.index ["organization_id", "created_at"], name: "index_activity_events_on_organization_id_and_created_at"
+    t.index ["organization_id", "subject_type", "subject_id"], name: "index_activity_events_on_subject"
+    t.index ["user_id"], name: "index_activity_events_on_user_id"
   end
 
   create_table "categories", force: :cascade do |t|
@@ -176,7 +191,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_22_203717) do
     t.integer "part_id", null: false
     t.integer "order_id", null: false
     t.integer "quantity", null: false
-    t.decimal "unit_price", precision: 10, scale: 2
+    t.decimal "unit_price", precision: 12, scale: 4
     t.datetime "updated_at", null: false
     t.index ["order_id"], name: "index_order_lines_on_order_id"
     t.index ["part_id"], name: "index_order_lines_on_part_id"
@@ -262,6 +277,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_22_203717) do
     t.integer "default_loan_days", default: 14, null: false
     t.boolean "notify_overdue_loans", default: true, null: false
     t.string "github_token"
+    t.integer "consumption_window_days", default: 90, null: false
+    t.integer "threshold_cover_days", default: 30, null: false
     t.index ["email"], name: "index_organizations_on_email"
     t.index ["kicad_token_digest"], name: "index_organizations_on_kicad_token_digest", unique: true
     t.index ["name"], name: "index_organizations_on_name"
@@ -321,9 +338,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_22_203717) do
     t.integer "part_id", null: false
     t.integer "supplier_id", null: false
     t.string "supplier_sku"
-    t.decimal "unit_price", precision: 10, scale: 2
+    t.decimal "unit_price", precision: 12, scale: 4
     t.datetime "updated_at", null: false
     t.string "url"
+    t.json "price_breaks", default: [], null: false
     t.index ["part_id", "supplier_id"], name: "index_part_suppliers_on_part_id_and_supplier_id", unique: true
     t.index ["part_id"], name: "index_part_suppliers_on_part_id"
     t.index ["supplier_id"], name: "index_part_suppliers_on_supplier_id"
@@ -361,7 +379,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_22_203717) do
     t.integer "target_stock"
     t.string "tolerance"
     t.string "unit", default: "piece", null: false
-    t.decimal "unit_price", precision: 10, scale: 2
+    t.decimal "unit_price", precision: 12, scale: 4
     t.datetime "updated_at", null: false
     t.string "value"
     t.string "voltage_rating"
@@ -572,6 +590,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_22_203717) do
 
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
+  add_foreign_key "activity_events", "organizations"
+  add_foreign_key "activity_events", "users"
   add_foreign_key "categories", "categories", column: "parent_id"
   add_foreign_key "categories", "organizations"
   add_foreign_key "category_parameters", "categories"

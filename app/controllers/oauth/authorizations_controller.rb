@@ -3,8 +3,9 @@
 module Oauth
   # The OAuth consent page an MCP client (claude.ai, Claude Code…) sends the
   # user to: they sign in if needed, pick the organization to share, and allow
-  # read-only access. Allowing sends an authorization code back to the client's
-  # redirect URI, which the client trades for tokens at Oauth::TokensController.
+  # read-only access, or changes too when they tick it (writers only). Allowing
+  # sends an authorization code back to the client's redirect URI, which the
+  # client trades for tokens at Oauth::TokensController.
   class AuthorizationsController < ApplicationController
     include Auth
     include OauthUrls
@@ -18,7 +19,10 @@ module Oauth
         redirect_host: redirect_host,
         loopback: OauthClient.loopback_host?(URI.parse(@redirect_uri).host),
         mcp_url: mcp_resource_url,
-        organizations: current_user.organizations.order(:name).map { |org| { id: org.id, name: org.name } },
+        organizations: current_user.organizations.order(:name).map do |org|
+          { id: org.id, name: org.name, can_write: current_user.writer_of?(org) }
+        end,
+        write_requested: params[:scope].to_s.split.include?(OauthAuthorization::WRITE_SCOPE),
         default_organization_id: current_organization&.id,
         request: request_params
       }
@@ -35,7 +39,9 @@ module Oauth
 
       code = OauthAuthorization.grant!(
         client: @client, user: current_user, organization: organization,
-        redirect_uri: @redirect_uri, code_challenge: params[:code_challenge]
+        redirect_uri: @redirect_uri, code_challenge: params[:code_challenge],
+        # Viewers can't write in the app, so they can't let a client write either.
+        write: ActiveModel::Type::Boolean.new.cast(params[:write]) && current_user.writer_of?(organization)
       )
       redirect_to_client(code: code)
     end

@@ -1,4 +1,7 @@
 class Order < ApplicationRecord
+  # Activity log (Auditable).
+  audited
+
   include GeneratedReference
 
   # Associations
@@ -153,6 +156,10 @@ class Order < ApplicationRecord
     end
 
     skipped
+  end
+
+  def activity_label
+    reference.presence || "##{id}"
   end
 
   private

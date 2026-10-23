@@ -5,6 +5,9 @@
 # the parameters their parts usually have (CategoryParameter), which the part
 # form proposes.
 class ParameterDefinition < ApplicationRecord
+  # Activity log (Auditable).
+  audited
+
   VALUE_TYPES = %w[number text].freeze
 
   # The set "Add standard parameters" installs. +categories+ matches the

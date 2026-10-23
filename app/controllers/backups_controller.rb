@@ -22,6 +22,7 @@ class BackupsController < ApplicationController
     path = Rails.root.join("tmp", "backups", "#{SecureRandom.uuid}.zip")
     FileUtils.mkdir_p(path.dirname)
     OrganizationBackup::Exporter.new(current_organization).write_to(path.to_s)
+    ActivityEvent.record!(current_organization, "export")
 
     response.headers["Content-Type"] = "application/zip"
     response.headers["Content-Disposition"] = ActionDispatch::Http::ContentDisposition.format(

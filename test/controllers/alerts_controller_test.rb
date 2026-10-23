@@ -162,6 +162,25 @@ class AlertsControllerTest < ActionDispatch::IntegrationTest
     assert_match(/already covered by open purchase orders/i, flash[:alert])
   end
 
+  test "create_purchase_orders prices each line at the supplier's break for the quantity ordered" do
+    user = create_user
+    org = user.organizations.first
+    location = create_storage_location(organization: org)
+    supplier = create_supplier(organization: org)
+    part = create_part(organization: org, min_stock_threshold: 50, target_stock: 200)
+    PartStorage.create!(part: part, storage_location: location, quantity: 10)
+    PartSupplier.create!(part: part, supplier: supplier, is_preferred: true, unit_price: 0.1,
+                         price_breaks: [ { quantity: 100, unit_price: "0.06" } ])
+
+    sign_in user
+    post alert_purchase_orders_path # orders 190
+
+    line = OrderLine.last
+    assert_equal 190, line.quantity
+    assert_equal 0.06, line.unit_price.to_f
+    assert_equal 11.4, line.order.total_amount.to_f
+  end
+
   test "create_purchase_orders scoped to a single part_id only orders that alert" do
     user = create_user
     org = user.organizations.first

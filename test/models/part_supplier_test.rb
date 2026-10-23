@@ -58,4 +58,65 @@ class PartSupplierTest < ActiveSupport::TestCase
 
     assert_equal 1.5, @part.reload.unit_price.to_f
   end
+
+  test "price breaks are cleaned up: sorted, blank rows dropped, one price per quantity" do
+    link = PartSupplier.create!(part: @part, supplier: create_supplier(organization: @org), price_breaks: [
+      { quantity: "100", unit_price: "0,05" },
+      { "quantity" => 10, "unit_price" => 0.08 },
+      { quantity: "", unit_price: "" },
+      { quantity: 100, unit_price: "0.045" }
+    ])
+
+    assert_equal [ { "quantity" => 10, "unit_price" => "0.08" }, { "quantity" => 100, "unit_price" => "0.045" } ], link.reload.price_breaks
+  end
+
+  test "a link given only price breaks takes the first break as its unit price" do
+    link = PartSupplier.create!(part: @part, supplier: create_supplier(organization: @org),
+                                price_breaks: [ { quantity: 10, unit_price: "0.08" }, { quantity: 1, unit_price: "0.12" } ])
+
+    assert_equal 0.12, link.unit_price.to_f
+  end
+
+  test "unreadable or impossible price breaks are refused" do
+    supplier = create_supplier(organization: @org)
+    [
+      [ { quantity: "ten", unit_price: "1" } ],
+      [ { quantity: 0, unit_price: "1" } ],
+      [ { quantity: 10, unit_price: "-1" } ],
+      [ { quantity: 10, unit_price: "cheap" } ]
+    ].each do |rows|
+      link = PartSupplier.new(part: @part, supplier: supplier, price_breaks: rows)
+      assert_not link.valid?, rows.inspect
+      assert link.errors.added?(:price_breaks, :invalid_price_breaks), rows.inspect
+    end
+
+    too_many = (1..(PartSupplier::MAX_PRICE_BREAKS + 1)).map { |n| { quantity: n, unit_price: "1" } }
+    link = PartSupplier.new(part: @part, supplier: supplier, price_breaks: too_many)
+    assert_not link.valid?
+    assert link.errors.added?(:price_breaks, :too_many_price_breaks, count: PartSupplier::MAX_PRICE_BREAKS)
+  end
+
+  test "unit_price_for picks the break for the quantity" do
+    link = PartSupplier.create!(part: @part, supplier: create_supplier(organization: @org), unit_price: 0.15,
+                                price_breaks: [ { quantity: 10, unit_price: "0.08" }, { quantity: 100, unit_price: "0.05" } ])
+
+    assert_equal 0.15, link.unit_price_for(5).to_f, "below the first break: the plain unit price"
+    assert_equal 0.08, link.unit_price_for(10).to_f
+    assert_equal 0.08, link.unit_price_for(99).to_f
+    assert_equal 0.05, link.unit_price_for(5000).to_f
+    assert_equal 0.15, link.unit_price_for(nil).to_f
+  end
+
+  test "unit_price_for without breaks is the unit price" do
+    link = PartSupplier.create!(part: @part, supplier: create_supplier(organization: @org), unit_price: 0.15)
+
+    assert_equal 0.15, link.unit_price_for(1000).to_f
+  end
+
+  test "unit prices keep four decimals" do
+    link = PartSupplier.create!(part: @part, supplier: create_supplier(organization: @org), unit_price: "0.0021", is_preferred: true)
+
+    assert_equal BigDecimal("0.0021"), link.reload.unit_price
+    assert_equal BigDecimal("0.0021"), @part.reload.unit_price
+  end
 end

@@ -1,5 +1,6 @@
 # Access a user granted an OAuth client (an MCP client such as Claude) to one
-# organization, read-only. The row first carries a short-lived authorization
+# organization: read-only, or read and write when the user also allowed
+# changes (the mcp:write scope, see #can_write?). The row first carries a short-lived authorization
 # code, then the current access/refresh token pair. Only SHA-256 digests of
 # codes and tokens are stored; the plain values are returned once, to the client.
 #
@@ -7,6 +8,10 @@
 # one stops working as soon as the real client refreshes.
 class OauthAuthorization < ApplicationRecord
   SCOPE = "mcp:read"
+  # Lets the client change the inventory (stock movements, parts, projects).
+  # Only effective while the user may write in the organization (not a viewer).
+  WRITE_SCOPE = "mcp:write"
+  SCOPES = [ SCOPE, WRITE_SCOPE ].freeze
   CODE_TTL = 10.minutes
   ACCESS_TOKEN_TTL = 1.hour
   REFRESH_TOKEN_TTL = 90.days
@@ -36,12 +41,12 @@ class OauthAuthorization < ApplicationRecord
 
   # Records the user's consent and returns the plain authorization code to
   # send back to the client. Also sweeps codes nobody exchanged in time.
-  def self.grant!(client:, user:, organization:, redirect_uri:, code_challenge:)
+  def self.grant!(client:, user:, organization:, redirect_uri:, code_challenge:, write: false)
     where(access_token_digest: nil).where(code_expires_at: ...Time.current).delete_all
 
     code = SecureRandom.urlsafe_base64(32)
     create!(
-      oauth_client: client, user: user, organization: organization, scope: SCOPE,
+      oauth_client: client, user: user, organization: organization, scope: scope_for(write: write),
       code_digest: digest(code), code_challenge: code_challenge,
       redirect_uri: redirect_uri, code_expires_at: CODE_TTL.from_now
     )
@@ -86,6 +91,27 @@ class OauthAuthorization < ApplicationRecord
 
     authorization.touch_last_used
     authorization
+  end
+
+  def self.scope_for(write:)
+    write ? SCOPES.join(" ") : SCOPE
+  end
+
+  # Whether the user allowed changes when connecting (or later, from Profile).
+  def write_scope?
+    scope.to_s.split.include?(WRITE_SCOPE)
+  end
+
+  # Whether this grant may change the inventory right now: changes allowed,
+  # and the user still holds a writing role (a member turned viewer loses it).
+  def can_write?
+    write_scope? && user.writer_of?(organization)
+  end
+
+  # Turns changes on or off for this grant (Profile → connected apps). Takes
+  # effect on the client's next call, no reconnection needed.
+  def allow_write!(write)
+    update!(scope: self.class.scope_for(write: write))
   end
 
   def pkce_verified?(verifier)
