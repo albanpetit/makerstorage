@@ -326,6 +326,14 @@ en:
       values_filled:
         one: '%{count} part value'
         other: '%{count} part values'
+    part_attachments:
+      added:
+        one: Added %{count} file.
+        other: Added %{count} files.
+      choose_files: Please choose files to add.
+      removed: '%{name} removed.'
+      too_large: '%{name} is larger than %{size}.'
+      too_many: A part can hold up to %{count} files.
     part_duplicates:
       dismissed: '%{count} parts won''t be suggested as duplicates of each other again.'
       merged:

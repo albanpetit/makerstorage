@@ -848,8 +848,26 @@ class PartsController < ApplicationController
       bag_id: part.bag_id,
       tag_ids: part.tag_ids,
       tags: part.tags.map { |tag| { id: tag.id, name: tag.name, color: tag.color } },
-      part_suppliers: part.part_suppliers.includes(:supplier).map { |ps| serialize_part_supplier(ps) }
+      part_suppliers: part.part_suppliers.includes(:supplier).map { |ps| serialize_part_supplier(ps) },
+      files: serialize_part_files(part)
     )
+  end
+
+  # The datasheet first, then the other files in the order they were added.
+  def serialize_part_files(part)
+    files = part.attachments_attachments.includes(:blob).order(:created_at, :id).to_a
+    files.unshift(part.datasheet_attachment) if part.datasheet.attached?
+    files.map do |file|
+      {
+        id: file.id,
+        filename: file.filename.to_s,
+        content_type: file.content_type,
+        byte_size: file.byte_size,
+        created_at: file.created_at.iso8601,
+        url: stored_file_path_for(file),
+        datasheet: file.name == "datasheet"
+      }
+    end
   end
 
   def serialize_part_storage(ps, paths)

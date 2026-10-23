@@ -41,6 +41,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { StorageLocationSelect, type StorageLocationOption } from '@/components/storage-location-select'
 import { LIFECYCLE_META } from '@/components/parts/part-meta'
+import { PartFiles, type PartFile } from '@/components/parts/part-files'
 import { t, intlLocale, tx } from '@/lib/i18n'
 
 interface PartSupplierEntry {
@@ -81,6 +82,7 @@ interface PartDetail {
   part_suppliers: PartSupplierEntry[]
   parameters: { id: number; name: string; value: string; display: string }[]
   location_names: string[]
+  files: PartFile[]
 }
 
 interface StorageEntry {
@@ -596,6 +598,8 @@ export function PartDetailSheet({
                     <p className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">{t('No supplier linked to this part.')}</p>
                   )}
                 </div>
+
+                <PartFiles partId={part.id} files={part.files} canWrite={canWrite} onChange={load} />
 
                 {/* Movement history */}
                 <div>

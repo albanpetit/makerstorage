@@ -11,6 +11,10 @@ module AttachmentValidation
   # sandboxing CSP that keeps any embedded script inert.
   LOGO_TYPES = (IMAGE_TYPES + %w[image/svg+xml]).freeze
   PDF_TYPES = %w[application/pdf].freeze
+  # Any file (part attachments: STEP models, firmware, app notes…). Safe to
+  # serve: StoredFilesController sends what browsers can't show safely
+  # inline (HTML, SVG, scripts) as a download.
+  ANY_TYPE = :any
 
   included do
     # name => { content_types:, max_size: }, for code that attaches files
@@ -28,7 +32,7 @@ module AttachmentValidation
 
         blobs = attached.respond_to?(:blobs) ? attached.blobs : [ attached.blob ]
         blobs.each do |blob|
-          unless content_types.include?(blob.content_type)
+          unless AttachmentValidation.allowed_type?(content_types, blob.content_type)
             errors.add(name, :attachment_type, types: AttachmentValidation.describe(content_types))
           end
           if blob.byte_size > max_size
@@ -37,6 +41,10 @@ module AttachmentValidation
         end
       end
     end
+  end
+
+  def self.allowed_type?(content_types, content_type)
+    content_types == ANY_TYPE || content_types.include?(content_type)
   end
 
   def self.describe(content_types)
