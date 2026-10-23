@@ -346,6 +346,7 @@ class ProjectsController < ApplicationController
 
   def serialize_project(project)
     shortfalls = project.shortfall_by_part
+    alternatives = stocked_alternatives(project, shortfalls)
     {
       id: project.id,
       name: project.name,
@@ -364,7 +365,7 @@ class ProjectsController < ApplicationController
       builds_count: project.builds_count,
       last_built_at: project.last_built_at&.iso8601,
       builds: serialize_builds(project),
-      lines: project.project_lines.map { |line| serialize_line(project, line, shortfalls) },
+      lines: project.project_lines.map { |line| serialize_line(project, line, shortfalls, alternatives) },
       files: project.kicad_files.map { |file| serialize_file(file) },
       files_have_schematics: ProjectKicadFiles.schematics?(project.kicad_files.map { |file| file.filename.to_s }),
       github: serialize_github(project),
@@ -422,7 +423,30 @@ class ProjectsController < ApplicationController
   # Shortfall and availability come from the project-wide per-part totals, so a
   # part listed on two lines isn't shown as available on each when its stock
   # only covers one.
-  def serialize_line(project, line, shortfalls)
+  # short part id => its linked alternatives (PartAlternative) with stock this
+  # project can count on (physical stock minus what projects reserved before
+  # it), the most available first, so a short line can switch to one.
+  def stocked_alternatives(project, shortfalls)
+    short_ids = shortfalls.keys.map(&:id)
+    return {} if short_ids.empty?
+
+    links = PartAlternative.involving(short_ids).pluck(:part_id, :alternative_part_id)
+    other_ids = links.flatten.uniq
+    parts = current_organization.parts.where(id: other_ids).where.not(status: "obsolete")
+      .includes(:part_storages).index_by(&:id)
+    reserved = Project.reserved_quantities(current_organization, part_ids: other_ids, except: project)
+
+    short_ids.to_h do |id|
+      others = links.filter_map { |a, b| a == id ? b : (b == id ? a : nil) }.uniq.filter_map { |other_id| parts[other_id] }
+      entries = others.filter_map do |other|
+        available = [ other.part_storages.sum(&:quantity) - reserved.fetch(other.id, 0), 0 ].max
+        { id: other.id, reference: other.reference, name: other.name, available: available } if available.positive?
+      end
+      [ id, entries.sort_by { |entry| [ -entry[:available], entry[:name].downcase ] } ]
+    end
+  end
+
+  def serialize_line(project, line, shortfalls, alternatives)
     shortfall = line.part ? shortfalls.fetch(line.part, 0) : 0
     {
       id: line.id,
@@ -437,6 +461,7 @@ class ProjectsController < ApplicationController
       reserved_elsewhere: line.part ? project.reserved_elsewhere.fetch(line.part.id, 0) : 0,
       shortfall: shortfall,
       available: line.part.present? && shortfall.zero?,
+      alternatives: line.part ? alternatives.fetch(line.part.id, []) : [],
       part: line.part && {
         id: line.part.id,
         reference: line.part.reference,

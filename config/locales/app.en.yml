@@ -331,6 +331,9 @@ en:
       values_filled:
         one: '%{count} part value'
         other: '%{count} part values'
+    part_alternatives:
+      linked: '%{name} linked as an alternative.'
+      unlinked: '%{name} is no longer an alternative.'
     part_attachments:
       added:
         one: Added %{count} file.

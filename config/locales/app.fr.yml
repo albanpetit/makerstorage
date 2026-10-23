@@ -397,6 +397,9 @@ fr:
       values_filled:
         one: '%{count} valeur de composant remplie'
         other: '%{count} valeurs de composants remplies'
+    part_alternatives:
+      linked: '%{name} lié comme alternative.'
+      unlinked: '%{name} n’est plus une alternative.'
     part_attachments:
       added:
         one: '%{count} fichier ajouté.'

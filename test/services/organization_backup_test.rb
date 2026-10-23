@@ -164,6 +164,17 @@ class OrganizationBackupTest < ActiveSupport::TestCase
     assert_equal [ pair ], PartDuplicateDismissal.where(part_id: org.parts.select(:id)).pluck(:part_id, :other_part_id)
   end
 
+  test "alternatives come back linked, with their note" do
+    twin = create_part(organization: @org, category: @category, name: "10k other maker", mpn: "ERJ-3EKF1002V")
+    PartAlternative.link!(@part, twin, note: "same pads")
+
+    org = restore(export_zip(@org)).organization
+
+    restored = org.parts.find_by!(mpn: "RC0603-10K")
+    assert_equal [ "ERJ-3EKF1002V" ], restored.alternative_parts.pluck(:mpn)
+    assert_equal "same pads", restored.alternative_links.sole.note
+  end
+
   test "box & bag numbering comes back with each part in its own bag" do
     @org.update!(ipn_generation_mode: "box_bag")
     box = create_storage_location(organization: @org, name: "Box A", location_type: "box", code: "A")

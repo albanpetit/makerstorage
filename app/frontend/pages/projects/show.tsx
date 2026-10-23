@@ -21,6 +21,7 @@ import {
   GitBranch,
   ExternalLink,
   Unlink,
+  Link2,
 } from 'lucide-react'
 
 import { AppLayout } from '@/layouts/app-layout'
@@ -83,7 +84,16 @@ interface ProjectLine {
   reserved_elsewhere: number
   shortfall: number
   available: boolean
+  // Linked alternatives (PartAlternative) with stock, on short lines only.
+  alternatives: LineAlternative[]
   part: LinePart | null
+}
+
+interface LineAlternative {
+  id: number
+  reference: string
+  name: string
+  available: number
 }
 
 interface ProjectFile {
@@ -582,9 +592,29 @@ export default function ProjectShow({ project, parts }: ProjectShowProps) {
                         <CheckCircle2 className="size-3.5" /> {t('OK')}
                       </Badge>
                     ) : (
-                      <Badge variant="outline" className="bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400">
-                        <AlertTriangle className="size-3.5" /> {t('Short {count}', { count: line.shortfall })}
-                      </Badge>
+                      <div className="flex flex-col items-start gap-1">
+                        <Badge variant="outline" className="bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400">
+                          <AlertTriangle className="size-3.5" /> {t('Short {count}', { count: line.shortfall })}
+                        </Badge>
+                        {line.alternatives.map((alternative) => (
+                          <div key={alternative.id} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                            <Link2 className="size-3 shrink-0" />
+                            <span className="max-w-[160px] truncate" title={alternative.name}>
+                              {tn('{reference}: {count} available', '{reference}: {count} available', alternative.available, { reference: alternative.reference })}
+                            </span>
+                            {canWrite && (
+                              <Button
+                                variant="link"
+                                size="sm"
+                                className="h-auto p-0 text-xs"
+                                onClick={() => changePart(line, String(alternative.id))}
+                              >
+                                {t('Use')}
+                              </Button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
                     )}
                   </TableCell>
                   {canWrite && (
