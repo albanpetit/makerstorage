@@ -597,16 +597,15 @@ export default function ProjectShow({ project, parts }: ProjectShowProps) {
                           <AlertTriangle className="size-3.5" /> {t('Short {count}', { count: line.shortfall })}
                         </Badge>
                         {line.alternatives.map((alternative) => (
-                          <div key={alternative.id} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <div key={alternative.id} className="flex max-w-[240px] flex-wrap items-center gap-x-1.5 text-xs text-muted-foreground">
                             <Link2 className="size-3 shrink-0" />
-                            <span className="max-w-[160px] truncate" title={alternative.name}>
-                              {tn('{reference}: {count} available', '{reference}: {count} available', alternative.available, { reference: alternative.reference })}
-                            </span>
+                            <span className="max-w-[200px] truncate" title={`${alternative.reference} — ${alternative.name}`}>{alternative.reference}</span>
+                            <span className="shrink-0">{tn('{count} available', '{count} available', alternative.available)}</span>
                             {canWrite && (
                               <Button
                                 variant="link"
                                 size="sm"
-                                className="h-auto p-0 text-xs"
+                                className="h-auto shrink-0 p-0 text-xs"
                                 onClick={() => changePart(line, String(alternative.id))}
                               >
                                 {t('Use')}

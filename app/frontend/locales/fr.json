@@ -1699,6 +1699,10 @@
     "other": "{changed} composants sur {count} vont changer."
   },
   "{change} since the first purchase": "{change} depuis le premier achat",
+  "{count} available": {
+    "one": "{count} disponible",
+    "other": "{count} disponibles"
+  },
   "{count} BOM lines": {
     "one": "{count} ligne de nomenclature",
     "other": "{count} lignes de nomenclature"
@@ -1918,10 +1922,6 @@
   "{quantity} available": "{quantity} disponibles",
   "{quantity} in stock": "{quantity} en stock",
   "{quantity}+: {price}": "dès {quantity} : {price}",
-  "{reference}: {count} available": {
-    "one": "{reference} : {count} disponible",
-    "other": "{reference} : {count} disponibles"
-  },
   "· subtree included": "· sous-zones incluses",
   "· you": "· vous",
   "— Root (none) —": "— Racine (aucune) —",
