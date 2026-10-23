@@ -43,13 +43,26 @@ class ProjectStructure
     @lines = {}
     @output_parts = {}
     @depths = {}
+    @part_quantities = {}
+    @parts = {}
   end
 
   # { part_id => quantity } one kit of top-level project +project_id+ needs:
   # its part lines plus its sub-assemblies, expanded.
   def part_quantities(project_id)
-    load([ project_id ], depth: 0)
-    expand(project_id, 0)
+    @part_quantities[project_id] ||= begin
+      load([ project_id ], depth: 0)
+      expand(project_id, 0)
+    end
+  end
+
+  # [[id, reserved_at], ...] of the organization's reserving projects, oldest
+  # reservation first, with their trees read in one go. Read once per instance,
+  # so pages checking many projects share it (Project.reserved_quantities).
+  def reserving_projects
+    @reserving_projects ||= @organization.projects.reserving.order(:reserved_at, :id).pluck(:id, :reserved_at).tap do |rows|
+      load(rows.map(&:first), depth: 0)
+    end
   end
 
   # { part_id => quantity } one unit of sub-assembly +project_id+ takes from
@@ -64,6 +77,16 @@ class ProjectStructure
   def complete_assembly?(project_id)
     load([ project_id ], depth: 1)
     complete?(project_id, 1)
+  end
+
+  # { id => part } for +ids+, with their stock and suppliers, each part read
+  # once per instance.
+  def parts(ids)
+    missing = ids - @parts.keys
+    if missing.any?
+      @organization.parts.includes(:part_storages, part_suppliers: :supplier).where(id: missing).each { |part| @parts[part.id] = part }
+    end
+    @parts.slice(*ids)
   end
 
   # The built item (part id) of +project_id+, nil for a phantom sub-assembly.

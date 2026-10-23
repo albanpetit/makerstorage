@@ -64,21 +64,23 @@ class Project < ApplicationRecord
   #
   # A project's claim covers its sub-assemblies: their parts when they're
   # phantom, their built item when they're stocked (see ProjectStructure).
-  def self.reserved_quantities(organization, part_ids: nil, except: nil)
+  # Pass a shared +structure+ when checking many projects in one request: the
+  # reserving projects and their trees are then read once.
+  def self.reserved_quantities(organization, part_ids: nil, except: nil, structure: ProjectStructure.new(organization))
     return {} unless organization.stock_reservations_enabled
 
-    projects = organization.projects.reserving
+    projects = structure.reserving_projects
     if except
-      projects = projects.where.not(id: except.id)
+      projects = projects.reject { |id, _| id == except.id }
       if except.reserving?
-        projects = projects.where("projects.reserved_at < :at OR (projects.reserved_at = :at AND projects.id < :id)",
-                                  at: except.reserved_at, id: except.id)
+        projects = projects.select do |id, reserved_at|
+          reserved_at < except.reserved_at || (reserved_at == except.reserved_at && id < except.id)
+        end
       end
     end
 
     wanted = part_ids&.to_set
-    structure = ProjectStructure.new(organization)
-    projects.pluck(:id).each_with_object(Hash.new(0)) do |project_id, totals|
+    projects.map(&:first).each_with_object(Hash.new(0)) do |project_id, totals|
       structure.part_quantities(project_id).each do |part_id, quantity|
         totals[part_id] += quantity if wanted.nil? || wanted.include?(part_id)
       end
@@ -92,10 +94,9 @@ class Project < ApplicationRecord
     return [] unless organization.stock_reservations_enabled
 
     structure = ProjectStructure.new(organization)
-    organization.projects.reserving.order(:reserved_at, :id).filter_map do |project|
-      quantity = structure.part_quantities(project.id)[part.id]
-      [ project, quantity ] if quantity
-    end
+    quantities = structure.reserving_projects.to_h { |id, _| [ id, structure.part_quantities(id)[part.id] ] }.compact
+    projects = organization.projects.where(id: quantities.keys).index_by(&:id)
+    quantities.map { |id, quantity| [ projects[id], quantity ] }
   end
 
   # The content type a KiCad file or project ZIP is stored under, from its
@@ -214,7 +215,7 @@ class Project < ApplicationRecord
   # sub-assemblies' included), by part id.
   def reserved_elsewhere
     @reserved_elsewhere ||= Project.reserved_quantities(
-      organization, part_ids: required_by_part.keys.map(&:id), except: self
+      organization, part_ids: required_by_part.keys.map(&:id), except: self, structure: structure
     )
   end
 
@@ -269,10 +270,7 @@ class Project < ApplicationRecord
         end
       end
       known = project_lines.filter_map(&:part).index_by(&:id)
-      missing = totals.keys - known.keys
-      if missing.any?
-        organization.parts.includes(:part_storages, part_suppliers: :supplier).where(id: missing).each { |part| known[part.id] = part }
-      end
+      known.reverse_merge!(structure.parts(totals.keys - known.keys))
       totals.filter_map { |part_id, entry| [ known[part_id], entry ] if known[part_id] }.to_h
     end
   end

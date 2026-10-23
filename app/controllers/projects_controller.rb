@@ -17,11 +17,15 @@ class ProjectsController < ApplicationController
     projects = current_organization.projects
       .includes(:kicad_files_attachments, project_lines: { part: :part_storages })
       .recent
-    # One tree reader for the whole list, so sub-assemblies are read once.
+    # One tree reader for the whole list, so sub-assemblies and reservations are read once.
     structure = ProjectStructure.new(current_organization)
+    used_as_assembly = ProjectLine.where(subproject_id: projects.map(&:id)).distinct.pluck(:subproject_id).to_set
 
     render inertia: "projects/index", props: {
-      projects: projects.map { |project| project.structure = structure; serialize_project_summary(project) },
+      projects: projects.map do |project|
+        project.structure = structure
+        serialize_project_summary(project).merge(used_as_assembly: used_as_assembly.include?(project.id))
+      end,
       github_token_configured: current_organization.github_token.present?
     }
   end
@@ -387,7 +391,6 @@ class ProjectsController < ApplicationController
       short_count: project.short_lines.size,
       unmatched_count: project.unmatched_lines.size + project.incomplete_assembly_lines.size,
       assembly_count: project.subassembly_lines.size,
-      used_as_assembly: project.used_in_lines.exists?,
       checked_at: project.checked_at&.iso8601,
       created_at: project.created_at.iso8601,
       file_count: project.kicad_files.size,

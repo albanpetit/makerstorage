@@ -152,7 +152,29 @@ class ProjectAssembliesTest < ActionDispatch::IntegrationTest
     assert_equal [ [ "Robot", 8 ] ], JSON.parse(response.body)["reservations"].map { |entry| entry.values_at("name", "quantity") }
   end
 
+  test "the projects list and the dashboard read reservations once, whatever the number of projects" do
+    @org.update!(stock_reservations_enabled: true)
+    add_assembly(@robot, @board, 2)
+    [ projects_path, root_path ].each { |path| get path } # warm up
+    counts = [ 2, 6 ].map do |total|
+      (total - Project.reserving.where(organization: @org).count).times do |index|
+        project = create_project(organization: @org, name: "Reserved #{total}-#{index}", status: "confirmed", reserved_at: index.minutes.ago)
+        add_assembly(project, @board, 1)
+      end
+      [ projects_path, root_path ].map { |path| sql_count { get path } }
+    end
+    # Preloads can differ by a query or two with the data; nothing grows per project.
+    counts.first.zip(counts.last).each { |few, many| assert_in_delta few, many, 2 }
+  end
+
   private
+
+  def sql_count(&block)
+    count = 0
+    counter = ->(*, payload) { count += 1 unless payload[:name].in?([ "SCHEMA", "TRANSACTION" ]) }
+    ActiveSupport::Notifications.subscribed(counter, "sql.active_record", &block)
+    count
+  end
 
   def stock(part, quantity)
     StockMovement.create!(organization: @org, part: part, storage_location: @location, movement_type: "in", quantity_delta: quantity)
