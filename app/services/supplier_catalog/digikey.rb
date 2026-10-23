@@ -324,6 +324,7 @@ module SupplierCatalog
         voltage_rating: parameter_value(parameters, :voltage_rating) || parsed[:voltage_rating],
         power_rating: parameter_value(parameters, :power_rating) || parsed[:power_rating],
         unit_price: unit_price(product),
+        price_breaks: price_breaks(product),
         rohs_compliant: rohs?(product.dig("Classifications", "RohsStatus")),
         datasheet_url: product["DatasheetUrl"].presence,
         image_url: product["PhotoUrl"].presence,
@@ -365,6 +366,17 @@ module SupplierCatalog
       breaks.reject { |b| b["UnitPrice"].blank? }
             .min_by { |b| b["BreakQuantity"].to_i }
             &.dig("UnitPrice")
+    end
+
+    # Standard pricing of the variation whose SKU we keep (the first one), by
+    # quantity.
+    def price_breaks(product)
+      variation = Array(product["ProductVariations"]).find { |v| v["DigiKeyProductNumber"].present? }
+      Array(variation&.dig("StandardPricing")).filter_map do |row|
+        quantity = row["BreakQuantity"].to_i
+        price = Float(row["UnitPrice"].to_s, exception: false)
+        { quantity: quantity, unit_price: price.to_s } if quantity.positive? && price
+      end.sort_by { |row| row[:quantity] }
     end
 
     # DigiKey's own ordering SKU lives on the product variations (e.g. cut tape

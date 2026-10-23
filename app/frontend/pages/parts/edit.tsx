@@ -47,6 +47,7 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { t, tn } from '@/lib/i18n'
 import { mountingTypeLabel } from '@/lib/mounting-types'
+import { formatUnitPrice } from '@/lib/money'
 
 interface Category {
   id: number
@@ -584,7 +585,7 @@ export default function EditPart({ part, categories, footprints, suppliers, tags
                     <Input
                       id="unit_price"
                       type="number"
-                      step="0.01"
+                      step="0.0001"
                       min="0"
                       value={data.part.unit_price}
                       onChange={(e) => setData('part', { ...data.part, unit_price: e.target.value })}
@@ -720,7 +721,7 @@ export default function EditPart({ part, categories, footprints, suppliers, tags
                     <Input
                       id="new_unit_price"
                       type="number"
-                      step="0.01"
+                      step="0.0001"
                       min="0"
                       value={newSupplierForm.data.part_supplier.unit_price}
                       onChange={(e) =>
@@ -835,7 +836,7 @@ export default function EditPart({ part, categories, footprints, suppliers, tags
                           </div>
                         </TableCell>
                         <TableCell className="text-right font-mono">
-                          {ps.unit_price != null ? `$${ps.unit_price.toFixed(2)}` : '-'}
+                          {ps.unit_price != null ? formatUnitPrice(ps.unit_price) : '-'}
                         </TableCell>
                         <TableCell className="text-right">
                           {ps.lead_time_days != null ? tn('{count} day', '{count} days', ps.lead_time_days) : '-'}

@@ -327,4 +327,32 @@ class PartTest < ActiveSupport::TestCase
     assert_not part.valid?
     assert_match(/must be a PDF file/, part.errors[:datasheet].join)
   end
+
+  test "order_unit_price applies the supplier's price break for the quantity" do
+    org = create_organization
+    part = create_part(organization: org, unit_price: 1)
+    supplier = create_supplier(organization: org)
+    part.part_suppliers.create!(supplier: supplier, unit_price: 0.2, price_breaks: [ { quantity: 100, unit_price: "0.1" } ])
+
+    assert_equal 0.2, part.order_unit_price(supplier.id).to_f
+    assert_equal 0.2, part.order_unit_price(supplier.id, 10).to_f
+    assert_equal 0.1, part.order_unit_price(supplier.id, 100).to_f
+  end
+
+  test "purchase_price_lines lists priced lines of orders not cancelled, oldest order first" do
+    org = create_organization
+    part = create_part(organization: org)
+    supplier = create_supplier(organization: org)
+    late = create_order(organization: org, supplier: supplier, reference: "PO-LATE", ordered_at: Date.new(2026, 5, 1))
+    early = create_order(organization: org, supplier: supplier, reference: "PO-EARLY", ordered_at: Date.new(2026, 1, 1))
+    cancelled = create_order(organization: org, supplier: supplier, reference: "PO-CANCELLED", ordered_at: Date.new(2026, 3, 1), status: "cancelled")
+    unpriced = create_order(organization: org, supplier: supplier, reference: "PO-UNPRICED", ordered_at: Date.new(2026, 2, 1))
+    late.order_lines.create!(part: part, quantity: 10, unit_price: 0.5)
+    early.order_lines.create!(part: part, quantity: 10, unit_price: 0.7)
+    cancelled.order_lines.create!(part: part, quantity: 10, unit_price: 0.1)
+    unpriced.order_lines.create!(part: part, quantity: 10)
+
+    assert_equal %w[PO-EARLY PO-LATE], part.purchase_price_lines.map { |line| line.order.reference }
+    assert_equal %w[PO-LATE PO-EARLY], part.purchase_price_lines(:desc).map { |line| line.order.reference }
+  end
 end

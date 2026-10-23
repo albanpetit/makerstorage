@@ -15,6 +15,8 @@ module SupplierCatalog
     :voltage_rating,
     :power_rating,
     :unit_price,
+    # Quantity breaks, [{ quantity: Integer, unit_price: numeric String }] by quantity.
+    :price_breaks,
     :rohs_compliant,
     :datasheet_url,
     :image_url,
@@ -38,6 +40,7 @@ module SupplierCatalog
         voltage_rating: voltage_rating,
         power_rating: power_rating,
         unit_price: unit_price,
+        price_breaks: price_breaks || [],
         rohs_compliant: rohs_compliant,
         datasheet_url: datasheet_url,
         image_url: image_url,

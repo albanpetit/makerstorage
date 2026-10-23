@@ -1704,4 +1704,60 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
   def inertia_props
     JSON.parse(@response.body[/data-page="app" type="application\/json"[^>]*>(.*?)<\/script>/m, 1])["props"]
   end
+
+  test "update saves a supplier link's price breaks and clears them" do
+    user = create_user
+    org = user.organizations.first
+    part = create_part(organization: org)
+    link = PartSupplier.create!(part: part, supplier: create_supplier(organization: org), unit_price: 0.1)
+
+    sign_in user
+    patch part_path(part), as: :json, params: { part: {
+      name: part.name, category_id: part.category_id,
+      part_suppliers_attributes: [ { id: link.id, price_breaks: [ { quantity: "100", unit_price: "0.05" }, { quantity: "10", unit_price: "0.08" } ] } ]
+    } }
+    assert_equal [ [ 10, "0.08" ], [ 100, "0.05" ] ], link.reload.price_breaks.map { |row| [ row["quantity"], row["unit_price"] ] }
+
+    patch part_path(part), as: :json, params: { part: {
+      name: part.name, category_id: part.category_id,
+      part_suppliers_attributes: [ { id: link.id, price_breaks: [] } ]
+    } }
+    assert_equal [], link.reload.price_breaks
+  end
+
+  test "update refuses unreadable price breaks" do
+    user = create_user
+    org = user.organizations.first
+    part = create_part(organization: org)
+    link = PartSupplier.create!(part: part, supplier: create_supplier(organization: org))
+
+    sign_in user
+    patch part_path(part), as: :json, params: { part: {
+      name: part.name, category_id: part.category_id,
+      part_suppliers_attributes: [ { id: link.id, price_breaks: [ { quantity: "lots", unit_price: "1" } ] } ]
+    } }
+    assert_equal [], link.reload.price_breaks
+  end
+
+  test "show sends the price breaks and the purchase price history" do
+    user = create_user
+    org = user.organizations.first
+    part = create_part(organization: org)
+    supplier = create_supplier(organization: org, name: "Mouser")
+    PartSupplier.create!(part: part, supplier: supplier, unit_price: 0.1, is_preferred: true,
+                         price_breaks: [ { quantity: 100, unit_price: "0.0425" } ])
+    first = create_order(organization: org, supplier: supplier, reference: "PO-A", ordered_at: Date.new(2026, 1, 5))
+    first.order_lines.create!(part: part, quantity: 100, unit_price: "0.045")
+    second = create_order(organization: org, supplier: supplier, reference: "PO-B", ordered_at: Date.new(2026, 7, 5))
+    second.order_lines.create!(part: part, quantity: 200, unit_price: "0.04")
+    create_order(organization: org, supplier: supplier, status: "cancelled").order_lines.create!(part: part, quantity: 1, unit_price: 9)
+
+    sign_in user
+    get part_path(part), headers: { "Accept" => "application/json" }
+
+    body = JSON.parse(response.body)
+    assert_equal [ { "quantity" => 100, "unit_price" => 0.0425 } ], body["part"]["part_suppliers"].first["price_breaks"]
+    assert_equal [ [ "PO-A", "2026-01-05", 0.045, "Mouser" ], [ "PO-B", "2026-07-05", 0.04, "Mouser" ] ],
+                 body["price_history"].map { |entry| entry.values_at("order_reference", "date", "unit_price", "supplier_name") }
+  end
 end

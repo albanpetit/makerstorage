@@ -1,5 +1,5 @@
-import { ReactNode, useEffect } from 'react'
-import { ChevronRight, CircleAlert, ImagePlus, Plus, Trash2, Star, X } from 'lucide-react'
+import { Fragment, ReactNode, useEffect, useState } from 'react'
+import { ChevronRight, CircleAlert, ImagePlus, Layers, Plus, Trash2, Star, X } from 'lucide-react'
 
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -35,6 +35,8 @@ import {
 import { useParameterDefinitions } from '@/components/parameters/use-parameter-definitions'
 import { PartParametersSection } from './part-parameters-section'
 import { PartSuppliersController } from './use-part-suppliers'
+import { PriceBreaksEditor } from './price-breaks-editor'
+import { formatUnitPrice } from '@/lib/money'
 import {
   BagBox,
   BagOption,
@@ -169,7 +171,10 @@ export function PartFormBody({
     addPendingSupplier,
     removePendingSupplier,
     setPreferred,
+    setPriceBreaks,
   } = suppliersController
+  // The supplier row whose price breaks are open for editing.
+  const [breaksOpenFor, setBreaksOpenFor] = useState<string | null>(null)
 
   // Tolerance / Voltage / Power fields mirror the parameters of those names
   // (Part#sync_parameter_fields): when the organization has them, the
@@ -733,38 +738,68 @@ export function PartFormBody({
                   <TableHead>{t('SKU')}</TableHead>
                   <TableHead className="text-right">{t('Price')}</TableHead>
                   <TableHead>{t('Status')}</TableHead>
-                  <TableHead className="w-[80px]" />
+                  <TableHead className="w-[120px]" />
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {pendingSuppliers.map((ps) => (
-                  <TableRow key={ps.tempId}>
-                    <TableCell className="font-medium">{ps.supplier_name}</TableCell>
-                    <TableCell>{ps.supplier_sku || '-'}</TableCell>
-                    <TableCell className="text-right font-mono">
-                      {ps.unit_price ? `$${parseFloat(ps.unit_price).toFixed(2)}` : '-'}
-                    </TableCell>
-                    <TableCell>
-                      {ps.is_preferred && (
-                        <Badge variant="default">
-                          <Star className="mr-1 size-3" />
-                          {t('Preferred')}
-                        </Badge>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        {!ps.is_preferred && (
-                          <Button type="button" variant="ghost" size="icon" onClick={() => setPreferred(ps.tempId)} title={t('Set as preferred')}>
-                            <Star className="size-4" />
-                          </Button>
+                  <Fragment key={ps.tempId}>
+                    <TableRow>
+                      <TableCell className="font-medium">{ps.supplier_name}</TableCell>
+                      <TableCell>{ps.supplier_sku || '-'}</TableCell>
+                      <TableCell className="text-right font-mono">
+                        {ps.unit_price ? formatUnitPrice(parseFloat(ps.unit_price)) : '-'}
+                        {ps.price_breaks.length > 0 && (
+                          <div className="font-sans text-xs font-normal text-muted-foreground">
+                            {tn('{count} price break', '{count} price breaks', ps.price_breaks.length)}
+                          </div>
                         )}
-                        <Button type="button" variant="ghost" size="icon" onClick={() => removePendingSupplier(ps)} title={t('Remove supplier')}>
-                          <Trash2 className="size-4 text-destructive" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
+                      </TableCell>
+                      <TableCell>
+                        {ps.is_preferred && (
+                          <Badge variant="default">
+                            <Star className="mr-1 size-3" />
+                            {t('Preferred')}
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            type="button"
+                            variant={breaksOpenFor === ps.tempId ? 'secondary' : 'ghost'}
+                            size="icon"
+                            onClick={() => setBreaksOpenFor((open) => (open === ps.tempId ? null : ps.tempId))}
+                            title={
+                              ps.price_breaks.length > 0
+                                ? tn('{count} price break', '{count} price breaks', ps.price_breaks.length)
+                                : t('Price breaks')
+                            }
+                          >
+                            <Layers className="size-4" />
+                          </Button>
+                          {!ps.is_preferred && (
+                            <Button type="button" variant="ghost" size="icon" onClick={() => setPreferred(ps.tempId)} title={t('Set as preferred')}>
+                              <Star className="size-4" />
+                            </Button>
+                          )}
+                          <Button type="button" variant="ghost" size="icon" onClick={() => removePendingSupplier(ps)} title={t('Remove supplier')}>
+                            <Trash2 className="size-4 text-destructive" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                    {breaksOpenFor === ps.tempId && (
+                      <TableRow className="hover:bg-transparent">
+                        <TableCell colSpan={5} className="bg-muted/30">
+                          <p className="mb-2 text-xs text-muted-foreground">
+                            {t('Price per unit from each quantity. Orders use the break for the quantity ordered.')}
+                          </p>
+                          <PriceBreaksEditor value={ps.price_breaks} onChange={(rows) => setPriceBreaks(ps.tempId, rows)} />
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </Fragment>
                 ))}
               </TableBody>
             </Table>
@@ -801,7 +836,7 @@ export function PartFormBody({
                 <Label className="text-xs">{t('Price')}</Label>
                 <Input
                   type="number"
-                  step="0.01"
+                  step="0.0001"
                   min="0"
                   value={newSupplier.unit_price}
                   onChange={(e) => setNewSupplier({ ...newSupplier, unit_price: e.target.value })}
