@@ -18,6 +18,7 @@ fr:
         box_code_needed: doit être rempli tant que la boîte contient des sachets
         descendant_parent: ne peut pas être une sous-catégorie de cette catégorie
         image_host: doit être une image https d'un catalogue fournisseur (%{hosts})
+        invalid_price_breaks: doivent avoir sur chaque ligne une quantité entière supérieure à zéro et un prix positif ou nul
         more_than_lent: Impossible de rendre ou de passer en perte plus que ce qui a été prêté
         needs_active_owner: L'organisation doit avoir au moins un propriétaire actif
         needs_owner: L'organisation doit avoir au moins un propriétaire
@@ -42,6 +43,7 @@ fr:
         same_organization_as_category: doit appartenir à la même organisation que la catégorie
         same_organization_as_part: doit appartenir à la même organisation que le composant
         too_many_files: ne peuvent pas dépasser %{count} fichiers
+        too_many_price_breaks: ne peuvent pas dépasser %{count}
         under_own_subzone: ne peut pas être déplacée sous l'une de ses propres sous-zones
         values_not_in_unit:
           one: '%{count} valeur de %{name} n’est pas un nombre en %{unit} (%{examples}).'
@@ -95,6 +97,7 @@ fr:
     password: Mot de passe
     password_confirmation: Confirmation du mot de passe
     position: Position
+    price_breaks: Prix par quantité
     quantity: Quantité
     quantity_delta: Variation de quantité
     redirect_uris: URI de redirection

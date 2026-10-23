@@ -75,6 +75,11 @@ class SupplierCatalog::DigikeyTest < ActiveSupport::TestCase
     assert_equal "0.12", result.unit_price
   end
 
+  test "returns the standard pricing of the variation it keeps, by quantity" do
+    result = build_provider(sample_payload(products: [ sample_product ])).search("x").first
+    assert_equal [ { quantity: 1, unit_price: "0.12" }, { quantity: 10, unit_price: "0.05" } ], result.price_breaks
+  end
+
   test "treats a '-' parameter value as blank and recovers from the description" do
     product = sample_product.merge(
       "Parameters" => [

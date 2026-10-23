@@ -75,6 +75,7 @@ export function AddLineDialog({ open, onOpenChange, order, parts, categories, ca
         image_url: applied.image_url,
         supplier_sku: applied.supplier_sku,
         product_url: applied.product_url,
+        price_breaks: applied.price_breaks ?? [],
         part: {
           name: applied.name,
           mpn: applied.mpn,
@@ -159,14 +160,14 @@ export function AddLineDialog({ open, onOpenChange, order, parts, categories, ca
                     id="add-price"
                     type="number"
                     min={0}
-                    step="0.01"
+                    step="0.0001"
                     placeholder={t('Auto')}
                     value={addForm.data.order_line.unit_price}
                     onChange={(e) => addForm.setData('order_line', { ...addForm.data.order_line, unit_price: e.target.value })}
                   />
                 </div>
               </div>
-              <p className="text-xs text-muted-foreground">{t('Leave the price blank to use the supplier or part price.')}</p>
+              <p className="text-xs text-muted-foreground">{t('Leave the price blank to use the supplier’s price for this quantity, or the part price.')}</p>
             </div>
 
             <DialogFooter>

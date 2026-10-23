@@ -175,6 +175,7 @@ module SupplierCatalog
         voltage_rating: attribute_value(params, :voltage_rating) || parsed[:voltage_rating],
         power_rating: attribute_value(params, :power_rating) || parsed[:power_rating],
         unit_price: (price if @currency == PRICE_CURRENCY),
+        price_breaks: (@currency == PRICE_CURRENCY ? price_breaks(product["productPriceList"]) : []),
         rohs_compliant: product["isEnvironment"] == true,
         datasheet_url: product["pdfUrl"].presence,
         image_url: (product["productImageUrlBig"].presence || Array(product["productImages"]).first.presence),
@@ -189,6 +190,15 @@ module SupplierCatalog
     def attribute_value(params, field)
       names = ATTRIBUTE_MAP.fetch(field)
       params.find { |param| names.any? { |candidate| candidate.casecmp?(param[:name]) } }&.dig(:value)
+    end
+
+    # Every ladder step as { quantity:, unit_price: }, by quantity.
+    def price_breaks(price_list)
+      Array(price_list).filter_map do |entry|
+        quantity = entry["ladder"].to_i
+        price = Float((entry["usdPrice"] || entry["productPrice"]).to_s, exception: false)
+        { quantity: quantity, unit_price: price.to_s } if quantity.positive? && price
+      end.sort_by { |row| row[:quantity] }
     end
 
     # Smallest-quantity price, as a numeric string.

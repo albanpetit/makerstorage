@@ -182,6 +182,7 @@ Rails.application.routes.draw do
   end
 
   get "alerts", to: "alerts#index"
+  get "stock_value", to: "stock_values#show", as: :stock_value
   post "alerts/purchase_orders", to: "alerts#create_purchase_orders", as: :alert_purchase_orders
   patch "alerts/orders/:id/advance", to: "alerts#advance_order", as: :advance_alert_order
 

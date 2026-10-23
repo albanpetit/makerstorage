@@ -144,7 +144,7 @@ class PartMerge
     PartSupplier.where(part_id: from).find_each do |link|
       kept = kept_links[link.supplier_id]
       if kept
-        blanks = %i[supplier_sku url unit_price lead_time_days notes].select { |column| kept[column].blank? && link[column].present? }
+        blanks = %i[supplier_sku url unit_price price_breaks lead_time_days notes].select { |column| kept[column].blank? && link[column].present? }
         kept.update_columns(blanks.to_h { |column| [ column, link[column] ] }) if blanks.any?
         link.delete
       else

@@ -139,7 +139,7 @@ class ProjectsController < ApplicationController
         part: part,
         supplier: supplier_link.supplier,
         quantity: quantity,
-        unit_price: (supplier_link.unit_price || part.unit_price || 0).to_f
+        unit_price: (supplier_link.unit_price_for(quantity) || part.unit_price || 0).to_f
       }
     end
 
