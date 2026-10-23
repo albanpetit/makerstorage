@@ -24,9 +24,35 @@ class McpControllerTest < ActionDispatch::IntegrationTest
     assert_equal [ "Theirs 10k" ], result.dig("structuredContent", "parts").map { |part| part["name"] }
   end
 
-  test "a viewer can read: every tool is read-only" do
+  test "a viewer can read with the read-only tools" do
     token = connect_mcp_client(user: @user, organization: @other_org)[:access_token]
     assert rpc("tools/call", { name: "inventory_overview", arguments: {} }, token: token)["structuredContent"]
+  end
+
+  test "a write grant offers the write tools and records changes in the user's name" do
+    location = create_storage_location(organization: @org, code: "DA")
+    token = connect_mcp_client(user: @user, organization: @org, write: true)[:access_token]
+
+    assert_includes rpc("tools/list", {}, token: token)["tools"].map { |tool| tool["name"] }, "record_stock_movement"
+    assert_not_includes rpc("tools/list")["tools"].map { |tool| tool["name"] }, "record_stock_movement"
+
+    result = rpc("tools/call", { name: "record_stock_movement", arguments: { part: "MINE-10K", direction: "in", quantity: 5, location: "DA" } }, token: token)
+    assert_not result["isError"]
+    movement = @part.stock_movements.sole
+    assert_equal [ @user, location, "Stock added (via Claude)" ], [ movement.user, movement.storage_location, movement.reason ]
+  end
+
+  test "write tools go away when the user becomes a viewer, and come back with the role" do
+    token = connect_mcp_client(user: @user, organization: @other_org, write: true)[:access_token]
+    assert_equal "mcp:read mcp:write", OauthAuthorization.authenticate(token).scope
+    assert_not_includes rpc("tools/list", {}, token: token)["tools"].map { |tool| tool["name"] }, "create_part"
+
+    result = rpc("tools/call", { name: "create_part", arguments: { name: "Sneaky" } }, token: token)
+    assert result["isError"]
+    assert_not @other_org.parts.exists?(name: "Sneaky")
+
+    @user.organization_memberships.find_by(organization: @other_org).update!(role: "member")
+    assert_includes rpc("tools/list", {}, token: token)["tools"].map { |tool| tool["name"] }, "create_part"
   end
 
   test "notifications are accepted without a body" do

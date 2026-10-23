@@ -388,6 +388,7 @@ en:
         one: '%{count} tag'
         other: '%{count} tags'
     profiles:
+      changes_allowed: "%{name} can now change the inventory."
       confirm_from_the_email_we_sent: ' Confirm %{unconfirmed_email} from the email we sent there to start signing in with it.'
       enter_your_current_password_to_change: Enter your current password to change your email.
       failed_to_update_password: Failed to update password.
@@ -395,8 +396,10 @@ en:
       locale_updated: Language updated.
       notifications_off: Email notifications off for %{organization}.
       notifications_on: Email notifications on for %{organization}.
+      now_read_only: "%{name} is now read-only."
       password_updated_successfully: Password updated successfully.
       profile_updated_successfully: Profile updated successfully.
+      viewers_can_t_allow_changes: Viewers can't let an application change the inventory.
     project_files:
       added:
         one: Added %{count} file.
