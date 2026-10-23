@@ -6,7 +6,7 @@ Electronics-parts inventory manager for makerspaces/fablabs: components, categor
 - **Backend**: Rails 8.1 (8.1.4), **SQLite** in every environment (production too, with Solid Cache/Queue/Cable on separate SQLite DBs — see `config/database.yml`), Devise (auth), Inertia Rails.
 - **Frontend**: Inertia.js + React 19 + TypeScript, Vite, Tailwind v4.
 - **Components**: shadcn/ui (`new-york` style, `neutral` base color, Lucide icons) — see `components.json`.
-- Ruby 3.4.8, Node 24+.
+- Ruby 3.4.12, Node 24+.
 
 ## Frontend conventions
 - The entire frontend is built on **shadcn/ui**. Use the existing components in [app/frontend/components/ui/](app/frontend/components/ui/) as-is wherever possible.
