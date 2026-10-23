@@ -1,4 +1,7 @@
 class StorageLocation < ApplicationRecord
+  # Activity log (Auditable).
+  audited ignore: %i[position]
+
   # Associations
   belongs_to :organization
   belongs_to :parent, class_name: "StorageLocation", optional: true

@@ -190,6 +190,9 @@ Rails.application.routes.draw do
 
   resources :members, only: %i[index create update destroy]
 
+  # Activity log (admins): who changed what in the organization.
+  get "activity", to: "activity#index", as: :activity
+
   # Network label printers (Settings → Label printers) and direct printing.
   resources :label_printers, only: %i[index create update destroy] do
     post :print, on: :member

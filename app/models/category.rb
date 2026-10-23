@@ -1,4 +1,7 @@
 class Category < ApplicationRecord
+  # Activity log (Auditable).
+  audited
+
   # Associations
   belongs_to :organization
   belongs_to :parent, class_name: "Category", optional: true

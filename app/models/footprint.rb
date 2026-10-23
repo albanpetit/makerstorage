@@ -1,4 +1,7 @@
 class Footprint < ApplicationRecord
+  # Activity log (Auditable).
+  audited
+
   # Associations
   belongs_to :organization
   has_many :parts, dependent: :restrict_with_error

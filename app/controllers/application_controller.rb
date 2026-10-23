@@ -45,6 +45,9 @@ class ApplicationController < ActionController::Base
   # and the React UI all follow it.
   around_action :switch_locale
 
+  # Who the activity log credits for changes made during this request (Auditable).
+  before_action :set_current_user
+
   def current_organization
     return nil unless user_signed_in?
 
@@ -61,6 +64,10 @@ class ApplicationController < ActionController::Base
   end
 
   private
+
+  def set_current_user
+    Current.user = current_user if user_signed_in?
+  end
 
   def switch_locale(&action)
     I18n.with_locale(user_signed_in? && current_user.locale.presence || browser_locale, &action)

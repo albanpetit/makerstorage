@@ -1,4 +1,7 @@
 class Tag < ApplicationRecord
+  # Activity log (Auditable).
+  audited
+
   # Associations
   belongs_to :organization
   has_many :part_tags, dependent: :destroy
