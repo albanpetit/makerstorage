@@ -51,7 +51,8 @@ class McpServer
         name: "get_part",
         title: "Get part details",
         description: "Everything about one part: specs and technical parameters, stock per storage location, suppliers and prices " \
-                     "(with quantity price breaks), recent purchase prices, open purchase orders, project reservations and the projects using it.",
+                     "(with quantity price breaks), recent purchase prices, open purchase orders, project reservations, the projects using it, " \
+                     "and its consumption (units used over the organization's period and the low-stock threshold that usage suggests).",
         inputSchema: {
           type: "object",
           properties: {
@@ -229,6 +230,18 @@ class McpServer
       }
     end
 
+    def consumption_for(part, stock)
+      consumption = PartConsumption.new(organization)
+      entry = consumption.for_part(part)
+      {
+        period_days: consumption.window_days,
+        used: entry&.consumed || 0,
+        per_month: entry ? entry.monthly_rate.round(1) : 0,
+        days_of_stock_left: entry&.days_left(stock[:on_hand]),
+        suggested_min_stock_threshold: entry&.suggested_threshold
+      }
+    end
+
     def get_part(arguments)
       part = find_part(arguments)
       stock = stock_figures([ part ])[part.id]
@@ -237,6 +250,7 @@ class McpServer
 
       part_summary(part, stock).merge(
         description: part.description,
+        consumption: consumption_for(part, stock),
         storage_notes: part.storage_notes,
         unit_price: part.unit_price&.to_f,
         target_stock: part.target_stock,

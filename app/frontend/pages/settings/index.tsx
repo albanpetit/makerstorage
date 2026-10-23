@@ -86,6 +86,8 @@ export default function SettingsIndex({
       allow_negative_stock: organization.allow_negative_stock,
       stock_reservations_enabled: organization.stock_reservations_enabled,
       default_loan_days: organization.default_loan_days,
+      consumption_window_days: organization.consumption_window_days,
+      threshold_cover_days: organization.threshold_cover_days,
     },
   })
 
