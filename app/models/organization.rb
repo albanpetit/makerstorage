@@ -78,6 +78,8 @@ class Organization < ApplicationRecord
   validates :default_low_stock_threshold, numericality: { only_integer: true, greater_than_or_equal_to: 0, less_than_or_equal_to: MAX_INTEGER }
   validates :notification_frequency, inclusion: { in: NOTIFICATION_FREQUENCIES }
   validates :default_loan_days, numericality: { only_integer: true, greater_than: 0, less_than_or_equal_to: Loan::MAX_DAYS }
+  validates :consumption_window_days, numericality: { only_integer: true, greater_than_or_equal_to: PartConsumption::MIN_RATE_DAYS, less_than_or_equal_to: PartConsumption::MAX_DAYS }
+  validates :threshold_cover_days, numericality: { only_integer: true, greater_than: 0, less_than_or_equal_to: PartConsumption::MAX_DAYS }
 
   # Callbacks
   validate :must_have_at_least_one_owner, on: :update

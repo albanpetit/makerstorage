@@ -42,9 +42,9 @@ import {
 import { StorageLocationSelect, type StorageLocationOption } from '@/components/storage-location-select'
 import { LIFECYCLE_META } from '@/components/parts/part-meta'
 import { PartFiles, type PartFile } from '@/components/parts/part-files'
-import { t, intlLocale, tx } from '@/lib/i18n'
 import { formatUnitPrice, type PriceBreak } from '@/lib/money'
 import { PriceHistory, type PricePoint } from '@/components/parts/price-history'
+import { t, intlLocale, tn, tx } from '@/lib/i18n'
 
 interface PartSupplierEntry {
   id: number
@@ -121,6 +121,19 @@ interface LoanEntry {
   overdue: boolean
 }
 
+// Usage read from the ledger (PartConsumption) and the threshold it suggests.
+interface ConsumptionEntry {
+  window_days: number
+  consumed: number
+  movements: number
+  monthly_rate: number
+  days_left: number | null
+  cover_days: number | null
+  suggested_threshold: number | null
+  last_used_at: string | null
+  months: { month: string; quantity: number }[]
+}
+
 interface Category {
   id: number
   name: string
@@ -153,6 +166,7 @@ interface PartShowPayload {
   reservations: ReservationEntry[]
   loans: LoanEntry[]
   price_history: PricePoint[]
+  consumption: ConsumptionEntry
   storage_locations: StorageLocationOption[]
   categories: Category[]
   footprints: Footprint[]
@@ -292,6 +306,15 @@ export function PartDetailSheet({
         setMvtOpen(false)
         load()
       },
+    })
+  }
+
+  const applySuggestedThreshold = () => {
+    if (!payload) return
+    router.post('/alerts/thresholds', { part_ids: [payload.part.id] }, {
+      preserveScroll: true,
+      preserveState: true,
+      onSuccess: () => load(),
     })
   }
 
@@ -478,6 +501,14 @@ export function PartDetailSheet({
                     </div>
                   )}
                 </div>
+
+                {/* Consumption */}
+                <ConsumptionBlock
+                  consumption={payload.consumption}
+                  threshold={part.min_stock_threshold}
+                  canWrite={canWrite}
+                  onApply={applySuggestedThreshold}
+                />
 
                 {/* Project reservations */}
                 {payload.reservations.length > 0 && (
@@ -798,5 +829,74 @@ export function PartDetailSheet({
         ipnManualEntry={payload?.ipn_manual_entry ?? false}
       />
     </>
+  )
+}
+
+function ConsumptionBlock({ consumption, threshold, canWrite, onApply }: {
+  consumption: ConsumptionEntry
+  threshold: number
+  canWrite: boolean
+  onApply: () => void
+}) {
+  const peak = Math.max(...consumption.months.map((m) => m.quantity), 1)
+  const suggested = consumption.suggested_threshold
+
+  return (
+    <div>
+      <div className="mb-2 flex items-center justify-between">
+        <h3 className="text-sm font-semibold">{t('Consumption')}</h3>
+        <span className="text-xs text-muted-foreground">{t('last {days} days', { days: consumption.window_days })}</span>
+      </div>
+      {consumption.consumed === 0 && consumption.months.every((m) => m.quantity === 0) ? (
+        <p className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">
+          {t('No use recorded yet. Builds, scanner and manual stock-outs count; moves and loans don’t.')}
+        </p>
+      ) : (
+        <div className="space-y-3 rounded-lg border p-3">
+          <div className="grid grid-cols-3 gap-2 text-center">
+            {[
+              { label: t('Used'), value: consumption.consumed.toLocaleString(intlLocale()) },
+              { label: t('Per month'), value: consumption.monthly_rate.toLocaleString(intlLocale(), { maximumFractionDigits: 1 }) },
+              { label: t('Stock lasts'), value: consumption.days_left != null ? tn('{count} day', '{count} days', consumption.days_left) : '—' },
+            ].map((stat) => (
+              <div key={stat.label}>
+                <div className="text-xs text-muted-foreground">{stat.label}</div>
+                <div className="font-mono text-sm font-semibold">{stat.value}</div>
+              </div>
+            ))}
+          </div>
+          <div className="flex items-end gap-1.5" aria-label={t('Units used per month')}>
+            {consumption.months.map((m) => (
+              <div key={m.month} className="flex flex-1 flex-col items-center gap-1" title={`${m.quantity}`}>
+                <div className="flex h-12 w-full items-end">
+                  <div
+                    className="w-full rounded-sm bg-primary/70"
+                    style={{ height: `${m.quantity > 0 ? Math.max((m.quantity / peak) * 100, 4) : 0}%` }}
+                  />
+                </div>
+                <span className="text-[10px] text-muted-foreground">
+                  {new Date(`${m.month}-01T00:00:00`).toLocaleDateString(intlLocale(), { month: 'short' })}
+                </span>
+              </div>
+            ))}
+          </div>
+          <div className="flex items-center justify-between gap-2 border-t pt-3 text-sm">
+            {suggested != null ? (
+              <>
+                <span className="text-muted-foreground">
+                  {tx('Suggested threshold {value}', { value: <span className="font-mono font-semibold text-foreground">{suggested}</span> })}
+                  <span className="block text-xs">{tn('Covers {count} day of use', 'Covers {count} days of use', consumption.cover_days ?? 0)}</span>
+                </span>
+                {canWrite && suggested !== threshold && (
+                  <Button variant="outline" size="sm" onClick={onApply}>{t('Use {value}', { value: suggested })}</Button>
+                )}
+              </>
+            ) : (
+              <span className="text-xs text-muted-foreground">{t('Not enough uses yet to suggest a threshold.')}</span>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
   )
 }

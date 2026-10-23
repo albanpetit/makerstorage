@@ -607,6 +607,13 @@ fr:
       tag_created: Tag « %{tag_name} » créé.
       tag_deleted_successfully: Tag supprimé.
       tag_updated_successfully: Tag mis à jour.
+    threshold_suggestions:
+      applied:
+        one: Seuil mis à jour sur %{count} composant.
+        other: Seuils mis à jour sur %{count} composants.
+        zero: Aucun seuil modifié.
+      not_applied: 'Aucun seuil n’a été modifié : %{errors}.'
+      select_a_part: Sélectionnez au moins un composant.
     users_confirmations:
       that_confirmation_link_is_invalid_or: Ce lien de confirmation est invalide ou a expiré. Connectez-vous et demandez-en un nouveau depuis votre profil.
       too_many_confirmation_emails_requested_please: Trop d'e-mails de confirmation demandés. Patientez quelques minutes puis réessayez.

@@ -183,6 +183,8 @@ Rails.application.routes.draw do
 
   get "alerts", to: "alerts#index"
   get "stock_value", to: "stock_values#show", as: :stock_value
+  get "alerts/thresholds", to: "threshold_suggestions#index", as: :threshold_suggestions
+  post "alerts/thresholds", to: "threshold_suggestions#apply", as: :apply_threshold_suggestions
   post "alerts/purchase_orders", to: "alerts#create_purchase_orders", as: :alert_purchase_orders
   patch "alerts/orders/:id/advance", to: "alerts#advance_order", as: :advance_alert_order
 
