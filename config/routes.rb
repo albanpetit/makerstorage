@@ -102,6 +102,8 @@ Rails.application.routes.draw do
   get "scan", to: "scans#index", as: :scan
   post "scan/movements", to: "scans#create_movement", as: :scan_movements
   post "scan/receipts", to: "scans#receive", as: :scan_receipts
+  get "scan/offline", to: "scans#offline", as: :scan_offline, defaults: { format: :json }
+  post "scan/sync", to: "scans#sync", as: :scan_sync, defaults: { format: :json }
 
   get "search", to: "search#index", as: :search
 
@@ -236,6 +238,8 @@ Rails.application.routes.draw do
 
   # Render dynamic PWA files from app/views/pwa/* (manifest linked in application.html.erb)
   get "manifest" => "rails/pwa#manifest", as: :pwa_manifest
+  # Keeps the Scanner page usable without a network (app/views/pwa/service-worker.js).
+  get "service-worker" => "rails/pwa#service_worker", as: :pwa_service_worker
 
   # Defines the root path route ("/")
   # root "posts#index"

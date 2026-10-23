@@ -137,6 +137,9 @@ en:
       order_api_unreachable: 'Could not reach Mouser Order API: %{error}'
       order_api_unreadable: Mouser Order API returned an unreadable response
       order_key_missing: No Mouser Order API key is configured.
+    offline_scan:
+      invalid: "This scan couldn't be read."
+      not_found: "The part or the zone no longer exists."
     organization_merge:
       into_itself: An organization can't be merged into itself.
       personal: A personal organization can't be merged into another one.

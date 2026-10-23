@@ -1,10 +1,11 @@
-import { Head, Link, router } from '@inertiajs/react'
+import { Head, Link, router, usePage } from '@inertiajs/react'
 import { FormEvent, useEffect, useMemo, useState } from 'react'
-import { AlertTriangle, Box, Camera, CameraOff, Check, ChevronRight, ClipboardCheck, Cpu, ExternalLink, MapPin, PackageCheck, Plus, ScanLine } from 'lucide-react'
+import { AlertTriangle, Box, Camera, CameraOff, Check, ChevronRight, ClipboardCheck, Clock, Cpu, ExternalLink, MapPin, PackageCheck, Plus, RefreshCw, ScanLine, Trash2, WifiOff } from 'lucide-react'
 
 import { AppLayout } from '@/layouts/app-layout'
 import { usePermissions } from '@/hooks/use-permissions'
 import { useBarcodeScanner } from '@/hooks/use-barcode-scanner'
+import { useOfflineScanner } from '@/hooks/use-offline-scanner'
 import { PageHeader } from '@/components/page-header'
 import { FlashMessages } from '@/components/flash-messages'
 import { PartDetailSheet } from '@/components/part-detail-sheet'
@@ -16,71 +17,7 @@ import { Input } from '@/components/ui/input'
 import { StorageLocationSelect } from '@/components/storage-location-select'
 import { typeMeta } from '@/components/storage-locations/zone-meta'
 import { t, tn, tx, intlLocale } from '@/lib/i18n'
-
-interface ScanLocationOption {
-  id: number
-  name: string
-  code: string | null
-  location_type: string
-  quantity: number
-}
-
-interface ScannedPart {
-  id: number
-  reference: string
-  name: string
-  category: { name: string; color: string | null } | null
-  total_quantity: number
-  stock_status: 'out_of_stock' | 'low_stock' | 'sufficient'
-  locations: ScanLocationOption[]
-}
-
-interface ScannedZone {
-  id: number
-  name: string
-  full_path: string
-  location_type: string
-  parts_count: number
-  total_quantity: number
-  children_count: number
-  // Stocked parts held directly in the zone, largest quantity first (capped).
-  contents: Array<{ id: number; reference: string; name: string; quantity: number }>
-  // The stocktake already counting this zone, if any.
-  stocktake: { id: number; reference: string | null } | null
-}
-
-// The fields read from a distributor's bag label (ECIA DataMatrix or LCSC QR).
-interface SupplierLabel {
-  provider: string | null
-  provider_name: string
-  mpn: string | null
-  supplier_sku: string | null
-  customer_part_number: string | null
-  manufacturer: string | null
-  quantity: number | null
-  order_number: string | null
-  lot: string | null
-  date_code: string | null
-  country_of_origin: string | null
-}
-
-interface SupplierLabelResult {
-  kind: 'supplier_label'
-  label: SupplierLabel
-  // Stamped on the receipt movement (e.g. "DigiKey 84512345").
-  reference: string
-  // The inventory part the label matched, if any.
-  part: ScannedPart | null
-  // The same bag was already received (same part, order and quantity).
-  previous_receipt: { created_at: string; quantity: number; location_name: string } | null
-  open_orders: Array<{ id: number; reference: string | null; quantity: number }>
-}
-
-type ScanResult =
-  | { kind: 'part'; part: ScannedPart }
-  | { kind: 'location'; location: ScannedZone }
-  | SupplierLabelResult
-  | { kind: 'unknown' }
+import { normalizeCode, type ScanResult, type ScannedPart, type SupplierLabel } from '@/lib/offline-scanner'
 
 interface RecentScan {
   id: number
@@ -99,6 +36,23 @@ interface ScanPageProps {
   allow_negative_stock: boolean
   preferred_location_id: number | null
   errors?: Record<string, string | string[]>
+}
+
+interface SharedAuth {
+  [key: string]: unknown
+  auth?: {
+    user?: { email: string }
+    current_organization?: { id: number } | null
+  }
+}
+
+// A scan answered on the device while the server can't be reached.
+interface LocalScan {
+  code: string
+  // Set when a part is opened from a scanned zone's contents.
+  zoneId: number | null
+  // Distinguishes two scans of the same code (each starts a fresh count).
+  nonce: number
 }
 
 const STOCK_STATUS_CLASS: Record<ScannedPart['stock_status'], string> = {
@@ -146,18 +100,60 @@ function ResultCardHeader({ tone, label, code }: { tone: 'success' | 'error'; la
   )
 }
 
-export default function ScansIndex({ code, result, recent_scans, today_count, allow_negative_stock, preferred_location_id, errors }: ScanPageProps) {
+export default function ScansIndex({ code: serverCode, result: serverResult, recent_scans, today_count, allow_negative_stock, preferred_location_id: serverPreferredLocationId, errors }: ScanPageProps) {
   const { canWrite } = usePermissions()
+  const { auth } = usePage<SharedAuth>().props
+  const offline = useOfflineScanner({
+    organizationId: auth?.current_organization?.id ?? null,
+    userKey: auth?.user?.email.toLowerCase() ?? null,
+    canWrite,
+  })
   const [codeInput, setCodeInput] = useState('')
   const [delta, setDelta] = useState(0)
   const [locationId, setLocationId] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [detailPartId, setDetailPartId] = useState<number | null>(null)
   const [receiveQuantity, setReceiveQuantity] = useState('')
+  const [localScan, setLocalScan] = useState<LocalScan | null>(null)
+  const [savedOffline, setSavedOffline] = useState<string | null>(null)
 
-  const camera = useBarcodeScanner((code) => {
-    router.get('/scan', { code }, { preserveState: true, preserveScroll: true })
-  })
+  // A scan answered on the device replaces the server's answer until the next
+  // scan that reaches the server. Its result is worked out again as scans are
+  // queued, so the stock shown includes them.
+  const code = localScan ? localScan.code : serverCode
+  const result: ScanResult | null = localScan
+    ? (offline.lookup?.lookup(localScan.code) ?? { kind: 'unknown' })
+    : serverResult
+  const preferred_location_id = localScan ? localScan.zoneId : serverPreferredLocationId
+  const scanKey = localScan ? `${localScan.code}#${localScan.nonce}` : serverCode
+  const allowNegativeStock = localScan ? (offline.snapshot?.allow_negative_stock ?? allow_negative_stock) : allow_negative_stock
+  // Actions that need the server (part sheet, zone page, stocktakes, orders,
+  // creating a part) are hidden while scans are answered on the device.
+  const onDevice = offline.active || localScan !== null
+
+  const scanLocally = (raw: string, zoneId: number | null = null) => {
+    setLocalScan((previous) => ({ code: normalizeCode(raw), zoneId, nonce: (previous?.nonce ?? 0) + 1 }))
+  }
+
+  const lookupCode = (raw: string, zoneId: number | null = null) => {
+    setSavedOffline(null)
+    if (offline.active) {
+      scanLocally(raw, zoneId)
+      return
+    }
+    router.get('/scan', zoneId ? { code: raw, zone: zoneId } : { code: raw }, {
+      preserveState: true,
+      preserveScroll: true,
+      onSuccess: () => setLocalScan(null),
+      onNetworkError: () => {
+        offline.markUnreachable()
+        if (offline.lookup) scanLocally(raw, zoneId)
+        return false
+      },
+    })
+  }
+
+  const camera = useBarcodeScanner((code) => lookupCode(code))
 
   const part = result?.kind === 'part' ? result.part : null
   const labelResult = result?.kind === 'supplier_label' ? result : null
@@ -170,7 +166,7 @@ export default function ScansIndex({ code, result, recent_scans, today_count, al
     setLocationId('')
     setReceiveQuantity(labelResult?.label.quantity ? String(labelResult.label.quantity) : '')
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [code])
+  }, [scanKey])
 
   const selectedLocation = useMemo(() => {
     if (!targetPart) return null
@@ -182,16 +178,47 @@ export default function ScansIndex({ code, result, recent_scans, today_count, al
 
   const projected = (selectedLocation?.quantity ?? 0) + delta
 
+  // Back online, once the queued scans are sent: ask the server again for
+  // what's on screen, so its stock and actions come back. Not while a count
+  // is being typed.
+  const waiting = offline.pending.filter((scan) => !scan.error).length
+  useEffect(() => {
+    if (localScan && offline.online && !offline.syncing && waiting === 0 && delta === 0) {
+      lookupCode(localScan.code, localScan.zoneId)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [offline.online, offline.syncing, waiting])
+
   const submitScan = (e: FormEvent) => {
     e.preventDefault()
     const trimmed = codeInput.trim()
     if (!trimmed) return
     setCodeInput('')
-    router.get('/scan', { code: trimmed }, { preserveState: true, preserveScroll: true })
+    lookupCode(trimmed)
   }
 
-  const validateMovement = () => {
+  const unreachable = () => {
+    offline.markUnreachable()
+    setSavedOffline(t('The server could not be reached, so nothing was saved. The scanner now works offline: validate again to keep it on this device.'))
+  }
+
+  const validateMovement = async () => {
     if (!part || !selectedLocation || delta === 0) return
+    if (onDevice) {
+      await offline.enqueue({
+        kind: 'count',
+        part_id: part.id,
+        storage_location_id: selectedLocation.id,
+        quantity: delta,
+        reference: null,
+        part_reference: part.reference,
+        location_name: selectedLocation.name,
+      })
+      setDelta(0)
+      setSavedOffline(t('Saved on this device. It will be sent when the server can be reached.'))
+      if (offline.online) void offline.sync()
+      return
+    }
     router.post('/scan/movements', {
       scan: { part_id: part.id, storage_location_id: selectedLocation.id, quantity_delta: delta },
     }, {
@@ -200,14 +227,37 @@ export default function ScansIndex({ code, result, recent_scans, today_count, al
       onStart: () => setSubmitting(true),
       onFinish: () => setSubmitting(false),
       onSuccess: () => setDelta(0),
+      onNetworkError: () => {
+        unreachable()
+        return false
+      },
     })
   }
 
   const receiveCount = Number.parseInt(receiveQuantity, 10)
   const canReceive = Number.isInteger(receiveCount) && receiveCount > 0 && !!selectedLocation
 
-  const receiveBag = () => {
+  const receiveBag = async () => {
     if (!labelResult?.part || !selectedLocation || !canReceive) return
+    if (onDevice) {
+      await offline.enqueue({
+        kind: 'receipt',
+        part_id: labelResult.part.id,
+        storage_location_id: selectedLocation.id,
+        quantity: receiveCount,
+        reference: labelResult.reference,
+        part_reference: labelResult.part.reference,
+        location_name: selectedLocation.name,
+      })
+      setLocalScan(null)
+      setSavedOffline(t('Bag saved on this device: +{quantity} × {reference} into {zone}. It will be sent when the server can be reached.', {
+        quantity: receiveCount.toLocaleString(intlLocale()),
+        reference: labelResult.part.reference,
+        zone: selectedLocation.name,
+      }))
+      if (offline.online) void offline.sync()
+      return
+    }
     router.post('/scan/receipts', {
       receipt: {
         part_id: labelResult.part.id,
@@ -219,6 +269,10 @@ export default function ScansIndex({ code, result, recent_scans, today_count, al
       preserveScroll: true,
       onStart: () => setSubmitting(true),
       onFinish: () => setSubmitting(false),
+      onNetworkError: () => {
+        unreachable()
+        return false
+      },
     })
   }
 
@@ -247,10 +301,17 @@ export default function ScansIndex({ code, result, recent_scans, today_count, al
     <AppLayout
       header={
         <PageHeader title={t('Scanner')} subtitle={t('Scan a QR code to locate a zone, count a component or receive a supplier bag')}>
-          <span className="inline-flex items-center gap-2 text-xs text-muted-foreground">
-            <span className="size-1.5 animate-pulse rounded-full bg-emerald-500" />
-            {t('Scanner ready')}
-          </span>
+          {offline.online ? (
+            <span className="inline-flex items-center gap-2 text-xs text-muted-foreground">
+              <span className="size-1.5 animate-pulse rounded-full bg-emerald-500" />
+              {t('Scanner ready')}
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-2 text-xs font-medium text-amber-600 dark:text-amber-400">
+              <WifiOff className="size-3.5" />
+              {t('Offline')}
+            </span>
+          )}
         </PageHeader>
       }
     >
@@ -259,7 +320,14 @@ export default function ScansIndex({ code, result, recent_scans, today_count, al
       <div className="mx-auto max-w-5xl space-y-4">
         <FlashMessages errors={errors} />
 
-        <div className="grid items-start gap-4 lg:grid-cols-2">
+        {savedOffline && (
+          <Alert>
+            <Clock className="size-4" />
+            <AlertDescription>{savedOffline}</AlertDescription>
+          </Alert>
+        )}
+
+        <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
           {/* Viewfinder */}
           <div className="rounded-2xl border border-zinc-800 bg-zinc-950 p-4 shadow-sm">
             <div className="relative aspect-square overflow-hidden rounded-xl bg-[radial-gradient(circle_at_50%_40%,#1c1c22_0%,#0c0c0e_75%)]">
@@ -348,6 +416,33 @@ export default function ScansIndex({ code, result, recent_scans, today_count, al
                 <div className="mt-0.5 text-sm font-semibold text-zinc-50">{matchLabel}</div>
               </div>
             </div>
+
+            <div className="mt-2.5 flex items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-xs text-zinc-400">
+              {offline.online ? <Check className="size-3.5 shrink-0" /> : <WifiOff className="size-3.5 shrink-0" />}
+              <div className="min-w-0 flex-1">
+                {offline.storageError ? t('This browser can\'t keep data on the device, so the scanner needs the server.')
+                  : offline.snapshot ? (offline.active
+                    ? t('Offline: scans are answered from the data on this device, updated {ago}.', { ago: formatAgo(offline.snapshot.generated_at) })
+                    : t('Ready to scan offline · data updated {ago}.', { ago: formatAgo(offline.snapshot.generated_at) }))
+                  : offline.online ? t('Preparing offline scanning…')
+                  : t('No offline data on this device yet: open the scanner once while the server can be reached.')}
+                {offline.snapshot && !window.isSecureContext && (
+                  <div className="mt-0.5">{t('Keep this page open: reopening it offline needs HTTPS.')}</div>
+                )}
+              </div>
+              {offline.online && !offline.storageError && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="size-7 shrink-0 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-50"
+                  aria-label={t('Refresh offline data')}
+                  onClick={() => void offline.refreshSnapshot()}
+                >
+                  <RefreshCw className="size-3.5" />
+                </Button>
+              )}
+            </div>
           </div>
 
           {/* Result + recent scans */}
@@ -414,7 +509,7 @@ export default function ScansIndex({ code, result, recent_scans, today_count, al
                           variant="outline"
                           className="size-11 rounded-xl text-xl font-semibold text-red-600 dark:text-red-400"
                           aria-label={t('Remove one')}
-                          disabled={!allow_negative_stock && projected <= 0}
+                          disabled={!allowNegativeStock && projected <= 0}
                           onClick={() => setDelta((d) => d - 1)}
                         >
                           −
@@ -443,10 +538,12 @@ export default function ScansIndex({ code, result, recent_scans, today_count, al
                   )}
 
                   <div className="mt-4 flex gap-2">
-                    <Button variant="outline" className="flex-1" onClick={() => setDetailPartId(part.id)}>
-                      <ExternalLink className="size-4" />
-                      {t('Open part')}
-                    </Button>
+                    {!onDevice && (
+                      <Button variant="outline" className="flex-1" onClick={() => setDetailPartId(part.id)}>
+                        <ExternalLink className="size-4" />
+                        {t('Open part')}
+                      </Button>
+                    )}
                     {canWrite && (
                       <Button
                         className="flex-1"
@@ -454,7 +551,7 @@ export default function ScansIndex({ code, result, recent_scans, today_count, al
                         onClick={validateMovement}
                       >
                         <Check className="size-4" />
-                        {t('Validate movement')}
+                        {onDevice ? t('Save on this device') : t('Validate movement')}
                       </Button>
                     )}
                   </div>
@@ -507,7 +604,7 @@ export default function ScansIndex({ code, result, recent_scans, today_count, al
                             type="button"
                             variant="ghost"
                             className="flex h-auto w-full items-center justify-start gap-3 rounded-none px-3 py-2 text-left font-normal"
-                            onClick={() => router.get('/scan', { code: `part:${item.id}`, zone: result.location.id }, { preserveScroll: true })}
+                            onClick={() => lookupCode(`part:${item.id}`, result.location.id)}
                           >
                             <span className="min-w-0 flex-1">
                               <span className="block truncate font-mono text-sm font-semibold">{item.reference}</span>
@@ -520,13 +617,15 @@ export default function ScansIndex({ code, result, recent_scans, today_count, al
                       </div>
                     </div>
                   )}
-                  <Button variant="outline" className="mt-4 w-full" asChild>
-                    <Link href={`/storage_locations?zone=${result.location.id}`}>
-                      <Box className="size-4" />
-                      {t('Open zone')}
-                    </Link>
-                  </Button>
-                  {canWrite && (result.location.stocktake ? (
+                  {!onDevice && (
+                    <Button variant="outline" className="mt-4 w-full" asChild>
+                      <Link href={`/storage_locations?zone=${result.location.id}`}>
+                        <Box className="size-4" />
+                        {t('Open zone')}
+                      </Link>
+                    </Button>
+                  )}
+                  {canWrite && !onDevice && (result.location.stocktake ? (
                     <Button variant="outline" className="mt-2 w-full" asChild>
                       <Link href={`/stocktakes/${result.location.stocktake.id}?zone=${result.location.id}`}>
                         <ClipboardCheck className="size-4" />
@@ -616,9 +715,13 @@ export default function ScansIndex({ code, result, recent_scans, today_count, al
                               {labelResult.open_orders.map((order, index) => (
                                 <span key={order.id}>
                                   {index > 0 && ', '}
-                                  <Link href={`/orders/${order.id}`} className="font-medium text-foreground underline underline-offset-2">
-                                    {order.reference || `#${order.id}`}
-                                  </Link>{' '}
+                                  {onDevice ? (
+                                    <span className="font-medium text-foreground">{order.reference || `#${order.id}`}</span>
+                                  ) : (
+                                    <Link href={`/orders/${order.id}`} className="font-medium text-foreground underline underline-offset-2">
+                                      {order.reference || `#${order.id}`}
+                                    </Link>
+                                  )}{' '}
                                   ({order.quantity.toLocaleString(intlLocale())})
                                 </span>
                               ))}
@@ -658,24 +761,29 @@ export default function ScansIndex({ code, result, recent_scans, today_count, al
                             />
                             <Button className="flex-1" disabled={!canReceive || submitting} onClick={receiveBag}>
                               <PackageCheck className="size-4" />
-                              {canReceive ? t('Receive {quantity}', { quantity: receiveCount.toLocaleString(intlLocale()) }) : t('Receive')}
+                              {!canReceive ? t('Receive')
+                                : onDevice ? t('Receive {quantity} on this device', { quantity: receiveCount.toLocaleString(intlLocale()) })
+                                : t('Receive {quantity}', { quantity: receiveCount.toLocaleString(intlLocale()) })}
                             </Button>
                           </div>
                         </div>
                       ))}
 
-                      <Button variant="outline" className="mt-2 w-full" onClick={() => setDetailPartId(labelResult.part!.id)}>
-                        <ExternalLink className="size-4" />
-                        {t('Open part')}
-                      </Button>
+                      {!onDevice && (
+                        <Button variant="outline" className="mt-2 w-full" onClick={() => setDetailPartId(labelResult.part!.id)}>
+                          <ExternalLink className="size-4" />
+                          {t('Open part')}
+                        </Button>
+                      )}
                     </>
                   ) : (
                     <>
                       <p className="mt-4 text-sm text-muted-foreground">
                         {t('No part in the inventory matches this label\'s part numbers.')}
-                        {canWrite && ` ${t('Create it from the label: its quantity becomes the opening stock.')}`}
+                        {canWrite && !onDevice && ` ${t('Create it from the label: its quantity becomes the opening stock.')}`}
+                        {canWrite && onDevice && ` ${t('Creating it needs the server: scan the bag again once it can be reached.')}`}
                       </p>
-                      {canWrite && (
+                      {canWrite && !onDevice && (
                         <Button className="mt-3 w-full" onClick={() => createPartFromLabel(labelResult.label)}>
                           <Plus className="size-4" />
                           {t('Create part')}
@@ -707,6 +815,61 @@ export default function ScansIndex({ code, result, recent_scans, today_count, al
                     {t('The scanned component, zone or supplier bag will appear here with its quick actions.')}
                   </p>
                 </CardContent>
+              </Card>
+            )}
+
+            {/* Scans recorded offline, waiting to be sent */}
+            {offline.pending.length > 0 && (
+              <Card className="gap-0 overflow-hidden py-0">
+                <div className="flex items-center gap-2 border-b px-4 py-2">
+                  <div className="flex-1 text-sm font-semibold">
+                    {tn('{count} scan waiting to be sent', '{count} scans waiting to be sent', offline.pending.length)}
+                  </div>
+                  {canWrite && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={!offline.online || offline.syncing || offline.pending.every((scan) => scan.error)}
+                      onClick={() => void offline.sync()}
+                    >
+                      <RefreshCw className={`size-3.5 ${offline.syncing ? 'animate-spin' : ''}`} />
+                      {offline.syncing ? t('Sending…') : t('Send now')}
+                    </Button>
+                  )}
+                </div>
+                <div className="divide-y">
+                  {offline.pending.map((scan) => (
+                    <div key={scan.id} className="flex items-center gap-3 px-4 py-2.5">
+                      {scan.kind === 'receipt' ? <PackageCheck className="size-4 shrink-0 text-muted-foreground" /> : <Clock className="size-4 shrink-0 text-muted-foreground" />}
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate font-mono text-sm font-semibold">{scan.part_reference}</div>
+                        <div className="truncate text-xs text-muted-foreground">{scan.location_name}</div>
+                        {scan.error && (
+                          <div className="text-xs text-red-600 dark:text-red-400">{t('Refused: {error}', { error: scan.error })}</div>
+                        )}
+                      </div>
+                      <span className="shrink-0 font-mono text-xs text-muted-foreground">{formatAgo(scan.scanned_at)}</span>
+                      <span
+                        className={`shrink-0 font-mono text-xs font-semibold ${
+                          scan.quantity > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'
+                        }`}
+                      >
+                        {scan.quantity > 0 ? `+${scan.quantity}` : scan.quantity}
+                      </span>
+                      {scan.error && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="size-7 shrink-0"
+                          aria-label={t('Discard')}
+                          onClick={() => void offline.discard(scan.id)}
+                        >
+                          <Trash2 className="size-3.5" />
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </Card>
             )}
 

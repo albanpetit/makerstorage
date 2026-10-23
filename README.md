@@ -22,7 +22,7 @@ A multi-tenant inventory manager for makerspaces and fablabs, purpose-built for 
 **Stock**
 - **Storage zones**: a location tree (room → cabinet → shelf → bench → drawer → box), with stock per zone and moves between zones
 - **Ledger**: every quantity change is an append-only stock movement
-- **Scanning**: look up parts and zones from a phone camera, a webcam or a hardware scanner
+- **Scanning**: look up parts and zones from a phone camera, a webcam or a hardware scanner, even offline: counts and bag receipts wait on the device and are sent once the server answers again
 - **Supplier bags**: scan the label on a DigiKey, Mouser or LCSC bag to receive it into stock, or to create the part when it's new
 - **QR labels**: print part and zone labels from the browser, or send them straight to a Brother QL or Zebra printer on the local network
 - **Stocktakes**: count a zone (typed or scanned, blind counts optional) and post the differences as adjustments, with a list of zones due for a count

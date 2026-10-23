@@ -465,8 +465,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_22_204700) do
     t.datetime "updated_at", null: false
     t.integer "user_id"
     t.integer "project_build_id"
+    t.string "offline_uuid"
+    t.datetime "scanned_at"
     t.index ["created_at"], name: "index_stock_movements_on_created_at"
     t.index ["movement_type"], name: "index_stock_movements_on_movement_type"
+    t.index ["organization_id", "offline_uuid"], name: "index_stock_movements_on_organization_id_and_offline_uuid", unique: true, where: "offline_uuid IS NOT NULL"
     t.index ["organization_id"], name: "index_stock_movements_on_organization_id"
     t.index ["part_id"], name: "index_stock_movements_on_part_id"
     t.index ["project_build_id"], name: "index_stock_movements_on_project_build_id"

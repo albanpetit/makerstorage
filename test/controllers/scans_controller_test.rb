@@ -532,6 +532,80 @@ class ScansControllerTest < ActionDispatch::IntegrationTest
     assert_match(/read-only/i, flash[:alert])
   end
 
+  test "offline returns the organization's snapshot with a CSRF token, viewers included" do
+    user = create_user
+    org = user.organizations.first
+    part = create_part(organization: org, ipn: "MS-00001")
+    create_part(organization: create_organization, ipn: "OTHER")
+    viewer = create_user
+    OrganizationMembership.create!(organization: org, user: viewer, role: "viewer")
+
+    sign_in user
+    get scan_offline_path
+    assert_response :success
+    json = response.parsed_body
+    assert_equal org.id, json["organization_id"]
+    assert_equal [ part.id ], json["parts"].map { |row| row["id"] }
+    assert json["csrf_token"].present?
+
+    sign_in viewer
+    post "/organizations/#{org.id}/switch"
+    get scan_offline_path
+    assert_response :success
+    assert_equal org.id, response.parsed_body["organization_id"]
+  end
+
+  test "offline answers 401 to a signed-out visitor" do
+    get scan_offline_path
+    assert_response :unauthorized
+  end
+
+  test "sync writes queued scans once and reports each" do
+    user = create_user
+    org = user.organizations.first
+    part = create_part(organization: org)
+    location = create_storage_location(organization: org)
+    operation = { id: SecureRandom.uuid, kind: "count", part_id: part.id, storage_location_id: location.id, quantity: 4, scanned_at: 1.hour.ago.iso8601 }
+
+    sign_in user
+    assert_difference -> { StockMovement.count } => 1 do
+      post scan_sync_path, params: { organization_id: org.id, operations: [ operation ] }, as: :json
+    end
+    assert_response :success
+    assert_equal [ { "id" => operation[:id], "status" => "saved" } ], response.parsed_body["results"]
+    assert_equal 4, PartStorage.find_by!(part: part, storage_location: location).quantity
+
+    assert_no_difference -> { StockMovement.count } do
+      post scan_sync_path, params: { organization_id: org.id, operations: [ operation ] }, as: :json
+    end
+    assert_equal "duplicate", response.parsed_body["results"].first["status"]
+  end
+
+  test "sync refuses scans queued in another organization" do
+    user = create_user
+    org = user.organizations.first
+
+    sign_in user
+    post scan_sync_path, params: { organization_id: org.id + 1000, operations: [] }, as: :json
+    assert_response :conflict
+  end
+
+  test "viewers cannot sync scans" do
+    owner = create_user
+    org = owner.organizations.first
+    viewer = create_user
+    OrganizationMembership.create!(organization: org, user: viewer, role: "viewer")
+    part = create_part(organization: org)
+    location = create_storage_location(organization: org)
+
+    sign_in viewer
+    post "/organizations/#{org.id}/switch"
+    assert_no_difference -> { StockMovement.count } do
+      post scan_sync_path, params: { organization_id: org.id, operations: [ { id: "a1", kind: "count", part_id: part.id, storage_location_id: location.id, quantity: 1 } ] }, as: :json
+    end
+    assert_response :forbidden
+  end
+
   private
 
   def digikey_label(customer: "296-1395-5-ND", order: "84512345")
