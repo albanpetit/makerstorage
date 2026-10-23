@@ -176,7 +176,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_22_204700) do
     t.integer "part_id", null: false
     t.integer "order_id", null: false
     t.integer "quantity", null: false
-    t.decimal "unit_price", precision: 10, scale: 2
+    t.decimal "unit_price", precision: 12, scale: 4
     t.datetime "updated_at", null: false
     t.index ["order_id"], name: "index_order_lines_on_order_id"
     t.index ["part_id"], name: "index_order_lines_on_part_id"
@@ -323,9 +323,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_22_204700) do
     t.integer "part_id", null: false
     t.integer "supplier_id", null: false
     t.string "supplier_sku"
-    t.decimal "unit_price", precision: 10, scale: 2
+    t.decimal "unit_price", precision: 12, scale: 4
     t.datetime "updated_at", null: false
     t.string "url"
+    t.json "price_breaks", default: [], null: false
     t.index ["part_id", "supplier_id"], name: "index_part_suppliers_on_part_id_and_supplier_id", unique: true
     t.index ["part_id"], name: "index_part_suppliers_on_part_id"
     t.index ["supplier_id"], name: "index_part_suppliers_on_supplier_id"
@@ -363,7 +364,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_22_204700) do
     t.integer "target_stock"
     t.string "tolerance"
     t.string "unit", default: "piece", null: false
-    t.decimal "unit_price", precision: 10, scale: 2
+    t.decimal "unit_price", precision: 12, scale: 4
     t.datetime "updated_at", null: false
     t.string "value"
     t.string "voltage_rating"

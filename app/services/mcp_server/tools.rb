@@ -9,6 +9,8 @@ class McpServer
     SEARCH_LIMIT = 20
     MAX_SEARCH_LIMIT = 50
     MAX_BOM_LINES = 500
+    # Purchase prices listed by get_part, most recent first.
+    MAX_PURCHASES = 10
     MAX_BUILDS = 10_000
     MAX_ZONE_PARTS = 200
     LOW_STOCK_LIMIT = 25
@@ -48,9 +50,9 @@ class McpServer
       {
         name: "get_part",
         title: "Get part details",
-        description: "Everything about one part: specs and technical parameters, stock per storage location, suppliers and prices, " \
-                     "open purchase orders, project reservations, the projects using it, and its consumption " \
-                     "(units used over the organization's period and the low-stock threshold that usage suggests).",
+        description: "Everything about one part: specs and technical parameters, stock per storage location, suppliers and prices " \
+                     "(with quantity price breaks), recent purchase prices, open purchase orders, project reservations, the projects using it, " \
+                     "and its consumption (units used over the organization's period and the low-stock threshold that usage suggests).",
         inputSchema: {
           type: "object",
           properties: {
@@ -254,6 +256,7 @@ class McpServer
         target_stock: part.target_stock,
         lead_time_days: part.lead_time_days,
         has_datasheet: part.datasheet.attached?,
+        files: part.attachments.map { |file| { filename: file.filename.to_s, content_type: file.content_type, byte_size: file.byte_size } },
         tags: part.tags.order(:name).pluck(:name),
         parameters: part.part_parameters.includes(:parameter_definition).sort_by { |parameter| parameter.name.downcase }
           .to_h { |parameter| [ parameter.name, parameter.display_value ] },
@@ -262,9 +265,20 @@ class McpServer
             supplier: link.supplier.name,
             supplier_sku: link.supplier_sku,
             unit_price: link.unit_price&.to_f,
+            price_breaks: link.price_breaks_for_json,
             lead_time_days: link.lead_time_days,
             preferred: link.is_preferred,
             url: link.url
+          }
+        end,
+        recent_purchases: part.purchase_price_lines(:desc).limit(MAX_PURCHASES).map do |line|
+          {
+            date: (line.order.ordered_at || line.order.created_at.to_date).iso8601,
+            reference: line.order.reference,
+            supplier: line.order.supplier.name,
+            status: line.order.status,
+            quantity: line.quantity,
+            unit_price: line.unit_price.to_f
           }
         end,
         open_orders: part.order_lines.joins(:order).merge(organization.orders.where(status: Order::OPEN_STATUSES))

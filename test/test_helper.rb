@@ -156,11 +156,12 @@ module ActiveSupport
 
     # Runs the whole OAuth grant for +user+ on +organization+ and returns the
     # token hash (access_token, refresh_token…) an MCP client would receive.
-    def connect_mcp_client(user:, organization:, client: create_oauth_client)
+    # +write+ also grants the mcp:write scope.
+    def connect_mcp_client(user:, organization:, client: create_oauth_client, write: false)
       verifier, challenge = pkce_pair
       redirect_uri = client.redirect_uris.first
       code = OauthAuthorization.grant!(client: client, user: user, organization: organization,
-                                       redirect_uri: redirect_uri, code_challenge: challenge)
+                                       redirect_uri: redirect_uri, code_challenge: challenge, write: write)
       OauthAuthorization.exchange_code!(client: client, code: code, redirect_uri: redirect_uri, code_verifier: verifier)
     end
 

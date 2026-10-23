@@ -146,8 +146,9 @@ class OrdersController < ApplicationController
         next unless quantity.positive?
 
         line = @order.order_lines.find_or_initialize_by(part_id: part.id)
+        previous_quantity = line.quantity
         line.quantity = line.quantity.to_i + quantity
-        line.unit_price ||= part.order_unit_price(@order.supplier_id)
+        line.follow_price_breaks(previous_quantity)
         line.save!
         added += 1
       end

@@ -31,7 +31,11 @@ class AlertsController < ApplicationController
     incoming = Order.incoming_quantities(current_organization, alerts.map { |alert| alert[:part].id })
     alerts = alerts.filter_map do |alert|
       quantity = alert[:reorder_quantity] - incoming.fetch(alert[:part].id, 0)
-      alert.merge(order_quantity: quantity) if quantity.positive?
+      next unless quantity.positive?
+
+      # The preferred supplier's price break for what is actually ordered.
+      price = alert[:preferred_link].unit_price_for(quantity) || alert[:part].unit_price || 0
+      alert.merge(order_quantity: quantity, unit_price: price.to_f)
     end
 
     if alerts.empty?
@@ -103,16 +107,18 @@ class AlertsController < ApplicationController
       threshold = part.min_stock_threshold
       target = part.target_stock || threshold * 2
       preferred = part.part_suppliers.find(&:is_preferred)
+      reorder_quantity = [ target - quantity, threshold ].max
 
       {
         part: part,
         preferred_supplier: preferred&.supplier,
+        preferred_link: preferred,
         quantity: quantity,
         threshold: threshold,
         ratio: threshold.positive? ? (quantity.to_f / threshold * 100).round : 0,
         severity: quantity <= threshold * 0.6 ? "critical" : "low",
-        reorder_quantity: [ target - quantity, threshold ].max,
-        unit_price: (preferred&.unit_price || part.unit_price || 0).to_f
+        reorder_quantity: reorder_quantity,
+        unit_price: (preferred&.unit_price_for(reorder_quantity) || part.unit_price || 0).to_f
       }
     end.sort_by { |alert| alert[:ratio] }
   end

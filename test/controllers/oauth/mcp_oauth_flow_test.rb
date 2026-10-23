@@ -65,6 +65,7 @@ class McpOauthFlowTest < ActionDispatch::IntegrationTest
     assert_equal "no-store", response.headers["Cache-Control"]
     tokens = response.parsed_body
     assert_equal "Bearer", tokens["token_type"]
+    assert_equal "mcp:read", tokens["scope"], "read-only unless the user allows changes"
 
     post "/mcp", params: { jsonrpc: "2.0", id: 1, method: "tools/list" }.to_json,
       headers: json_headers.merge("Authorization" => "Bearer #{tokens['access_token']}")
@@ -132,6 +133,28 @@ class McpOauthFlowTest < ActionDispatch::IntegrationTest
     query = Rack::Utils.parse_query(URI.parse(response.location).query)
     assert_equal "invalid_request", query["error"]
     assert_equal "xyz", query["state"]
+  end
+
+  test "allowing changes grants the write scope, but never in an organization the user only views" do
+    client_id = register
+    viewed = create_organization
+    OrganizationMembership.create!(organization: viewed, user: @user, role: "viewer")
+    sign_in @user
+    _verifier, challenge = pkce_pair
+
+    get "/oauth/authorize", params: authorize_params(client_id, challenge).merge(scope: "mcp:read mcp:write")
+    props = inertia_props
+    assert props["write_requested"]
+    assert_equal({ @org.id => true, viewed.id => false }, props["organizations"].to_h { |org| [ org["id"], org["can_write"] ] })
+
+    post "/oauth/authorize", params: authorize_params(client_id, challenge).merge(decision: "allow", organization_id: @org.id, write: "true")
+    assert_equal "mcp:read mcp:write", OauthAuthorization.order(:id).last.scope
+
+    post "/oauth/authorize", params: authorize_params(client_id, challenge).merge(decision: "allow", organization_id: viewed.id, write: "true")
+    assert_equal "mcp:read", OauthAuthorization.order(:id).last.scope
+
+    get "/.well-known/oauth-authorization-server"
+    assert_equal %w[mcp:read mcp:write], response.parsed_body["scopes_supported"]
   end
 
   test "denying sends access_denied back, and no access is granted" do
