@@ -348,53 +348,61 @@ class PartsController < ApplicationController
     skipped = 0
 
     begin
-      BomParser.each_row(file.path) do |row|
-        name = import_value(row, :name)
-        category_name = import_value(row, :category)
+      # One "import" event for the file, not one per part.
+      ActivityEvent.without_recording do
+        BomParser.each_row(file.path) do |row|
+          name = import_value(row, :name)
+          category_name = import_value(row, :category)
 
-        if name.blank? || category_name.blank?
-          skipped += 1
-          next
-        end
-
-        part = find_existing_part(row)
-        is_new = part.nil?
-
-        # One transaction per row: a row that fails anywhere (invalid category,
-        # part, location, or a stock level the ledger refuses) is skipped as a
-        # whole instead of leaving a half-imported part or aborting the file.
-        imported = ActiveRecord::Base.transaction do
-          part ||= current_organization.parts.build(min_stock_threshold: 0, status: "active", skip_bag_claim: true)
-          part.assign_attributes(name: name, category: import_category(category_name))
-          # Only what the sheet actually states: a column the file doesn't have,
-          # or a blank cell, leaves an existing part's value alone instead of
-          # wiping it (a re-import of a partial sheet must not erase data).
-          IMPORTED_ATTRIBUTES.each do |attribute, field|
-            value = import_value(row, field)
-            next if value.nil?
-
-            value = value.tr(",", ".") if attribute == :unit_price
-            part.assign_attributes(attribute => value)
+          if name.blank? || category_name.blank?
+            skipped += 1
+            next
           end
-          part.save!
-          claim_import_bag(part, row)
-          assign_stock(part, row)
-          true
-        rescue ActiveRecord::RecordInvalid, ActiveRecord::RecordNotSaved, AmbiguousLocationError, InvalidQuantityError
-          raise ActiveRecord::Rollback
-        end
 
-        if imported
-          is_new ? created += 1 : updated += 1
-        else
-          # A zone the row created was rolled back with it: reload the zone
-          # index rather than hand a later row a zone that no longer exists.
-          @import_zones = nil
-          skipped += 1
+          part = find_existing_part(row)
+          is_new = part.nil?
+
+          # One transaction per row: a row that fails anywhere (invalid category,
+          # part, location, or a stock level the ledger refuses) is skipped as a
+          # whole instead of leaving a half-imported part or aborting the file.
+          imported = ActiveRecord::Base.transaction do
+            part ||= current_organization.parts.build(min_stock_threshold: 0, status: "active", skip_bag_claim: true)
+            part.assign_attributes(name: name, category: import_category(category_name))
+            # Only what the sheet actually states: a column the file doesn't have,
+            # or a blank cell, leaves an existing part's value alone instead of
+            # wiping it (a re-import of a partial sheet must not erase data).
+            IMPORTED_ATTRIBUTES.each do |attribute, field|
+              value = import_value(row, field)
+              next if value.nil?
+
+              value = value.tr(",", ".") if attribute == :unit_price
+              part.assign_attributes(attribute => value)
+            end
+            part.save!
+            claim_import_bag(part, row)
+            assign_stock(part, row)
+            true
+          rescue ActiveRecord::RecordInvalid, ActiveRecord::RecordNotSaved, AmbiguousLocationError, InvalidQuantityError
+            raise ActiveRecord::Rollback
+          end
+
+          if imported
+            is_new ? created += 1 : updated += 1
+          else
+            # A zone the row created was rolled back with it: reload the zone
+            # index rather than hand a later row a zone that no longer exists.
+            @import_zones = nil
+            skipped += 1
+          end
         end
       end
     rescue CSV::MalformedCSVError
       return redirect_to(parts_path, alert: t("flash.parts.could_not_parse_that_file_as"))
+    end
+
+    if created + updated > 0
+      ActivityEvent.record!(current_organization, "import",
+        details: { "file" => file.original_filename.to_s, "created" => created, "updated" => updated, "skipped" => skipped })
     end
 
     redirect_to parts_path, notice: t("flash.parts.import_complete_created_updated_skipped", created: created, updated: updated, skipped: skipped)

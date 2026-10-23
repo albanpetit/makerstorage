@@ -9,6 +9,9 @@
 # counted) isn't wiped out by the adjustment, which only corrects what the count
 # found at that moment.
 class Stocktake < ApplicationRecord
+  # Activity log (Auditable).
+  audited ignore: %i[user_id completed_by_id completed_at]
+
   include GeneratedReference
 
   # Associations
@@ -186,6 +189,10 @@ class Stocktake < ApplicationRecord
 
   def discrepancy_lines_count
     stocktake_lines.count { |line| line.counted? && line.difference.nonzero? }
+  end
+
+  def activity_label
+    reference.presence || "##{id}"
   end
 
   private

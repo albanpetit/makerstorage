@@ -1,4 +1,7 @@
 class Supplier < ApplicationRecord
+  # Activity log (Auditable).
+  audited
+
   # Supported external catalog integrations (see SupplierCatalog). A supplier
   # tagged with one of these is the local record that a configured API
   # integration fills prices from, and is seeded for every organization.

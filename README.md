@@ -45,6 +45,7 @@ A multi-tenant inventory manager for makerspaces and fablabs, purpose-built for 
 **Organizations**
 - **Multi-tenant**: every organization has isolated data, its own members invited with roles (owner / admin / member / viewer), and a configurable internal part-number (IPN) scheme
 - **Dashboard**: stock value, 30 days of activity, what needs attention, open orders and project buildability
+- **Activity log**: admins see who created, changed or deleted parts, zones, orders, projects, members and settings, with before and after values, per member or per record
 - **CSV import & backups**: bulk-load parts (UTF-8 or Excel's Windows-1252), export a whole organization as a ZIP and restore it
 - **English & French interface**, chosen per user or from the browser
 - **Claude & MCP**: a built-in MCP server so Claude (or any MCP client) can check stock, storage locations, project buildability and BOMs against your inventory, and, if you allow it, record stock movements and create or edit parts and projects

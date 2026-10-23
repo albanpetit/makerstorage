@@ -3,6 +3,9 @@
 # as a 1-bit bitmap at the printer's exact size (#geometry) and the server
 # wraps it in the printer's language and sends it (LabelPrinting).
 class LabelPrinter < ApplicationRecord
+  # Activity log (Auditable).
+  audited
+
   PROTOCOLS = %w[brother_ql zpl].freeze
   MAX_LABEL_MM = 300
 

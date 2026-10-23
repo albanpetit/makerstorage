@@ -2,7 +2,7 @@ import { Link, router, useForm } from '@inertiajs/react'
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
 import {
   ArrowDown, ArrowUp, ArrowLeftRight, Cpu, MapPin,
-  Pencil, Printer, Trash2, ExternalLink, Loader2, CircleAlert, HandHelping,
+  Pencil, Printer, Trash2, ExternalLink, Loader2, CircleAlert, HandHelping, History,
 } from 'lucide-react'
 
 import { usePermissions } from '@/hooks/use-permissions'
@@ -222,7 +222,7 @@ export function PartDetailSheet({
   open,
   onOpenChange,
 }: PartDetailSheetProps) {
-  const { canWrite } = usePermissions()
+  const { canWrite, canAdminister } = usePermissions()
   const [loading, setLoading] = useState(false)
   const [loadError, setLoadError] = useState('')
   const [payload, setPayload] = useState<PartShowPayload | null>(null)
@@ -693,6 +693,13 @@ export function PartDetailSheet({
                   <Button variant="outline" onClick={() => setLabelOpen(true)} aria-label={t('Print label')}>
                     <Printer className="size-4" />
                   </Button>
+                  {canAdminister && partId !== null && (
+                    <Button variant="outline" asChild>
+                      <Link href={`/activity?subject_type=Part&subject_id=${partId}`} aria-label={t('History of this record')}>
+                        <History className="size-4" />
+                      </Link>
+                    </Button>
+                  )}
                   <Button variant="outline" onClick={() => setEditOpen(true)} aria-label={t('Edit part')}>
                     <Pencil className="size-4" />
                   </Button>

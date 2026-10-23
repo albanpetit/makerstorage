@@ -39,6 +39,21 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_22_204700) do
     t.index ["blob_id", "variation_digest"], name: "index_active_storage_variant_records_uniqueness", unique: true
   end
 
+  create_table "activity_events", force: :cascade do |t|
+    t.integer "organization_id", null: false
+    t.integer "user_id"
+    t.string "user_name"
+    t.string "action", null: false
+    t.string "subject_type"
+    t.integer "subject_id"
+    t.string "subject_label"
+    t.json "details", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.index ["organization_id", "created_at"], name: "index_activity_events_on_organization_id_and_created_at"
+    t.index ["organization_id", "subject_type", "subject_id"], name: "index_activity_events_on_subject"
+    t.index ["user_id"], name: "index_activity_events_on_user_id"
+  end
+
   create_table "categories", force: :cascade do |t|
     t.string "code"
     t.string "color"
@@ -572,6 +587,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_22_204700) do
 
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
+  add_foreign_key "activity_events", "organizations"
+  add_foreign_key "activity_events", "users"
   add_foreign_key "categories", "categories", column: "parent_id"
   add_foreign_key "categories", "organizations"
   add_foreign_key "category_parameters", "categories"

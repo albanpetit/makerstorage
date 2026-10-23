@@ -33,7 +33,12 @@ module OrganizationBackup
         raise Error, I18n.t("errors.backup.too_many_files") if zip.size > MAX_ENTRIES
 
         data = read_data(zip)
-        organization, records_count = ActiveRecord::Base.transaction { restore_records(data) }
+        # One "restore" event in the new organization, not one per record.
+        organization, records_count = ActiveRecord::Base.transaction do
+          ActivityEvent.without_recording { restore_records(data) }.tap do |restored, count|
+            ActivityEvent.record!(restored, "restore", details: { "records" => count })
+          end
+        end
         files_count, skipped_files = restore_files(zip, data, organization)
 
         Result.new(organization: organization.reload, records_count: records_count, files_count: files_count, skipped_files: skipped_files)

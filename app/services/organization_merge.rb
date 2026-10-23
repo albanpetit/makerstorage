@@ -53,48 +53,7 @@ class OrganizationMerge
 
     @codes_renamed = 0
     result = ActiveRecord::Base.transaction do
-      target.lock!
-      source.lock!
-
-      category_ids = merge_categories
-      parameter_ids = merge_parameter_definitions
-      footprint_ids = merge_by_name(Footprint)
-      tag_ids = merge_by_name(Tag)
-      supplier_ids = merge_suppliers
-
-      parameter_ids.each do |from, to|
-        repoint_links(CategoryParameter, :parameter_definition_id, from, to, :category_id)
-        repoint_links(PartParameter, :parameter_definition_id, from, to, :part_id)
-      end
-      category_ids.each do |from, to|
-        Part.where(category_id: from).update_all(category_id: to)
-        repoint_links(CategoryParameter, :category_id, from, to, :parameter_definition_id)
-      end
-      footprint_ids.each do |from, to|
-        Part.where(footprint_id: from).update_all(footprint_id: to)
-        move_attachments("Footprint", from, to, "image")
-      end
-      tag_ids.each { |from, to| repoint_links(PartTag, :tag_id, from, to, :part_id) }
-      supplier_ids.each do |from, to|
-        repoint_links(PartSupplier, :supplier_id, from, to, :part_id)
-        Order.where(supplier_id: from).update_all(supplier_id: to)
-        move_attachments("Supplier", from, to, "logo")
-      end
-
-      move_storage_locations
-      moved, merged, cleared = merge_parts
-      StockMovement.where(organization_id: source.id).update_all(organization_id: target.id)
-      move_with_references(Order)
-      move_with_references(Project)
-      move_with_references(Stocktake)
-      move_with_references(Loan)
-      members_added = add_members
-
-      source.reload.destroy!
-      reassigned = reassign_ipns(cleared)
-
-      Result.new(parts_moved: moved, parts_merged: merged, codes_renamed: @codes_renamed,
-                 ipns_cleared: cleared.size, ipns_reassigned: reassigned, members_added: members_added)
+      ActivityEvent.without_recording { merge_records }
     end
     target.reload
     result
@@ -105,6 +64,55 @@ class OrganizationMerge
   private
 
   attr_reader :source, :target
+
+  # Everything but the "merge" event is moved without being logged.
+  def merge_records
+    target.lock!
+    source.lock!
+
+    category_ids = merge_categories
+    parameter_ids = merge_parameter_definitions
+    footprint_ids = merge_by_name(Footprint)
+    tag_ids = merge_by_name(Tag)
+    supplier_ids = merge_suppliers
+
+    parameter_ids.each do |from, to|
+      repoint_links(CategoryParameter, :parameter_definition_id, from, to, :category_id)
+      repoint_links(PartParameter, :parameter_definition_id, from, to, :part_id)
+    end
+    category_ids.each do |from, to|
+      Part.where(category_id: from).update_all(category_id: to)
+      repoint_links(CategoryParameter, :category_id, from, to, :parameter_definition_id)
+    end
+    footprint_ids.each do |from, to|
+      Part.where(footprint_id: from).update_all(footprint_id: to)
+      move_attachments("Footprint", from, to, "image")
+    end
+    tag_ids.each { |from, to| repoint_links(PartTag, :tag_id, from, to, :part_id) }
+    supplier_ids.each do |from, to|
+      repoint_links(PartSupplier, :supplier_id, from, to, :part_id)
+      Order.where(supplier_id: from).update_all(supplier_id: to)
+      move_attachments("Supplier", from, to, "logo")
+    end
+
+    move_storage_locations
+    moved, merged, cleared = merge_parts
+    StockMovement.where(organization_id: source.id).update_all(organization_id: target.id)
+    move_with_references(Order)
+    move_with_references(Project)
+    move_with_references(Stocktake)
+    move_with_references(Loan)
+    members_added = add_members
+    # The source's history comes along, then one "merge" event in the target.
+    ActivityEvent.where(organization_id: source.id).update_all(organization_id: target.id)
+
+    source.reload.destroy!
+    reassigned = reassign_ipns(cleared)
+    ActivityEvent.record!(target, "merge", details: { "organization" => source.name, "parts_moved" => moved, "parts_merged" => merged })
+
+    Result.new(parts_moved: moved, parts_merged: merged, codes_renamed: @codes_renamed,
+               ipns_cleared: cleared.size, ipns_reassigned: reassigned, members_added: members_added)
+  end
 
   # -- Reference data --------------------------------------------------------
 
