@@ -24,7 +24,10 @@ class McpController < ActionController::API
 
     organization = @authorization.organization
     response = Time.use_zone(organization.timezone) do
-      McpServer.new(organization: organization, base_url: request.base_url).handle(message)
+      McpServer.new(
+        organization: organization, base_url: request.base_url,
+        user: @authorization.user, client_name: @authorization.oauth_client.name, write: @authorization.can_write?
+      ).handle(message)
     end
     response ? render(json: response) : head(:accepted)
   rescue JSON::ParserError
