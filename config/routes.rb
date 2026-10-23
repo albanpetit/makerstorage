@@ -51,6 +51,7 @@ Rails.application.routes.draw do
     collection do
       post :import
       post :lookup
+      post :extract
       post :rows
       post :bulk_move
       delete :bulk_destroy

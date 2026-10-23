@@ -118,6 +118,18 @@ fr:
     value: Valeur
     website: Site web
   errors:
+    ai_entry:
+      declined: Claude a refusé de lire ces fichiers.
+      file_too_large: '%{name} est trop volumineux (la limite est de %{size}).'
+      key_refused: Anthropic a refusé la clé d’API. Vérifiez-la dans Réglages → Intégrations.
+      no_file: Ajoutez d’abord une photo ou une datasheet.
+      not_configured: La saisie assistée par l’IA n’est pas configurée. Un administrateur peut ajouter une clé d’API Anthropic dans Réglages → Intégrations.
+      rate_limited: La limite de requêtes d’Anthropic est atteinte. Réessayez dans une minute.
+      request_refused: Anthropic a refusé la requête. Le fichier est peut-être illisible ou trop long.
+      too_many_files: Ajoutez au plus %{count} fichiers à la fois.
+      unreachable: Impossible de joindre Anthropic. Veuillez réessayer.
+      unreadable: La réponse de Claude est illisible. Veuillez réessayer.
+      unsupported_file: '%{name} n’est ni une photo JPEG, PNG, GIF ou WebP, ni un PDF.'
     backup:
       data_too_large: '%{file} est trop volumineux.'
       inconsistent: 'La sauvegarde n''a pas pu être restaurée (%{error}) : ses données sont incohérentes.'
@@ -463,6 +475,7 @@ fr:
       please_choose_a_csv_file_to: Choisissez un fichier CSV à importer.
       quantity_is_too_large: La quantité est trop grande
       select_at_least_one_part: Sélectionnez au moins un composant.
+      too_many_ai_reads: Trop de lectures par l’IA en peu de temps. Patientez quelques minutes.
       tags:
         one: '%{count} tag'
         other: '%{count} tags'

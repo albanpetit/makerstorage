@@ -418,6 +418,34 @@ class SettingsControllerTest < ActionDispatch::IntegrationTest
     assert_nil org.reload.github_token
   end
 
+  test "the Anthropic key is write-only and the AI model is chosen from the list" do
+    user = create_user
+    org = user.organizations.first
+    sign_in user
+
+    patch settings_path, params: { organization: { anthropic_api_key: "  sk-ant-secret  " } }
+    assert_equal "sk-ant-secret", org.reload.anthropic_api_key
+    assert org.ai_entry_configured?
+
+    get settings_path
+    organization = inertia_props["organization"]
+    assert_equal true, organization["anthropic_api_key_present"]
+    refute organization.key?("anthropic_api_key")
+    assert_equal "claude-opus-5-5", organization["ai_model"]
+    assert_includes organization["ai_models"].map { |model| model["value"] }, "claude-haiku-5-5"
+
+    patch settings_path, params: { organization: { anthropic_api_key: "", ai_model: "claude-sonnet-5-5" } }
+    assert_equal "sk-ant-secret", org.reload.anthropic_api_key
+    assert_equal "claude-sonnet-5-5", org.ai_model
+
+    patch settings_path, params: { organization: { ai_model: "gpt-5" } }
+    assert_equal "claude-sonnet-5-5", org.reload.ai_model
+
+    patch settings_path, params: { organization: { remove_anthropic_api_key: "true" } }
+    assert_nil org.reload.anthropic_api_key
+    refute org.ai_entry_configured?
+  end
+
   test "update leaves an existing Mouser key untouched on a blank submit" do
     user = create_user
     org = user.organizations.first

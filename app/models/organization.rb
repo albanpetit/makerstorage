@@ -5,7 +5,7 @@ class Organization < ApplicationRecord
     ignore: %i[ipn_next_sequence notifications_sent_on digikey_access_token digikey_refresh_token
                digikey_token_expires_at kicad_token_created_at kicad_token_last_used_at],
     secret: %i[mouser_api_key mouser_order_api_key digikey_client_id digikey_client_secret
-               kicad_token_digest github_token]
+               kicad_token_digest github_token anthropic_api_key]
 
   # Set before the dependent-destroy cascade runs so a membership's last-owner
   # guard can tell "the whole org is going away" apart from "someone is removing
@@ -61,6 +61,8 @@ class Organization < ApplicationRecord
   encrypts :digikey_refresh_token
   # GitHub token for projects linked to a private repository (see GithubClient)
   encrypts :github_token
+  # AI-assisted part entry (see PartExtraction)
+  encrypts :anthropic_api_key
 
   # Constants
   IPN_SEPARATORS = %w[- . _ /].freeze
@@ -88,6 +90,7 @@ class Organization < ApplicationRecord
   validates :timezone, inclusion: { in: TIMEZONES }
   validates :default_low_stock_threshold, numericality: { only_integer: true, greater_than_or_equal_to: 0, less_than_or_equal_to: MAX_INTEGER }
   validates :notification_frequency, inclusion: { in: NOTIFICATION_FREQUENCIES }
+  validates :ai_model, inclusion: { in: ->(_) { PartExtraction::MODELS.keys } }
   validates :default_loan_days, numericality: { only_integer: true, greater_than: 0, less_than_or_equal_to: Loan::MAX_DAYS }
   validates :consumption_window_days, numericality: { only_integer: true, greater_than_or_equal_to: PartConsumption::MIN_RATE_DAYS, less_than_or_equal_to: PartConsumption::MAX_DAYS }
   validates :threshold_cover_days, numericality: { only_integer: true, greater_than: 0, less_than_or_equal_to: PartConsumption::MAX_DAYS }
@@ -287,6 +290,12 @@ class Organization < ApplicationRecord
   # for this org.
   def supplier_lookup_configured?
     mouser_api_key.present? || digikey_configured? || lcsc_enabled?
+  end
+
+  # AI-assisted part entry: on once the organization has saved its own
+  # Anthropic API key.
+  def ai_entry_configured?
+    anthropic_api_key.present?
   end
 
   # DigiKey needs both halves of the OAuth2 client-credentials pair to work.

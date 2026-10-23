@@ -156,13 +156,15 @@ class SettingsController < ApplicationController
       :mouser_order_api_key, :remove_mouser_order_api_key,
       :digikey_client_id, :digikey_client_secret, :remove_digikey,
       :lcsc_enabled,
-      :github_token, :remove_github_token
+      :github_token, :remove_github_token,
+      :anthropic_api_key, :remove_anthropic_api_key, :ai_model
     )
 
     normalize_mouser_api_key(permitted)
     normalize_write_only_key(permitted, :mouser_order_api_key, :remove_mouser_order_api_key)
     normalize_digikey_credentials(permitted)
     normalize_write_only_key(permitted, :github_token, :remove_github_token)
+    normalize_write_only_key(permitted, :anthropic_api_key, :remove_anthropic_api_key)
     permitted
   end
 
@@ -236,6 +238,9 @@ class SettingsController < ApplicationController
       digikey_account_connected: org.digikey_account_connected?,
       lcsc_enabled: org.lcsc_enabled,
       github_token_present: org.github_token.present?,
+      anthropic_api_key_present: org.anthropic_api_key.present?,
+      ai_model: org.ai_model,
+      ai_models: PartExtraction::MODELS.map { |value, label| { value: value, label: label } },
       parts_count: org.total_parts_count,
       ipn_preview: org.ipn_preview(category_code: org.ipn_use_category_code ? "RES" : nil),
       # Box & bag numbering: how many bags are free, and the first few codes.

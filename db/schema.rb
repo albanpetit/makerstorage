@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_22_204700) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_23_230000) do
   create_table "active_storage_attachments", force: :cascade do |t|
     t.bigint "blob_id", null: false
     t.datetime "created_at", null: false
@@ -279,6 +279,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_22_204700) do
     t.string "github_token"
     t.integer "consumption_window_days", default: 90, null: false
     t.integer "threshold_cover_days", default: 30, null: false
+    t.string "anthropic_api_key"
+    t.string "ai_model", default: "claude-opus-5-5", null: false
     t.index ["email"], name: "index_organizations_on_email"
     t.index ["kicad_token_digest"], name: "index_organizations_on_kicad_token_digest", unique: true
     t.index ["name"], name: "index_organizations_on_name"
