@@ -42,6 +42,16 @@ class McpControllerTest < ActionDispatch::IntegrationTest
     assert_equal [ @user, location, "Stock added (via Claude)" ], [ movement.user, movement.storage_location, movement.reason ]
   end
 
+  test "changes made by write tools are in the activity log" do
+    token = connect_mcp_client(user: @user, organization: @org, write: true)[:access_token]
+
+    result = rpc("tools/call", { name: "update_part", arguments: { part: "MINE-10K", name: "Mine 10k 1%" } }, token: token)
+    assert_not result["isError"]
+    event = @org.activity_events.newest_first.first
+    assert_equal [ "update", @part.id, @user.id, [ "Mine 10k", "Mine 10k 1%" ] ],
+      [ event.action, event.subject_id, event.user_id, event.details["name"] ]
+  end
+
   test "write tools go away when the user becomes a viewer, and come back with the role" do
     token = connect_mcp_client(user: @user, organization: @other_org, write: true)[:access_token]
     assert_equal "mcp:read mcp:write", OauthAuthorization.authenticate(token).scope

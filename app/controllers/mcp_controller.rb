@@ -45,7 +45,11 @@ class McpController < ActionController::API
   def authenticate_bearer!
     token = request.authorization.to_s[/\ABearer (.+)\z/, 1]
     @authorization = OauthAuthorization.authenticate(token)
-    return if @authorization
+    if @authorization
+      # Changes made by write tools go to the activity log in the user's name.
+      Current.user = @authorization.user
+      return
+    end
 
     challenge = %(Bearer resource_metadata="#{mcp_resource_metadata_url}", scope="#{OauthAuthorization::SCOPE}")
     challenge += %(, error="invalid_token") if token.present?
