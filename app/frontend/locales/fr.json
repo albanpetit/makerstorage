@@ -1912,5 +1912,7 @@
   "✓ Bag matched": "✓ Sachet reconnu",
   "✓ Scan matched": "✓ Code reconnu",
   "✗ Unknown code": "✗ Code inconnu",
-  "Loading…": "Chargement…"
+  "Loading…": "Chargement…",
+  "Tags added": "Tags ajoutés",
+  "Tags removed": "Tags retirés"
 }

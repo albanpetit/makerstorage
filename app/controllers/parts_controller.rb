@@ -275,7 +275,8 @@ class PartsController < ApplicationController
     category = current_organization.categories.find_by(id: params[:category_id])
     return bulk_error(t("flash.parts.choose_a_category")) unless category
 
-    updated = parts.update_all(category_id: category.id)
+    updated = parts.update_all(category_id: category.id, updated_at: Time.current)
+    record_bulk_update(updated, "category" => category.name)
     redirect_back_or_to parts_path, notice: t("flash.parts.bulk_category", count: updated, category: category.name)
   end
 
@@ -286,7 +287,8 @@ class PartsController < ApplicationController
     status = params[:status].to_s
     return bulk_error(t("flash.parts.choose_a_valid_status")) unless Part::STATUSES.include?(status)
 
-    updated = parts.update_all(status: status)
+    updated = parts.update_all(status: status, updated_at: Time.current)
+    record_bulk_update(updated, "status" => status)
     redirect_back_or_to parts_path, notice: t("flash.parts.bulk_status", count: updated, status: t("part_statuses.#{status}"))
   end
 
@@ -300,9 +302,11 @@ class PartsController < ApplicationController
     return bulk_error(t("flash.parts.choose_at_least_one_tag")) if tag_ids.empty?
 
     part_ids = parts.pluck(:id)
+    tag_names = current_organization.tags.where(id: tag_ids).order(:name).pluck(:name)
 
     if params[:mode] == "remove"
       PartTag.where(part_id: part_ids, tag_id: tag_ids).delete_all
+      record_bulk_update(part_ids.size, "tags_removed" => tag_names)
       redirect_back_or_to parts_path, notice: t("flash.parts.bulk_tags_removed", count: part_ids.size, tags: t("flash.parts.tags", count: tag_ids.size))
     else
       # Single query for existing links instead of a per-part tag_ids lookup,
@@ -313,6 +317,7 @@ class PartsController < ApplicationController
           .map { |tag_id| { part_id: part_id, tag_id: tag_id } }
       end
       PartTag.insert_all(rows) if rows.any?
+      record_bulk_update(part_ids.size, "tags_added" => tag_names)
       redirect_back_or_to parts_path, notice: t("flash.parts.bulk_tags_added", count: part_ids.size, tags: t("flash.parts.tags", count: tag_ids.size))
     end
   end
@@ -333,6 +338,7 @@ class PartsController < ApplicationController
         link.is_preferred = true
         link.save!
       end
+      record_bulk_update(parts.size, "supplier" => supplier.name)
     end
 
     redirect_back_or_to parts_path, notice: t("flash.parts.bulk_supplier", count: parts.size, supplier: supplier.name)
@@ -414,6 +420,12 @@ class PartsController < ApplicationController
 
   def bulk_part_ids
     Array(params[:part_ids]).map(&:to_i).reject(&:zero?).uniq
+  end
+
+  # Bulk edits write their rows directly (update_all, insert_all) or touch
+  # child rows only, so the activity log gets one summary event instead.
+  def record_bulk_update(count, details)
+    ActivityEvent.record!(current_organization, "update", details: { "updated" => count, **details }) if count.positive?
   end
 
   # Redirects with a flash alert AND an Inertia `errors` prop, so the client's

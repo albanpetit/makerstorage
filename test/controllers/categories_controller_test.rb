@@ -121,6 +121,9 @@ class CategoriesControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to categories_path
     assert_equal target.id, part.reload.category_id
     assert_not Category.exists?(category.id)
+    moved, deleted = org.activity_events.order(:id).last(2)
+    assert_equal [ "update", { "updated" => 1, "category" => "Passives" } ], [ moved.action, moved.details ]
+    assert_equal [ "destroy", "Resistors" ], [ deleted.action, deleted.subject_label ]
   end
 
   test "destroy also reassigns parts from subcategories that cascade-delete" do

@@ -1499,6 +1499,34 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "discontinued", part.reload.status
   end
 
+  test "bulk edits write one summary event each to the activity log and touch the parts" do
+    user = create_user
+    org = user.organizations.first
+    category = create_category(organization: org, name: "Capacitors")
+    tag = create_tag(organization: org, name: "SMD")
+    supplier = create_supplier(organization: org, name: "Mouser")
+    parts = Array.new(2) { create_part(organization: org) }
+    ids = parts.map(&:id)
+    parts.each { |part| part.update_columns(updated_at: 2.days.ago) }
+
+    sign_in user
+    assert_difference -> { org.activity_events.count } => 5 do
+      post bulk_update_category_parts_path, params: { part_ids: ids, category_id: category.id }
+      post bulk_update_status_parts_path, params: { part_ids: ids, status: "discontinued" }
+      post bulk_update_tags_parts_path, params: { part_ids: ids, tag_ids: [ tag.id ], mode: "add" }
+      post bulk_update_tags_parts_path, params: { part_ids: ids, tag_ids: [ tag.id ], mode: "remove" }
+      post bulk_assign_supplier_parts_path, params: { part_ids: ids, supplier_id: supplier.id }
+    end
+
+    events = org.activity_events.order(:id).last(5)
+    assert_equal [ "update" ] * 5, events.map(&:action)
+    assert_equal [ user.id ] * 5, events.map(&:user_id)
+    assert_equal [ { "updated" => 2, "category" => "Capacitors" }, { "updated" => 2, "status" => "discontinued" },
+                   { "updated" => 2, "tags_added" => [ "SMD" ] }, { "updated" => 2, "tags_removed" => [ "SMD" ] },
+                   { "updated" => 2, "supplier" => "Mouser" } ], events.map(&:details)
+    assert parts.all? { |part| part.reload.updated_at > 1.minute.ago }
+  end
+
   test "bulk_update_status rejects an invalid status value" do
     user = create_user
     org = user.organizations.first

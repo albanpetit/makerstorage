@@ -163,6 +163,8 @@ const FIELD_LABELS: Record<string, string> = {
   get parts_moved() { return t('Parts moved') },
   get parts_merged() { return t('Parts merged') },
   get ipns_reassigned() { return t('IPNs reassigned') },
+  get tags_added() { return t('Tags added') },
+  get tags_removed() { return t('Tags removed') },
 }
 
 // Enumerated values (roles, statuses, digest frequency) shown translated.
@@ -229,7 +231,7 @@ function EventDetails({ event }: { event: ActivityEvent }) {
               <span className="max-w-[200px] truncate font-medium">{formatValue(value[1], key)}</span>
             </>
           ) : (
-            <span className="font-medium">{formatValue(value as DetailValue)}</span>
+            <span className="font-medium">{formatValue(value as DetailValue, key)}</span>
           )}
         </li>
       ))}
