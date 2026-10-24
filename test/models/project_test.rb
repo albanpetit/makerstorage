@@ -289,6 +289,10 @@ class ProjectTest < ActiveSupport::TestCase
     project.assign_attributes(github_repository: "rover", github_ref: "a b", github_path: "hw/../../etc")
     refute project.valid?
     assert_equal %i[github_path github_ref github_repository], project.errors.attribute_names.sort
+
+    project.assign_attributes(github_repository: "maker/..", github_ref: nil, github_path: nil)
+    refute project.valid?
+    assert_equal %i[github_repository], project.errors.attribute_names
   end
 
   test "unlink_github! clears the link" do

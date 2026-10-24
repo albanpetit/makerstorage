@@ -34,6 +34,18 @@ class LoansControllerTest < ActionDispatch::IntegrationTest
     assert_equal @iron.id, props["prefill_part_id"]
   end
 
+  test "index loads the lendable parts only when the Lend dialog asks for them" do
+    sign_in @user
+
+    get loans_path
+    page = JSON.parse(@response.body[/data-page="app" type="application\/json"[^>]*>(.*?)<\/script>/m, 1])
+    assert_not page["props"].key?("parts")
+
+    get loans_path, headers: { "X-Inertia" => "true", "X-Inertia-Version" => page["version"].to_s,
+                               "X-Inertia-Partial-Component" => "loans/index", "X-Inertia-Partial-Data" => "parts" }
+    assert_equal [ @iron.id ], JSON.parse(@response.body)["props"]["parts"].map { |p| p["id"] }
+  end
+
   test "index filters overdue, returned and the user's own loans" do
     overdue = lend(borrower_name: "Alice", due_on: @org.local_date - 2)
     returned = lend(borrower_name: "Carol")

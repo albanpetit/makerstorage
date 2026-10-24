@@ -74,6 +74,7 @@ class CategoriesController < ApplicationController
       moved = 0
       ActiveRecord::Base.transaction do
         moved = affected_parts.update_all(category_id: target.id, updated_at: Time.current)
+        ActivityEvent.record!(current_organization, "update", details: { "updated" => moved, "category" => target.name })
         @category.destroy!
       end
 

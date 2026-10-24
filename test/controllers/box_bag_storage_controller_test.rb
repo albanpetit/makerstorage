@@ -140,6 +140,7 @@ class BoxBagStorageControllerTest < ActionDispatch::IntegrationTest
     assert_equal "A-2", part.reload.ipn
     assert_equal 0, PartStorage.find_by!(part: part, storage_location: bag1).quantity
     assert_equal 7, PartStorage.find_by!(part: part, storage_location: bag2).quantity
+    assert_equal [ false, true, true ], part.stock_movements.order(:id).map(&:transfer), "the bag change is a move, not a use"
   end
 
   test "update takes a part's stray stock out of another part's bag into the bag picked for it" do

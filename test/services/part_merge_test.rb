@@ -296,6 +296,6 @@ class PartMergeTest < ActiveSupport::TestCase
     assert_equal 0, keep.part_storages.find_by(storage_location: other_bag).quantity
     assert_nil other_bag.reload.bag_occupant
     assert_ledger_matches(keep)
-    assert_equal 2, keep.stock_movements.where("reason LIKE ?", "Merged duplicate%").count
+    assert_equal 2, keep.stock_movements.where("reason LIKE ?", "Merged duplicate%").where(transfer: true).count
   end
 end
