@@ -146,6 +146,7 @@ export interface PartsIndexProps {
   tags: Tag[]
   storage_locations: StorageLocationOption[]
   supplier_lookup_enabled: boolean
+  ai_entry_enabled: boolean
   ipn_manual_entry: boolean
   bag_options: BagOption[] | null
   bag_boxes: BagBox[] | null

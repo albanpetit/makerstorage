@@ -6,7 +6,7 @@ class PartsController < ApplicationController
 
   before_action :verify_organization_access
   before_action :verify_organization_writer, only: %i[
-    create update destroy import lookup
+    create update destroy import lookup extract
     bulk_move bulk_update_category bulk_update_status bulk_update_tags bulk_assign_supplier
   ]
   # Bulk delete is scoped to admins/owners, not the general writer role: unlike
@@ -14,6 +14,10 @@ class PartsController < ApplicationController
   # gets the stricter gate that single-part destroy doesn't need.
   before_action :verify_organization_admin, only: %i[bulk_destroy]
   before_action :set_part, only: %i[show edit update destroy]
+
+  # Each AI read is billed to the organization's own Anthropic key.
+  rate_limit to: 20, within: 10.minutes, only: :extract, by: -> { current_user.id }, store: AUTH_RATE_LIMIT_STORE,
+             with: -> { render json: { error: t("flash.parts.too_many_ai_reads") }, status: :too_many_requests }
 
   # Raised when an import row's location names several zones; skips the row.
   class AmbiguousLocationError < StandardError; end
@@ -61,6 +65,7 @@ class PartsController < ApplicationController
       tags: serialize_tags,
       storage_locations: serialize_storage_locations,
       supplier_lookup_enabled: current_organization.supplier_lookup_configured?,
+      ai_entry_enabled: current_organization.ai_entry_configured?,
       ipn_manual_entry: current_organization.ipn_generation_mode == "manual",
       bag_options: bag_options,
       bag_boxes: bag_boxes,
@@ -143,6 +148,8 @@ class PartsController < ApplicationController
   def create
     part = current_organization.parts.build(part_params)
     part.image_source_url = Part.supplier_image_url(params[:image_url])
+    # The datasheet read by AI-assisted entry, kept with the new part.
+    part.datasheet.attach(params[:datasheet_file]) if params[:datasheet_file].is_a?(ActionDispatch::Http::UploadedFile)
 
     # The part, its new bag and its opening stock land together: a refused
     # stock movement must not leave the part created behind an error.
@@ -195,6 +202,20 @@ class PartsController < ApplicationController
   rescue SupplierCatalog::NotConfiguredError
     render json: { error: t("flash.parts.no_supplier_catalog_is_configured_add") }, status: :unprocessable_entity
   rescue SupplierCatalog::LookupError => e
+    render json: { error: e.message }, status: :bad_gateway
+  end
+
+  # AI-assisted entry: reads the photos / datasheet the add-part dialog sends
+  # with the organization's Claude key (PartExtraction) and returns the fields
+  # to prefill as JSON. Nothing is saved. Async fetch, not an Inertia visit.
+  def extract
+    result = PartExtraction.new(current_organization).extract(Array(params[:files]), hint: params[:hint])
+    render json: { result: result }
+  rescue PartExtraction::NotConfiguredError, PartExtraction::InvalidFileError => e
+    render json: { error: e.message }, status: :unprocessable_entity
+  rescue PartExtraction::BusyError => e
+    render json: { error: e.message }, status: :service_unavailable
+  rescue PartExtraction::Error => e
     render json: { error: e.message }, status: :bad_gateway
   end
 

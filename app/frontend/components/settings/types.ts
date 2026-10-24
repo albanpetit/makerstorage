@@ -46,6 +46,9 @@ export interface OrganizationSettings {
   digikey_account_connected: boolean
   lcsc_enabled: boolean
   github_token_present: boolean
+  anthropic_api_key_present: boolean
+  ai_model: string
+  ai_models: { value: string; label: string }[]
   parts_count: number
   ipn_preview: IpnPreview
   free_bags_count: number
@@ -168,6 +171,8 @@ export interface IntegrationsFormData {
     remove_digikey: boolean
     github_token: string
     remove_github_token: boolean
+    anthropic_api_key: string
+    remove_anthropic_api_key: boolean
   }
 }
 
