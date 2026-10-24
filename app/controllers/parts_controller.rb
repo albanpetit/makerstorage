@@ -446,11 +446,11 @@ class PartsController < ApplicationController
 
         current_organization.stock_movements.create!(
           part: part, storage_location: source, user: current_user,
-          movement_type: "out", quantity_delta: -quantity, reason: "Bulk move to #{destination.name}"
+          movement_type: "out", quantity_delta: -quantity, reason: "Bulk move to #{destination.name}", transfer: true
         )
         current_organization.stock_movements.create!(
           part: part, storage_location: destination, user: current_user,
-          movement_type: "in", quantity_delta: quantity, reason: "Bulk move from #{source.name}"
+          movement_type: "in", quantity_delta: quantity, reason: "Bulk move from #{source.name}", transfer: true
         )
         moved = true
       end
@@ -649,11 +649,11 @@ class PartsController < ApplicationController
 
     current_organization.stock_movements.create!(
       part: part, storage_location: previous_bag, user: current_user,
-      movement_type: "out", quantity_delta: -quantity, reason: "Moved to bag #{part.bag.code}"
+      movement_type: "out", quantity_delta: -quantity, reason: "Moved to bag #{part.bag.code}", transfer: true
     )
     current_organization.stock_movements.create!(
       part: part, storage_location: part.bag, user: current_user,
-      movement_type: "in", quantity_delta: quantity, reason: "Moved from bag #{previous_bag.code}"
+      movement_type: "in", quantity_delta: quantity, reason: "Moved from bag #{previous_bag.code}", transfer: true
     )
   end
 

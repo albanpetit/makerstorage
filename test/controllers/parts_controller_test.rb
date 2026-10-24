@@ -1402,6 +1402,7 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
     assert_equal 0, PartStorage.find_by(part: part, storage_location: source_b).quantity
     assert_equal 50, PartStorage.find_by(part: part, storage_location: destination).quantity
     assert_equal 50, part.total_quantity
+    assert part.stock_movements.all?(&:transfer), "a move isn't consumption"
   end
 
   test "bulk_move rolls a part back and reports it unmoved when a movement fails" do
