@@ -49,6 +49,23 @@ class McpServerWriteToolsTest < ActiveSupport::TestCase
     assert_equal "Drawer A", call("record_stock_movement", "part_id" => @part.id, "direction" => "in", "quantity" => 1).dig(:location, :path)
   end
 
+  test "stock tools take decimals for a part counted in a measure, whole numbers otherwise" do
+    wire = create_part(organization: @org, category: @category, name: "Hookup wire", mpn: "WIRE-22", unit: "meter")
+    stock(wire, 10, @drawer)
+
+    data = call("record_stock_movement", "part" => "WIRE-22", "direction" => "out", "quantity" => 2.5)
+    assert_equal 7.5, data[:on_hand]
+    assert_equal 6.25, call("set_stock_count", "part" => "WIRE-22", "counted_quantity" => "6,25")[:on_hand]
+
+    error = assert_raises_tool_error { call("record_stock_movement", "part_id" => @part.id, "direction" => "out", "quantity" => 1.5) }
+    assert_match "whole number", error.message
+
+    created = call("create_part", "name" => "PLA filament", "category" => "Resistors", "unit" => "gram", "pack_size" => 1000,
+                   "initial_quantity" => 750.5, "location" => "SB")
+    part = @org.parts.find(created[:id])
+    assert_equal [ "gram", 1000, 750.5 ], [ part.unit, part.pack_size, part.total_quantity ]
+  end
+
   test "record_stock_movement refuses overdraws, unclear locations and other organizations' records" do
     error = assert_raises_tool_error { call("record_stock_movement", "part_id" => @part.id, "direction" => "out", "quantity" => 31) }
     assert_match "negative", error.message.downcase

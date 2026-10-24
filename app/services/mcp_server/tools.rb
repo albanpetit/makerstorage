@@ -216,7 +216,7 @@ class McpServer
         footprints: organization.footprints.order(:name).pluck(:name),
         low_stock_parts_count: organization.low_stock_parts_count,
         low_stock_parts: low_stock.map do |part|
-          { id: part.id, ipn: part.ipn, name: part.name, on_hand: part.on_hand_total.to_i, min_stock_threshold: part.min_stock_threshold }
+          { id: part.id, ipn: part.ipn, name: part.name, on_hand: Quantity.normalize(part.on_hand_total || 0), min_stock_threshold: part.min_stock_threshold }
         end
       }
     end
@@ -699,7 +699,8 @@ class McpServer
     def max_builds(required_per_build, stock)
       return 0 if required_per_build.empty?
 
-      required_per_build.map { |part_id, quantity| stock.fetch(part_id)[:available] / quantity }.min
+      # BigDecimal: a decimal quantity (2.5 m) gives whole builds, without Float rounding.
+      required_per_build.map { |part_id, quantity| (BigDecimal(stock.fetch(part_id)[:available].to_s) / BigDecimal(quantity.to_s)).floor }.min
     end
 
     # Serialization

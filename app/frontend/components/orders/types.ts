@@ -17,7 +17,7 @@ export interface OrderLine {
   subtotal: number | null
   allocated_quantity: number
   allocations: Allocation[]
-  part: { id: number; reference: string; name: string }
+  part: { id: number; reference: string; name: string; unit: string }
 }
 
 export interface Order {

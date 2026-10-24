@@ -8,8 +8,11 @@ class OrderLine < ApplicationRecord
   # changes, whichever code path changed it.
   has_many :allocations, class_name: "OrderLineAllocation", dependent: :destroy
 
+  # In the part's unit (see Quantity).
+  attribute :quantity, Quantity::Type.new
+
   # Validations
-  validates :quantity, numericality: { greater_than: 0, less_than_or_equal_to: MAX_INTEGER, only_integer: true }
+  validates :quantity, quantity: { greater_than: 0, unit_of: :part }
   validates :unit_price, numericality: { greater_than_or_equal_to: 0 }, allow_nil: true
   validate :part_must_belong_to_same_organization
 
@@ -23,7 +26,7 @@ class OrderLine < ApplicationRecord
   # Methods
   def subtotal
     return nil if unit_price.nil?
-    quantity * unit_price
+    quantity.to_d * unit_price
   end
 
   # The supplier's price for this line's quantity (price breaks), see
@@ -38,12 +41,12 @@ class OrderLine < ApplicationRecord
   def follow_price_breaks(previous_quantity)
     return unless part && order
 
-    previous_default = previous_quantity.to_i.positive? ? part.order_unit_price(order.supplier_id, previous_quantity) : nil
+    previous_default = previous_quantity.to_f.positive? ? part.order_unit_price(order.supplier_id, previous_quantity) : nil
     self.unit_price = default_unit_price if unit_price.nil? || unit_price == previous_default
   end
 
   def allocated_quantity
-    allocations.sum(&:quantity)
+    Quantity.sum(allocations.map(&:quantity))
   end
 
   # True when the line's received quantity is fully distributed across zones.

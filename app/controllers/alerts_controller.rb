@@ -30,7 +30,7 @@ class AlertsController < ApplicationController
     # Order only what isn't already on an open order.
     incoming = Order.incoming_quantities(current_organization, alerts.map { |alert| alert[:part].id })
     alerts = alerts.filter_map do |alert|
-      quantity = alert[:reorder_quantity] - incoming.fetch(alert[:part].id, 0)
+      quantity = Quantity.sum(alert[:reorder_quantity], -incoming.fetch(alert[:part].id, 0))
       next unless quantity.positive?
 
       # The preferred supplier's price break for what is actually ordered.
@@ -103,11 +103,11 @@ class AlertsController < ApplicationController
       # Compute from the preloaded associations rather than `part.total_quantity`
       # /`part.preferred_part_supplier`, which each fire a fresh query per part
       # and turn this into an N+1 across every low-stock alert.
-      quantity = part.part_storages.to_a.sum(&:quantity)
+      quantity = Quantity.sum(part.part_storages.map(&:quantity))
       threshold = part.min_stock_threshold
-      target = part.target_stock || threshold * 2
+      target = part.target_stock || Quantity.normalize(threshold * 2)
       preferred = part.part_suppliers.find(&:is_preferred)
-      reorder_quantity = [ target - quantity, threshold ].max
+      reorder_quantity = [ Quantity.sum(target, -quantity), threshold ].max
 
       {
         part: part,
@@ -134,6 +134,7 @@ class AlertsController < ApplicationController
       location_name: part.storage_locations.first&.name,
       quantity: alert[:quantity],
       min_stock_threshold: alert[:threshold],
+      unit: part.unit,
       severity: alert[:severity],
       supplier_name: alert[:preferred_supplier]&.name,
       unit_price: alert[:unit_price],

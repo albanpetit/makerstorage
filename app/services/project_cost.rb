@@ -91,7 +91,7 @@ class ProjectCost
     quantity = quantity.to_i.clamp(1, MAX_QUANTITY)
     rows = project.required_by_part(kits: quantity).map do |part, required|
       from_stock = [ required, project.available_for(part) ].min
-      to_buy = required - from_stock
+      to_buy = Quantity.sum(required, -from_stock)
       link = purchase_link(part, [ to_buy, 1 ].max)
 
       Row.new(

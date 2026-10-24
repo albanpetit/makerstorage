@@ -17,7 +17,7 @@ class PartTest < ActiveSupport::TestCase
   end
 
   test "rejects a unit outside the allowed list" do
-    part = Part.new(organization: @org, category: @category, name: "X", unit: "kilogram")
+    part = Part.new(organization: @org, category: @category, name: "X", unit: "furlong")
     assert_not part.valid?
     assert_includes part.errors[:unit], "is not included in the list"
   end

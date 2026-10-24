@@ -84,7 +84,7 @@ class Project < ApplicationRecord
       structure.part_quantities(project_id).each do |part_id, quantity|
         totals[part_id] += quantity if wanted.nil? || wanted.include?(part_id)
       end
-    end.to_h
+    end.transform_values { |quantity| Quantity.normalize(quantity) }
   end
 
   # The reserving projects holding +part+ (directly or through their
@@ -223,7 +223,7 @@ class Project < ApplicationRecord
   # of it have reserved (never below zero, so a short reservation elsewhere
   # isn't ordered twice).
   def available_for(part)
-    [ part.total_quantity - reserved_elsewhere.fetch(part.id, 0), 0 ].max
+    [ Quantity.sum(part.total_quantity, -reserved_elsewhere.fetch(part.id, 0)), 0 ].max
   end
 
   def reload(*)
@@ -265,7 +265,7 @@ class Project < ApplicationRecord
       subassembly_lines.each do |line|
         structure.assembly_quantities(line.subproject_id).each do |part_id, quantity|
           entry = totals[part_id] ||= { quantity: 0, line_ids: [] }
-          entry[:quantity] += quantity * line.quantity
+          entry[:quantity] = Quantity.sum(entry[:quantity], quantity * line.quantity)
           entry[:line_ids] << line.id
         end
       end
@@ -284,9 +284,9 @@ class Project < ApplicationRecord
   # Required quantity per matched part, summed across the lines that use it
   # and the sub-assemblies that bring it, for +kits+ copies of the project.
   def required_by_part(kits: 1)
-    totals = project_lines.select(&:part).group_by(&:part).transform_values { |lines| lines.sum(&:quantity) * kits }
-    assembly_requirements.each { |part, entry| totals[part] = totals.fetch(part, 0) + entry[:quantity] * kits }
-    totals
+    totals = project_lines.select(&:part).group_by(&:part).transform_values { |lines| Quantity.sum(lines.map(&:quantity)) * kits }
+    assembly_requirements.each { |part, entry| totals[part] = Quantity.sum(totals[part], entry[:quantity] * kits) }
+    totals.transform_values { |quantity| Quantity.normalize(quantity) }
   end
 
   # Parts whose available stock (see #available_for) can't cover their summed
@@ -294,7 +294,7 @@ class Project < ApplicationRecord
   # `project_lines: { part: :part_storages }` to avoid an N+1.
   def shortfall_by_part(kits: 1)
     required_by_part(kits: kits).filter_map do |part, required|
-      missing = required - available_for(part)
+      missing = Quantity.sum(required, -available_for(part))
       [ part, missing ] if missing.positive?
     end.to_h
   end

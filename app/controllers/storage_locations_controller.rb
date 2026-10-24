@@ -106,7 +106,7 @@ class StorageLocationsController < ApplicationController
       part = current_organization.parts.find_by(id: raw[:part_id])
       next if part.nil?
 
-      { part: part, quantity: raw[:quantity].to_i }
+      { part: part, quantity: Quantity.parse(raw[:quantity]) || 0 }
     end
 
     if moves.empty?
@@ -118,7 +118,7 @@ class StorageLocationsController < ApplicationController
       moves.each do |move|
         available = PartStorage.find_by(part: move[:part], storage_location: from)&.quantity || 0
         if move[:quantity] <= 0 || move[:quantity] > available
-          error = t("flash.storage_locations.cannot_move_quantity", reference: move[:part].reference, quantity: move[:quantity], available: available, zone: from.name)
+          error = t("flash.storage_locations.cannot_move_quantity", reference: move[:part].reference, quantity: Quantity.format(move[:quantity], move[:part].unit), available: Quantity.format(available, move[:part].unit), zone: from.name)
           raise ActiveRecord::Rollback
         end
 
@@ -186,7 +186,8 @@ class StorageLocationsController < ApplicationController
           id: part.id,
           reference: part.reference,
           name: part.name,
-          package_type: part.package_type
+          package_type: part.package_type,
+          unit: part.unit
         }
       }
     end
@@ -201,6 +202,7 @@ class StorageLocationsController < ApplicationController
         {
           location_id: movement.storage_location_id,
           part_reference: movement.part.reference,
+          unit: movement.part.unit,
           movement_type: movement.movement_type,
           quantity_delta: movement.quantity_delta,
           reason: movement.reason,

@@ -257,7 +257,7 @@ class PartMerge
       return
     end
 
-    quantity = PartStorage.find_by(part_id: keep.id, storage_location_id: bag.id)&.quantity.to_i
+    quantity = PartStorage.find_by(part_id: keep.id, storage_location_id: bag.id)&.quantity || 0
     return unless quantity.positive?
 
     reason = "Merged duplicate: moved from bag #{bag.code} to #{keep.bag.code}"

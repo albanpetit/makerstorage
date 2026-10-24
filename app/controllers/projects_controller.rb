@@ -161,7 +161,7 @@ class ProjectsController < ApplicationController
 
     candidates = shortfalls.filter_map do |part, shortfall|
       supplier_link = part.preferred_part_supplier
-      quantity = shortfall - incoming.fetch(part.id, 0)
+      quantity = Quantity.sum(shortfall, -incoming.fetch(part.id, 0))
       next unless supplier_link && quantity.positive?
 
       {
@@ -387,7 +387,7 @@ class ProjectsController < ApplicationController
         movement_type: "out", quantity_delta: -take, reason: "Build #{@project.reference}",
         project_build: build
       )
-      remaining -= take
+      remaining = Quantity.sum(remaining, -take)
     end
   end
 
@@ -432,7 +432,7 @@ class ProjectsController < ApplicationController
       checked_at: project.checked_at&.iso8601,
       builds_count: project.builds_count,
       output_part: project.output_part && {
-        id: project.output_part.id, reference: project.output_part.reference, name: project.output_part.name,
+        id: project.output_part.id, reference: project.output_part.reference, name: project.output_part.name, unit: project.output_part.unit,
         in_stock: project.output_part.total_quantity,
         storage_location_id: project.output_part.fallback_storage_location&.id
       },
@@ -570,7 +570,7 @@ class ProjectsController < ApplicationController
     project.assembly_requirements.sort_by { |part, _| part.name.downcase }.map do |part, entry|
       shortfall = shortfalls.fetch(part, 0)
       {
-        part: { id: part.id, reference: part.reference, name: part.name },
+        part: { id: part.id, reference: part.reference, name: part.name, unit: part.unit },
         quantity: entry[:quantity],
         line_ids: entry[:line_ids],
         in_stock: part.total_quantity,
@@ -600,7 +600,7 @@ class ProjectsController < ApplicationController
     short_ids.to_h do |id|
       others = links.filter_map { |a, b| a == id ? b : (b == id ? a : nil) }.uniq.filter_map { |other_id| parts[other_id] }
       entries = others.filter_map do |other|
-        available = [ other.part_storages.sum(&:quantity) - reserved.fetch(other.id, 0), 0 ].max
+        available = [ Quantity.sum(other.part_storages.map(&:quantity), -reserved.fetch(other.id, 0)), 0 ].max
         { id: other.id, reference: other.reference, name: other.name, available: available } if available.positive?
       end
       [ id, entries.sort_by { |entry| [ -entry[:available], entry[:name].downcase ] } ]
@@ -628,7 +628,8 @@ class ProjectsController < ApplicationController
       part: line.part && {
         id: line.part.id,
         reference: line.part.reference,
-        name: line.part.name
+        name: line.part.name,
+        unit: line.part.unit
       },
       assembly: nil
     }
@@ -661,7 +662,7 @@ class ProjectsController < ApplicationController
         reference: subproject.reference,
         revision: subproject.revision,
         stocked: stocked_part.present?,
-        output_part: stocked_part && { id: stocked_part.id, reference: stocked_part.reference, name: stocked_part.name },
+        output_part: stocked_part && { id: stocked_part.id, reference: stocked_part.reference, name: stocked_part.name, unit: stocked_part.unit },
         complete: project.structure.complete_assembly?(subproject.id),
         parts_count: brought.size,
         short_parts: short

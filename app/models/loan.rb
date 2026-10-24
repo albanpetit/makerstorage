@@ -71,7 +71,7 @@ class Loan < ApplicationRecord
   end
 
   def outstanding_quantity
-    loan_lines.sum(&:outstanding_quantity)
+    Quantity.sum(loan_lines.map(&:outstanding_quantity))
   end
 
   # Methods - Lending
@@ -146,16 +146,16 @@ class Loan < ApplicationRecord
       lines = loan_lines.reload.to_a
       ActiveRecord::Associations::Preloader.new(records: lines, associations: { part: { part_storages: :storage_location } }).call
       lines = lines.index_by(&:id)
-      entries = entries.reject { |entry| entry[:quantity].to_i.zero? }
+      entries = entries.reject { |entry| (Quantity.parse(entry[:quantity]) || 0).zero? }
       raise Error, I18n.t("errors.loans.enter_quantity") if entries.empty?
 
       entries.each do |entry|
         line = lines[entry[:line_id].to_i]
-        quantity = entry[:quantity].to_i
+        quantity = Quantity.parse(entry[:quantity]) || 0
         raise Error, I18n.t("errors.loans.not_on_loan") unless line
         raise Error, I18n.t("errors.loans.positive") unless quantity.positive?
         if quantity > line.outstanding_quantity
-          raise Error, I18n.t("errors.loans.only_outstanding", count: line.outstanding_quantity, reference: line.part.reference)
+          raise Error, I18n.t("errors.loans.only_outstanding", count: Quantity.format(line.outstanding_quantity, line.part.unit), reference: line.part.reference)
         end
 
         yield line, quantity, entry

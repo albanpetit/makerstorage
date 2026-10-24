@@ -46,6 +46,8 @@ import { PartAlternatives, type AlternativeLink, type Equivalent } from '@/compo
 import { formatUnitPrice, type PriceBreak } from '@/lib/money'
 import { PriceHistory, type PricePoint } from '@/components/parts/price-history'
 import { t, intlLocale, tn, tx } from '@/lib/i18n'
+import { formatQuantity, sumQuantities } from '@/lib/quantity'
+import { QuantityInput } from '@/components/quantity-input'
 
 interface PartSupplierEntry {
   id: number
@@ -77,6 +79,8 @@ interface PartDetail {
   total_quantity: number
   min_stock_threshold: number
   target_stock: number | null
+  unit: string
+  pack_size: number | null
   unit_price: number | null
   rohs_compliant: boolean
   storage_notes: string | null
@@ -286,7 +290,7 @@ export function PartDetailSheet({
   const movementLocations = useMemo(() => {
     const stored = new Map((payload?.storages ?? []).map((s) => [s.location_id, s.quantity]))
     return (payload?.storage_locations ?? []).map((location) =>
-      stored.has(location.id) ? { ...location, hint: t('{quantity} in stock', { quantity: stored.get(location.id)! }) } : location
+      stored.has(location.id) ? { ...location, hint: t('{quantity} in stock', { quantity: formatQuantity(stored.get(location.id)!, payload?.part.unit) }) } : location
     )
   }, [payload])
 
@@ -342,7 +346,7 @@ export function PartDetailSheet({
     : 'ok'
   const stockMeta = STOCK_STATUS_META[stockKey]
 
-  const reservedTotal = payload?.reservations.reduce((sum, r) => sum + r.quantity, 0) ?? 0
+  const reservedTotal = sumQuantities(payload?.reservations.map((r) => r.quantity) ?? [])
   const gaugeMax = part ? Math.max(part.target_stock ?? 0, part.min_stock_threshold * 2, part.total_quantity, 1) : 1
   const fillPct = part ? Math.min(100, (part.total_quantity / gaugeMax) * 100) : 0
   const thresholdPct = part ? Math.min(100, (part.min_stock_threshold / gaugeMax) * 100) : 0
@@ -455,8 +459,8 @@ export function PartDetailSheet({
                 {/* Stat row */}
                 <div className="grid grid-cols-2 gap-2">
                   {[
-                    { label: t('In stock'), value: part.total_quantity.toLocaleString(intlLocale()), className: stockKey === 'ok' ? '' : stockKey === 'low' ? 'text-amber-600 dark:text-amber-400' : 'text-destructive' },
-                    { label: t('Min. threshold'), value: part.min_stock_threshold.toLocaleString(intlLocale()), className: '' },
+                    { label: t('In stock'), value: formatQuantity(part.total_quantity, part.unit), className: stockKey === 'ok' ? '' : stockKey === 'low' ? 'text-amber-600 dark:text-amber-400' : 'text-destructive' },
+                    { label: t('Min. threshold'), value: formatQuantity(part.min_stock_threshold, part.unit), className: '' },
                     { label: t('Unit price'), value: part.unit_price != null ? formatUnitPrice(part.unit_price) : '—', className: '' },
                     { label: t('Stock value'), value: part.unit_price != null ? (part.unit_price * part.total_quantity).toFixed(2) : '—', className: '' },
                   ].map((stat) => (
@@ -472,7 +476,7 @@ export function PartDetailSheet({
                   <div className="mb-3 flex items-center justify-between">
                     <h3 className="text-sm font-semibold">{t('Stock level')}</h3>
                     <span className="font-mono text-xs text-muted-foreground">
-                      {part.total_quantity.toLocaleString(intlLocale())} / {gaugeMax.toLocaleString(intlLocale())}
+                      {formatQuantity(part.total_quantity)} / {formatQuantity(gaugeMax, part.unit)}
                     </span>
                   </div>
                   <div className="h-2.5 overflow-hidden rounded-full bg-muted">
@@ -483,7 +487,7 @@ export function PartDetailSheet({
                       className="absolute -translate-x-1/2 text-[10.5px] whitespace-nowrap text-muted-foreground"
                       style={{ left: `${thresholdPct}%` }}
                     >
-                      {t('▲ threshold {threshold}', { threshold: part.min_stock_threshold })}
+                      {t('▲ threshold {threshold}', { threshold: formatQuantity(part.min_stock_threshold, part.unit) })}
                     </div>
                   </div>
                   {canWrite && (
@@ -522,7 +526,7 @@ export function PartDetailSheet({
                     <div className="mb-2 flex items-center justify-between">
                       <h3 className="text-sm font-semibold">{t('Reserved by projects')}</h3>
                       <span className="font-mono text-xs text-muted-foreground">
-                        {t('{quantity} available', { quantity: Math.max(part.total_quantity - reservedTotal, 0) })}
+                        {t('{quantity} available', { quantity: formatQuantity(Math.max(sumQuantities([ part.total_quantity, -reservedTotal ]), 0), part.unit) })}
                       </span>
                     </div>
                     <div className="space-y-2.5 rounded-lg border p-3">
@@ -532,7 +536,7 @@ export function PartDetailSheet({
                             {reservation.reference && <span className="mr-1.5 font-mono text-xs text-muted-foreground">{reservation.reference}</span>}
                             {reservation.name}
                           </Link>
-                          <span className="shrink-0 font-mono text-sm font-semibold">{reservation.quantity}</span>
+                          <span className="shrink-0 font-mono text-sm font-semibold">{formatQuantity(reservation.quantity, part.unit)}</span>
                         </div>
                       ))}
                     </div>
@@ -545,7 +549,7 @@ export function PartDetailSheet({
                     <div className="mb-2 flex items-center justify-between">
                       <h3 className="text-sm font-semibold">{t('On loan')}</h3>
                       <span className="font-mono text-xs text-muted-foreground">
-                        {t('{count} out', { count: payload.loans.reduce((sum, l) => sum + l.quantity, 0) })}
+                        {t('{count} out', { count: formatQuantity(sumQuantities(payload.loans.map((l) => l.quantity)), part.unit) })}
                       </span>
                     </div>
                     <div className="space-y-2.5 rounded-lg border p-3">
@@ -561,7 +565,7 @@ export function PartDetailSheet({
                                 {loan.overdue ? 'overdue' : `due ${formatDay(loan.due_on)}`}
                               </span>
                             )}
-                            <span className="font-mono text-sm font-semibold">{loan.quantity}</span>
+                            <span className="font-mono text-sm font-semibold">{formatQuantity(loan.quantity, part.unit)}</span>
                           </span>
                         </div>
                       ))}
@@ -586,7 +590,7 @@ export function PartDetailSheet({
                               </span>
                             ))}
                           </span>
-                          <span className="shrink-0 font-mono text-sm font-semibold">{storage.quantity}</span>
+                          <span className="shrink-0 font-mono text-sm font-semibold">{formatQuantity(storage.quantity, part.unit)}</span>
                         </div>
                       ))}
                     </div>
@@ -687,7 +691,7 @@ export function PartDetailSheet({
                               {movement.reason ? ` · ${movement.reason}` : ''}
                             </span>
                             <span className={`shrink-0 font-mono font-semibold ${meta.sign}`}>
-                              {movement.quantity_delta > 0 ? `+${movement.quantity_delta}` : movement.quantity_delta}
+                              {movement.quantity_delta > 0 ? '+' : ''}{formatQuantity(movement.quantity_delta, part.unit)}
                             </span>
                           </div>
                         )
@@ -770,11 +774,11 @@ export function PartDetailSheet({
               <Field>
                 <FieldLabel><Label>{t('Quantity')}</Label></FieldLabel>
                 <FieldContent>
-                  <Input
-                    inputMode="numeric"
-                    placeholder="0"
+                  <QuantityInput
+                    unit={payload?.part.unit}
+                    packSize={payload?.part.pack_size}
                     value={mvtForm.data.stock_movement.quantity}
-                    onChange={(e) => mvtForm.setData('stock_movement', { ...mvtForm.data.stock_movement, quantity: e.target.value.replace(/[^0-9]/g, '') })}
+                    onValueChange={(quantity) => mvtForm.setData('stock_movement', { ...mvtForm.data.stock_movement, quantity })}
                   />
                 </FieldContent>
                 {(mvtForm.errors as Record<string, string>)['stock_movement.quantity_delta'] && (

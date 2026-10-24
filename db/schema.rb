@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_24_110000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_24_113600) do
   create_table "active_storage_attachments", force: :cascade do |t|
     t.bigint "blob_id", null: false
     t.datetime "created_at", null: false
@@ -114,9 +114,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_24_110000) do
     t.integer "loan_id", null: false
     t.integer "part_id", null: false
     t.integer "storage_location_id"
-    t.integer "quantity", null: false
-    t.integer "returned_quantity", default: 0, null: false
-    t.integer "lost_quantity", default: 0, null: false
+    t.decimal "quantity", precision: 15, scale: 3, null: false
+    t.decimal "returned_quantity", precision: 15, scale: 3, default: "0.0", null: false
+    t.decimal "lost_quantity", precision: 15, scale: 3, default: "0.0", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["loan_id"], name: "index_loan_lines_on_loan_id"
@@ -179,7 +179,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_24_110000) do
   create_table "order_line_allocations", force: :cascade do |t|
     t.integer "order_line_id", null: false
     t.integer "storage_location_id", null: false
-    t.integer "quantity", null: false
+    t.decimal "quantity", precision: 15, scale: 3, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["order_line_id"], name: "index_order_line_allocations_on_order_line_id"
@@ -190,7 +190,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_24_110000) do
     t.datetime "created_at", null: false
     t.integer "part_id", null: false
     t.integer "order_id", null: false
-    t.integer "quantity", null: false
+    t.decimal "quantity", precision: 15, scale: 3, null: false
     t.decimal "unit_price", precision: 12, scale: 4
     t.datetime "updated_at", null: false
     t.index ["order_id"], name: "index_order_lines_on_order_id"
@@ -335,7 +335,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_24_110000) do
   create_table "part_storages", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.integer "part_id", null: false
-    t.integer "quantity", default: 0, null: false
+    t.decimal "quantity", precision: 15, scale: 3, default: "0.0", null: false
     t.integer "storage_location_id", null: false
     t.datetime "updated_at", null: false
     t.index ["part_id", "storage_location_id"], name: "index_part_storages_on_part_and_location", unique: true
@@ -379,7 +379,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_24_110000) do
     t.integer "footprint_id"
     t.integer "lead_time_days"
     t.string "manufacturer"
-    t.integer "min_stock_threshold", default: 0, null: false
+    t.decimal "min_stock_threshold", precision: 15, scale: 3, default: "0.0", null: false
     t.string "mpn"
     t.string "name", null: false
     t.integer "organization_id", null: false
@@ -389,7 +389,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_24_110000) do
     t.string "sku"
     t.string "status", default: "active", null: false
     t.text "storage_notes"
-    t.integer "target_stock"
+    t.decimal "target_stock", precision: 15, scale: 3
     t.string "tolerance"
     t.string "unit", default: "piece", null: false
     t.decimal "unit_price", precision: 12, scale: 4
@@ -402,6 +402,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_24_110000) do
     t.datetime "bag_assigned_at"
     t.string "kicad_symbol"
     t.string "kicad_footprint"
+    t.decimal "pack_size", precision: 15, scale: 3
     t.index ["bag_id"], name: "index_parts_on_bag_id", unique: true, where: "bag_id IS NOT NULL"
     t.index ["category_id"], name: "index_parts_on_category_id"
     t.index ["footprint_id"], name: "index_parts_on_footprint_id"
@@ -433,7 +434,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_24_110000) do
     t.integer "part_id"
     t.string "raw_reference"
     t.string "designation"
-    t.integer "quantity", default: 1, null: false
+    t.decimal "quantity", precision: 15, scale: 3, default: "1.0", null: false
     t.string "match_type", default: "none", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
@@ -475,7 +476,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_24_110000) do
     t.string "movement_type", null: false
     t.integer "organization_id", null: false
     t.integer "part_id", null: false
-    t.integer "quantity_delta", null: false
+    t.decimal "quantity_delta", precision: 15, scale: 3, null: false
     t.text "reason"
     t.string "reference"
     t.integer "storage_location_id", null: false
@@ -499,8 +500,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_24_110000) do
     t.integer "stocktake_id", null: false
     t.integer "part_id", null: false
     t.integer "storage_location_id", null: false
-    t.integer "expected_quantity", default: 0, null: false
-    t.integer "counted_quantity"
+    t.decimal "expected_quantity", precision: 15, scale: 3, default: "0.0", null: false
+    t.decimal "counted_quantity", precision: 15, scale: 3
     t.datetime "counted_at"
     t.integer "counted_by_id"
     t.integer "stock_movement_id"

@@ -51,7 +51,7 @@ class OfflineScanSnapshot
           mpn: mpn,
           supplier_skus: supplier_skus.fetch(id, []).map(&:last),
           category: categories[category_id],
-          min_stock_threshold: threshold.to_i,
+          min_stock_threshold: Quantity.normalize(threshold || 0),
           # [zone id, quantity] pairs.
           stock: stocks.fetch(id, []).map { |_, location_id, quantity| [ location_id, quantity ] }
         }

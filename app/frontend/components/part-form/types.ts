@@ -93,6 +93,8 @@ export interface PartFormData {
   unit_price: string
   min_stock_threshold: string
   target_stock: string
+  unit: string
+  pack_size: string
   status: string
   rohs_compliant: boolean
   storage_notes: string
@@ -132,6 +134,8 @@ export interface FullPart {
   unit_price: number | null
   min_stock_threshold: number
   target_stock: number | null
+  unit: string
+  pack_size: number | null
   rohs_compliant: boolean
   storage_notes: string | null
   kicad_symbol: string | null
@@ -175,6 +179,8 @@ export const EMPTY_PART: PartFormData = {
   unit_price: '',
   min_stock_threshold: '0',
   target_stock: '',
+  unit: 'piece',
+  pack_size: '',
   status: 'active',
   rohs_compliant: false,
   storage_notes: '',
@@ -206,6 +212,8 @@ export function toFormPart(part: FullPart): PartFormData {
     unit_price: part.unit_price?.toString() || '',
     min_stock_threshold: part.min_stock_threshold.toString(),
     target_stock: part.target_stock?.toString() || '',
+    unit: part.unit,
+    pack_size: part.pack_size?.toString() || '',
     status: part.status,
     rohs_compliant: part.rohs_compliant,
     storage_notes: part.storage_notes || '',

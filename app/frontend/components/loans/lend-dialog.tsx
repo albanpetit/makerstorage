@@ -19,6 +19,7 @@ import {
 
 import type { LendablePart, MemberOption } from './types'
 import { t } from '@/lib/i18n'
+import { formatQuantity, parseQuantity, quantityStep } from '@/lib/quantity'
 
 interface LendDialogProps {
   open: boolean
@@ -80,7 +81,7 @@ export function LendDialog({ open, onOpenChange, members, parts: loadedParts, de
   }
 
   const borrowerReady = borrowerMode === 'member' ? borrowerId !== '' : borrowerName.trim() !== ''
-  const linesReady = lines.length > 0 && lines.every((l) => l.partId && l.locationId && Number(l.quantity) > 0)
+  const linesReady = lines.length > 0 && lines.every((l) => l.partId && l.locationId && (parseQuantity(l.quantity) ?? 0) > 0)
 
   const submit = (e: FormEvent) => {
     e.preventDefault()
@@ -209,14 +210,15 @@ export function LendDialog({ open, onOpenChange, members, parts: loadedParts, de
                         {part && (
                           <div className="grid gap-2 sm:grid-cols-[1fr_7rem]">
                             <StorageLocationSelect
-                              locations={part.locations.map((l) => ({ id: l.id, name: l.name, hint: `${l.quantity}` }))}
+                              locations={part.locations.map((l) => ({ id: l.id, name: l.name, hint: formatQuantity(l.quantity, part.unit) }))}
                               value={line.locationId}
                               onValueChange={(value) => updateLine(line.key, { locationId: value })}
                               placeholder={t('Taken from')}
                             />
                             <Input
                               type="number"
-                              min={1}
+                              min={0}
+                              step={quantityStep(part.unit)}
                               max={location?.quantity}
                               aria-label={t('Quantity')}
                               value={line.quantity}

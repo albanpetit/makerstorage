@@ -151,7 +151,7 @@ class ProjectStructure
         expand_assembly(line.subproject_id, depth + 1).each { |part_id, quantity| totals[part_id] += quantity * line.quantity }
       end
     end
-    totals
+    totals.transform_values { |quantity| Quantity.normalize(quantity) }
   end
 
   def expand_assembly(project_id, depth)

@@ -9,9 +9,13 @@ class StocktakeLine < ApplicationRecord
   # The adjustment the completed stocktake wrote for this line, if any.
   belongs_to :stock_movement, optional: true
 
+  # In the part's unit (see Quantity).
+  attribute :expected_quantity, Quantity::Type.new
+  attribute :counted_quantity, Quantity::Type.new
+
   # Validations
-  validates :expected_quantity, numericality: { only_integer: true, in: -MAX_INTEGER..MAX_INTEGER }
-  validates :counted_quantity, numericality: { only_integer: true, greater_than_or_equal_to: 0, less_than_or_equal_to: MAX_INTEGER }, allow_nil: true
+  validates :expected_quantity, quantity: {}
+  validates :counted_quantity, quantity: { greater_than_or_equal_to: 0, allow_nil: true, unit_of: :part }
   validates :part_id, uniqueness: { scope: %i[stocktake_id storage_location_id] }
   validate :part_must_belong_to_the_organization
   validate :storage_location_must_be_counted, if: -> { new_record? || will_save_change_to_storage_location_id? }
@@ -28,7 +32,7 @@ class StocktakeLine < ApplicationRecord
   # Counted minus expected: positive when more was found than the ledger
   # holds. Nil until counted.
   def difference
-    counted_quantity - expected_quantity if counted?
+    Quantity.sum(counted_quantity, -expected_quantity) if counted?
   end
 
   # What the ledger holds for this part in this zone right now.

@@ -175,8 +175,9 @@ class StocktakesController < ApplicationController
     end
 
     if ActiveModel::Type::Boolean.new.cast(params[:increment])
-      @stocktake.count!(line, line.counted_quantity.to_i + 1, user: current_user)
-      notice = t("flash.stocktakes.counted", reference: part.reference, count: line.counted_quantity)
+      @stocktake.count!(line, Quantity.sum(line.counted_quantity, 1), user: current_user)
+      notice = t("flash.stocktakes.counted", reference: part.reference, count: line.counted_quantity,
+                                             quantity: Quantity.format(line.counted_quantity, part.unit))
     end
     redirect_to stocktake_path(@stocktake, zone: zone&.id, line: line.id), notice: notice
   end
@@ -249,8 +250,8 @@ class StocktakesController < ApplicationController
       line_count: lines.size,
       counted_count: counted.size,
       discrepancy_count: differences.count(&:nonzero?),
-      units_found: differences.select(&:positive?).sum,
-      units_missing: -differences.select(&:negative?).sum,
+      units_found: Quantity.sum(differences.select(&:positive?)),
+      units_missing: -Quantity.sum(differences.select(&:negative?)),
       value_difference: counted.sum { |line| line.difference * (line.part.unit_price || 0) }.to_f.round(2),
       adjustment_count: lines.count(&:stock_movement_id)
     }
@@ -262,7 +263,7 @@ class StocktakesController < ApplicationController
     hidden = @stocktake.blind && @stocktake.in_progress? && !line.counted?
     {
       id: line.id,
-      part: { id: line.part.id, reference: line.part.reference, ipn: line.part.ipn, name: line.part.name, unit_price: line.part.unit_price&.to_f },
+      part: { id: line.part.id, reference: line.part.reference, ipn: line.part.ipn, name: line.part.name, unit: line.part.unit, unit_price: line.part.unit_price&.to_f },
       zone: { id: line.storage_location.id, name: line.storage_location.full_path(cache: path_cache), short_name: line.storage_location.name, code: line.storage_location.code },
       expected_quantity: hidden ? nil : line.expected_quantity,
       counted_quantity: line.counted_quantity,

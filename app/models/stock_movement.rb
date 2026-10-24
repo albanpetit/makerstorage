@@ -12,14 +12,18 @@ class StockMovement < ApplicationRecord
   # Constants
   MOVEMENT_TYPES = %w[in out adjustment].freeze
 
+  # In the part's unit: whole for pieces, up to three decimals for a measure
+  # (see Quantity).
+  attribute :quantity_delta, Quantity::Type.new
+
   # Validations
   validates :movement_type, presence: true, inclusion: { in: MOVEMENT_TYPES }
-  validates :quantity_delta, numericality: { only_integer: true, other_than: 0, in: -MAX_INTEGER..MAX_INTEGER }
+  validates :quantity_delta, quantity: { other_than: 0, unit_of: :part }
   validate :quantity_delta_sign_matches_movement_type
   validate :storage_location_must_belong_to_same_organization
   validate :part_must_belong_to_same_organization
   validate :resulting_quantity_cannot_be_negative
-  validate :bag_must_not_hold_another_part, if: -> { quantity_delta.to_i.positive? }
+  validate :bag_must_not_hold_another_part, if: -> { quantity_delta.to_f.positive? }
 
   # Scopes
   scope :recent, -> { order(created_at: :desc) }
@@ -87,7 +91,7 @@ class StockMovement < ApplicationRecord
     return if quantity_delta.nil? || part.nil? || storage_location.nil? || organization&.allow_negative_stock
 
     current_quantity = PartStorage.find_by(part: part, storage_location: storage_location)&.quantity || 0
-    if current_quantity + quantity_delta < 0
+    if current_quantity.to_d + quantity_delta.to_d < 0
       errors.add(:quantity_delta, :negative_stock)
     end
   end
@@ -107,9 +111,11 @@ class StockMovement < ApplicationRecord
     end
 
     scope = PartStorage.where(id: part_storage.id)
-    scope = scope.where("quantity + ? >= 0", quantity_delta) unless organization&.allow_negative_stock
+    # Rounded like the column: SQLite adds decimals as floats (0.1 + 0.2).
+    delta = BigDecimal(quantity_delta.to_s)
+    scope = scope.where("ROUND(quantity + ?, #{Quantity::SCALE}) >= 0", delta) unless organization&.allow_negative_stock
 
-    if scope.update_all([ "quantity = quantity + ?", quantity_delta ]).zero?
+    if scope.update_all([ "quantity = ROUND(quantity + ?, #{Quantity::SCALE})", delta ]).zero?
       errors.add(:quantity_delta, :negative_stock)
       raise ActiveRecord::RecordInvalid, self
     end

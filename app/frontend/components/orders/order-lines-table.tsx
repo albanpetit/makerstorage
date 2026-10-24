@@ -19,11 +19,12 @@ import { formatUnitPrice } from '@/lib/money'
 
 import type { Order, OrderLine } from './types'
 import { t } from '@/lib/i18n'
+import { formatQuantity, isDecimalUnit, parseQuantity, quantityStep } from '@/lib/quantity'
 
 // "Drawer A ×50, Drawer B ×50" — leaf zone name and quantity per allocation.
 function allocationSummary(line: OrderLine): string {
   return line.allocations
-    .map((a) => `${a.storage_location_path.split(' > ').pop()} ×${a.quantity}`)
+    .map((a) => `${a.storage_location_path.split(' > ').pop()} ×${formatQuantity(a.quantity)}`)
     .join(', ')
 }
 
@@ -42,8 +43,9 @@ export function OrderLinesTable({ order, onEditAllocation }: OrderLinesTableProp
   }
 
   const changeQuantity = (line: OrderLine, raw: string) => {
-    const quantity = Number(raw)
-    if (!Number.isInteger(quantity) || quantity < 1 || quantity === line.quantity) return
+    const quantity = parseQuantity(raw)
+    if (quantity === null || quantity <= 0 || quantity === line.quantity) return
+    if (!isDecimalUnit(line.part.unit) && !Number.isInteger(quantity)) return
     updateLine(line, { quantity })
   }
 
@@ -87,13 +89,14 @@ export function OrderLinesTable({ order, onEditAllocation }: OrderLinesTableProp
                   {canWrite && order.editable ? (
                     <Input
                       type="number"
-                      min={1}
+                      min={0}
+                      step={quantityStep(line.part.unit)}
                       defaultValue={line.quantity}
                       className="ml-auto h-8 w-20 text-right font-mono"
                       onBlur={(e) => changeQuantity(line, e.target.value)}
                     />
                   ) : (
-                    <span className="font-mono">{line.quantity}</span>
+                    <span className="font-mono">{formatQuantity(line.quantity, line.part.unit)}</span>
                   )}
                 </TableCell>
                 <TableCell className="text-right">
@@ -133,7 +136,7 @@ export function OrderLinesTable({ order, onEditAllocation }: OrderLinesTableProp
                           <span className="text-xs">{allocationSummary(line)}</span>
                           {line.allocated_quantity !== line.quantity && (
                             <Badge variant="outline" className="bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400">
-                              <AlertTriangle className="size-3" /> {line.allocated_quantity}/{line.quantity}
+                              <AlertTriangle className="size-3" /> {formatQuantity(line.allocated_quantity)}/{formatQuantity(line.quantity, line.part.unit)}
                             </Badge>
                           )}
                         </>

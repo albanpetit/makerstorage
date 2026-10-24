@@ -68,11 +68,13 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { t, tn, intlLocale } from '@/lib/i18n'
+import { formatQuantity, isDecimalUnit, parseQuantity, quantityStep } from '@/lib/quantity'
 
 interface LinePart {
   id: number
   reference: string
   name: string
+  unit: string
 }
 
 // A line using another project: stocked (taken from stock as its built item)
@@ -319,8 +321,10 @@ export default function ProjectShow({ project, parts, subproject_options, storag
   }
 
   const changeQuantity = (line: ProjectLine, raw: string) => {
-    const quantity = Number(raw)
-    if (!Number.isInteger(quantity) || quantity < 1 || quantity === line.quantity) return
+    // Per build, in the part's unit: 0.2 m of wire per board.
+    const quantity = parseQuantity(raw)
+    if (quantity === null || quantity <= 0 || quantity === line.quantity) return
+    if (!isDecimalUnit(line.part?.unit) && line.part && !Number.isInteger(quantity)) return
     updateLine(line, { quantity })
   }
 
@@ -641,19 +645,22 @@ export default function ProjectShow({ project, parts, subproject_options, storag
                     {canWrite ? (
                       <Input
                         type="number"
-                        min={1}
+                        min={0}
+                        step={line.part ? quantityStep(line.part.unit) : 'any'}
                         defaultValue={line.quantity}
                         className="ml-auto h-8 w-20 text-right font-mono"
                         onBlur={(e) => changeQuantity(line, e.target.value)}
                       />
                     ) : (
-                      <span className="font-mono">{line.quantity}</span>
+                      <span className="font-mono">{formatQuantity(line.quantity, line.part?.unit)}</span>
                     )}
                   </TableCell>
-                  <TableCell className="text-right font-mono">{line.part || line.assembly?.stocked ? line.in_stock : '—'}</TableCell>
+                  <TableCell className="text-right font-mono">{line.part ? formatQuantity(line.in_stock, line.part.unit) : line.assembly?.stocked ? line.in_stock : '—'}</TableCell>
                   {project.reservations_enabled && (
                     <TableCell className="text-right font-mono text-muted-foreground">
-                      {(line.part || line.assembly?.stocked) && line.reserved_elsewhere > 0 ? line.reserved_elsewhere : '—'}
+                      {(line.part || line.assembly?.stocked) && line.reserved_elsewhere > 0
+                        ? line.part ? formatQuantity(line.reserved_elsewhere, line.part.unit) : line.reserved_elsewhere
+                        : '—'}
                     </TableCell>
                   )}
                   <TableCell>
@@ -670,7 +677,7 @@ export default function ProjectShow({ project, parts, subproject_options, storag
                     ) : (
                       <div className="flex flex-col items-start gap-1">
                         <Badge variant="outline" className="bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400">
-                          <AlertTriangle className="size-3.5" /> {t('Short {count}', { count: line.shortfall })}
+                          <AlertTriangle className="size-3.5" /> {t('Short {count}', { count: line.part ? formatQuantity(line.shortfall, line.part.unit) : line.shortfall })}
                         </Badge>
                         {line.alternatives.map((alternative) => (
                           <div key={alternative.id} className="flex max-w-[240px] flex-wrap items-center gap-x-1.5 text-xs text-muted-foreground">
@@ -1288,11 +1295,14 @@ function AddLineDialog({
     setQuantity('1')
   }
 
-  const quantityValue = Number(quantity)
+  // Decimals for a part counted in a measure; the server rejects a fraction
+  // of a part counted in pieces.
+  const quantityValue = parseQuantity(quantity) ?? 0
   const valid =
-    Number.isInteger(quantityValue) &&
-    quantityValue >= 1 &&
-    (kind === 'assembly' ? subprojectId !== '' : partId !== NONE || designation.trim() !== '' || reference.trim() !== '')
+    quantityValue > 0 &&
+    (kind === 'assembly'
+      ? Number.isInteger(quantityValue) && subprojectId !== ''
+      : partId !== NONE || designation.trim() !== '' || reference.trim() !== '')
 
   const submit = (e: FormEvent) => {
     e.preventDefault()
@@ -1363,7 +1373,8 @@ function AddLineDialog({
                 <Input
                   id="line-assembly-quantity"
                   type="number"
-                  min={1}
+                  min={0}
+                  step="any"
                   value={quantity}
                   onChange={(e) => setQuantity(e.target.value)}
                   className="font-mono"

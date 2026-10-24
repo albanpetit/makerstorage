@@ -105,7 +105,8 @@ class DashboardSummary
         location_name: part.storage_locations.first&.name,
         quantity: part.total_quantity,
         min_stock_threshold: part.min_stock_threshold,
-        incoming: incoming[part.id].to_i
+        unit: part.unit,
+        incoming: incoming[part.id] || 0
       }
     end
   end
@@ -158,7 +159,7 @@ class DashboardSummary
 
     rows.map do |part_id, units|
       part = parts[part_id]
-      { id: part_id, reference: part.reference, name: part.name, units: units.to_i }
+      { id: part_id, reference: part.reference, name: part.name, units: Quantity.normalize(units || 0) }
     end
   end
 

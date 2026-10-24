@@ -51,7 +51,7 @@ class OfflineScanSync
   end
 
   def build_movement(operation, part, location)
-    quantity = operation["quantity"].to_s[/\A-?\d+\z/] ? operation["quantity"].to_i : 0
+    quantity = Quantity.parse(operation["quantity"]) || 0
     receipt = operation["kind"] == "receipt"
 
     @organization.stock_movements.build(

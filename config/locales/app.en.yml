@@ -19,6 +19,7 @@ en:
         bag_taken: '%{code} is already holding another part'
         box_code_needed: can't be blank while the box holds bags
         descendant_parent: cannot be a descendant of this category
+        fractional_stock: 'holds fractional stock: %{unit} only take whole numbers'
         image_host: must be an https image from a supplier catalog (%{hosts})
         invalid_price_breaks: need a whole quantity above zero and a price of zero or more on every row
         more_than_lent: Can't return or write off more than was lent
@@ -54,6 +55,7 @@ en:
         values_not_numbers:
           one: '%{count} value of %{name} is not a number (%{examples}).'
           other: '%{count} values of %{name} are not a number (%{examples}).'
+        whole_quantity_for_unit: 'must be a whole number: this part is counted in %{unit}'
   errors:
     ai_entry:
       busy: Another AI read is running on the server. Try again in a moment.
@@ -560,8 +562,8 @@ en:
       movement_recorded_successfully: Movement recorded successfully.
     stocktakes:
       counted:
-        one: "%{reference}: %{count} counted."
-        other: "%{reference}: %{count} counted."
+        one: "%{reference}: %{quantity} counted."
+        other: "%{reference}: %{quantity} counted."
       adjust_detail: '%{reference} in %{zone}: '
       completed_adjusted:
         one: 'Stocktake completed: %{count} adjustment recorded.'
@@ -714,3 +716,12 @@ en:
     low: Low stock
     ok: In stock
     out: Out of stock
+  units:
+    gram: grams
+    kilogram: kilograms
+    liter: liters
+    lot: lots
+    meter: meters
+    milliliter: milliliters
+    piece: pieces
+    roll: rolls
