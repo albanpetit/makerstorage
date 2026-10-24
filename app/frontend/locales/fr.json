@@ -12,6 +12,7 @@
     "one": "(dont {count} masqué par les filtres)",
     "other": "(dont {count} masqués par les filtres)"
   },
+  "(left out: the totals are a minimum).": "(non comptés : les totaux sont un minimum).",
   "(move)": "(déplacer)",
   "(not a member)": "(pas membre)",
   "(optional)": "(facultatif)",
@@ -195,6 +196,9 @@
   "By category": "Par catégorie",
   "By hand, from a supplier lookup or a CSV import.": "À la main, depuis une recherche fournisseur ou un import CSV.",
   "By zone": "Par zone",
+  "Copies": "Exemplaires",
+  "Cost": "Coût",
+  "Cost to build": "Coût de fabrication",
   "CSV file — columns are detected automatically (French and English headers both work).": "Fichier CSV — les colonnes sont détectées automatiquement (en-têtes en français ou en anglais).",
   "Cabinet": "Armoire",
   "Camera access requires HTTPS. Open the app over https:// (or on localhost) to scan.": "L’accès à la caméra nécessite HTTPS. Ouvrez l’application en https:// (ou sur localhost) pour scanner.",
@@ -497,6 +501,7 @@
   "Enter your email and we'll send you a link to reset your password": "Saisissez votre e-mail, nous vous enverrons un lien pour réinitialiser votre mot de passe",
   "Enter your new password below": "Saisissez votre nouveau mot de passe ci-dessous",
   "Essential details about the part": "L’essentiel sur le composant",
+  "Estimate": "Chiffrer",
   "Estimated total": "Total estimé",
   "Estimated total: {amount}": "Total estimé : {amount}",
   "Every KiCad using the current library file stops seeing your parts. Symbols already placed in schematics are not affected.": "Tous les KiCad qui utilisent le fichier de bibliothèque actuel ne verront plus vos composants. Les symboles déjà placés dans les schémas ne sont pas touchés.",
@@ -550,9 +555,11 @@
   "From inventory": "Depuis l’inventaire",
   "From its number": "D’après son numéro",
   "From quantity": "À partir de",
+  "From stock": "Pris en stock",
   "From the box code and bag number": "D’après le code de la boîte et le numéro du sachet",
   "From the category": "Celui de la catégorie",
   "From the footprint": "Celle de l’empreinte",
+  "From the prices on file: parts in stock at their unit price, parts to buy at the supplier’s price break for the quantity bought.": "D’après les prix connus : les composants en stock à leur prix unitaire, ceux à acheter au palier de prix du fournisseur pour la quantité achetée.",
   "Full BOM quantities": "Quantités complètes de la nomenclature",
   "Full control, including billing and the team itself.": "Contrôle total, y compris la facturation et l’équipe elle-même.",
   "General": "Général",
@@ -578,6 +585,7 @@
   "Host": "Hôte",
   "How many characters the random body uses.": "Nombre de caractères du corps aléatoire.",
   "How the numeric part of each reference is assigned.": "Comment la partie numérique de chaque référence est attribuée.",
+  "Incomplete": "Incomplet",
   "IP address or host name": "Adresse IP ou nom d’hôte",
   "IPN": "IPN",
   "IPN digits": "Chiffres IPN",
@@ -804,6 +812,7 @@
   "Movements": "Mouvements",
   "Moves everything in {name} into an organization you own, then deletes this one. Categories, footprints, tags and suppliers with the same name are combined, parts with the same MPN, SKU or barcode become one part with the stock of both, and codes or IPNs already used there are renumbered. Members join with their role (owners as admins).": "Déplace tout le contenu de {name} dans une organisation dont vous êtes propriétaire, puis supprime celle-ci. Les catégories, empreintes, tags et fournisseurs de même nom sont regroupés, les composants de même MPN, SKU ou code-barres deviennent un seul composant avec le stock des deux, et les codes ou IPN déjà pris là-bas sont renumérotés. Les membres rejoignent avec leur rôle (les propriétaires comme administrateurs).",
   "Moving…": "Déplacement…",
+  "Needed": "Nécessaire",
   "NEW": "NOUVEAU",
   "Name": "Nom",
   "Name *": "Nom *",
@@ -953,6 +962,7 @@
   "Number in {unit}": "Nombre en {unit}",
   "Number length": "Longueur du numéro",
   "Number of bags": "Nombre de sachets",
+  "Number of copies to price": "Nombre d’exemplaires à chiffrer",
   "Number · {unit}": "Nombre · {unit}",
   "Numbering (IPN)": "Numérotation (IPN)",
   "OK": "OK",
@@ -1004,6 +1014,7 @@
   "Organizations": "Organisations",
   "Organize your components into a hierarchy": "Organisez vos composants en arborescence",
   "Organize your locations hierarchically": "Organisez vos emplacements en arborescence",
+  "Other quantity": "Autre quantité",
   "Otherwise they keep their stock, as if they hadn't been part of the count.": "Sinon elles gardent leur stock, comme si elles n’avaient pas fait partie du comptage.",
   "Out": "Sortie",
   "Out of stock": "Rupture",
@@ -1013,6 +1024,11 @@
   "Overdue loans": "Prêts en retard",
   "Owner": "Propriétaire",
   "Owners": "Propriétaires",
+  "Part by part for {count} copies": {
+    "one": "Détail pour {count} exemplaire",
+    "other": "Détail pour {count} exemplaires"
+  },
+  "Per copy": "Par exemplaire",
   "PNG, JPG or SVG. Shown in the sidebar and on documents.": "PNG, JPG ou SVG. Affiché dans la barre latérale et sur les documents.",
   "Package": "Boîtier",
   "Package Type": "Boîtier",
@@ -1384,6 +1400,7 @@
   "Stock reserved for this project": "Stock réservé pour ce projet",
   "Stock reserved since {date}": "Stock réservé depuis le {date}",
   "Stock value": "Valeur du stock",
+  "stock {price}": "stock {price}",
   "Stock {quantity} / threshold {threshold}": "Stock {quantity} / seuil {threshold}",
   "Stock-outs over this period give each component's usage rate.": "Les sorties de stock sur cette période donnent le rythme d’utilisation de chaque composant.",
   "Stocktake": "Comptage",
@@ -1510,6 +1527,7 @@
   "Through-hole": "Traversant",
   "Timestamps on stock movements.": "Horodatage des mouvements de stock.",
   "Timezone": "Fuseau horaire",
+  "To buy": "À acheter",
   "To count": "À compter",
   "To order": "À commander",
   "To review": "À revoir",
@@ -1735,6 +1753,10 @@
     "one": "{count} ligne",
     "other": "{count} lignes"
   },
+  "{count} lines are not in the inventory": {
+    "one": "{count} ligne n’est pas dans l’inventaire",
+    "other": "{count} lignes ne sont pas dans l’inventaire"
+  },
   "{count} lines need resolving before this project is buildable.": {
     "one": "{count} ligne à résoudre avant de pouvoir assembler ce projet.",
     "other": "{count} lignes à résoudre avant de pouvoir assembler ce projet."
@@ -1802,6 +1824,10 @@
   "{count} parts have a value.": {
     "one": "{count} composant a une valeur.",
     "other": "{count} composants ont une valeur."
+  },
+  "{count} parts have no price": {
+    "one": "{count} composant n’a pas de prix",
+    "other": "{count} composants n’ont pas de prix"
   },
   "{count} pending invitations": {
     "one": "{count} invitation en attente",

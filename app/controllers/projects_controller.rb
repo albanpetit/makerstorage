@@ -1,11 +1,14 @@
 # frozen_string_literal: true
 
+require "csv"
+
 class ProjectsController < ApplicationController
   include Auth
+  include CsvText
 
   before_action :verify_organization_access
   before_action :verify_organization_writer, only: %i[create update duplicate confirm reserve release create_purchase_orders build destroy]
-  before_action :set_project, only: %i[show update duplicate confirm reserve release create_purchase_orders build destroy]
+  before_action :set_project, only: %i[show cost update duplicate confirm reserve release create_purchase_orders build destroy]
 
   # Most kits one build can deduct at once.
   MAX_BUILD_KITS = 1_000
@@ -26,11 +29,21 @@ class ProjectsController < ApplicationController
   def show
     render inertia: "projects/show", props: {
       project: serialize_project(@project),
+      # Cost for 1, 10, 100 copies plus the quantity typed on the page
+      # (?cost_quantity=N, partial reload of this prop only).
+      cost: -> { serialize_cost(@project, ProjectCost.quantities(params[:cost_quantity])) },
       # Lightweight pick-list for the review UI's re-match combobox.
       parts: current_organization.parts.alphabetical.map do |part|
         { id: part.id, reference: part.reference, name: part.name, mpn: part.mpn, sku: part.sku }
       end
     }
+  end
+
+  # Part by part cost of +quantity+ copies (ProjectCost), as CSV.
+  def cost
+    estimate = ProjectCost.new(@project).estimate(params[:quantity].to_s.to_i.clamp(1, ProjectCost::MAX_QUANTITY))
+    filename = "#{(@project.reference.presence || "project-#{@project.id}").parameterize}-cost-x#{estimate.quantity}.csv"
+    send_data cost_csv(estimate), filename: filename, type: "text/csv"
   end
 
   def create
@@ -370,6 +383,68 @@ class ProjectsController < ApplicationController
       github: serialize_github(project),
       github_token_configured: current_organization.github_token.present?
     }
+  end
+
+  def serialize_cost(project, quantities)
+    {
+      currency: current_organization.currency,
+      quantities: quantities,
+      estimates: ProjectCost.new(project).estimates(quantities).map do |estimate|
+        {
+          quantity: estimate.quantity,
+          stock_value: estimate.stock_value.to_f,
+          purchase_cost: estimate.purchase_cost.to_f,
+          total: estimate.total.to_f,
+          per_unit: estimate.per_unit.to_f,
+          complete: estimate.complete?,
+          unpriced_count: estimate.unpriced_rows.size,
+          unmatched_count: estimate.unmatched_lines.size,
+          unmatched: estimate.unmatched_lines.map do |line|
+            { id: line.id, label: line.designation.presence || line.raw_reference.presence || line.value, quantity: line.quantity * estimate.quantity }
+          end,
+          rows: estimate.rows.map do |row|
+            {
+              part: { id: row.part.id, reference: row.part.reference, name: row.part.name },
+              required: row.required,
+              from_stock: row.from_stock,
+              to_buy: row.to_buy,
+              stock_unit_price: row.stock_unit_price&.to_f,
+              buy_unit_price: row.buy_unit_price&.to_f,
+              supplier: row.supplier&.name,
+              cost: row.cost.to_f,
+              priced: row.priced?
+            }
+          end
+        }
+      end
+    }
+  end
+
+  def cost_csv(estimate)
+    csv = +CSV.generate_line([ "Part", "Name", "Needed", "From stock", "Stock unit price", "To buy", "Buy unit price", "Supplier", "Cost", "Priced" ])
+    estimate.rows.each do |row|
+      csv << CSV.generate_line([
+        csv_text(row.part.reference),
+        csv_text(row.part.name),
+        row.required,
+        row.from_stock,
+        row.stock_unit_price&.to_d&.to_s("F"),
+        row.to_buy,
+        row.buy_unit_price&.to_d&.to_s("F"),
+        csv_text(row.supplier&.name),
+        row.cost.to_d.round(2).to_s("F"),
+        row.priced? ? "yes" : "no"
+      ])
+    end
+    estimate.unmatched_lines.each do |line|
+      csv << CSV.generate_line([
+        csv_text(line.raw_reference), csv_text(line.designation.presence || line.value),
+        line.quantity * estimate.quantity, nil, nil, nil, nil, nil, nil, "not in inventory"
+      ])
+    end
+    csv << CSV.generate_line([ "Total", nil, nil, nil, nil, nil, nil, nil, estimate.total.to_d.round(2).to_s("F"), estimate.complete? ? "yes" : "no" ])
+    csv << CSV.generate_line([ "Per unit", nil, nil, nil, nil, nil, nil, nil, estimate.per_unit.round(4).to_s("F"), nil ])
+    csv
   end
 
   def serialize_github(project)

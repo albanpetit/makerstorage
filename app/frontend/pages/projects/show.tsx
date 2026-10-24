@@ -36,6 +36,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Combobox, type ComboboxOption } from '@/components/ui/combobox'
 import { GithubFields, type GithubLinkData } from '@/components/projects/github-fields'
+import { ProjectCostCard, type ProjectCostData } from '@/components/projects/project-cost-card'
 import {
   Table,
   TableBody,
@@ -152,6 +153,7 @@ interface PartOption {
 interface ProjectShowProps {
   project: Project
   parts: PartOption[]
+  cost: ProjectCostData
 }
 
 const NONE = '__none__'
@@ -166,7 +168,7 @@ const MATCH_LABELS: Record<ProjectLine['match_type'], string> = {
   get none() { return t('no match') },
 }
 
-export default function ProjectShow({ project, parts }: ProjectShowProps) {
+export default function ProjectShow({ project, parts, cost }: ProjectShowProps) {
   const { canWrite } = usePermissions()
   const [buildOpen, setBuildOpen] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
@@ -607,6 +609,8 @@ export default function ProjectShow({ project, parts }: ProjectShowProps) {
             </div>
           )}
         </Card>
+
+        <ProjectCostCard projectId={project.id} cost={cost} />
 
         <BuildHistory builds={project.builds} />
       </div>
