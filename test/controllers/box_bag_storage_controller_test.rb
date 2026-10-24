@@ -171,12 +171,13 @@ class BoxBagStorageControllerTest < ActionDispatch::IntegrationTest
     PartStorage.create!(part: stray, storage_location: bag1, quantity: 0)
     PartStorage.create!(part: stray, storage_location: bag2, quantity: 0)
 
-    get storage_locations_path
+    get storage_locations_path(stock_zone: bag1.id)
+    assert_equal [ holder.id ], inertia_props["zone_stock"]["entries"].map { |row| row["part"]["id"] }
+    counts = inertia_props["storage_locations"].to_h { |zone| [ zone["id"], zone["refs"] ] }
+    assert_equal [ 1, 1 ], [ counts[bag1.id], counts[bag2.id] ]
 
-    rows = inertia_props["part_storages"].map { |row| [ row["location_id"], row["part"]["id"] ] }
-    assert_includes rows, [ bag1.id, holder.id ]
-    assert_not_includes rows, [ bag1.id, stray.id ]
-    assert_includes rows, [ bag2.id, stray.id ]
+    get storage_locations_path(stock_zone: bag2.id)
+    assert_equal [ stray.id ], inertia_props["zone_stock"]["entries"].map { |row| row["part"]["id"] }
   end
 
   test "the part detail lists the part's own bag first" do

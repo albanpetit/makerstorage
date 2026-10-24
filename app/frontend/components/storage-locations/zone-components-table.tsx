@@ -19,6 +19,8 @@ import { formatQuantity } from '@/lib/quantity'
 
 interface ZoneComponentsTableProps {
   entries: PartStorageEntry[]
+  // The zone's stock is still on its way from the server.
+  loading?: boolean
   selectedPartIds: Set<number>
   onSelectionChange: (ids: Set<number>) => void
   onToggle: (partId: number) => void
@@ -31,7 +33,7 @@ interface ZoneComponentsTableProps {
 // Parts stored directly in the selected zone. Rows can be checked for a bulk
 // move, or dragged onto a zone in the tree.
 export function ZoneComponentsTable({
-  entries, selectedPartIds, onSelectionChange, onToggle,
+  entries, loading = false, selectedPartIds, onSelectionChange, onToggle,
   draggingPartIds, onDragStart, onDragEnd, onBulkMove,
 }: ZoneComponentsTableProps) {
   const { canWrite } = usePermissions()
@@ -124,6 +126,8 @@ export function ZoneComponentsTable({
             </TableBody>
           </Table>
         </Card>
+      ) : loading ? (
+        <div className="rounded-lg border border-dashed p-5 text-center text-sm text-muted-foreground">{t('Loading…')}</div>
       ) : (
         <div className="rounded-lg border border-dashed p-5 text-center text-sm text-muted-foreground">
           {t('No component directly in this zone — they\'re stored in the sub-zones above.')}
