@@ -142,6 +142,29 @@ class McpServerTest < ActiveSupport::TestCase
     assert_equal 4, data[:max_builds], "both lines use the same part: 7 per build out of 30"
   end
 
+  test "get_part and check_bom list linked alternatives with their available stock" do
+    PartAlternative.link!(@r10k, @r10k_0805, note: "bigger pads")
+    PartAlternative.link!(@r10k, @r4k7)
+
+    alternatives = call("get_part", "id" => @r10k.id)[:alternatives]
+    assert_equal [ [ @r10k_0805.id, 8, "bigger pads" ], [ @r4k7.id, 4, nil ] ], alternatives.map { |a| a.values_at(:id, :available, :note) }
+    assert_equal [ @r10k.id ], call("get_part", "id" => @r10k_0805.id)[:alternatives].map { |a| a[:id] }
+
+    line = call("check_bom", "lines" => [ { "mpn" => "RC0603FR-0710KL", "quantity" => 40 } ])[:lines].sole
+    assert_equal "short", line[:status]
+    assert_equal [ @r10k_0805.id, @r4k7.id ], line[:alternatives].map { |a| a[:id] }
+
+    assert_empty call("check_bom", "lines" => [ { "mpn" => "RC0603FR-0710KL", "quantity" => 1 } ])[:lines].sole[:alternatives]
+  end
+
+  test "get_part suggests equivalents from the same value and footprint" do
+    twin = create_part(organization: @org, category: @category, name: "Other 10k", value: "10K", footprint: @footprint_0603)
+
+    suggested = call("get_part", "id" => @r10k.id)[:suggested_equivalents]
+    assert_equal [ twin.id ], suggested.map { |s| s[:id] }
+    assert_equal [ "Value" ], suggested.sole[:same]
+  end
+
   test "check_bom validates its input" do
     assert_raises_tool_error { call("check_bom", "lines" => []) }
     assert_raises_tool_error { call("check_bom", "lines" => [ "R1" ]) }

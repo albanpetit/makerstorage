@@ -42,6 +42,7 @@ import {
 import { StorageLocationSelect, type StorageLocationOption } from '@/components/storage-location-select'
 import { LIFECYCLE_META } from '@/components/parts/part-meta'
 import { PartFiles, type PartFile } from '@/components/parts/part-files'
+import { PartAlternatives, type AlternativeLink, type Equivalent } from '@/components/parts/part-alternatives'
 import { formatUnitPrice, type PriceBreak } from '@/lib/money'
 import { PriceHistory, type PricePoint } from '@/components/parts/price-history'
 import { t, intlLocale, tn, tx } from '@/lib/i18n'
@@ -167,6 +168,8 @@ interface PartShowPayload {
   loans: LoanEntry[]
   price_history: PricePoint[]
   consumption: ConsumptionEntry
+  alternatives: AlternativeLink[]
+  equivalents: Equivalent[]
   storage_locations: StorageLocationOption[]
   categories: Category[]
   footprints: Footprint[]
@@ -218,10 +221,13 @@ interface MovementFormData {
 }
 
 export function PartDetailSheet({
-  partId,
+  partId: requestedId,
   open,
   onOpenChange,
 }: PartDetailSheetProps) {
+  // The part shown: the one asked for, or an alternative opened from it.
+  const [partId, setPartId] = useState(requestedId)
+  useEffect(() => setPartId(requestedId), [requestedId, open])
   const { canWrite, canAdminister } = usePermissions()
   const [loading, setLoading] = useState(false)
   const [loadError, setLoadError] = useState('')
@@ -648,6 +654,15 @@ export function PartDetailSheet({
                   <h3 className="mb-2 text-sm font-semibold">{t('Price history')}</h3>
                   <PriceHistory points={payload.price_history} />
                 </div>
+
+                <PartAlternatives
+                  partId={part.id}
+                  alternatives={payload.alternatives}
+                  equivalents={payload.equivalents}
+                  canWrite={canWrite}
+                  onChange={load}
+                  onOpenPart={setPartId}
+                />
 
                 <PartFiles partId={part.id} files={part.files} canWrite={canWrite} onChange={load} />
 

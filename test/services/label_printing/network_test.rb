@@ -61,6 +61,15 @@ class LabelPrinting::NetworkTest < ActiveSupport::TestCase
     end
   end
 
+  # Telling "refused" from "timed out" would let anyone probe the server's network.
+  test "the system error is not shown" do
+    [ Errno::ECONNREFUSED, Errno::ETIMEDOUT, Errno::EHOSTUNREACH ].map do |error_class|
+      stub_singleton(Socket, :tcp, ->(*_args, **_kwargs) { raise error_class }) do
+        assert_raises(Network::Error) { Network.deliver("192.168.1.20", 9100, "x") }.message
+      end
+    end.uniq.then { |messages| assert_equal 1, messages.size, messages.inspect }
+  end
+
   test "NETWORK_PRINTING=false turns it off" do
     original = Rails.configuration.x.network_printing
     Rails.configuration.x.network_printing = false

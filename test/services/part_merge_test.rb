@@ -264,6 +264,19 @@ class PartMergeTest < ActiveSupport::TestCase
     assert_equal 0, PartDuplicateDismissal.count
   end
 
+  test "moves the duplicate's alternatives onto the kept part" do
+    keep = create_part(organization: @org, category: @category)
+    duplicate = create_part(organization: @org, category: @category)
+    third = create_part(organization: @org, category: @category)
+    PartAlternative.link!(keep, duplicate)
+    PartAlternative.link!(duplicate, third, note: "second source")
+
+    merge!(keep, duplicate)
+
+    assert_equal [ third ], keep.alternative_parts.to_a
+    assert_equal "second source", PartAlternative.between(keep, third).note
+  end
+
   test "box & bag: the kept part takes the duplicate's bag when it has none" do
     @org.update!(ipn_generation_mode: "box_bag")
     box = create_storage_location(organization: @org, name: "Box A", location_type: "box", code: "A")
@@ -298,6 +311,6 @@ class PartMergeTest < ActiveSupport::TestCase
     assert_equal 0, keep.part_storages.find_by(storage_location: other_bag).quantity
     assert_nil other_bag.reload.bag_occupant
     assert_ledger_matches(keep)
-    assert_equal 2, keep.stock_movements.where("reason LIKE ?", "Merged duplicate%").count
+    assert_equal 2, keep.stock_movements.where("reason LIKE ?", "Merged duplicate%").where(transfer: true).count
   end
 end

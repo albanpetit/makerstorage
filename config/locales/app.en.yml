@@ -116,7 +116,7 @@ en:
       disabled: Network printing is turned off on this server.
       host_not_found: '%{host} could not be found on the network.'
       not_local: '%{host} isn''t a local network address (10.x, 172.16–31.x, 192.168.x).'
-      unreachable: Could not reach the printer at %{host}:%{port} (%{error}).
+      unreachable: Could not reach the printer at %{host}:%{port}. Check that it is on and connected to the server's network.
     lcsc:
       failed: 'LCSC search failed: %{error}'
       refused: LCSC refused the search (HTTP %{code}). LCSC has no public API, so its catalog may block or change these requests.
@@ -207,6 +207,11 @@ en:
       invitation_to_declined: Invitation to %{organization_name} declined.
       you_joined: You joined %{organization_name}.
     label_printers:
+      too_many_jobs: "Too many print jobs, try again in a minute."
+      nothing_to_print: "Nothing to print."
+      too_many_labels: "At most %{count} labels per request."
+      size_mismatch: "The labels don't match this printer's size. Reload the page and try again."
+      unreadable: "The labels could not be read."
       add_failed: Failed to add the printer.
       added: Printer "%{name}" added.
       removed: Printer "%{name}" removed.
@@ -222,6 +227,8 @@ en:
       return_recorded: Return recorded.
       updated: Loan updated.
     members:
+      already_invited: "%{email} has already been invited to this organization."
+      already_member: "%{email} is already a member of this organization."
       choose_a_valid_role: Choose a valid role.
       failed_to_add_member: Failed to add member.
       invitation_sent: If %{email} has a Makerstorage account, they've been invited and will join once they accept it from their profile. Otherwise, ask them to sign up first, then invite them again.
@@ -255,6 +262,8 @@ en:
       the_storage_split_must_add_up: The storage split must add up to the line quantity (%{quantity}).
       this_order_is_and_can_no: This order is %{status} and can no longer be edited.
     orders:
+      import_has_no_lines: "%{provider} order %{number} has no importable lines."
+      import_already_imported: "%{provider} order %{reference} has already been imported."
       add_a_mouser_order_api_key: Add a Mouser Order API key in Settings → Integrations to build a cart.
       add_a_mouser_order_api_key_2: Add a Mouser Order API key in Settings → Integrations to import orders.
       checkout: ' Checkout: %{checkout_url}'
@@ -301,6 +310,28 @@ en:
         other: '%{count} BOM lines had no matching part and were skipped.'
       use_mark_received_to_receive_an: Use “Mark received” to receive an order so stock is credited.
     organizations:
+      reset_done:
+        one: "\"%{name}\" was reset (%{count} part removed)."
+        other: "\"%{name}\" was reset (%{count} parts removed)."
+      merged: "\"%{source}\" was merged into \"%{target}\": %{moved}, %{merged}."
+      merged_moved:
+        one: "%{count} part moved"
+        other: "%{count} parts moved"
+      merged_merged:
+        one: "%{count} merged with an existing part"
+        other: "%{count} merged with an existing part"
+      merged_codes:
+        one: "%{count} zone code renamed"
+        other: "%{count} zone codes renamed"
+      merged_ipns:
+        one: "%{count} IPN reassigned"
+        other: "%{count} IPNs reassigned"
+      merged_blank:
+        one: "%{count} part left without an IPN (already taken)"
+        other: "%{count} parts left without an IPN (already taken)"
+      merged_members:
+        one: "%{count} member added"
+        other: "%{count} members added"
       choose_an_organization_you_own_to: Choose an organization you own to merge into.
       could_not_delete: Could not delete "%{organization_name}". %{reason}
       could_not_merge: Could not merge "%{source_name}". %{message}
@@ -334,6 +365,9 @@ en:
       values_filled:
         one: '%{count} part value'
         other: '%{count} part values'
+    part_alternatives:
+      linked: '%{name} linked as an alternative.'
+      unlinked: '%{name} is no longer an alternative.'
     part_attachments:
       added:
         one: Added %{count} file.
@@ -362,10 +396,17 @@ en:
         other: '%{count} stock rows'
       pick_two: Pick at least two parts.
     part_suppliers:
+      set_as_preferred: "%{supplier} set as preferred supplier."
       supplier_added_successfully: Supplier added successfully.
       supplier_removed_successfully: Supplier removed successfully.
       supplier_updated_successfully: Supplier updated successfully.
     parts:
+      bulk_deleted:
+        one: "%{count} part deleted successfully."
+        other: "%{count} parts deleted successfully."
+      bulk_delete_skipped:
+        one: "%{count} part could not be deleted because it has stock history or purchase orders."
+        other: "%{count} parts could not be deleted because they have stock history or purchase orders."
       bulk_category:
         one: Set category to %{category} for %{count} part.
         other: Set category to %{category} for %{count} parts.
@@ -404,6 +445,7 @@ en:
         one: '%{count} tag'
         other: '%{count} tags'
     profiles:
+      app_disconnected: "%{name} disconnected."
       changes_allowed: "%{name} can now change the inventory."
       confirm_from_the_email_we_sent: ' Confirm %{unconfirmed_email} from the email we sent there to start signing in with it.'
       enter_your_current_password_to_change: Enter your current password to change your email.
@@ -500,6 +542,9 @@ en:
       failed_to_record_movement: Failed to record movement.
       movement_recorded_successfully: Movement recorded successfully.
     stocktakes:
+      counted:
+        one: "%{reference}: %{count} counted."
+        other: "%{reference}: %{count} counted."
       adjust_detail: '%{reference} in %{zone}: '
       completed_adjusted:
         one: 'Stocktake completed: %{count} adjustment recorded.'

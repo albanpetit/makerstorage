@@ -16,6 +16,8 @@
 #                become one, adding up what each expected and counted
 #   loans        loan lines point to the kept part
 #   tags         union
+#   alternatives union; a link between the merged parts is dropped, and on a
+#                part both were linked to the kept part's note stays
 #   parameters   union; on a parameter both parts have, the kept part's value
 #                stays
 #   suppliers    links move; on a supplier both parts are linked to, the kept
@@ -77,6 +79,7 @@ class PartMerge
     move_attachments(from, to, "datasheet", else_as: "attachments")
     move_attachments(from, to, "attachments")
     PartDuplicateDismissal.where(part_id: from).or(PartDuplicateDismissal.where(other_part_id: from)).delete_all
+    PartAlternative.fold(from, to)
     counts
   end
 
@@ -259,8 +262,8 @@ class PartMerge
 
     reason = "Merged duplicate: moved from bag #{bag.code} to #{keep.bag.code}"
     organization.stock_movements.create!(part: keep, storage_location: bag, user: user,
-                                         movement_type: "out", quantity_delta: -quantity, reason: reason)
+                                         movement_type: "out", quantity_delta: -quantity, reason: reason, transfer: true)
     organization.stock_movements.create!(part: keep, storage_location: keep.bag, user: user,
-                                         movement_type: "in", quantity_delta: quantity, reason: reason)
+                                         movement_type: "in", quantity_delta: quantity, reason: reason, transfer: true)
   end
 end

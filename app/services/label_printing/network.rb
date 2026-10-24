@@ -70,7 +70,10 @@ module LabelPrinting
     rescue Error
       raise
     rescue SystemCallError, IOError, SocketError, Resolv::ResolvError => e
-      raise Error, I18n.t("errors.label_printing.unreachable", host: host, port: port, error: e.message)
+      # The system error (refused, timed out…) stays in the log: shown to the
+      # user it would tell open ports from closed ones on the server's network.
+      Rails.logger.warn("[LabelPrinting] #{host}:#{port}: #{e.class}: #{e.message}")
+      raise Error, I18n.t("errors.label_printing.unreachable", host: host, port: port)
     end
   end
 end

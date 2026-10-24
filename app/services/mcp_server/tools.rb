@@ -52,7 +52,8 @@ class McpServer
         title: "Get part details",
         description: "Everything about one part: specs and technical parameters, stock per storage location, suppliers and prices " \
                      "(with quantity price breaks), recent purchase prices, open purchase orders, project reservations, the projects using it, " \
-                     "and its consumption (units used over the organization's period and the low-stock threshold that usage suggests).",
+                     "its consumption (units used over the organization's period and the low-stock threshold that usage suggests), " \
+                     "the parts linked to it as alternatives, and equivalents suggested from its parameters.",
         inputSchema: {
           type: "object",
           properties: {
@@ -68,7 +69,8 @@ class McpServer
                      "from the inventory. Each line is matched like an imported BOM (MPN, then SKU or supplier " \
                      "part number, then value + footprint, then name) and compared with available stock. " \
                      "Returns the status of every line, the parts that are short, and how many builds are possible. " \
-                     "Unmatched lines with a value list same-value parts in other packages as possible substitutes.",
+                     "Short lines list the parts linked as alternatives that have stock; unmatched lines with a value " \
+                     "list same-value parts in other packages as possible substitutes.",
         inputSchema: {
           type: "object",
           required: [ "lines" ],
@@ -296,6 +298,13 @@ class McpServer
         end,
         used_in_projects: part.project_lines.includes(:project).map(&:project).uniq.map do |project|
           { id: project.id, reference: project.reference, name: project.name, status: project.status }
+        end,
+        alternatives: linked_alternatives([ part ]).fetch(part.id, []),
+        suggested_equivalents: PartEquivalents.new(part).suggestions.map do |suggestion|
+          part_brief(suggestion.part).merge(
+            in_stock: suggestion.part.part_storages.sum(&:quantity),
+            same: suggestion.matched, better: suggestion.better, unknown: suggestion.missing
+          )
         end
       )
     end
@@ -325,6 +334,7 @@ class McpServer
       parts = organization.parts.where(id: matched.filter_map { |entry| entry[:part]&.id })
         .includes(:category, :footprint, :part_storages).index_by(&:id)
       stock = stock_figures(parts.values)
+      alternatives = linked_alternatives(parts.values)
       per_build = matched.select { |entry| entry[:part] }.group_by { |entry| entry[:part].id }
         .transform_values { |entries| entries.sum { |entry| entry[:quantity] } }
       shortfalls = per_build.to_h { |part_id, quantity| [ part_id, [ quantity * builds - stock[part_id][:available], 0 ].max ] }
@@ -344,7 +354,8 @@ class McpServer
             available: figures[:available],
             missing: short,
             incoming: figures[:incoming],
-            locations: locations_for(part)
+            locations: locations_for(part),
+            alternatives: short.positive? ? alternatives.fetch(part.id, []).select { |alternative| alternative[:available].positive? } : []
           )
         else
           echo.merge(
@@ -601,6 +612,26 @@ class McpServer
         on_hand = part.total_quantity
         held = reserved.fetch(part.id, 0)
         [ part.id, { on_hand: on_hand, reserved: held, available: [ on_hand - held, 0 ].max, incoming: incoming.fetch(part.id, 0) } ]
+      end
+    end
+
+    # part id => the parts linked to it as alternatives (PartAlternative),
+    # obsolete ones left out, with their available stock.
+    def linked_alternatives(parts)
+      ids = parts.map(&:id)
+      links = PartAlternative.involving(ids).to_a
+      others = organization.parts.where(id: links.flat_map { |link| [ link.part_id, link.alternative_part_id ] }.uniq)
+        .where.not(status: "obsolete").includes(:footprint, :part_storages).index_by(&:id)
+      stock = stock_figures(others.values)
+
+      ids.to_h do |id|
+        entries = links.filter_map do |link|
+          next unless link.part_id == id || link.alternative_part_id == id
+
+          other = others[link.other_id(id)]
+          other && part_brief(other).merge(available: stock[other.id][:available], note: link.note)
+        end
+        [ id, entries.sort_by { |entry| -entry[:available] } ]
       end
     end
 

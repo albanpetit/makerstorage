@@ -47,7 +47,8 @@ interface LoansPageProps {
   mine: boolean
   counts: { open: number; overdue: number; returned: number }
   members: MemberOption[]
-  parts: LendablePart[]
+  /** Loaded when the Lend dialog opens (undefined until then). */
+  parts?: LendablePart[]
   default_due_on: string
   prefill_part_id: number | null
 }
@@ -73,6 +74,7 @@ export default function LoansIndex({ loans, filter, mine, counts, members, parts
   const openLend = () => {
     setDialogKey((k) => k + 1)
     setLendOpen(true)
+    if (!parts) router.reload({ only: ['parts'] })
   }
 
   const countFor = (value: Filter) => (value === 'all' ? null : counts[value])

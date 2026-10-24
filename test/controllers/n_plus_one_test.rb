@@ -61,6 +61,24 @@ class NPlusOneTest < ActionDispatch::IntegrationTest
     assert_no_query_growth alerts_path
   end
 
+  test "alerts index does not N+1 on open orders' totals" do
+    add_open_order = lambda do
+      order = create_order(organization: @org, supplier: @supplier)
+      order.order_lines.create!(part: add_low_stock_part, quantity: 4, unit_price: 0.25)
+      order.update_columns(total_amount: nil)
+    end
+
+    2.times { add_open_order.call }
+    baseline = count_queries { get alerts_path }
+    ROWS_ADDED.times { add_open_order.call }
+    grown = count_queries { get alerts_path }
+
+    growth = grown - baseline
+    assert growth <= QUERY_NOISE_TOLERANCE, "alerts query count grew by #{growth} (#{baseline} → #{grown}) with open orders"
+    props = JSON.parse(@response.body[/data-page="app" type="application\/json"[^>]*>(.*?)<\/script>/m, 1])["props"]
+    assert_equal [ 1.0 ], props["orders"].map { |order| order["total_amount"] }.uniq
+  end
+
   test "category pick-lists don't walk each category's ancestry with queries" do
     parent = @category
     2.times { parent = create_category(organization: @org, parent: parent) }
