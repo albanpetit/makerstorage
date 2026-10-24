@@ -141,6 +141,7 @@ en:
       invalid: "This scan couldn't be read."
       not_found: "The part or the zone no longer exists."
     organization_merge:
+      into_demo: Nothing can be merged into a demo organization.
       into_itself: An organization can't be merged into itself.
       personal: A personal organization can't be merged into another one.
       source_not_deleted: '%{name} could not be deleted once its data was moved.'
@@ -238,6 +239,11 @@ en:
       digikey_authorization_could_not_be_verified: DigiKey authorization could not be verified. Please try connecting again.
       digikey_authorization_was_cancelled: DigiKey authorization was cancelled.
       you_switched_organization_during_the_digikey: You switched organization during the DigiKey connection. Please connect again from this organization.
+    onboarding:
+      demo_opened: You're in "%{organization_name}", a demo filled with sample stock. Delete it from the banner when you're done.
+      template_applied: 'Template applied: %{categories} categories and %{storage_locations} storage zones added.'
+      too_many_demos: Too many demos opened. Please try again later.
+      unknown_template: Unknown template.
     order_lines:
       a_chosen_storage_zone_doesn_t: A chosen storage zone doesn't belong to this organization.
       added_to_the_order: Added %{reference} to the order.

@@ -130,12 +130,39 @@ class DashboardSummaryTest < ActiveSupport::TestCase
     assert_equal({ name: "Other", count: 3, pct: 8 }, breakdown.last)
   end
 
-  test "getting started disappears once stock has moved" do
-    steps = summary.getting_started
-    assert steps[:zone]
-    assert_not steps[:part]
+  test "first steps tick themselves from the organization's data" do
+    steps = summary.getting_started[:steps].to_h { |step| [ step[:key], step[:done] ] }
+    assert steps["zones"]
+    assert steps["categories"]
+    assert_not steps["part"]
+    assert_not steps["stock"]
+    assert_not steps["members"]
+    assert_not summary.getting_started[:choose_template], "the org already has categories and zones"
 
     stock(create_part(organization: @org, category: @category), 1)
+    steps = summary.getting_started[:steps].to_h { |step| [ step[:key], step[:done] ] }
+    assert steps["part"]
+    assert steps["stock"]
+  end
+
+  test "first steps are put away for good once all done" do
+    stock(create_part(organization: @org, category: @category), 1)
+    create_supplier(organization: @org)
+    create_project(organization: @org)
+    @org.organization_memberships.create!(user: create_user, role: "owner")
+    @org.organization_memberships.create!(user: create_user, role: "member")
+
+    assert_nil summary.getting_started
+    assert @org.reload.onboarding_dismissed_at
+    @org.projects.destroy_all
+    assert_nil summary.getting_started
+  end
+
+  test "first steps hide when dismissed and in a demo" do
+    @org.update_columns(onboarding_dismissed_at: Time.current)
+    assert_nil summary.getting_started
+
+    @org.update_columns(onboarding_dismissed_at: nil, demo: true)
     assert_nil summary.getting_started
   end
 

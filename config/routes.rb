@@ -42,6 +42,13 @@ Rails.application.routes.draw do
     end
   end
 
+  # Guided onboarding (dashboard): start from a template, start empty, put the
+  # first steps away, or open a demo organization.
+  post "onboarding/template", to: "onboarding#template", as: :onboarding_template
+  post "onboarding/skip", to: "onboarding#skip", as: :skip_onboarding
+  post "onboarding/dismiss", to: "onboarding#dismiss", as: :dismiss_onboarding
+  post "onboarding/demo", to: "onboarding#demo", as: :onboarding_demo
+
   # Inventory resources
   # Before `resources :parts` so "duplicates" isn't read as a part id.
   get "parts/duplicates", to: "part_duplicates#index", as: :part_duplicates

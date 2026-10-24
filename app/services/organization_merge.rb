@@ -50,6 +50,8 @@ class OrganizationMerge
   def merge!
     raise Error, I18n.t("errors.organization_merge.into_itself") if source.id == target.id
     raise Error, I18n.t("errors.organization_merge.personal") if source.personal?
+    # A demo is deleted in one click: real data doesn't belong in one.
+    raise Error, I18n.t("errors.organization_merge.into_demo") if target.demo?
 
     @codes_renamed = 0
     result = ActiveRecord::Base.transaction do

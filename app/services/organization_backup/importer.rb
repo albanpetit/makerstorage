@@ -97,6 +97,8 @@ module OrganizationBackup
       organization = Organization.new(attributes.slice(*ORGANIZATION_ATTRIBUTES))
       organization.name = @name if @name
       organization.personal = false
+      # A restored organization isn't new: no template offer or first steps.
+      organization.onboarding_dismissed_at = Time.current
       organization.save!
       organization.organization_memberships.create!(user: user, role: "owner")
       organization

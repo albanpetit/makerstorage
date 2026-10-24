@@ -24,6 +24,14 @@ class OrganizationMergeTest < ActiveSupport::TestCase
     end
   end
 
+  test "refuses to merge into a demo organization" do
+    @target.update!(demo: true)
+
+    error = assert_raises(OrganizationMerge::Error) { merge! }
+    assert_match "demo", error.message
+    assert Organization.exists?(@source.id)
+  end
+
   test "moves the source's data into the target and deletes the source" do
     room = create_storage_location(organization: @source, name: "Atelier")
     part = create_part(organization: @source, name: "Arduino Nano", mpn: "A000005")
