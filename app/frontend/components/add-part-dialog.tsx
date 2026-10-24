@@ -9,6 +9,7 @@ import { printOnPrinterWithToast, useLabelTarget } from '@/components/print-labe
 import { type LabelFormatId, type LabelItem, labelForPart, printLabels } from '@/lib/labels'
 import type { Flash } from '@/types'
 import { LookupResult } from '@/components/supplier-lookup'
+import { AiEntry, type AiEntryResult } from '@/components/part-form/ai-entry'
 import {
   Dialog,
   DialogContent,
@@ -54,6 +55,8 @@ interface AddPartDialogProps {
   tags: Tag[]
   storageLocations: StorageLocationOption[]
   supplierLookupEnabled?: boolean
+  // AI-assisted entry from photos / datasheets (the org saved a Claude key).
+  aiEntryEnabled?: boolean
   // Manual IPN mode: the operator types the reference instead of it being
   // generated on save, so the field is shown and editable.
   ipnManualEntry?: boolean
@@ -75,6 +78,7 @@ export function AddPartDialog({
   tags,
   storageLocations,
   supplierLookupEnabled = false,
+  aiEntryEnabled = false,
   ipnManualEntry = false,
   bagOptions = null,
   bagBoxes = null,
@@ -96,6 +100,8 @@ export function AddPartDialog({
   // A user-picked image file overrides any supplier (hotlinked) image. Preview
   // the local file if present, otherwise the supplier image URL.
   const [imageFile, setImageFile] = useState<File | null>(null)
+  // The datasheet PDF read by AI-assisted entry, saved with the part.
+  const [datasheetFile, setDatasheetFile] = useState<File | null>(null)
   const imagePreview = useMemo(
     () => (imageFile ? URL.createObjectURL(imageFile) : attach.image_url),
     [imageFile, attach.image_url],
@@ -142,8 +148,9 @@ export function AddPartDialog({
   // before it goes over the wire.
   form.transform((payload) => ({
     ...payload,
-    datasheet_url: attach.datasheet_url,
+    datasheet_url: datasheetFile ? null : attach.datasheet_url,
     image_url: attach.image_url,
+    ...(datasheetFile ? { datasheet_file: datasheetFile } : {}),
     ...(activePrefill ? { return_to: 'scan' } : {}),
     part: {
       ...partPayload(payload.part),
@@ -162,6 +169,7 @@ export function AddPartDialog({
     setSuppliersOpen(false)
     setAttach({ datasheet_url: null, image_url: null })
     setImageFile(null)
+    setDatasheetFile(null)
     setActivePrefill(null)
   }
 
@@ -171,6 +179,38 @@ export function AddPartDialog({
     setAttach({ datasheet_url: result.datasheet_url, image_url: result.image_url })
     setDetailsOpen(true)
     suppliersController.applySupplierFromResult(result, () => setSuppliersOpen(true))
+  }
+
+  // Prefill from what Claude read: it fills what the user hasn't typed, a photo
+  // becomes the part image and a PDF its datasheet unless they already have one.
+  const applyAiResult = (result: AiEntryResult, files: File[]) => {
+    const text = (value: string | null, current: string) => current.trim() ? current : (value ?? current)
+    const part = data.part
+    setData({
+      ...data,
+      part: {
+        ...part,
+        name: text(result.name, part.name),
+        mpn: text(result.mpn, part.mpn),
+        manufacturer: text(result.manufacturer, part.manufacturer),
+        description: text(result.description, part.description),
+        value: text(result.value, part.value),
+        package_type: text(result.package_type, part.package_type),
+        tolerance: text(result.tolerance, part.tolerance),
+        voltage_rating: text(result.voltage_rating, part.voltage_rating),
+        power_rating: text(result.power_rating, part.power_rating),
+        category_id: part.category_id || (result.category_id?.toString() ?? ''),
+        footprint_id: part.footprint_id || (result.footprint_id?.toString() ?? ''),
+        rohs_compliant: part.rohs_compliant || result.rohs_compliant,
+        parameters: { ...result.parameters, ...Object.fromEntries(Object.entries(part.parameters).filter(([, value]) => value)) },
+      },
+      initial_quantity: data.initial_quantity || (result.quantity?.toString() ?? ''),
+    })
+    const photo = files.find((file) => file.type.startsWith('image/'))
+    if (photo && !imageFile && !attach.image_url) setImageFile(photo)
+    const pdf = files.find((file) => file.type === 'application/pdf')
+    if (pdf && !attach.datasheet_url) setDatasheetFile(pdf)
+    setDetailsOpen(true)
   }
 
   const handleOpenChange = (next: boolean) => {
@@ -237,6 +277,12 @@ export function AddPartDialog({
             ipnManualEntry={ipnManualEntry}
             bagOptions={bagOptions}
             bagBoxes={bagBoxes}
+            aiEntry={aiEntryEnabled ? (
+              <AiEntry
+                onApply={applyAiResult}
+                attached={{ datasheet: !!datasheetFile, image: !!imageFile && imageFile.type.startsWith('image/') }}
+              />
+            ) : null}
             supplierLookupEnabled={supplierLookupEnabled}
             autoLookup={activePrefill?.mpn ?? null}
             onApplyLookup={applyResult}

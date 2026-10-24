@@ -13,9 +13,8 @@ class PartConsumptionTest < ActiveSupport::TestCase
     use(10, days_ago: 100) # before the 90-day window
     use(4, days_ago: 30)
     use(6, days_ago: 2, reason: "Build PRJ-1")
-    use(3, days_ago: 5, reason: "Moved to Drawer")
-    use(3, days_ago: 5, reason: "Bulk move to Drawer")
-    use(3, days_ago: 5, reason: "Merged duplicate: moved from bag A to B")
+    use(3, days_ago: 5, reason: "Moved to Drawer", transfer: true)
+    use(3, days_ago: 5, reason: "Took them to the other room (via Claude)", transfer: true)
     loan = @org.loans.new(borrower_name: "Bob")
     loan.loan_lines.build(part: @part, storage_location: @shelf, quantity: 2)
     loan.lend!(user: create_user)
@@ -27,6 +26,13 @@ class PartConsumptionTest < ActiveSupport::TestCase
     assert_equal 2, entry.movements
     assert_equal 90, entry.days
     assert_equal 2.days.ago.to_i, entry.last_used_at.to_i
+  end
+
+  test "a stock-out counts whatever its reason says, unless it's marked as a transfer" do
+    stock(100, days_ago: 20)
+    use(4, days_ago: 3, reason: "Moved to the client's board")
+
+    assert_equal 4, PartConsumption.new(@org).for_part(@part).consumed
   end
 
   test "suggests the threshold that holds the cover days of use, rated over the part's history" do
@@ -110,9 +116,9 @@ class PartConsumptionTest < ActiveSupport::TestCase
                           quantity_delta: quantity, created_at: days_ago.days.ago)
   end
 
-  def use(quantity, days_ago: nil, at: nil, reason: nil, reference: nil)
+  def use(quantity, days_ago: nil, at: nil, reason: nil, reference: nil, transfer: false)
     StockMovement.create!(organization: @org, part: @part, storage_location: @shelf, movement_type: "out",
-                          quantity_delta: -quantity, reason: reason, reference: reference,
+                          quantity_delta: -quantity, reason: reason, reference: reference, transfer: transfer,
                           created_at: at || days_ago.days.ago)
   end
 end

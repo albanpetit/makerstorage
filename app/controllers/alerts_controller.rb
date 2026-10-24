@@ -149,7 +149,8 @@ class AlertsController < ApplicationController
       supplier_name: order.supplier.name,
       ordered_at: order.ordered_at&.iso8601,
       status: order.status,
-      total_amount: (order.total_amount || order.computed_total).to_f,
+      # From the preloaded lines: Order#computed_total would query each order.
+      total_amount: (order.total_amount || order.order_lines.sum { |line| line.quantity * line.unit_price.to_d }).to_f,
       line_count: order.order_lines.size
     }
   end

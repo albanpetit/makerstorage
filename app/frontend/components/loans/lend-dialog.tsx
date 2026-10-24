@@ -25,7 +25,8 @@ interface LendDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   members: MemberOption[]
-  parts: LendablePart[]
+  /** Undefined while the page is still loading them. */
+  parts?: LendablePart[]
   defaultDueOn: string
   initialPartId?: number | null
 }
@@ -40,7 +41,8 @@ interface LineDraft {
 // Who borrows and what: a member (picked) or anyone else (typed), a due date,
 // and one line per part taken from one zone. Remount (via `key`) to start
 // from a blank form.
-export function LendDialog({ open, onOpenChange, members, parts, defaultDueOn, initialPartId }: LendDialogProps) {
+export function LendDialog({ open, onOpenChange, members, parts: loadedParts, defaultDueOn, initialPartId }: LendDialogProps) {
+  const parts = useMemo(() => loadedParts ?? [], [loadedParts])
   const partsById = useMemo(() => new Map(parts.map((p) => [p.id, p])), [parts])
   const firstLine = (partId?: number | null): LineDraft => {
     const part = partId ? partsById.get(partId) : undefined
@@ -171,7 +173,9 @@ export function LendDialog({ open, onOpenChange, members, parts, defaultDueOn, i
 
             <div className="space-y-2">
               <Label>{t('Items')}</Label>
-              {parts.length === 0 ? (
+              {!loadedParts ? (
+                <p className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">{t('Loading…')}</p>
+              ) : parts.length === 0 ? (
                 <p className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">
                   {t('Nothing is in stock to lend.')}
                 </p>

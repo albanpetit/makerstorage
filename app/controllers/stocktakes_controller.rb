@@ -176,7 +176,8 @@ class StocktakesController < ApplicationController
 
     if ActiveModel::Type::Boolean.new.cast(params[:increment])
       @stocktake.count!(line, Quantity.sum(line.counted_quantity, 1), user: current_user)
-      notice = "#{part.reference}: #{Quantity.format(line.counted_quantity, part.unit)} counted."
+      notice = t("flash.stocktakes.counted", reference: part.reference, count: line.counted_quantity,
+                                             quantity: Quantity.format(line.counted_quantity, part.unit))
     end
     redirect_to stocktake_path(@stocktake, zone: zone&.id, line: line.id), notice: notice
   end

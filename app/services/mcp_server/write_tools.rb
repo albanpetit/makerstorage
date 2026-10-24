@@ -194,8 +194,8 @@ class McpServer
       given = string_argument(arguments, "reason")
       movements = ActiveRecord::Base.transaction do
         [
-          write_movement(part, source, "out", -quantity, reason_text(given || "Moved to #{destination.name}")),
-          write_movement(part, destination, "in", quantity, reason_text(given || "Moved from #{source.name}"))
+          write_movement(part, source, "out", -quantity, reason_text(given || "Moved to #{destination.name}"), transfer: true),
+          write_movement(part, destination, "in", quantity, reason_text(given || "Moved from #{source.name}"), transfer: true)
         ]
       end
 
@@ -304,10 +304,10 @@ class McpServer
 
     # One ledger movement, signed by the user; refused movements (overdraw, a
     # bag held by another part…) come back as a tool error the model can read.
-    def write_movement(part, location, type, delta, reason)
+    def write_movement(part, location, type, delta, reason, transfer: false)
       organization.stock_movements.create!(
         part: part, storage_location: location, user: user,
-        movement_type: type, quantity_delta: delta, reason: reason
+        movement_type: type, quantity_delta: delta, reason: reason, transfer: transfer
       )
     rescue ActiveRecord::RecordInvalid => e
       raise ToolError, e.record.errors.full_messages.to_sentence

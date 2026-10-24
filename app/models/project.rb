@@ -9,6 +9,12 @@ class Project < ApplicationRecord
   belongs_to :organization
   has_many :project_lines, dependent: :destroy
   has_many :project_builds, dependent: :destroy
+  # Lines of other projects using this one as a sub-assembly (ProjectStructure).
+  # Deleting the project turns them into free-text lines (see #unlink_assembly_lines).
+  has_many :used_in_lines, class_name: "ProjectLine", foreign_key: :subproject_id, inverse_of: :subproject, dependent: nil
+  # The inventory part a built kit becomes (optional): building credits it, and a
+  # parent project takes it from stock instead of this project's parts.
+  belongs_to :output_part, class_name: "Part", optional: true
   accepts_nested_attributes_for :project_lines
   # The project's design files: KiCad files or a ZIP of the project folder.
   has_many_attached :kicad_files
@@ -32,11 +38,14 @@ class Project < ApplicationRecord
   validates :reference, uniqueness: { scope: :organization_id }, allow_blank: true
   validates_attachment :kicad_files, content_types: [ KICAD_FILE_TYPE, ZIP_TYPE ], max_size: MAX_KICAD_FILE_SIZE
   validate :kicad_files_count_within_limit
+  validate :output_part_must_belong_to_same_organization
   validates :description, length: { maximum: 255 }
   validates :revision, length: { maximum: 20 }
   validates :github_repository, format: { with: GithubClient::REPOSITORY_FORMAT, message: "must look like owner/name" }, allow_blank: true
   validates :github_ref, length: { maximum: 255 }, format: { without: /\s|\.\./, message: "isn't a valid branch, tag or commit" }, allow_blank: true
   validates :github_path, length: { maximum: 255 }, format: { without: %r{(\A|/)\.\.(/|\z)}, message: "can't go up a folder" }, allow_blank: true
+
+  before_destroy :unlink_assembly_lines
 
   normalizes :github_repository, with: ->(value) { value.strip.delete_suffix(".git").presence }
   normalizes :github_ref, with: ->(value) { value.strip.presence }
@@ -52,19 +61,42 @@ class Project < ApplicationRecord
   # project out; if that project is itself reserving, only the projects that
   # reserved before it count (first come, first served), so two projects never
   # both count each other's claim and over-order the same stock.
-  def self.reserved_quantities(organization, part_ids: nil, except: nil)
+  #
+  # A project's claim covers its sub-assemblies: their parts when they're
+  # phantom, their built item when they're stocked (see ProjectStructure).
+  # Pass a shared +structure+ when checking many projects in one request: the
+  # reserving projects and their trees are then read once.
+  def self.reserved_quantities(organization, part_ids: nil, except: nil, structure: ProjectStructure.new(organization))
     return {} unless organization.stock_reservations_enabled
 
-    lines = ProjectLine.joins(:project).merge(organization.projects.reserving).where.not(part_id: nil)
-    lines = lines.where(part_id: part_ids) unless part_ids.nil?
+    projects = structure.reserving_projects
     if except
-      lines = lines.where.not(project_id: except.id)
+      projects = projects.reject { |id, _| id == except.id }
       if except.reserving?
-        lines = lines.where("projects.reserved_at < :at OR (projects.reserved_at = :at AND projects.id < :id)",
-                            at: except.reserved_at, id: except.id)
+        projects = projects.select do |id, reserved_at|
+          reserved_at < except.reserved_at || (reserved_at == except.reserved_at && id < except.id)
+        end
       end
     end
-    lines.group(:part_id).sum(:quantity).transform_values { |quantity| Quantity.normalize(quantity) }
+
+    wanted = part_ids&.to_set
+    projects.map(&:first).each_with_object(Hash.new(0)) do |project_id, totals|
+      structure.part_quantities(project_id).each do |part_id, quantity|
+        totals[part_id] += quantity if wanted.nil? || wanted.include?(part_id)
+      end
+    end.transform_values { |quantity| Quantity.normalize(quantity) }
+  end
+
+  # The reserving projects holding +part+ (directly or through their
+  # sub-assemblies), first come first served: [[project, quantity], ...].
+  # Empty when the organization has reservations turned off.
+  def self.reservations_of(organization, part)
+    return [] unless organization.stock_reservations_enabled
+
+    structure = ProjectStructure.new(organization)
+    quantities = structure.reserving_projects.to_h { |id, _| [ id, structure.part_quantities(id)[part.id] ] }.compact
+    projects = organization.projects.where(id: quantities.keys).index_by(&:id)
+    quantities.map { |id, quantity| [ projects[id], quantity ] }
   end
 
   # The content type a KiCad file or project ZIP is stored under, from its
@@ -111,9 +143,10 @@ class Project < ApplicationRecord
   def duplicate_as_revision(revision: next_revision)
     copy = organization.projects.new(name: name, description: description, revision: revision, status: "draft",
                                      **attributes.slice(*%w[github_repository github_ref github_path github_synced_sha github_synced_at]))
+    copy.output_part_id = output_part_id
     project_lines.each do |line|
       copy.project_lines.build(
-        line.attributes.slice(*%w[part_id match_type raw_reference designation value footprint designators quantity])
+        line.attributes.slice(*%w[part_id subproject_id match_type raw_reference designation value footprint designators quantity])
       )
     end
     # The revision starts from the same design files: the blobs are shared, not copied.
@@ -178,10 +211,11 @@ class Project < ApplicationRecord
     update!(reserved_at: nil) if reserved_at.present?
   end
 
-  # What other projects' reservations hold on this project's parts, by part id.
+  # What other projects' reservations hold on this project's parts (its
+  # sub-assemblies' included), by part id.
   def reserved_elsewhere
     @reserved_elsewhere ||= Project.reserved_quantities(
-      organization, part_ids: project_lines.filter_map(&:part_id).uniq, except: self
+      organization, part_ids: required_by_part.keys.map(&:id), except: self, structure: structure
     )
   end
 
@@ -194,7 +228,51 @@ class Project < ApplicationRecord
 
   def reload(*)
     @reserved_elsewhere = nil
+    @structure = nil
+    @assembly_requirements = nil
     super
+  end
+
+  # Methods - Sub-assemblies
+  #
+  # A line can use another project as a sub-assembly (ProjectLine#subproject):
+  # the parts it brings are counted in every availability decision below.
+
+  # The organization's project tree reader; the projects list shares one.
+  attr_writer :structure
+
+  def structure
+    @structure ||= ProjectStructure.new(organization)
+  end
+
+  # Lines that use another project.
+  def subassembly_lines
+    project_lines.select(&:assembly?)
+  end
+
+  # Sub-assembly lines that can't be built into this project yet: a phantom
+  # sub-assembly that is empty, has unmatched lines, or goes too deep.
+  def incomplete_assembly_lines
+    subassembly_lines.reject { |line| structure.complete_assembly?(line.subproject_id) }
+  end
+
+  # Parts the sub-assembly lines bring, for one kit, with the line that brings
+  # each: { part => { quantity:, line_ids: [...] } }. Parts are loaded with
+  # their stock and suppliers.
+  def assembly_requirements
+    @assembly_requirements ||= begin
+      totals = {}
+      subassembly_lines.each do |line|
+        structure.assembly_quantities(line.subproject_id).each do |part_id, quantity|
+          entry = totals[part_id] ||= { quantity: 0, line_ids: [] }
+          entry[:quantity] = Quantity.sum(entry[:quantity], quantity * line.quantity)
+          entry[:line_ids] << line.id
+        end
+      end
+      known = project_lines.filter_map(&:part).index_by(&:id)
+      known.reverse_merge!(structure.parts(totals.keys - known.keys))
+      totals.filter_map { |part_id, entry| [ known[part_id], entry ] if known[part_id] }.to_h
+    end
   end
 
   # Methods - Availability
@@ -203,10 +281,12 @@ class Project < ApplicationRecord
   # part against the summed requirement — checking each line alone would count
   # the same stock once per line.
 
-  # Required quantity per matched part, summed across the lines that use it,
-  # for +kits+ copies of the project.
+  # Required quantity per matched part, summed across the lines that use it
+  # and the sub-assemblies that bring it, for +kits+ copies of the project.
   def required_by_part(kits: 1)
-    project_lines.select(&:part).group_by(&:part).transform_values { |lines| Quantity.normalize(Quantity.sum(lines.map(&:quantity)) * kits) }
+    totals = project_lines.select(&:part).group_by(&:part).transform_values { |lines| Quantity.sum(lines.map(&:quantity)) * kits }
+    assembly_requirements.each { |part, entry| totals[part] = Quantity.sum(totals[part], entry[:quantity] * kits) }
+    totals.transform_values { |quantity| Quantity.normalize(quantity) }
   end
 
   # Parts whose available stock (see #available_for) can't cover their summed
@@ -219,21 +299,24 @@ class Project < ApplicationRecord
     end.to_h
   end
 
-  # Every line is matched and every part's stock covers its summed requirement
-  # for +kits+ copies. An empty project isn't buildable — there is nothing to build.
+  # Every line is matched (sub-assemblies complete) and every part's stock
+  # covers its summed requirement for +kits+ copies. An empty project isn't
+  # buildable — there is nothing to build.
   def buildable?(kits: 1)
-    project_lines.any? && unmatched_lines.empty? && shortfall_by_part(kits: kits).empty?
+    project_lines.any? && unmatched_lines.empty? && incomplete_assembly_lines.empty? && shortfall_by_part(kits: kits).empty?
   end
 
-  # Lines whose part is short of the project's summed requirement.
+  # Lines whose part is short of the project's summed requirement, and
+  # sub-assembly lines bringing a short part.
   def short_lines
     short_parts = shortfall_by_part.keys
-    project_lines.select { |line| line.part.in?(short_parts) }
+    from_assemblies = short_parts.flat_map { |part| assembly_requirements.dig(part, :line_ids) || [] }.to_set
+    project_lines.select { |line| line.part.in?(short_parts) || from_assemblies.include?(line.id) }
   end
 
-  # Lines that couldn't be matched to any inventory part.
+  # Lines that couldn't be matched to any inventory part or project.
   def unmatched_lines
-    project_lines.select { |line| line.part.nil? }
+    project_lines.select { |line| line.part.nil? && !line.assembly? }
   end
 
   # Methods - BOM import
@@ -274,6 +357,18 @@ class Project < ApplicationRecord
   end
 
   private
+
+  def output_part_must_belong_to_same_organization
+    if output_part.present? && output_part.organization_id != organization_id
+      errors.add(:output_part, :same_organization)
+    end
+  end
+
+  # Other projects' lines using this one keep their name and quantity as a
+  # free-text line, so their BOM still shows something is missing.
+  def unlink_assembly_lines
+    used_in_lines.update_all(subproject_id: nil, match_type: "none", updated_at: Time.current)
+  end
 
   def kicad_files_count_within_limit
     if kicad_files.size > MAX_KICAD_FILES

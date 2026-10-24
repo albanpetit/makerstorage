@@ -40,7 +40,7 @@ module OrganizationBackup
     default_low_stock_threshold allow_negative_stock stock_reservations_enabled
     notify_low_stock notify_late_orders notify_overdue_loans notification_frequency default_loan_days
     consumption_window_days threshold_cover_days
-    lcsc_enabled
+    lcsc_enabled ai_model
   ].freeze
 
   Table = Data.define(:name, :model, :scope, :references, :excluded, :enums) do
@@ -86,6 +86,8 @@ module OrganizationBackup
     table("part_duplicate_dismissals", PartDuplicateDismissal,
           ->(org) { PartDuplicateDismissal.where(part_id: org.parts.select(:id)) },
           references: { "part_id" => "parts", "other_part_id" => "parts" }),
+    table("part_alternatives", PartAlternative, ->(org) { PartAlternative.where(part_id: org.parts.select(:id)) },
+          references: { "part_id" => "parts", "alternative_part_id" => "parts" }),
     table("part_storages", PartStorage, ->(org) { PartStorage.where(part_id: org.parts.select(:id)) },
           references: { "part_id" => "parts", "storage_location_id" => "storage_locations" }),
     table("orders", Order, ->(org) { org.orders }, references: { "supplier_id" => "suppliers" }, enums: { "status" => Order::STATUSES }),
@@ -94,9 +96,10 @@ module OrganizationBackup
     table("order_line_allocations", OrderLineAllocation,
           ->(org) { OrderLineAllocation.where(order_line_id: OrderLine.where(order_id: org.orders.select(:id)).select(:id)) },
           references: { "order_line_id" => "order_lines", "storage_location_id" => "storage_locations" }),
-    table("projects", Project, ->(org) { org.projects }, enums: { "status" => Project::STATUSES }),
+    table("projects", Project, ->(org) { org.projects }, references: { "output_part_id" => "parts" }, enums: { "status" => Project::STATUSES }),
     table("project_lines", ProjectLine, ->(org) { ProjectLine.where(project_id: org.projects.select(:id)) },
-          references: { "project_id" => "projects", "part_id" => "parts" }, enums: { "match_type" => ProjectLine::MATCH_TYPES }),
+          references: { "project_id" => "projects", "part_id" => "parts", "subproject_id" => "projects" },
+          enums: { "match_type" => ProjectLine::MATCH_TYPES }),
     table("project_builds", ProjectBuild, ->(org) { ProjectBuild.where(project_id: org.projects.select(:id)) },
           references: { "project_id" => "projects" }, excluded: %w[user_id]),
     # A movement can point at the project build that wrote it, and a stocktake

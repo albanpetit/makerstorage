@@ -11,3 +11,13 @@ export interface PriceBreak {
   quantity: number
   unit_price: number
 }
+
+// An amount in the organization's currency (falls back to "12.34 XYZ" for a
+// code Intl doesn't know).
+export function formatMoney(value: number, currency: string) {
+  try {
+    return new Intl.NumberFormat(intlLocale(), { style: 'currency', currency, maximumFractionDigits: 2 }).format(value)
+  } catch {
+    return `${value.toFixed(2)} ${currency}`
+  }
+}
