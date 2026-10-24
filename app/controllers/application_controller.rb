@@ -107,6 +107,7 @@ class ApplicationController < ActionController::Base
     {
       id: org.id,
       name: org.name,
+      demo: org.demo,
       logo_url: org.logo.attached? ? stored_file_path_for(org.logo) : nil
     }
   end

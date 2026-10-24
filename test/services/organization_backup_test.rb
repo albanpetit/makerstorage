@@ -84,6 +84,7 @@ class OrganizationBackupTest < ActiveSupport::TestCase
     assert_not org.notify_late_orders
     assert_equal "weekly", org.notification_frequency
     assert_nil org.notifications_sent_on, "the digest bookkeeping starts afresh"
+    assert org.onboarding_dismissed_at, "a restored organization skips the first steps"
 
     resistors = org.categories.find_by!(name: "Resistors")
     assert_equal "Passives", resistors.parent.name

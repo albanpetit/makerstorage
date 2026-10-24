@@ -28,6 +28,7 @@ import {
   Plus,
   Sun,
   Moon,
+  FlaskConical,
 } from 'lucide-react'
 
 import {
@@ -123,6 +124,7 @@ function initials(name: string) {
 interface Organization {
   id: number
   name: string
+  demo?: boolean
   logo_url?: string | null
 }
 
@@ -269,6 +271,14 @@ export function AppSidebar() {
                   </div>
                   <span className="text-muted-foreground">{t('Create organization')}</span>
                 </DropdownMenuItem>
+                {!organizations.some((org) => org.demo) && (
+                  <DropdownMenuItem onClick={() => router.post('/onboarding/demo')} className="gap-2 p-2 cursor-pointer">
+                    <div className="flex size-6 items-center justify-center rounded-md border bg-background">
+                      <FlaskConical className="size-4" />
+                    </div>
+                    <span className="text-muted-foreground">{t('Explore a demo organization')}</span>
+                  </DropdownMenuItem>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           </SidebarMenuItem>
