@@ -9,17 +9,24 @@ class PartAlternativesController < ApplicationController
   before_action :verify_organization_writer, except: :index
   before_action :set_part
 
-  # The parts the "Link an alternative" picker offers (JSON): every other part
-  # not linked yet, obsolete ones left out.
+  # Most parts one picker search returns.
+  PICKER_LIMIT = 20
+
+  # The parts the "Link an alternative" picker offers (JSON), searched on the
+  # server (Part.search, plus the IPN) so the organization's whole inventory
+  # never goes to the browser: other parts not linked yet, obsolete ones left
+  # out, the first PICKER_LIMIT by name.
   def index
     linked = @part.alternative_links.pluck(:part_id, :alternative_part_id).flatten
     parts = current_organization.parts.alphabetical
       .where.not(id: [ @part.id, *linked ])
       .where.not(status: "obsolete")
-      .pluck(:id, :name, :mpn, :sku, :ipn, :value)
+    if (query = params[:q].to_s.strip).present?
+      parts = parts.search(query).or(parts.where("parts.ipn LIKE ? ESCAPE '\\'", "%#{Part.sanitize_sql_like(query)}%"))
+    end
 
     render json: {
-      parts: parts.map do |id, name, mpn, sku, ipn, value|
+      parts: parts.limit(PICKER_LIMIT).pluck(:id, :name, :mpn, :sku, :ipn, :value).map do |id, name, mpn, sku, ipn, value|
         { id: id, name: name, mpn: mpn, sku: sku, ipn: ipn, value: value }
       end
     }

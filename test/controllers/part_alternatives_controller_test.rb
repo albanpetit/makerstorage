@@ -44,6 +44,24 @@ class PartAlternativesControllerTest < ActionDispatch::IntegrationTest
     assert_equal [ "LM555" ], response.parsed_body["parts"].map { |p| p["name"] }
   end
 
+  test "the picker searches on the server and returns a limited page" do
+    create_part(organization: @org, category: @category, name: "NE556 dual timer", ipn: "IPN-556")
+    (PartAlternativesController::PICKER_LIMIT + 2).times { |i| create_part(organization: @org, category: @category, name: "Resistor #{i}") }
+    sign_in @user
+
+    get part_alternatives_path(@part, q: "lm555cn"), headers: { "Accept" => "application/json" }
+    assert_equal [ "LM555" ], response.parsed_body["parts"].map { |p| p["name"] }
+
+    get part_alternatives_path(@part, q: "ipn-556"), headers: { "Accept" => "application/json" }
+    assert_equal [ "NE556 dual timer" ], response.parsed_body["parts"].map { |p| p["name"] }
+
+    get part_alternatives_path(@part, q: "%"), headers: { "Accept" => "application/json" }
+    assert_empty response.parsed_body["parts"], "LIKE wildcards match literally"
+
+    get part_alternatives_path(@part), headers: { "Accept" => "application/json" }
+    assert_equal PartAlternativesController::PICKER_LIMIT, response.parsed_body["parts"].size
+  end
+
   test "the sheet suggests equivalents from the parameters" do
     resistance = @org.parameter_definitions.create!(name: "Resistance", unit: "Ω")
     r1 = create_part(organization: @org, category: @category, name: "10k a")

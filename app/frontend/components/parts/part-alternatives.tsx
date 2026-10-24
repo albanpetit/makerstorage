@@ -230,30 +230,41 @@ function LinkAlternativeDialog({ partId, open, busy, onOpenChange, onLink }: {
   onLink: (id: number, note: string) => void
 }) {
   const [parts, setParts] = useState<PickablePart[] | null>(null)
-  const [choice, setChoice] = useState('')
+  const [picked, setPicked] = useState<PickablePart | null>(null)
+  const [query, setQuery] = useState('')
   const [note, setNote] = useState('')
 
-  // The pick-list is only fetched when the dialog opens.
+  // Parts are searched on the server (the first 20 matches), a moment after
+  // typing stops; the first page loads when the dialog opens.
   useEffect(() => {
     if (!open) return
     let cancelled = false
-    fetch(`/parts/${partId}/alternatives`, { headers: { Accept: 'application/json' } })
-      .then((res) => (res.ok ? res.json() : { parts: [] }))
-      .then((body: { parts: PickablePart[] }) => { if (!cancelled) setParts(body.parts) })
-      .catch(() => { if (!cancelled) setParts([]) })
-    return () => { cancelled = true }
-  }, [open, partId])
+    const timer = setTimeout(() => {
+      fetch(`/parts/${partId}/alternatives?q=${encodeURIComponent(query.trim())}`, { headers: { Accept: 'application/json' } })
+        .then((res) => (res.ok ? res.json() : { parts: [] }))
+        .then((body: { parts: PickablePart[] }) => { if (!cancelled) setParts(body.parts) })
+        .catch(() => { if (!cancelled) setParts([]) })
+    }, query ? 250 : 0)
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
+  }, [open, partId, query])
 
-  const options = useMemo<ComboboxOption[]>(
-    () => (parts ?? []).map((part) => ({
+  const choice = picked ? String(picked.id) : ''
+
+  // The picked part stays an option while other searches come back.
+  const options = useMemo<ComboboxOption[]>(() => {
+    const list = [...(parts ?? [])]
+    if (picked && !list.some((part) => part.id === picked.id)) list.unshift(picked)
+    return list.map((part) => ({
       value: String(part.id),
       label: part.name,
       description: [part.mpn, part.value].filter(Boolean).join(' · ') || undefined,
       keywords: [part.sku, part.ipn].filter((k): k is string => Boolean(k)),
       hint: part.ipn ?? undefined,
-    })),
-    [parts]
-  )
+    }))
+  }, [parts, picked])
 
   const submit = (e: FormEvent) => {
     e.preventDefault()
@@ -275,7 +286,8 @@ function LinkAlternativeDialog({ partId, open, busy, onOpenChange, onLink }: {
                 id="alternative-part"
                 options={options}
                 value={choice}
-                onValueChange={setChoice}
+                onValueChange={(value) => setPicked([...(parts ?? []), ...(picked ? [picked] : [])].find((part) => String(part.id) === value) ?? null)}
+                onQueryChange={setQuery}
                 placeholder={parts === null ? t('Loading…') : t('Pick a part')}
                 searchPlaceholder={t('Search parts…')}
                 disabled={parts === null}
