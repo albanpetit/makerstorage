@@ -53,8 +53,12 @@ env:
     # Public host for the app — used by the Kamal proxy above and reused by
     # Action Mailer to build absolute links (e.g. password-reset URLs).
     APP_HOST: <%= ENV["APP_HOST"] || "localhost" %>
-    # Visitors reach the app over HTTPS (Cloudflare Tunnel), so email links must
-    # too, even though FORCE_SSL is off here.
+    # Visitors only reach the app over HTTPS (Cloudflare Tunnel terminates TLS
+    # and forwards plain HTTP). FORCE_SSL makes Rails trust that (assume_ssl),
+    # send Strict-Transport-Security and mark the session cookie Secure; /up
+    # stays reachable over HTTP for the Kamal health check.
+    FORCE_SSL: true
+    # Email links use HTTPS too.
     APP_PROTOCOL: https
 
     # Outgoing mail. Values are pulled from the deployer's environment so no
