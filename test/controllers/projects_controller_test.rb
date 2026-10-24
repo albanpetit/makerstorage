@@ -253,7 +253,7 @@ class ProjectsControllerTest < ActionDispatch::IntegrationTest
     assert_match(/quantity/i, flash[:alert])
   end
 
-  test "show serializes availability and a part pick-list" do
+  test "show serializes availability and sends the part pick-list after rendering" do
     project = build_project(
       [ @resistor, 10, "mpn" ],
       [ @cap, 4, "sku" ]
@@ -270,8 +270,16 @@ class ProjectsControllerTest < ActionDispatch::IntegrationTest
     assert_equal false, resistor_line["available"]
     assert_equal false, inertia_props["project"]["buildable"]
 
-    part_ids = inertia_props["parts"].map { |p| p["id"] }
+    page = JSON.parse(@response.body[/data-page="app" type="application\/json"[^>]*>(.*?)<\/script>/m, 1])
+    assert_not page["props"].key?("parts")
+    assert_includes page["deferredProps"].values.flatten, "parts"
+
+    foreign = create_part(organization: create_organization, name: "Foreign part")
+    get project_path(project), headers: { "X-Inertia" => "true", "X-Inertia-Version" => page["version"].to_s,
+                                          "X-Inertia-Partial-Component" => "projects/show", "X-Inertia-Partial-Data" => "parts" }
+    part_ids = JSON.parse(@response.body)["props"]["parts"].map { |p| p["id"] }
     assert_includes part_ids, @resistor.id
+    assert_not_includes part_ids, foreign.id
   end
 
   test "does not expose another organization's project" do

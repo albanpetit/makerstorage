@@ -217,7 +217,8 @@ interface PartOption {
 
 interface ProjectShowProps {
   project: Project
-  parts: PartOption[]
+  // Deferred: arrives just after the page has rendered.
+  parts?: PartOption[]
   subproject_options: SubprojectOption[]
   storage_locations: StorageLocationOption[]
   cost: ProjectCostData
@@ -305,7 +306,7 @@ export default function ProjectShow({ project, parts, subproject_options, storag
   const partOptions = useMemo<ComboboxOption[]>(
     () => [
       { value: NONE, label: t('Not in inventory') },
-      ...parts.map((p) => ({ value: String(p.id), label: `${p.reference} — ${p.name}` })),
+      ...(parts ?? []).map((p) => ({ value: String(p.id), label: `${p.reference} — ${p.name}` })),
     ],
     [parts]
   )

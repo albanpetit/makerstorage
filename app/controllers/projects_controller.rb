@@ -39,9 +39,12 @@ class ProjectsController < ApplicationController
       # Cost for 1, 10, 100 copies plus the quantity typed on the page
       # (?cost_quantity=N, partial reload of this prop only).
       cost: -> { serialize_cost(@project, ProjectCost.quantities(params[:cost_quantity])) },
-      # Lightweight pick-list for the review UI's re-match combobox.
-      parts: current_organization.parts.alphabetical.map do |part|
-        { id: part.id, reference: part.reference, name: part.name, mpn: part.mpn, sku: part.sku }
+      # Lightweight pick-list for the review UI's re-match combobox, sent once
+      # the page has rendered (the whole inventory weighs on large orgs).
+      parts: InertiaRails.defer do
+        current_organization.parts.alphabetical.map do |part|
+          { id: part.id, reference: part.reference, name: part.name, mpn: part.mpn, sku: part.sku }
+        end
       end,
       # Projects this one can use as a sub-assembly: not itself, nor one that uses it.
       subproject_options: serialize_subproject_options(@project),
