@@ -111,6 +111,8 @@ export default function SettingsIndex({
       remove_digikey: false,
       github_token: '',
       remove_github_token: false,
+      anthropic_api_key: '',
+      remove_anthropic_api_key: false,
     },
   })
 

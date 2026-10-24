@@ -732,6 +732,31 @@ class ProjectsControllerTest < ActionDispatch::IntegrationTest
 
   private
 
+  test "a short line lists linked alternatives with stock this project can use, and switches to one" do
+    project = create_project(organization: @org, name: "Timer")
+    line = ProjectLine.create!(project: project, part: @resistor, quantity: 8, match_type: "mpn")
+    spare = create_part(organization: @org, category: @category, name: "Resistor 10k other maker", mpn: "ERJ-6GEYJ103V")
+    empty = create_part(organization: @org, category: @category, name: "Resistor 10k none left")
+    stock(spare, 20)
+    PartAlternative.link!(@resistor, spare)
+    PartAlternative.link!(empty, @resistor)
+    # Another project reserved 10 of the spare before this one.
+    other = create_project(organization: @org, name: "Earlier", status: "confirmed", reserved_at: 1.day.ago)
+    ProjectLine.create!(project: other, part: spare, quantity: 10, match_type: "mpn")
+    sign_in @user
+
+    get project_path(project)
+
+    entry = inertia_props["project"]["lines"].sole
+    assert_equal [ { "id" => spare.id, "reference" => "ERJ-6GEYJ103V", "name" => spare.name, "available" => 10 } ], entry["alternatives"]
+
+    patch project_project_line_path(project, line), params: { project_line: { part_id: spare.id } }
+    assert_equal [ spare, "manual" ], [ line.reload.part, line.match_type ]
+
+    get project_path(project)
+    assert_empty inertia_props["project"]["lines"].sole["alternatives"], "lines that aren't short list none"
+  end
+
   def stock(part, quantity)
     StockMovement.create!(organization: @org, part: part, storage_location: @location,
       movement_type: "in", quantity_delta: quantity)

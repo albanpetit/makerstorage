@@ -41,7 +41,9 @@ class LoansController < ApplicationController
         returned: scope.closed.count
       },
       members: serialize_members,
-      parts: serialize_lendable_parts,
+      # Every part in stock, for the Lend dialog: loaded when it opens (a
+      # partial reload), or right away when "Lend" on a part's sheet opened it.
+      parts: params[:part_id].present? ? serialize_lendable_parts : InertiaRails.optional { serialize_lendable_parts },
       default_due_on: (today + current_organization.default_loan_days).iso8601,
       # "Lend" from a part's detail opens the dialog with that part.
       prefill_part_id: params[:part_id].presence&.to_i

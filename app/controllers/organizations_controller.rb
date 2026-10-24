@@ -66,7 +66,7 @@ class OrganizationsController < ApplicationController
     return unless confirmed_by_name?(organization)
 
     count = organization.reset_data!
-    redirect_to settings_path, notice: "\"#{organization.name}\" was reset (#{count} #{'part'.pluralize(count)} removed)."
+    redirect_to settings_path, notice: t("flash.organizations.reset_done", name: organization.name, count: count)
   rescue ActiveRecord::RecordNotDestroyed, ActiveRecord::InvalidForeignKey
     redirect_back fallback_location: settings_path, alert: t("flash.organizations.could_not_reset_some_of_its", organization_name: organization.name)
   end
@@ -113,15 +113,15 @@ class OrganizationsController < ApplicationController
   end
 
   def merge_notice(source, target, result)
-    notice = "\"#{source.name}\" was merged into \"#{target.name}\": " \
-             "#{result.parts_moved} #{'part'.pluralize(result.parts_moved)} moved, " \
-             "#{result.parts_merged} merged with an existing part."
+    notice = t("flash.organizations.merged", source: source.name, target: target.name,
+               moved: t("flash.organizations.merged_moved", count: result.parts_moved),
+               merged: t("flash.organizations.merged_merged", count: result.parts_merged))
     details = []
-    details << "#{result.codes_renamed} zone #{'code'.pluralize(result.codes_renamed)} renamed" if result.codes_renamed.positive?
-    details << "#{result.ipns_reassigned} #{'IPN'.pluralize(result.ipns_reassigned)} reassigned" if result.ipns_reassigned.positive?
+    details << t("flash.organizations.merged_codes", count: result.codes_renamed) if result.codes_renamed.positive?
+    details << t("flash.organizations.merged_ipns", count: result.ipns_reassigned) if result.ipns_reassigned.positive?
     blank = result.ipns_cleared - result.ipns_reassigned
-    details << "#{blank} #{'part'.pluralize(blank)} left without an IPN (already taken)" if blank.positive?
-    details << "#{result.members_added} #{'member'.pluralize(result.members_added)} added" if result.members_added.positive?
+    details << t("flash.organizations.merged_blank", count: blank) if blank.positive?
+    details << t("flash.organizations.merged_members", count: result.members_added) if result.members_added.positive?
     details.any? ? "#{notice} #{details.join(', ').upcase_first}." : notice
   end
 

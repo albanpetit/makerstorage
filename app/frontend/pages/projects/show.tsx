@@ -21,6 +21,9 @@ import {
   GitBranch,
   ExternalLink,
   Unlink,
+  Link2,
+  Layers,
+  PackageCheck,
 } from 'lucide-react'
 
 import { AppLayout } from '@/layouts/app-layout'
@@ -36,6 +39,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Combobox, type ComboboxOption } from '@/components/ui/combobox'
 import { GithubFields, type GithubLinkData } from '@/components/projects/github-fields'
+import { StorageLocationSelect, type StorageLocationOption } from '@/components/storage-location-select'
 import { ProjectCostCard, type ProjectCostData } from '@/components/projects/project-cost-card'
 import {
   Table,
@@ -71,6 +75,20 @@ interface LinePart {
   name: string
 }
 
+// A line using another project: stocked (taken from stock as its built item)
+// or built along (its parts are deducted with the parent's).
+interface LineAssembly {
+  id: number
+  name: string
+  reference: string | null
+  revision: string | null
+  stocked: boolean
+  output_part: LinePart | null
+  complete: boolean
+  parts_count: number
+  short_parts: number
+}
+
 interface ProjectLine {
   id: number
   raw_reference: string | null
@@ -79,12 +97,53 @@ interface ProjectLine {
   footprint: string | null
   designators: string | null
   quantity: number
-  match_type: 'mpn' | 'sku' | 'supplier_sku' | 'value_footprint' | 'name' | 'manual' | 'none'
+  match_type: 'mpn' | 'sku' | 'supplier_sku' | 'value_footprint' | 'name' | 'manual' | 'assembly' | 'none'
   in_stock: number
   reserved_elsewhere: number
   shortfall: number
   available: boolean
+  // Linked alternatives (PartAlternative) with stock, on short lines only.
+  alternatives: LineAlternative[]
   part: LinePart | null
+  assembly: LineAssembly | null
+}
+
+interface AssemblyPart {
+  part: LinePart
+  quantity: number
+  line_ids: number[]
+  in_stock: number
+  reserved_elsewhere: number
+  shortfall: number
+  available: boolean
+}
+
+interface UsedIn {
+  id: number
+  name: string
+  reference: string | null
+  revision: string | null
+  quantity: number
+}
+
+interface OutputPart extends LinePart {
+  in_stock: number
+  storage_location_id: number | null
+}
+
+interface SubprojectOption {
+  id: number
+  name: string
+  reference: string | null
+  revision: string | null
+  stocked: boolean
+}
+
+interface LineAlternative {
+  id: number
+  reference: string
+  name: string
+  available: number
 }
 
 interface ProjectFile {
@@ -131,8 +190,12 @@ interface Project {
   buildable: boolean
   short_count: number
   unmatched_count: number
+  incomplete_assembly_count: number
   checked_at: string | null
   builds_count: number
+  output_part: OutputPart | null
+  used_in: UsedIn[]
+  assembly_parts: AssemblyPart[]
   last_built_at: string | null
   builds: ProjectBuild[]
   lines: ProjectLine[]
@@ -153,6 +216,8 @@ interface PartOption {
 interface ProjectShowProps {
   project: Project
   parts: PartOption[]
+  subproject_options: SubprojectOption[]
+  storage_locations: StorageLocationOption[]
   cost: ProjectCostData
 }
 
@@ -165,10 +230,20 @@ const MATCH_LABELS: Record<ProjectLine['match_type'], string> = {
   get value_footprint() { return t('by value + footprint') },
   get name() { return t('by name') },
   get manual() { return t('manual') },
+  get assembly() { return t('sub-assembly') },
   get none() { return t('no match') },
 }
 
-export default function ProjectShow({ project, parts, cost }: ProjectShowProps) {
+function projectLabel(project: { name: string; revision: string | null }) {
+  return project.revision ? `${project.name} · rev ${project.revision}` : project.name
+}
+
+// "IPN — name", or just the name when the part has no reference of its own.
+function partLabel(part: LinePart) {
+  return part.reference && part.reference !== part.name ? `${part.reference} — ${part.name}` : part.name
+}
+
+export default function ProjectShow({ project, parts, subproject_options, storage_locations, cost }: ProjectShowProps) {
   const { canWrite } = usePermissions()
   const [buildOpen, setBuildOpen] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
@@ -219,6 +294,7 @@ export default function ProjectShow({ project, parts, cost }: ProjectShowProps) 
   }
   const [kits, setKits] = useState('1')
   const [buildNote, setBuildNote] = useState('')
+  const [buildZone, setBuildZone] = useState(project.output_part?.storage_location_id ? String(project.output_part.storage_location_id) : '')
   const [editOpen, setEditOpen] = useState(false)
   const [revisionOpen, setRevisionOpen] = useState(false)
   const [lineOpen, setLineOpen] = useState(false)
@@ -232,7 +308,7 @@ export default function ProjectShow({ project, parts, cost }: ProjectShowProps) 
     [parts]
   )
 
-  const matchedCount = project.lines.filter((l) => l.part).length
+  const matchedCount = project.lines.filter((l) => l.part || l.assembly).length
 
   const updateLine = (line: ProjectLine, data: Record<string, string | number>) => {
     router.patch(`/projects/${project.id}/project_lines/${line.id}`, { project_line: data }, { preserveScroll: true })
@@ -254,7 +330,7 @@ export default function ProjectShow({ project, parts, cost }: ProjectShowProps) 
   const build = () => {
     router.post(
       `/projects/${project.id}/build`,
-      { builds_count: project.builds_count, kits: kitCount, note: buildNote.trim() },
+      { builds_count: project.builds_count, kits: kitCount, note: buildNote.trim(), storage_location_id: project.output_part ? buildZone : '' },
       { preserveScroll: true, onSuccess: () => { setKits('1'); setBuildNote('') } }
     )
     setBuildOpen(false)
@@ -359,7 +435,7 @@ export default function ProjectShow({ project, parts, cost }: ProjectShowProps) 
                   {tn(
                     '{count} line needs resolving before this project is buildable.',
                     '{count} lines need resolving before this project is buildable.',
-                    project.short_count + project.unmatched_count,
+                    project.short_count + project.unmatched_count + project.incomplete_assembly_count,
                   )}
                 </p>
               </>
@@ -494,6 +570,10 @@ export default function ProjectShow({ project, parts, cost }: ProjectShowProps) 
           </CardContent>
         </Card>
 
+        {(project.output_part || project.used_in.length > 0) && (
+          <AssemblyCard project={project} canWrite={canWrite} onEdit={() => setEditOpen(true)} />
+        )}
+
         {/* BOM lines */}
         <Card className="overflow-hidden py-0">
           <Table>
@@ -514,7 +594,7 @@ export default function ProjectShow({ project, parts, cost }: ProjectShowProps) 
               {project.lines.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={7} className="py-8 text-center text-sm text-muted-foreground">
-                    No lines yet.{canWrite && ' Add the parts this project needs.'}
+                    {t('No lines yet.')}{canWrite && ` ${t('Add the parts this project needs.')}`}
                   </TableCell>
                 </TableRow>
               )}
@@ -537,7 +617,9 @@ export default function ProjectShow({ project, parts, cost }: ProjectShowProps) 
                     )}
                   </TableCell>
                   <TableCell>
-                    {canWrite ? (
+                    {line.assembly ? (
+                      <AssemblyCell assembly={line.assembly} />
+                    ) : canWrite ? (
                       <div className="flex items-center gap-2">
                         <Combobox
                           options={partOptions}
@@ -568,14 +650,16 @@ export default function ProjectShow({ project, parts, cost }: ProjectShowProps) 
                       <span className="font-mono">{line.quantity}</span>
                     )}
                   </TableCell>
-                  <TableCell className="text-right font-mono">{line.part ? line.in_stock : '—'}</TableCell>
+                  <TableCell className="text-right font-mono">{line.part || line.assembly?.stocked ? line.in_stock : '—'}</TableCell>
                   {project.reservations_enabled && (
                     <TableCell className="text-right font-mono text-muted-foreground">
-                      {line.part && line.reserved_elsewhere > 0 ? line.reserved_elsewhere : '—'}
+                      {(line.part || line.assembly?.stocked) && line.reserved_elsewhere > 0 ? line.reserved_elsewhere : '—'}
                     </TableCell>
                   )}
                   <TableCell>
-                    {!line.part ? (
+                    {line.assembly ? (
+                      <AssemblyStatus line={line} />
+                    ) : !line.part ? (
                       <Badge variant="outline" className="bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400">
                         <XCircle className="size-3.5" /> {t('Not in inventory')}
                       </Badge>
@@ -584,9 +668,28 @@ export default function ProjectShow({ project, parts, cost }: ProjectShowProps) 
                         <CheckCircle2 className="size-3.5" /> {t('OK')}
                       </Badge>
                     ) : (
-                      <Badge variant="outline" className="bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400">
-                        <AlertTriangle className="size-3.5" /> {t('Short {count}', { count: line.shortfall })}
-                      </Badge>
+                      <div className="flex flex-col items-start gap-1">
+                        <Badge variant="outline" className="bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400">
+                          <AlertTriangle className="size-3.5" /> {t('Short {count}', { count: line.shortfall })}
+                        </Badge>
+                        {line.alternatives.map((alternative) => (
+                          <div key={alternative.id} className="flex max-w-[240px] flex-wrap items-center gap-x-1.5 text-xs text-muted-foreground">
+                            <Link2 className="size-3 shrink-0" />
+                            <span className="max-w-[200px] truncate" title={`${alternative.reference} — ${alternative.name}`}>{alternative.reference}</span>
+                            <span className="shrink-0">{tn('{count} available', '{count} available', alternative.available)}</span>
+                            {canWrite && (
+                              <Button
+                                variant="link"
+                                size="sm"
+                                className="h-auto shrink-0 p-0 text-xs"
+                                onClick={() => changePart(line, String(alternative.id))}
+                              >
+                                {t('Use')}
+                              </Button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
                     )}
                   </TableCell>
                   {canWrite && (
@@ -610,14 +713,24 @@ export default function ProjectShow({ project, parts, cost }: ProjectShowProps) 
           )}
         </Card>
 
+        {project.assembly_parts.length > 0 && (
+          <AssemblyParts parts={project.assembly_parts} lines={project.lines} reservationsEnabled={project.reservations_enabled} />
+        )}
+
         <ProjectCostCard projectId={project.id} cost={cost} />
 
         <BuildHistory builds={project.builds} />
       </div>
 
-      <EditProjectDialog project={project} open={editOpen} onOpenChange={setEditOpen} />
+      <EditProjectDialog project={project} partOptions={partOptions} open={editOpen} onOpenChange={setEditOpen} />
       <NewRevisionDialog project={project} open={revisionOpen} onOpenChange={setRevisionOpen} />
-      <AddLineDialog projectId={project.id} partOptions={partOptions} open={lineOpen} onOpenChange={setLineOpen} />
+      <AddLineDialog
+        projectId={project.id}
+        partOptions={partOptions}
+        subprojects={subproject_options}
+        open={lineOpen}
+        onOpenChange={setLineOpen}
+      />
 
       {/* Update BOM confirmation */}
       <AlertDialog open={importOpen} onOpenChange={setImportOpen}>
@@ -745,6 +858,7 @@ export default function ProjectShow({ project, parts, cost }: ProjectShowProps) 
             <AlertDialogDescription>
               {t('This deducts the required quantity of every matched part from stock, times the number of kits, recording an outgoing movement for each and an entry in the build history. This can\'t be undone automatically.')}
               {project.reserved && ` ${t('The project\'s stock reservation is released once built.')}`}
+              {project.assembly_parts.length > 0 && ` ${t('Sub-assemblies built along have their parts deducted too; stocked ones are taken from stock.')}`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="grid gap-4 sm:grid-cols-[120px_1fr]">
@@ -763,9 +877,17 @@ export default function ProjectShow({ project, parts, cost }: ProjectShowProps) 
               />
             </div>
           </div>
+          {project.output_part && (
+            <div className="space-y-2">
+              <Label htmlFor="build-zone">
+                {t('Put the {count} × {part} built in', { count: kitsValid ? kitCount : 1, part: project.output_part.name })}
+              </Label>
+              <StorageLocationSelect id="build-zone" locations={storage_locations} value={buildZone} onValueChange={setBuildZone} allowCreate />
+            </div>
+          )}
           <AlertDialogFooter>
             <AlertDialogCancel>{t('Cancel')}</AlertDialogCancel>
-            <AlertDialogAction disabled={!kitsValid} onClick={build}>
+            <AlertDialogAction disabled={!kitsValid || (project.output_part !== null && buildZone === '')} onClick={build}>
               {t('Deduct stock')}
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -783,6 +905,163 @@ function SummaryCard({ label, value, tone }: { label: string; value: string | nu
         <div className="text-sm text-muted-foreground">{label}</div>
         <div className={`mt-1 font-mono text-2xl font-bold ${toneClass}`}>{value}</div>
       </CardContent>
+    </Card>
+  )
+}
+
+function AssemblyCell({ assembly }: { assembly: LineAssembly }) {
+  return (
+    <div className="flex min-w-[220px] items-center gap-2">
+      <Layers className="size-4 shrink-0 text-muted-foreground" />
+      <div className="min-w-0">
+        <Link href={`/projects/${assembly.id}`} className="font-medium hover:underline">
+          {projectLabel(assembly)}
+        </Link>
+        <div className="text-xs text-muted-foreground">
+          {assembly.stocked && assembly.output_part
+            ? t('Stocked as {part}', { part: assembly.output_part.name })
+            : tn('Built along: {count} part', 'Built along: {count} parts', assembly.parts_count)}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function AssemblyStatus({ line }: { line: ProjectLine }) {
+  const assembly = line.assembly!
+  if (!assembly.complete) {
+    return (
+      <Badge variant="outline" className="bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400" title={t('Its BOM is empty or has lines not in inventory')}>
+        <XCircle className="size-3.5" /> {t('Incomplete')}
+      </Badge>
+    )
+  }
+  if (line.available) {
+    return (
+      <Badge variant="outline" className="bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400">
+        <CheckCircle2 className="size-3.5" /> {t('OK')}
+      </Badge>
+    )
+  }
+  return (
+    <Badge variant="outline" className="bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400">
+      <AlertTriangle className="size-3.5" />{' '}
+      {assembly.stocked ? t('Short {count}', { count: line.shortfall }) : tn('{count} part short', '{count} parts short', assembly.short_parts)}
+    </Badge>
+  )
+}
+
+// The project's built item and the projects using it as a sub-assembly.
+function AssemblyCard({ project, canWrite, onEdit }: { project: Project; canWrite: boolean; onEdit: () => void }) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{t('Sub-assembly')}</CardTitle>
+        <CardDescription>
+          {project.output_part
+            ? t('Each kit built is added to stock as this part, and projects using this one take it from there.')
+            : t('Projects using this one build it along: its parts are deducted with theirs. Set a built item to keep built kits in stock instead.')}
+        </CardDescription>
+        {canWrite && (
+          <CardAction>
+            <Button size="sm" variant="outline" onClick={onEdit}>
+              <Pencil className="size-4" />
+              {t('Edit')}
+            </Button>
+          </CardAction>
+        )}
+      </CardHeader>
+      <CardContent className="grid gap-4 text-sm sm:grid-cols-2">
+        <div className="space-y-1">
+          <div className="text-xs font-medium text-muted-foreground">{t('Built item')}</div>
+          {project.output_part ? (
+            <div className="flex items-center gap-2">
+              <PackageCheck className="size-4 text-muted-foreground" />
+              <Link href={`/parts/${project.output_part.id}`} className="hover:underline">
+                {partLabel(project.output_part)}
+              </Link>
+              <span className="font-mono text-muted-foreground">{t('{count} in stock', { count: project.output_part.in_stock })}</span>
+            </div>
+          ) : (
+            <span className="text-muted-foreground">{t('None')}</span>
+          )}
+        </div>
+        <div className="space-y-1">
+          <div className="text-xs font-medium text-muted-foreground">{t('Used in')}</div>
+          {project.used_in.length === 0 ? (
+            <span className="text-muted-foreground">{t('No project yet')}</span>
+          ) : (
+            <ul className="space-y-0.5">
+              {project.used_in.map((parent) => (
+                <li key={parent.id} className="flex items-center gap-2">
+                  <Layers className="size-4 text-muted-foreground" />
+                  <Link href={`/projects/${parent.id}`} className="hover:underline">{projectLabel(parent)}</Link>
+                  <span className="font-mono text-muted-foreground">× {parent.quantity}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+// Every part the sub-assembly lines bring for one kit, with availability.
+function AssemblyParts({ parts, lines, reservationsEnabled }: { parts: AssemblyPart[]; lines: ProjectLine[]; reservationsEnabled: boolean }) {
+  const linesById = new Map(lines.map((line) => [line.id, line]))
+
+  return (
+    <Card className="overflow-hidden py-0">
+      <div className="flex items-center gap-2 border-b px-4 py-3">
+        <Layers className="size-4 text-muted-foreground" />
+        <h2 className="text-sm font-semibold">{t('Parts from sub-assemblies')}</h2>
+        <span className="text-xs text-muted-foreground">{t('per kit, counted in the availability above')}</span>
+      </div>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>{t('Part')}</TableHead>
+            <TableHead>{t('From')}</TableHead>
+            <TableHead className="text-right">{t('Required')}</TableHead>
+            <TableHead className="text-right">{t('In stock')}</TableHead>
+            {reservationsEnabled && <TableHead className="text-right">{t('Reserved elsewhere')}</TableHead>}
+            <TableHead>{t('Status')}</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {parts.map((entry) => (
+            <TableRow key={entry.part.id}>
+              <TableCell>
+                {partLabel(entry.part)}
+              </TableCell>
+              <TableCell className="text-sm text-muted-foreground">
+                {entry.line_ids
+                  .map((id) => linesById.get(id)?.assembly)
+                  .filter((assembly): assembly is LineAssembly => !!assembly)
+                  .map((assembly) => projectLabel(assembly))
+                  .join(', ')}
+              </TableCell>
+              <TableCell className="text-right font-mono">{entry.quantity}</TableCell>
+              <TableCell className="text-right font-mono">{entry.in_stock}</TableCell>
+              {reservationsEnabled && (
+                <TableCell className="text-right font-mono text-muted-foreground">{entry.reserved_elsewhere > 0 ? entry.reserved_elsewhere : '—'}</TableCell>
+              )}
+              <TableCell>
+                {entry.available ? (
+                  <Badge variant="outline" className="bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400">
+                    <CheckCircle2 className="size-3.5" /> {t('OK')}
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400">
+                    <AlertTriangle className="size-3.5" /> {t('Short {count}', { count: entry.shortfall })}
+                  </Badge>
+                )}
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
     </Card>
   )
 }
@@ -831,8 +1110,9 @@ interface DialogProps {
   onOpenChange: (open: boolean) => void
 }
 
-function EditProjectDialog({ project, open, onOpenChange }: DialogProps & { project: Project }) {
+function EditProjectDialog({ project, partOptions, open, onOpenChange }: DialogProps & { project: Project; partOptions: ComboboxOption[] }) {
   const [name, setName] = useState(project.name)
+  const [outputPartId, setOutputPartId] = useState(project.output_part ? String(project.output_part.id) : NONE)
   const [revision, setRevision] = useState(project.revision ?? '')
   const [description, setDescription] = useState(project.description ?? '')
   const [processing, setProcessing] = useState(false)
@@ -842,6 +1122,7 @@ function EditProjectDialog({ project, open, onOpenChange }: DialogProps & { proj
       setName(project.name)
       setRevision(project.revision ?? '')
       setDescription(project.description ?? '')
+      setOutputPartId(project.output_part ? String(project.output_part.id) : NONE)
     }
     onOpenChange(next)
   }
@@ -851,7 +1132,14 @@ function EditProjectDialog({ project, open, onOpenChange }: DialogProps & { proj
     setProcessing(true)
     router.patch(
       `/projects/${project.id}`,
-      { project: { name: name.trim(), revision: revision.trim(), description: description.trim() } },
+      {
+        project: {
+          name: name.trim(),
+          revision: revision.trim(),
+          description: description.trim(),
+          output_part_id: outputPartId === NONE ? '' : outputPartId,
+        },
+      },
       { preserveScroll: true, onSuccess: () => onOpenChange(false), onFinish: () => setProcessing(false) }
     )
   }
@@ -883,6 +1171,21 @@ function EditProjectDialog({ project, open, onOpenChange }: DialogProps & { proj
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder={t('What this board or kit is for')}
               />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-project-output-part">{t('Built item')}</Label>
+              <Combobox
+                id="edit-project-output-part"
+                options={[{ value: NONE, label: t('None') }, ...partOptions.slice(1)]}
+                value={outputPartId}
+                onValueChange={(value) => setOutputPartId(value || NONE)}
+                placeholder={t('None')}
+                searchPlaceholder={t('Search parts…')}
+                className="w-full"
+              />
+              <p className="text-xs text-muted-foreground">
+                {t('The inventory part a built kit becomes (e.g. an assembled board). Each build adds it to stock, and projects using this one as a sub-assembly take it from stock instead of its parts.')}
+              </p>
             </div>
           </div>
           <DialogFooter>
@@ -952,9 +1255,12 @@ function NewRevisionDialog({ project, open, onOpenChange }: DialogProps & { proj
 function AddLineDialog({
   projectId,
   partOptions,
+  subprojects,
   open,
   onOpenChange,
-}: DialogProps & { projectId: number; partOptions: ComboboxOption[] }) {
+}: DialogProps & { projectId: number; partOptions: ComboboxOption[]; subprojects: SubprojectOption[] }) {
+  const [kind, setKind] = useState<'part' | 'assembly'>('part')
+  const [subprojectId, setSubprojectId] = useState('')
   const [partId, setPartId] = useState(NONE)
   const [designation, setDesignation] = useState('')
   const [reference, setReference] = useState('')
@@ -962,7 +1268,19 @@ function AddLineDialog({
   const [quantity, setQuantity] = useState('1')
   const [processing, setProcessing] = useState(false)
 
+  const subprojectOptions = useMemo<ComboboxOption[]>(
+    () =>
+      subprojects.map((p) => ({
+        value: String(p.id),
+        label: projectLabel(p),
+        description: [p.reference, p.stocked ? t('stocked') : t('built along')].filter(Boolean).join(' · '),
+      })),
+    [subprojects]
+  )
+
   const reset = () => {
+    setKind('part')
+    setSubprojectId('')
     setPartId(NONE)
     setDesignation('')
     setReference('')
@@ -972,7 +1290,9 @@ function AddLineDialog({
 
   const quantityValue = Number(quantity)
   const valid =
-    Number.isInteger(quantityValue) && quantityValue >= 1 && (partId !== NONE || designation.trim() !== '' || reference.trim() !== '')
+    Number.isInteger(quantityValue) &&
+    quantityValue >= 1 &&
+    (kind === 'assembly' ? subprojectId !== '' : partId !== NONE || designation.trim() !== '' || reference.trim() !== '')
 
   const submit = (e: FormEvent) => {
     e.preventDefault()
@@ -981,13 +1301,16 @@ function AddLineDialog({
     router.post(
       `/projects/${projectId}/project_lines`,
       {
-        project_line: {
-          part_id: partId === NONE ? '' : partId,
-          designation: designation.trim(),
-          raw_reference: reference.trim(),
-          designators: designators.trim(),
-          quantity: quantityValue,
-        },
+        project_line:
+          kind === 'assembly'
+            ? { subproject_id: subprojectId, quantity: quantityValue }
+            : {
+                part_id: partId === NONE ? '' : partId,
+                designation: designation.trim(),
+                raw_reference: reference.trim(),
+                designators: designators.trim(),
+                quantity: quantityValue,
+              },
       },
       {
         preserveScroll: true,
@@ -1007,51 +1330,38 @@ function AddLineDialog({
           <DialogHeader>
             <DialogTitle>{t('Add line')}</DialogTitle>
             <DialogDescription>
-              {t('Pick a part from the inventory, or describe a component you don\'t stock yet so it shows up as missing.')}
+              {kind === 'assembly'
+                ? t('Use another project as a sub-assembly: its parts (or its built item, when it has one) count in this project\'s needs, times the quantity.')
+                : t('Pick a part from the inventory, or describe a component you don\'t stock yet so it shows up as missing.')}
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="line-part">{t('Part')}</Label>
-              <Combobox
-                id="line-part"
-                options={partOptions}
-                value={partId}
-                onValueChange={(value) => setPartId(value || NONE)}
-                placeholder={t('Not in inventory')}
-                searchPlaceholder={t('Search parts…')}
-                className="w-full"
-              />
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2">
+          <div className="flex gap-1 pt-4">
+            <Button type="button" size="sm" variant={kind === 'part' ? 'secondary' : 'ghost'} onClick={() => setKind('part')}>
+              {t('Part')}
+            </Button>
+            <Button type="button" size="sm" variant={kind === 'assembly' ? 'secondary' : 'ghost'} onClick={() => setKind('assembly')}>
+              <Layers className="size-4" />
+              {t('Sub-assembly')}
+            </Button>
+          </div>
+          {kind === 'assembly' ? (
+            <div className="grid gap-4 py-4 sm:grid-cols-[1fr_120px]">
               <div className="space-y-2">
-                <Label htmlFor="line-designation">{t('Designation')}</Label>
-                <Input
-                  id="line-designation"
-                  value={designation}
-                  onChange={(e) => setDesignation(e.target.value)}
-                  placeholder={partId === NONE ? t('e.g. ESP32-C3 module') : t('Defaults to the part name')}
+                <Label htmlFor="line-subproject">{t('Project')}</Label>
+                <Combobox
+                  id="line-subproject"
+                  options={subprojectOptions}
+                  value={subprojectId}
+                  onValueChange={setSubprojectId}
+                  placeholder={subprojectOptions.length ? t('Pick a project') : t('No other project to use')}
+                  searchPlaceholder={t('Search projects…')}
+                  className="w-full"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="line-reference">{t('Reference (MPN)')}</Label>
+                <Label htmlFor="line-assembly-quantity">{t('Quantity')}</Label>
                 <Input
-                  id="line-reference"
-                  value={reference}
-                  onChange={(e) => setReference(e.target.value)}
-                  placeholder={partId === NONE ? t('Optional') : t('Defaults to the part MPN')}
-                />
-              </div>
-            </div>
-            <div className="grid gap-4 sm:grid-cols-[1fr_120px]">
-              <div className="space-y-2">
-                <Label htmlFor="line-designators">{t('Designators')}</Label>
-                <Input id="line-designators" value={designators} onChange={(e) => setDesignators(e.target.value)} placeholder={t('e.g. R1, R2')} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="line-quantity">{t('Quantity')}</Label>
-                <Input
-                  id="line-quantity"
+                  id="line-assembly-quantity"
                   type="number"
                   min={1}
                   value={quantity}
@@ -1060,7 +1370,59 @@ function AddLineDialog({
                 />
               </div>
             </div>
-          </div>
+          ) : (
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="line-part">{t('Part')}</Label>
+                <Combobox
+                  id="line-part"
+                  options={partOptions}
+                  value={partId}
+                  onValueChange={(value) => setPartId(value || NONE)}
+                  placeholder={t('Not in inventory')}
+                  searchPlaceholder={t('Search parts…')}
+                  className="w-full"
+                />
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="line-designation">{t('Designation')}</Label>
+                  <Input
+                    id="line-designation"
+                    value={designation}
+                    onChange={(e) => setDesignation(e.target.value)}
+                    placeholder={partId === NONE ? t('e.g. ESP32-C3 module') : t('Defaults to the part name')}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="line-reference">{t('Reference (MPN)')}</Label>
+                  <Input
+                    id="line-reference"
+                    value={reference}
+                    onChange={(e) => setReference(e.target.value)}
+                    placeholder={partId === NONE ? t('Optional') : t('Defaults to the part MPN')}
+                  />
+                </div>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-[1fr_120px]">
+                <div className="space-y-2">
+                  <Label htmlFor="line-designators">{t('Designators')}</Label>
+                  <Input id="line-designators" value={designators} onChange={(e) => setDesignators(e.target.value)} placeholder={t('e.g. R1, R2')} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="line-quantity">{t('Quantity')}</Label>
+                  <Input
+                    id="line-quantity"
+                    type="number"
+                    min={1}
+                    value={quantity}
+                    onChange={(e) => setQuantity(e.target.value)}
+                    className="font-mono"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               {t('Cancel')}

@@ -37,11 +37,19 @@ class Part < ApplicationRecord
   # "none", like an unresolved import line) rather than blocking the delete or
   # leaving a dangling foreign key.
   has_many :project_lines, dependent: nil
+  # Projects whose built kits become this part: deleting it leaves them with no built item.
+  has_many :built_by_projects, class_name: "Project", foreign_key: :output_part_id, inverse_of: :output_part, dependent: :nullify
 
   # Pairs marked "not duplicates" (PartDuplicateDismissal), from either side.
   has_many :duplicate_dismissals, class_name: "PartDuplicateDismissal", dependent: :delete_all
   has_many :inverse_duplicate_dismissals, class_name: "PartDuplicateDismissal", foreign_key: :other_part_id,
            inverse_of: :other_part, dependent: :delete_all
+
+  # Parts that can stand in for this one (PartAlternative, one row per pair):
+  # use #alternative_links / #alternative_parts to read both sides.
+  has_many :part_alternatives, dependent: :delete_all
+  has_many :inverse_part_alternatives, class_name: "PartAlternative", foreign_key: :alternative_part_id,
+           inverse_of: :alternative_part, dependent: :delete_all
 
   # Active Storage for images and datasheets
   has_many_attached :images
@@ -278,6 +286,20 @@ class Part < ApplicationRecord
     return if bag.nil?
 
     update_columns(bag_id: nil, bag_assigned_at: nil, ipn: ipn.to_s.casecmp?(bag.code.to_s) ? nil : ipn)
+  end
+
+  # Methods - Alternatives
+
+  # This part's PartAlternative rows, from either side.
+  def alternative_links
+    PartAlternative.involving(id)
+  end
+
+  # The parts linked to this one as alternatives.
+  def alternative_parts
+    organization.parts.where(id: alternative_links.select(:part_id))
+      .or(organization.parts.where(id: alternative_links.select(:alternative_part_id)))
+      .where.not(id: id)
   end
 
   # Methods - Parameters

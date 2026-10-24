@@ -124,11 +124,11 @@ class StorageLocationsController < ApplicationController
 
         outgoing = current_organization.stock_movements.build(
           part: move[:part], storage_location: from, movement_type: "out",
-          quantity_delta: -move[:quantity], reason: "Moved to #{to.name}", user: current_user
+          quantity_delta: -move[:quantity], reason: "Moved to #{to.name}", user: current_user, transfer: true
         )
         incoming = current_organization.stock_movements.build(
           part: move[:part], storage_location: to, movement_type: "in",
-          quantity_delta: move[:quantity], reason: "Moved from #{from.name}", user: current_user
+          quantity_delta: move[:quantity], reason: "Moved from #{from.name}", user: current_user, transfer: true
         )
 
         unless outgoing.save && incoming.save

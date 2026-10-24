@@ -6,6 +6,8 @@ en:
       messages:
         already_counted: 'is already being counted in %{stocktake}: complete or discard it first'
         another_part: must be another part
+        assembly_loop: can't use this project, or a project that uses it
+        assembly_too_deep: would nest sub-assemblies more than %{count} levels deep
         attachment_size: must be smaller than %{size}
         attachment_type: must be a %{types} file
         bag_codes_taken: 'would give bags codes already in use: %{codes}'
@@ -33,6 +35,7 @@ en:
         order_status_final: can't change once the order is %{status}
         organization_member: must be a member of this organization
         own_parent: cannot be itself
+        part_or_subproject: can't be set together with a part
         positive_for_incoming: must be positive for an incoming movement
         printer_port: must be a printer port (9100–9109 or 6101)
         received_only_by_marking: can only become received by marking the order received
@@ -52,6 +55,22 @@ en:
           one: '%{count} value of %{name} is not a number (%{examples}).'
           other: '%{count} values of %{name} are not a number (%{examples}).'
   errors:
+    ai_entry:
+      busy: Another AI read is running on the server. Try again in a moment.
+      declined: Claude declined to read these files.
+      file_too_large: '%{name} is too large (the limit is %{size}).'
+      files_too_large: 'Together, the files are larger than %{size}: send fewer or smaller ones.'
+      key_format: 'This doesn''t look like an Anthropic API key (it starts with %{prefix}).'
+      key_refused: Anthropic refused the API key. Check it in Settings → Integrations.
+      key_refused_on_save: Anthropic refused this key. Check that it was copied whole and is still active.
+      no_file: Add a photo or a datasheet first.
+      not_configured: AI-assisted entry isn't set up. An admin can add an Anthropic API key in Settings → Integrations.
+      rate_limited: Anthropic's rate limit was reached. Try again in a minute.
+      request_refused: Anthropic refused the request. The file may be unreadable or too long.
+      too_many_files: Add at most %{count} files at once.
+      unreachable: Could not reach Anthropic. Please try again.
+      unreadable: Claude's answer could not be read. Please try again.
+      unsupported_file: '%{name} is not a JPEG, PNG, GIF or WebP photo or a PDF.'
     backup:
       data_too_large: '%{file} is too large.'
       inconsistent: 'The backup could not be restored (%{error}): its data is inconsistent.'
@@ -113,7 +132,7 @@ en:
       disabled: Network printing is turned off on this server.
       host_not_found: '%{host} could not be found on the network.'
       not_local: '%{host} isn''t a local network address (10.x, 172.16–31.x, 192.168.x).'
-      unreachable: Could not reach the printer at %{host}:%{port} (%{error}).
+      unreachable: Could not reach the printer at %{host}:%{port}. Check that it is on and connected to the server's network.
     lcsc:
       failed: 'LCSC search failed: %{error}'
       refused: LCSC refused the search (HTTP %{code}). LCSC has no public API, so its catalog may block or change these requests.
@@ -204,6 +223,11 @@ en:
       invitation_to_declined: Invitation to %{organization_name} declined.
       you_joined: You joined %{organization_name}.
     label_printers:
+      too_many_jobs: "Too many print jobs, try again in a minute."
+      nothing_to_print: "Nothing to print."
+      too_many_labels: "At most %{count} labels per request."
+      size_mismatch: "The labels don't match this printer's size. Reload the page and try again."
+      unreadable: "The labels could not be read."
       add_failed: Failed to add the printer.
       added: Printer "%{name}" added.
       removed: Printer "%{name}" removed.
@@ -219,6 +243,8 @@ en:
       return_recorded: Return recorded.
       updated: Loan updated.
     members:
+      already_invited: "%{email} has already been invited to this organization."
+      already_member: "%{email} is already a member of this organization."
       choose_a_valid_role: Choose a valid role.
       failed_to_add_member: Failed to add member.
       invitation_sent: If %{email} has a Makerstorage account, they've been invited and will join once they accept it from their profile. Otherwise, ask them to sign up first, then invite them again.
@@ -252,6 +278,8 @@ en:
       the_storage_split_must_add_up: The storage split must add up to the line quantity (%{quantity}).
       this_order_is_and_can_no: This order is %{status} and can no longer be edited.
     orders:
+      import_has_no_lines: "%{provider} order %{number} has no importable lines."
+      import_already_imported: "%{provider} order %{reference} has already been imported."
       add_a_mouser_order_api_key: Add a Mouser Order API key in Settings → Integrations to build a cart.
       add_a_mouser_order_api_key_2: Add a Mouser Order API key in Settings → Integrations to import orders.
       checkout: ' Checkout: %{checkout_url}'
@@ -298,6 +326,28 @@ en:
         other: '%{count} BOM lines had no matching part and were skipped.'
       use_mark_received_to_receive_an: Use “Mark received” to receive an order so stock is credited.
     organizations:
+      reset_done:
+        one: "\"%{name}\" was reset (%{count} part removed)."
+        other: "\"%{name}\" was reset (%{count} parts removed)."
+      merged: "\"%{source}\" was merged into \"%{target}\": %{moved}, %{merged}."
+      merged_moved:
+        one: "%{count} part moved"
+        other: "%{count} parts moved"
+      merged_merged:
+        one: "%{count} merged with an existing part"
+        other: "%{count} merged with an existing part"
+      merged_codes:
+        one: "%{count} zone code renamed"
+        other: "%{count} zone codes renamed"
+      merged_ipns:
+        one: "%{count} IPN reassigned"
+        other: "%{count} IPNs reassigned"
+      merged_blank:
+        one: "%{count} part left without an IPN (already taken)"
+        other: "%{count} parts left without an IPN (already taken)"
+      merged_members:
+        one: "%{count} member added"
+        other: "%{count} members added"
       choose_an_organization_you_own_to: Choose an organization you own to merge into.
       could_not_delete: Could not delete "%{organization_name}". %{reason}
       could_not_merge: Could not merge "%{source_name}". %{message}
@@ -331,6 +381,9 @@ en:
       values_filled:
         one: '%{count} part value'
         other: '%{count} part values'
+    part_alternatives:
+      linked: '%{name} linked as an alternative.'
+      unlinked: '%{name} is no longer an alternative.'
     part_attachments:
       added:
         one: Added %{count} file.
@@ -359,10 +412,17 @@ en:
         other: '%{count} stock rows'
       pick_two: Pick at least two parts.
     part_suppliers:
+      set_as_preferred: "%{supplier} set as preferred supplier."
       supplier_added_successfully: Supplier added successfully.
       supplier_removed_successfully: Supplier removed successfully.
       supplier_updated_successfully: Supplier updated successfully.
     parts:
+      bulk_deleted:
+        one: "%{count} part deleted successfully."
+        other: "%{count} parts deleted successfully."
+      bulk_delete_skipped:
+        one: "%{count} part could not be deleted because it has stock history or purchase orders."
+        other: "%{count} parts could not be deleted because they have stock history or purchase orders."
       bulk_category:
         one: Set category to %{category} for %{count} part.
         other: Set category to %{category} for %{count} parts.
@@ -397,10 +457,12 @@ en:
       please_choose_a_csv_file_to: Please choose a CSV file to import.
       quantity_is_too_large: Quantity is too large
       select_at_least_one_part: Select at least one part.
+      too_many_ai_reads: Too many AI reads in a short time. Please wait a few minutes.
       tags:
         one: '%{count} tag'
         other: '%{count} tags'
     profiles:
+      app_disconnected: "%{name} disconnected."
       changes_allowed: "%{name} can now change the inventory."
       confirm_from_the_email_we_sent: ' Confirm %{unconfirmed_email} from the email we sent there to start signing in with it.'
       enter_your_current_password_to_change: Enter your current password to change your email.
@@ -441,6 +503,9 @@ en:
       line_updated: Line updated.
     projects:
       build_kits_between: Build between 1 and %{max} kits at a time.
+      built_item_added:
+        one: '%{count} %{part} added to stock.'
+        other: '%{count} × %{part} added to stock.'
       could_not_deduct_stock: 'Could not deduct stock: %{errors}.'
       could_not_import_that_bom: Could not import that BOM.
       could_not_parse_that_file_as: Could not parse that file as CSV.
@@ -454,6 +519,7 @@ en:
       not_enough_stock_for_kits: There isn't enough stock to build %{kits} kits.
       nothing_left_to_order_short_parts: 'Nothing left to order: short parts have no preferred supplier or are already on open purchase orders.'
       only_a_confirmed_project_can_reserve: Only a confirmed project can reserve stock, with reservations turned on in Settings.
+      pick_a_zone_for_the_built_item: '%{part} has no storage zone yet: pick where the built kits go.'
       please_choose_a_bom_file_to: Please choose a BOM file to import.
       project_deleted: Project deleted.
       reservation_released: Reservation released.
@@ -493,6 +559,9 @@ en:
       failed_to_record_movement: Failed to record movement.
       movement_recorded_successfully: Movement recorded successfully.
     stocktakes:
+      counted:
+        one: "%{reference}: %{count} counted."
+        other: "%{reference}: %{count} counted."
       adjust_detail: '%{reference} in %{zone}: '
       completed_adjusted:
         one: 'Stocktake completed: %{count} adjustment recorded.'
