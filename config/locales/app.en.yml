@@ -113,7 +113,7 @@ en:
       disabled: Network printing is turned off on this server.
       host_not_found: '%{host} could not be found on the network.'
       not_local: '%{host} isn''t a local network address (10.x, 172.16–31.x, 192.168.x).'
-      unreachable: Could not reach the printer at %{host}:%{port} (%{error}).
+      unreachable: Could not reach the printer at %{host}:%{port}. Check that it is on and connected to the server's network.
     lcsc:
       failed: 'LCSC search failed: %{error}'
       refused: LCSC refused the search (HTTP %{code}). LCSC has no public API, so its catalog may block or change these requests.

@@ -179,7 +179,7 @@ fr:
       disabled: L’impression réseau est désactivée sur ce serveur.
       host_not_found: '%{host} est introuvable sur le réseau.'
       not_local: '%{host} n’est pas une adresse du réseau local (10.x, 172.16–31.x, 192.168.x).'
-      unreachable: Impossible de joindre l’imprimante à %{host}:%{port} (%{error}).
+      unreachable: Impossible de joindre l’imprimante à %{host}:%{port}. Vérifiez qu’elle est allumée et reliée au réseau du serveur.
     lcsc:
       failed: 'La recherche LCSC a échoué : %{error}'
       refused: LCSC a refusé la recherche (HTTP %{code}). LCSC n’a pas d’API publique, son catalogue peut donc bloquer ou modifier ces requêtes.
