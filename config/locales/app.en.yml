@@ -55,6 +55,22 @@ en:
           one: '%{count} value of %{name} is not a number (%{examples}).'
           other: '%{count} values of %{name} are not a number (%{examples}).'
   errors:
+    ai_entry:
+      busy: Another AI read is running on the server. Try again in a moment.
+      declined: Claude declined to read these files.
+      file_too_large: '%{name} is too large (the limit is %{size}).'
+      files_too_large: 'Together, the files are larger than %{size}: send fewer or smaller ones.'
+      key_format: 'This doesn''t look like an Anthropic API key (it starts with %{prefix}).'
+      key_refused: Anthropic refused the API key. Check it in Settings → Integrations.
+      key_refused_on_save: Anthropic refused this key. Check that it was copied whole and is still active.
+      no_file: Add a photo or a datasheet first.
+      not_configured: AI-assisted entry isn't set up. An admin can add an Anthropic API key in Settings → Integrations.
+      rate_limited: Anthropic's rate limit was reached. Try again in a minute.
+      request_refused: Anthropic refused the request. The file may be unreadable or too long.
+      too_many_files: Add at most %{count} files at once.
+      unreachable: Could not reach Anthropic. Please try again.
+      unreadable: Claude's answer could not be read. Please try again.
+      unsupported_file: '%{name} is not a JPEG, PNG, GIF or WebP photo or a PDF.'
     backup:
       data_too_large: '%{file} is too large.'
       inconsistent: 'The backup could not be restored (%{error}): its data is inconsistent.'
@@ -441,6 +457,7 @@ en:
       please_choose_a_csv_file_to: Please choose a CSV file to import.
       quantity_is_too_large: Quantity is too large
       select_at_least_one_part: Select at least one part.
+      too_many_ai_reads: Too many AI reads in a short time. Please wait a few minutes.
       tags:
         one: '%{count} tag'
         other: '%{count} tags'

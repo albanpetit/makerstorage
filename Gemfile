@@ -87,3 +87,7 @@ gem "devise", "~> 5.0"
 # errors, dates, numbers, Devise flashes.
 gem "rails-i18n", "~> 8.0"
 gem "devise-i18n", "~> 1.15"
+
+# Claude API, for AI-assisted part entry (PartExtraction) with each
+# organization's own key.
+gem "anthropic", "~> 1.0"

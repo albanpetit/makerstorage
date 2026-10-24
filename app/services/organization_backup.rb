@@ -40,7 +40,7 @@ module OrganizationBackup
     default_low_stock_threshold allow_negative_stock stock_reservations_enabled
     notify_low_stock notify_late_orders notify_overdue_loans notification_frequency default_loan_days
     consumption_window_days threshold_cover_days
-    lcsc_enabled
+    lcsc_enabled ai_model
   ].freeze
 
   Table = Data.define(:name, :model, :scope, :references, :excluded, :enums) do

@@ -100,6 +100,9 @@ export interface PartFormBodyProps {
   // ...and the boxes a new bag can be opened in, for when no free bag suits.
   bagBoxes?: BagBox[] | null
 
+  // AI-assisted entry block (add dialog only), shown above the catalog lookup.
+  aiEntry?: ReactNode
+
   // Supplier catalog lookup
   supplierLookupEnabled: boolean
   // A part number to look up as soon as the form shows (from a scanned label).
@@ -144,6 +147,7 @@ export function PartFormBody({
   ipnManualEntry,
   bagOptions = null,
   bagBoxes = null,
+  aiEntry,
   supplierLookupEnabled,
   autoLookup = null,
   onApplyLookup,
@@ -227,6 +231,8 @@ export function PartFormBody({
           </AlertDescription>
         </Alert>
       )}
+
+      {aiEntry}
 
       {/* Supplier catalog lookup */}
       {supplierLookupEnabled && (

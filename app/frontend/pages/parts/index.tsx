@@ -25,7 +25,7 @@ import { t, tn } from '@/lib/i18n'
 
 export default function PartsIndex({
   parts, filters: listFilters, pagination, facets, parameter_columns, total_count, total_units, matching_ids, part_identifiers,
-  categories, footprints, suppliers, tags, storage_locations, supplier_lookup_enabled, ipn_manual_entry, bag_options, bag_boxes, open_add, add_prefill,
+  categories, footprints, suppliers, tags, storage_locations, supplier_lookup_enabled, ai_entry_enabled, ipn_manual_entry, bag_options, bag_boxes, open_add, add_prefill,
   duplicate_groups_count,
 }: PartsIndexProps) {
   const { canWrite } = usePermissions()
@@ -162,6 +162,7 @@ export default function PartsIndex({
         tags={tags}
         storageLocations={storage_locations}
         supplierLookupEnabled={supplier_lookup_enabled}
+        aiEntryEnabled={ai_entry_enabled}
         ipnManualEntry={ipn_manual_entry}
         bagOptions={bag_options}
         bagBoxes={bag_boxes}

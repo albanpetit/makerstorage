@@ -1088,6 +1088,116 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
     assert_equal true, inertia_props["supplier_lookup_enabled"]
   end
 
+  test "index advertises AI-assisted entry only when a Claude key is saved" do
+    user = create_user
+    sign_in user
+
+    get parts_path
+    assert_equal false, inertia_props["ai_entry_enabled"]
+
+    user.organizations.first.update!(anthropic_api_key: "sk-ant-test")
+    get parts_path
+    assert_equal true, inertia_props["ai_entry_enabled"]
+  end
+
+  test "extract returns what Claude read from the uploaded files" do
+    user = create_user
+    org = user.organizations.first
+    org.update!(anthropic_api_key: "sk-ant-test")
+    sign_in user
+
+    received = nil
+    extraction = Object.new
+    extraction.define_singleton_method(:extract) do |files, hint:|
+      received = [ files.map(&:original_filename), hint ]
+      { "name" => "Resistor 10k", "mpn" => "RC0603FR-0710KL" }
+    end
+    stub_singleton(PartExtraction, :new, ->(organization) { organization == org ? extraction : raise("wrong org") }) do
+      post extract_parts_path, params: { files: [ ai_upload ], hint: "red drawer" }
+    end
+
+    assert_response :success
+    assert_equal "Resistor 10k", JSON.parse(@response.body).dig("result", "name")
+    assert_equal [ [ "label.png" ], "red drawer" ], received
+  end
+
+  test "extract explains a missing key or a refused file" do
+    user = create_user
+    sign_in user
+
+    post extract_parts_path, params: { files: [ ai_upload ] }
+    assert_response :unprocessable_entity
+    assert_match(/Anthropic API key/, JSON.parse(@response.body)["error"])
+
+    user.organizations.first.update!(anthropic_api_key: "sk-ant-test")
+    post extract_parts_path, params: { files: [ ai_upload("hello", "text/plain", "notes.txt") ] }
+    assert_response :unprocessable_entity
+    assert_match(/notes\.txt/, JSON.parse(@response.body)["error"])
+  end
+
+  test "extract reports an upstream failure as a bad gateway" do
+    user = create_user
+    user.organizations.first.update!(anthropic_api_key: "sk-ant-test")
+    sign_in user
+
+    extraction = Object.new
+    extraction.define_singleton_method(:extract) { |*, **| raise PartExtraction::Error, "Could not reach Anthropic." }
+    stub_singleton(PartExtraction, :new, ->(*) { extraction }) do
+      post extract_parts_path, params: { files: [ ai_upload ] }
+    end
+
+    assert_response :bad_gateway
+    assert_equal "Could not reach Anthropic.", JSON.parse(@response.body)["error"]
+  end
+
+  test "extract answers 503 while the server's AI slots are taken" do
+    user = create_user
+    user.organizations.first.update!(anthropic_api_key: "sk-ant-test")
+    sign_in user
+
+    extraction = Object.new
+    extraction.define_singleton_method(:extract) { |*, **| raise PartExtraction::BusyError, "Another AI read is running." }
+    stub_singleton(PartExtraction, :new, ->(*) { extraction }) do
+      post extract_parts_path, params: { files: [ ai_upload ] }
+    end
+
+    assert_response :service_unavailable
+    assert_equal "Another AI read is running.", JSON.parse(@response.body)["error"]
+  end
+
+  test "viewers can't use AI-assisted entry" do
+    owner = create_user
+    org = owner.organizations.first
+    org.update!(anthropic_api_key: "sk-ant-test")
+    viewer = create_user
+    OrganizationMembership.create!(user: viewer, organization: org, role: "viewer")
+    sign_in viewer
+    post switch_organization_path(org)
+
+    called = false
+    stub_singleton(PartExtraction, :new, ->(*) { called = true }) do
+      post extract_parts_path, params: { files: [ ai_upload ] }
+    end
+    refute called
+    assert_not_equal 200, @response.status
+  end
+
+  test "create keeps the datasheet AI-assisted entry read" do
+    user = create_user
+    org = user.organizations.first
+    category = create_category(organization: org)
+    sign_in user
+
+    post parts_path, params: {
+      part: { name: "NE555 timer", category_id: category.id },
+      datasheet_file: ai_upload("%PDF-1.7\n", "application/pdf", "ne555.pdf")
+    }
+
+    part = org.parts.find_by!(name: "NE555 timer")
+    assert part.datasheet.attached?
+    assert_equal "ne555.pdf", part.datasheet.filename.to_s
+  end
+
   test "lookup returns normalized catalog results as JSON" do
     user = create_user
     user.organizations.first.update!(mouser_api_key: "abc123")
@@ -1722,6 +1832,14 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
   end
 
   private
+
+  def ai_upload(data = "\x89PNG\r\n\x1A\n".b + ("\x00".b * 16), type = "image/png", name = "label.png")
+    file = Tempfile.new([ "upload", File.extname(name) ])
+    file.binmode
+    file.write(data)
+    file.rewind
+    Rack::Test::UploadedFile.new(file.path, type, true, original_filename: name)
+  end
 
   def csv_upload(content)
     file = Tempfile.new([ "import", ".csv" ], binmode: true)
