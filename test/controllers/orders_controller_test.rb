@@ -209,6 +209,22 @@ class OrdersControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to orders_path
   end
 
+  test "show sends the inventory pick-list after rendering, organization parts only" do
+    order = create_order(organization: @org, supplier: @supplier, reference: "PO-A")
+    create_part(organization: create_organization, name: "Foreign part")
+    sign_in @user
+
+    get order_path(order)
+    page = JSON.parse(@response.body[/data-page="app" type="application\/json"[^>]*>(.*?)<\/script>/m, 1])
+    assert_not page["props"].key?("parts")
+    assert_includes page["deferredProps"].values.flatten, "parts"
+
+    get order_path(order), headers: { "X-Inertia" => "true", "X-Inertia-Version" => page["version"].to_s,
+                                      "X-Inertia-Partial-Component" => "orders/show", "X-Inertia-Partial-Data" => "parts" }
+    assert_equal [ { "id" => @part.id, "reference" => "RC0805-10K", "name" => "Resistor 10k", "mpn" => "RC0805-10K", "sku" => nil } ],
+                 JSON.parse(@response.body)["props"]["parts"]
+  end
+
   test "does not expose another organization's order" do
     other = create_organization
     other_supplier = create_supplier(organization: other)

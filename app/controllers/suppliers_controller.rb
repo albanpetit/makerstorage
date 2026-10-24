@@ -8,13 +8,16 @@ class SuppliersController < ApplicationController
   before_action :set_supplier, only: %i[update destroy]
   before_action :verify_catalog_supplier_authority, only: :destroy
 
+  # The list carries each supplier's figures, computed in SQL; the components
+  # and orders of one supplier are loaded when its sheet opens
+  # (`supplier_detail`, a partial reload with ?supplier=ID).
   def index
-    suppliers = current_organization.suppliers
-      .includes(part_suppliers: { part: :part_storages }, orders: :order_lines)
-      .alphabetical
+    suppliers = current_organization.suppliers.alphabetical.to_a
+    summaries = supplier_summaries(suppliers.map(&:id))
 
     render inertia: "suppliers/index", props: {
-      suppliers: suppliers.map { |supplier| serialize_supplier(supplier) }
+      suppliers: suppliers.map { |supplier| serialize_supplier(supplier, summaries) },
+      supplier_detail: InertiaRails.optional { serialize_supplier_detail(current_organization.suppliers.find_by(id: params[:supplier])) }
     }
   end
 
@@ -91,11 +94,26 @@ class SuppliersController < ApplicationController
     params.require(:supplier).permit(:name, :email, :phone, :website, :country, :city)
   end
 
-  def serialize_supplier(supplier)
-    part_suppliers = supplier.part_suppliers
-    lead_times = part_suppliers.filter_map(&:lead_time_days)
-    last_order = supplier.orders.max_by(&:ordered_at)
-    stock_value = part_suppliers.sum { |ps| (ps.part.unit_price || 0) * ps.part.total_quantity }
+  # supplier id => { references:, lead_time:, stock_value:, orders:, last_order_at: }
+  def supplier_summaries(ids)
+    links = PartSupplier.where(supplier_id: ids)
+    references = links.group(:supplier_id).count
+    lead_times = links.where.not(lead_time_days: nil).group(:supplier_id).average(:lead_time_days)
+    stock = PartStorage.group(:part_id).select("part_id, SUM(quantity) AS quantity")
+    stock_values = links.joins(:part).joins("LEFT JOIN (#{stock.to_sql}) stock ON stock.part_id = part_suppliers.part_id")
+      .group(:supplier_id).sum(Arel.sql("COALESCE(parts.unit_price, 0) * COALESCE(stock.quantity, 0)"))
+    orders = current_organization.orders.where(supplier_id: ids).group(:supplier_id)
+    order_counts = orders.count
+    last_orders = orders.maximum(:ordered_at)
+
+    ids.index_with do |id|
+      { references: references.fetch(id, 0), lead_time: lead_times[id], stock_value: stock_values.fetch(id, 0),
+        orders: order_counts.fetch(id, 0), last_order_at: last_orders[id] }
+    end
+  end
+
+  def serialize_supplier(supplier, summaries)
+    summary = summaries.fetch(supplier.id)
 
     {
       id: supplier.id,
@@ -106,13 +124,21 @@ class SuppliersController < ApplicationController
       country: supplier.country,
       city: supplier.city,
       catalog_provider: supplier.catalog_provider,
-      reference_count: part_suppliers.size,
-      avg_lead_time_days: lead_times.any? ? (lead_times.sum.to_f / lead_times.size).round : nil,
-      stock_value: stock_value.to_f,
-      last_order_at: last_order&.ordered_at&.iso8601,
-      order_count: supplier.orders.size,
-      components: part_suppliers.map { |ps| serialize_linked_component(ps) },
-      orders: supplier.orders.sort_by { |o| o.ordered_at || o.created_at }.reverse.map { |order| serialize_order(order) }
+      reference_count: summary[:references],
+      avg_lead_time_days: summary[:lead_time]&.to_f&.round,
+      stock_value: summary[:stock_value].to_f,
+      last_order_at: summary[:last_order_at]&.iso8601,
+      order_count: summary[:orders]
+    }
+  end
+
+  def serialize_supplier_detail(supplier)
+    return nil unless supplier
+
+    {
+      id: supplier.id,
+      components: supplier.part_suppliers.includes(part: :part_storages).map { |ps| serialize_linked_component(ps) },
+      orders: supplier.orders.includes(:order_lines).sort_by { |o| o.ordered_at || o.created_at }.reverse.map { |order| serialize_order(order) }
     }
   end
 

@@ -25,8 +25,9 @@ class GithubClient
 
   NETWORK_ERRORS = SupplierCatalog::NETWORK_ERRORS
 
-  # "owner/name", what a GitHub repository URL or path reduces to.
-  REPOSITORY_FORMAT = %r{\A[A-Za-z0-9-]{1,39}/[A-Za-z0-9._-]{1,100}\z}
+  # "owner/name", what a GitHub repository URL or path reduces to. A name of
+  # "." or ".." is refused: it would climb out of /repos/owner/ in API paths.
+  REPOSITORY_FORMAT = %r{\A[A-Za-z0-9-]{1,39}/(?!\.\.?\z)[A-Za-z0-9._-]{1,100}\z}
 
   # Splits what a user pastes into { repository:, ref:, path: }: "owner/name",
   # or a github.com URL, including a ".../tree/<ref>/<folder>" or

@@ -5,8 +5,8 @@
 #
 # Consumption is the "out" movements of the last `consumption_window_days`
 # (organization setting), less those that only move stock around: zone moves,
-# bag changes and duplicate merges (an out + in pair, recognised by the reason
-# they write) and loans (the items come back; write-offs write no movement).
+# bag changes and duplicate merges (an out + in pair, marked
+# `stock_movements.transfer`) and loans (the items come back; write-offs write no movement).
 # Builds, scanner and manual outs all count. Adjustments (stocktake
 # differences) don't: they correct the count rather than record a use.
 #
@@ -18,7 +18,6 @@
 # lead time). No suggestion below MIN_MOVEMENTS uses in the window: one take
 # says little about a rate.
 class PartConsumption
-  TRANSFER_REASON_PATTERNS = [ "Moved to %", "Bulk move to %", "Merged duplicate:%" ].freeze
   SAFETY_DAYS = 7
   MIN_RATE_DAYS = 14
   MIN_MOVEMENTS = 2
@@ -58,9 +57,7 @@ class PartConsumption
     scope = organization.stock_movements.outbound
     loan_references = organization.loans.where.not(reference: nil).select(:reference)
     scope = scope.where(reference: nil).or(scope.where.not(reference: loan_references))
-    reason = StockMovement.arel_table[:reason]
-    transfer = TRANSFER_REASON_PATTERNS.map { |pattern| reason.matches(pattern) }.reduce(:or)
-    scope.where(reason.eq(nil).or(transfer.not))
+    scope.where(transfer: false)
   end
 
   # { part_id => Entry } for the given parts (ids or relation) that were used in

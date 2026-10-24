@@ -261,8 +261,8 @@ class PartMerge
 
     reason = "Merged duplicate: moved from bag #{bag.code} to #{keep.bag.code}"
     organization.stock_movements.create!(part: keep, storage_location: bag, user: user,
-                                         movement_type: "out", quantity_delta: -quantity, reason: reason)
+                                         movement_type: "out", quantity_delta: -quantity, reason: reason, transfer: true)
     organization.stock_movements.create!(part: keep, storage_location: keep.bag, user: user,
-                                         movement_type: "in", quantity_delta: quantity, reason: reason)
+                                         movement_type: "in", quantity_delta: quantity, reason: reason, transfer: true)
   end
 end
