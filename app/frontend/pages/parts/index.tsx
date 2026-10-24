@@ -93,7 +93,7 @@ export default function PartsIndex({
             />
           </div>
           <ReadOnlyBadge />
-          {duplicate_groups_count > 0 && (
+          {(duplicate_groups_count ?? 0) > 0 && (
             <Button variant="outline" size="sm" asChild>
               <Link href="/parts/duplicates">
                 <Copy className="size-4" />

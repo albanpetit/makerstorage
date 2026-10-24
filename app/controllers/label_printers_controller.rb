@@ -15,7 +15,7 @@ class LabelPrintersController < ApplicationController
   before_action :set_printer, only: %i[update destroy print]
 
   rate_limit to: 30, within: 1.minute, only: :print, by: -> { current_user.id }, store: AUTH_RATE_LIMIT_STORE,
-             with: -> { render json: { error: "Too many print jobs, try again in a minute." }, status: :too_many_requests }
+             with: -> { render json: { error: I18n.t("flash.label_printers.too_many_jobs") }, status: :too_many_requests }
 
   # The print dialogs fetch the organization's printers with their geometry.
   def index
@@ -54,19 +54,19 @@ class LabelPrintersController < ApplicationController
   # printer's geometry (see LabelPrinter#geometry).
   def print
     labels = Array(params[:labels])
-    return render(json: { error: "Nothing to print." }, status: :unprocessable_entity) if labels.empty?
-    return render(json: { error: "At most #{MAX_LABELS} labels per request." }, status: :unprocessable_entity) if labels.size > MAX_LABELS
+    return render(json: { error: t("flash.label_printers.nothing_to_print") }, status: :unprocessable_entity) if labels.empty?
+    return render(json: { error: t("flash.label_printers.too_many_labels", count: MAX_LABELS) }, status: :unprocessable_entity) if labels.size > MAX_LABELS
 
     expected = @printer.bitmap_bytesize
     bitmaps = labels.map { |label| Base64.strict_decode64(label.to_s) }
     unless bitmaps.all? { |bitmap| bitmap.bytesize == expected }
-      return render json: { error: "The labels don't match this printer's size. Reload the page and try again." }, status: :unprocessable_entity
+      return render json: { error: t("flash.label_printers.size_mismatch") }, status: :unprocessable_entity
     end
 
     @printer.print_bitmaps(bitmaps)
     render json: { printed: bitmaps.size }
   rescue ArgumentError
-    render json: { error: "The labels could not be read." }, status: :unprocessable_entity
+    render json: { error: t("flash.label_printers.unreadable") }, status: :unprocessable_entity
   rescue LabelPrinting::Network::Error => e
     render json: { error: e.message }, status: :bad_gateway
   end

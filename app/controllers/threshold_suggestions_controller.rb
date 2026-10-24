@@ -21,8 +21,16 @@ class ThresholdSuggestionsController < ApplicationController
       serialize_row(part, entry, quantities.fetch(part.id, 0)) if part
     end
 
+    # "To review" (the default) sends only the rows whose threshold is off;
+    # ?all=1 sends every used part.
+    show_all = params[:all] == "1"
+    counts = { differing: rows.count { |row| row[:differs] }, all: rows.size }
+    rows = rows.select { |row| row[:differs] } unless show_all
+
     render inertia: "alerts/thresholds", props: {
       rows: rows.sort_by { |row| [ row[:differs] ? 0 : 1, -row[:consumed], row[:name].downcase ] },
+      show_all: show_all,
+      counts: counts,
       window_days: current_organization.consumption_window_days,
       cover_days: current_organization.threshold_cover_days
     }

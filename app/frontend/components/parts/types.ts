@@ -154,5 +154,6 @@ export interface PartsIndexProps {
   // Set when the add dialog opens from a scanned supplier label.
   add_prefill: AddPartPrefill | null
   // Groups of parts PartDuplicates pairs (the Duplicates button shows when > 0).
-  duplicate_groups_count: number
+  /** Deferred: undefined until the page has loaded it. */
+  duplicate_groups_count?: number
 }

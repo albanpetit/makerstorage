@@ -58,7 +58,7 @@ class ProfilesController < ApplicationController
     authorization = current_user.oauth_authorizations.find(params[:id])
     authorization.destroy!
 
-    redirect_to profile_path, notice: "#{authorization.oauth_client.name} disconnected."
+    redirect_to profile_path, notice: t("flash.profiles.app_disconnected", name: authorization.oauth_client.name)
   end
 
   # Lets a connected MCP client change the inventory, or makes it read-only

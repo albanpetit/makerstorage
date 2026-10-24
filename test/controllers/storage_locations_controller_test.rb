@@ -197,6 +197,7 @@ class StorageLocationsControllerTest < ActionDispatch::IntegrationTest
 
     assert_equal 0, PartStorage.find_by(part: part, storage_location: from).quantity
     assert_equal 40, PartStorage.find_by(part: part, storage_location: to).quantity
+    assert part.stock_movements.all?(&:transfer), "a move isn't consumption"
     assert_redirected_to storage_locations_path
     follow_redirect!
     assert_match(/Moved 1 component to Shelf B/, flash[:notice])

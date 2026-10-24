@@ -78,6 +78,16 @@ class McpServerWriteToolsTest < ActiveSupport::TestCase
     assert_equal 30, PartStorage.find_by(part: @part, storage_location: @shelf).quantity
   end
 
+  # A move with the assistant's own reason is still a move, not consumption.
+  test "move_stock marks its movements as a transfer whatever the reason" do
+    call("move_stock", "part_id" => @part.id, "to_location" => "Shelf B", "quantity" => 5, "reason" => "Tidying up")
+
+    movements = @org.stock_movements.where(part: @part).order(:id).last(2)
+    assert_equal [ "Tidying up (via Claude)" ] * 2, movements.map(&:reason)
+    assert movements.all?(&:transfer)
+    assert_equal 0, PartConsumption.new(@org).for_part(@part)&.consumed.to_i
+  end
+
   test "set_stock_count writes the difference as an adjustment, nothing when it matches" do
     data = call("set_stock_count", "part_id" => @part.id, "counted_quantity" => 27)
     assert_equal 27, data[:on_hand]

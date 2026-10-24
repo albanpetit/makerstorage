@@ -67,6 +67,7 @@ Rails.application.routes.draw do
       end
     end
     resources :attachments, controller: "part_attachments", only: %i[create destroy]
+    resources :alternatives, controller: "part_alternatives", only: %i[index create destroy]
   end
 
   resources :categories, only: %i[index create update destroy]

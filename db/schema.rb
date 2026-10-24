@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_23_230000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_24_110000) do
   create_table "active_storage_attachments", force: :cascade do |t|
     t.bigint "blob_id", null: false
     t.datetime "created_at", null: false
@@ -298,6 +298,17 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_23_230000) do
     t.index ["organization_id"], name: "index_parameter_definitions_on_organization_id"
   end
 
+  create_table "part_alternatives", force: :cascade do |t|
+    t.integer "part_id", null: false
+    t.integer "alternative_part_id", null: false
+    t.string "note"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["alternative_part_id"], name: "index_part_alternatives_on_alternative_part_id"
+    t.index ["part_id", "alternative_part_id"], name: "index_part_alternatives_on_pair", unique: true
+    t.index ["part_id"], name: "index_part_alternatives_on_part_id"
+  end
+
   create_table "part_duplicate_dismissals", force: :cascade do |t|
     t.integer "part_id", null: false
     t.integer "other_part_id", null: false
@@ -429,8 +440,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_23_230000) do
     t.text "designators"
     t.string "value"
     t.string "footprint"
+    t.integer "subproject_id"
     t.index ["part_id"], name: "index_project_lines_on_part_id"
     t.index ["project_id"], name: "index_project_lines_on_project_id"
+    t.index ["subproject_id"], name: "index_project_lines_on_subproject_id"
   end
 
   create_table "projects", force: :cascade do |t|
@@ -451,8 +464,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_23_230000) do
     t.string "github_path"
     t.string "github_synced_sha"
     t.datetime "github_synced_at"
+    t.integer "output_part_id"
     t.index ["organization_id", "reference"], name: "index_projects_on_organization_id_and_reference", unique: true, where: "reference IS NOT NULL AND reference != ''"
     t.index ["organization_id"], name: "index_projects_on_organization_id"
+    t.index ["output_part_id"], name: "index_projects_on_output_part_id"
   end
 
   create_table "stock_movements", force: :cascade do |t|
@@ -469,6 +484,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_23_230000) do
     t.integer "project_build_id"
     t.string "offline_uuid"
     t.datetime "scanned_at"
+    t.boolean "transfer", default: false, null: false
     t.index ["created_at"], name: "index_stock_movements_on_created_at"
     t.index ["movement_type"], name: "index_stock_movements_on_movement_type"
     t.index ["organization_id", "offline_uuid"], name: "index_stock_movements_on_organization_id_and_offline_uuid", unique: true, where: "offline_uuid IS NOT NULL"
@@ -619,6 +635,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_23_230000) do
   add_foreign_key "organization_memberships", "users"
   add_foreign_key "organization_memberships", "users", column: "invited_by_id"
   add_foreign_key "parameter_definitions", "organizations"
+  add_foreign_key "part_alternatives", "parts"
+  add_foreign_key "part_alternatives", "parts", column: "alternative_part_id"
   add_foreign_key "part_duplicate_dismissals", "parts"
   add_foreign_key "part_duplicate_dismissals", "parts", column: "other_part_id"
   add_foreign_key "part_parameters", "parameter_definitions"
@@ -637,7 +655,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_23_230000) do
   add_foreign_key "project_builds", "users"
   add_foreign_key "project_lines", "parts"
   add_foreign_key "project_lines", "projects"
+  add_foreign_key "project_lines", "projects", column: "subproject_id"
   add_foreign_key "projects", "organizations"
+  add_foreign_key "projects", "parts", column: "output_part_id"
   add_foreign_key "stock_movements", "organizations"
   add_foreign_key "stock_movements", "parts"
   add_foreign_key "stock_movements", "project_builds"

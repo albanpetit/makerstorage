@@ -6,6 +6,8 @@ fr:
       messages:
         already_counted: 'est déjà en cours de comptage dans %{stocktake} : terminez-le ou abandonnez-le d’abord'
         another_part: doit être un autre composant
+        assembly_loop: ne peut pas être ce projet ni un projet qui l’utilise
+        assembly_too_deep: imbriquerait les sous-ensembles sur plus de %{count} niveaux
         attachment_size: doit faire moins de %{size}
         attachment_type: doit être un fichier %{types}
         bag_codes_taken: 'donnerait aux sachets des codes déjà utilisés : %{codes}'
@@ -33,6 +35,7 @@ fr:
         order_status_final: ne peut plus changer une fois la commande %{status}
         organization_member: doit être membre de cette organisation
         own_parent: ne peut pas être elle-même
+        part_or_subproject: ne peut pas être choisi en même temps qu’un composant
         positive_for_incoming: doit être positive pour une entrée
         printer_port: doit être un port d’imprimante (9100–9109 ou 6101)
         received_only_by_marking: ne peut devenir « reçue » qu'en marquant la commande comme reçue
@@ -195,7 +198,7 @@ fr:
       disabled: L’impression réseau est désactivée sur ce serveur.
       host_not_found: '%{host} est introuvable sur le réseau.'
       not_local: '%{host} n’est pas une adresse du réseau local (10.x, 172.16–31.x, 192.168.x).'
-      unreachable: Impossible de joindre l’imprimante à %{host}:%{port} (%{error}).
+      unreachable: Impossible de joindre l’imprimante à %{host}:%{port}. Vérifiez qu’elle est allumée et reliée au réseau du serveur.
     lcsc:
       failed: 'La recherche LCSC a échoué : %{error}'
       refused: LCSC a refusé la recherche (HTTP %{code}). LCSC n’a pas d’API publique, son catalogue peut donc bloquer ou modifier ces requêtes.
@@ -286,6 +289,11 @@ fr:
       invitation_to_declined: Invitation à %{organization_name} refusée.
       you_joined: Vous avez rejoint %{organization_name}.
     label_printers:
+      too_many_jobs: "Trop d’impressions, réessayez dans une minute."
+      nothing_to_print: "Rien à imprimer."
+      too_many_labels: "%{count} étiquettes au plus par envoi."
+      size_mismatch: "Les étiquettes ne correspondent pas au format de cette imprimante. Rechargez la page et réessayez."
+      unreadable: "Les étiquettes sont illisibles."
       add_failed: Échec de l’ajout de l’imprimante.
       added: Imprimante « %{name} » ajoutée.
       removed: Imprimante « %{name} » retirée.
@@ -301,6 +309,8 @@ fr:
       return_recorded: Retour enregistré.
       updated: Prêt mis à jour.
     members:
+      already_invited: "%{email} a déjà été invité dans cette organisation."
+      already_member: "%{email} est déjà membre de cette organisation."
       choose_a_valid_role: Choisissez un rôle valide.
       failed_to_add_member: Impossible d'ajouter le membre.
       invitation_sent: Si %{email} a un compte Makerstorage, cette personne est invitée et rejoindra l'organisation dès qu'elle aura accepté depuis son profil. Sinon, demandez-lui de s'inscrire d'abord, puis invitez-la à nouveau.
@@ -334,6 +344,8 @@ fr:
       the_storage_split_must_add_up: La répartition doit totaliser la quantité de la ligne (%{quantity}).
       this_order_is_and_can_no: Cette commande est %{status} et ne peut plus être modifiée.
     orders:
+      import_has_no_lines: "La commande %{provider} %{number} ne contient aucune ligne importable."
+      import_already_imported: "La commande %{provider} %{reference} a déjà été importée."
       add_a_mouser_order_api_key: Ajoutez une clé Mouser Order API dans Réglages → Intégrations pour créer un panier.
       add_a_mouser_order_api_key_2: Ajoutez une clé Mouser Order API dans Réglages → Intégrations pour importer des commandes.
       checkout: ' Paiement : %{checkout_url}'
@@ -380,6 +392,28 @@ fr:
         other: '%{count} lignes de nomenclature sans composant correspondant ont été ignorées.'
       use_mark_received_to_receive_an: Utilisez « Marquer comme reçue » pour réceptionner une commande et créditer le stock.
     organizations:
+      reset_done:
+        one: "« %{name} » a été remise à zéro (%{count} composant supprimé)."
+        other: "« %{name} » a été remise à zéro (%{count} composants supprimés)."
+      merged: "« %{source} » a été fusionnée dans « %{target} » : %{moved}, %{merged}."
+      merged_moved:
+        one: "%{count} composant déplacé"
+        other: "%{count} composants déplacés"
+      merged_merged:
+        one: "%{count} fusionné avec un composant existant"
+        other: "%{count} fusionnés avec des composants existants"
+      merged_codes:
+        one: "%{count} code de zone renommé"
+        other: "%{count} codes de zone renommés"
+      merged_ipns:
+        one: "%{count} IPN réattribué"
+        other: "%{count} IPN réattribués"
+      merged_blank:
+        one: "%{count} composant laissé sans IPN (déjà pris)"
+        other: "%{count} composants laissés sans IPN (déjà pris)"
+      merged_members:
+        one: "%{count} membre ajouté"
+        other: "%{count} membres ajoutés"
       choose_an_organization_you_own_to: Choisissez une organisation dont vous êtes propriétaire pour la fusion.
       could_not_delete: Impossible de supprimer « %{organization_name} ». %{reason}
       could_not_merge: Impossible de fusionner « %{source_name} ». %{message}
@@ -413,6 +447,9 @@ fr:
       values_filled:
         one: '%{count} valeur de composant remplie'
         other: '%{count} valeurs de composants remplies'
+    part_alternatives:
+      linked: '%{name} lié comme alternative.'
+      unlinked: '%{name} n’est plus une alternative.'
     part_attachments:
       added:
         one: '%{count} fichier ajouté.'
@@ -441,10 +478,17 @@ fr:
         other: '%{count} lignes de stock'
       pick_two: Choisissez au moins deux composants.
     part_suppliers:
+      set_as_preferred: "%{supplier} est maintenant le fournisseur préféré."
       supplier_added_successfully: Fournisseur ajouté.
       supplier_removed_successfully: Fournisseur retiré.
       supplier_updated_successfully: Fournisseur mis à jour.
     parts:
+      bulk_deleted:
+        one: "%{count} composant supprimé."
+        other: "%{count} composants supprimés."
+      bulk_delete_skipped:
+        one: "%{count} composant n’a pas pu être supprimé : il a un historique de stock ou des commandes."
+        other: "%{count} composants n’ont pas pu être supprimés : ils ont un historique de stock ou des commandes."
       bulk_category:
         one: Catégorie %{category} appliquée à %{count} composant.
         other: Catégorie %{category} appliquée à %{count} composants.
@@ -484,6 +528,7 @@ fr:
         one: '%{count} tag'
         other: '%{count} tags'
     profiles:
+      app_disconnected: "%{name} est déconnecté."
       changes_allowed: "%{name} peut désormais modifier l’inventaire."
       confirm_from_the_email_we_sent: ' Confirmez %{unconfirmed_email} depuis l''e-mail que nous y avons envoyé pour vous connecter avec cette adresse.'
       enter_your_current_password_to_change: Saisissez votre mot de passe actuel pour changer d'adresse e-mail.
@@ -524,6 +569,9 @@ fr:
       line_updated: Ligne mise à jour.
     projects:
       build_kits_between: Fabriquez entre 1 et %{max} kits à la fois.
+      built_item_added:
+        one: '%{count} %{part} ajouté au stock.'
+        other: '%{count} × %{part} ajoutés au stock.'
       could_not_deduct_stock: 'Impossible de déduire le stock : %{errors}.'
       could_not_import_that_bom: Impossible d'importer cette nomenclature.
       could_not_parse_that_file_as: Impossible de lire ce fichier comme un CSV.
@@ -537,6 +585,7 @@ fr:
       not_enough_stock_for_kits: Il n’y a pas assez de stock pour fabriquer %{kits} kits.
       nothing_left_to_order_short_parts: 'Plus rien à commander : les composants manquants n''ont pas de fournisseur préféré ou sont déjà sur des commandes en cours.'
       only_a_confirmed_project_can_reserve: Seul un projet confirmé peut réserver du stock, avec les réservations activées dans les Réglages.
+      pick_a_zone_for_the_built_item: '%{part} n’a pas encore de zone de stockage : choisissez où ranger les kits fabriqués.'
       please_choose_a_bom_file_to: Choisissez un fichier de nomenclature à importer.
       project_deleted: Projet supprimé.
       reservation_released: Réservation libérée.
@@ -576,6 +625,9 @@ fr:
       failed_to_record_movement: Impossible d'enregistrer le mouvement.
       movement_recorded_successfully: Mouvement enregistré.
     stocktakes:
+      counted:
+        one: "%{reference} : %{count} compté."
+        other: "%{reference} : %{count} comptés."
       adjust_detail: '%{reference} dans %{zone} : '
       completed_adjusted:
         one: 'Comptage terminé : %{count} ajustement enregistré.'

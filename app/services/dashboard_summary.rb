@@ -211,11 +211,16 @@ class DashboardSummary
 
   def recent_projects
     @recent_projects ||= organization.projects.recent.limit(PROJECTS_LIMIT)
-      .includes(project_lines: { part: :part_storages }).to_a
+      .includes(project_lines: { part: :part_storages }).to_a.each { |project| project.structure = project_structure }
   end
 
   def confirmed_projects
     @confirmed_projects ||= organization.projects.where(status: "confirmed")
-      .includes(project_lines: { part: :part_storages }).to_a
+      .includes(project_lines: { part: :part_storages }).to_a.each { |project| project.structure = project_structure }
+  end
+
+  # Shared by the projects above, so sub-assemblies and reservations are read once.
+  def project_structure
+    @project_structure ||= ProjectStructure.new(organization)
   end
 end

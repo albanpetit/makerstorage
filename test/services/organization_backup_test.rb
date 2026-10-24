@@ -44,6 +44,8 @@ class OrganizationBackupTest < ActiveSupport::TestCase
                               reserved_at: 1.hour.ago)
     @project.project_lines.create!(part: @part, raw_reference: "RC0603-10K", quantity: 4, match_type: "mpn")
     @project.project_lines.create!(raw_reference: "UNKNOWN", quantity: 1, match_type: "none")
+    @board = create_project(organization: @org, name: "Badge board", reference: "PRJ-2", output_part: @part)
+    @project.project_lines.create!(subproject: @board, designation: "Badge board", quantity: 1, match_type: "assembly")
     @project.kicad_files.attach(io: file_fixture("kicad/board/board.kicad_sch").open, filename: "board.kicad_sch",
                                 content_type: Project::KICAD_FILE_TYPE)
     build = @project.project_builds.create!(user: @owner, quantity: 2, built_at: 1.day.ago, note: "Workshop")
@@ -107,7 +109,10 @@ class OrganizationBackupTest < ActiveSupport::TestCase
     assert_equal [ [ "Tiroir 1", 50 ] ], order.order_lines.first.allocations.map { |a| [ a.storage_location.name, a.quantity ] }
 
     project = org.projects.find_by!(reference: "PRJ-1")
-    assert_equal [ part.id, nil ], project.project_lines.order(:id).pluck(:part_id)
+    assert_equal [ part.id, nil, nil ], project.project_lines.order(:id).pluck(:part_id)
+    board = org.projects.find_by!(reference: "PRJ-2")
+    assert_equal part, board.output_part
+    assert_equal [ nil, nil, board.id ], project.project_lines.order(:id).pluck(:subproject_id)
     assert_equal @project.reserved_at.to_i, project.reserved_at.to_i
     restored_build = project.project_builds.sole
     assert_equal [ 2, "Workshop", nil ], [ restored_build.quantity, restored_build.note, restored_build.user_id ]
@@ -162,6 +167,17 @@ class OrganizationBackupTest < ActiveSupport::TestCase
     assert_empty PartDuplicates.new(org).groups
     pair = [ org.parts.find_by!(mpn: "RC0603-10K").id, org.parts.find_by!(sku: "RC0603 10K").id ].sort
     assert_equal [ pair ], PartDuplicateDismissal.where(part_id: org.parts.select(:id)).pluck(:part_id, :other_part_id)
+  end
+
+  test "alternatives come back linked, with their note" do
+    twin = create_part(organization: @org, category: @category, name: "10k other maker", mpn: "ERJ-3EKF1002V")
+    PartAlternative.link!(@part, twin, note: "same pads")
+
+    org = restore(export_zip(@org)).organization
+
+    restored = org.parts.find_by!(mpn: "RC0603-10K")
+    assert_equal [ "ERJ-3EKF1002V" ], restored.alternative_parts.pluck(:mpn)
+    assert_equal "same pads", restored.alternative_links.sole.note
   end
 
   test "box & bag numbering comes back with each part in its own bag" do
