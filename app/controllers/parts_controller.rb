@@ -66,7 +66,9 @@ class PartsController < ApplicationController
       bag_boxes: bag_boxes,
       open_add: params[:new].present?,
       add_prefill: add_prefill,
-      duplicate_groups_count: PartDuplicates.new(current_organization).count
+      # Compares every part of the organization: sent after the page has
+      # rendered, so a big inventory doesn't wait on it.
+      duplicate_groups_count: InertiaRails.defer { PartDuplicates.new(current_organization).count }
     }
   end
 
