@@ -169,6 +169,28 @@ class McpServerTest < ActiveSupport::TestCase
     assert_raises_tool_error { call("get_project", "id" => -1) }
   end
 
+  test "get_project_cost prices copies from stock and supplier price breaks" do
+    @r10k.update!(unit_price: 0.01)
+    PartSupplier.create!(part: @r4k7, supplier: create_supplier(organization: @org, name: "Farnell"), is_preferred: true,
+                         unit_price: 0.05, price_breaks: [ { quantity: 1, unit_price: 0.05 }, { quantity: 100, unit_price: 0.01 } ])
+    project = create_project(organization: @org, name: "Blinky", reference: "PRJ-1")
+    ProjectLine.create!(project: project, part: @r10k, quantity: 10, match_type: "mpn")
+    ProjectLine.create!(project: project, part: @r4k7, quantity: 2, match_type: "value_footprint")
+    ProjectLine.create!(project: project, designation: "Coil", quantity: 1, match_type: "none")
+
+    data = call("get_project_cost", "reference" => "PRJ-1")
+    assert_equal [ "EUR", [ 1, 10, 100 ] ], [ data[:currency], data[:estimates].map { |estimate| estimate[:quantity] } ]
+
+    data = call("get_project_cost", "id" => project.id, "quantities" => [ 100, 0, "x" ])
+    estimate = data[:estimates].sole
+    r4k7 = estimate[:parts].find { |part| part[:name] == "Resistor 4k7" }
+    assert_equal [ 200, 4, 196, 0.01, "Farnell" ], r4k7.values_at(:needed, :from_stock, :to_buy, :buy_unit_price, :supplier)
+    assert_in_delta 10 + 0.2 + 1.96, estimate[:total] # 1000 r10k at 0.01 (30 in stock), 4 r4k7 at 0.05 + 196 at 0.01
+    assert_equal [ false, [ "Coil" ] ], [ estimate[:complete], estimate[:lines_not_in_inventory] ]
+
+    assert_raises_tool_error { call("get_project_cost", "id" => -1) }
+  end
+
   test "list_loans reports open and overdue loans with what is still out" do
     @org.update!(timezone: "Etc/UTC")
     late = @org.loans.new(borrower_name: "Ada Lovelace", due_on: @org.local_date - 3)
