@@ -86,6 +86,8 @@ module OrganizationBackup
     table("part_duplicate_dismissals", PartDuplicateDismissal,
           ->(org) { PartDuplicateDismissal.where(part_id: org.parts.select(:id)) },
           references: { "part_id" => "parts", "other_part_id" => "parts" }),
+    table("part_alternatives", PartAlternative, ->(org) { PartAlternative.where(part_id: org.parts.select(:id)) },
+          references: { "part_id" => "parts", "alternative_part_id" => "parts" }),
     table("part_storages", PartStorage, ->(org) { PartStorage.where(part_id: org.parts.select(:id)) },
           references: { "part_id" => "parts", "storage_location_id" => "storage_locations" }),
     table("orders", Order, ->(org) { org.orders }, references: { "supplier_id" => "suppliers" }, enums: { "status" => Order::STATUSES }),

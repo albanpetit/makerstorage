@@ -108,6 +108,8 @@ class PartsController < ApplicationController
           loans: serialize_part_loans(@part),
           price_history: serialize_price_history(@part),
           consumption: serialize_part_consumption(@part),
+          alternatives: serialize_part_alternatives(@part),
+          equivalents: PartEquivalents.new(@part).suggestions.map { |suggestion| serialize_equivalent(suggestion) },
           storage_locations: serialize_storage_locations,
           categories: serialize_categories,
           footprints: serialize_footprints,
@@ -845,6 +847,40 @@ class PartsController < ApplicationController
       .order("projects.reserved_at", "projects.id")
       .sum("project_lines.quantity")
       .map { |(id, reference, name), quantity| { project_id: id, reference: reference, name: name, quantity: quantity } }
+  end
+
+  # Parts linked as alternatives (PartAlternative), the most in stock first.
+  def serialize_part_alternatives(part)
+    links = part.alternative_links.to_a
+    others = current_organization.parts.where(id: links.map { |link| link.other_id(part.id) })
+      .includes(:footprint, :part_storages).index_by(&:id)
+    links.filter_map do |link|
+      other = others[link.other_id(part.id)]
+      other && { id: link.id, note: link.note, part: serialize_alternative_part(other) }
+    end.sort_by { |entry| [ -entry[:part][:total_quantity], entry[:part][:name].downcase ] }
+  end
+
+  def serialize_equivalent(suggestion)
+    {
+      part: serialize_alternative_part(suggestion.part),
+      matched: suggestion.matched,
+      better: suggestion.better,
+      missing: suggestion.missing
+    }
+  end
+
+  def serialize_alternative_part(part)
+    {
+      id: part.id,
+      reference: part.reference,
+      name: part.name,
+      mpn: part.mpn,
+      manufacturer: part.manufacturer,
+      value: part.value,
+      footprint: part.footprint&.name,
+      status: part.status,
+      total_quantity: part.part_storages.sum(&:quantity)
+    }
   end
 
   # Open loans holding some of this part, oldest first.
