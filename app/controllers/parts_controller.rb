@@ -483,9 +483,9 @@ class PartsController < ApplicationController
     # truth (PartStorage is maintained by StockMovement's callback), so a direct
     # write would desync the movements "Stock After" running balance. Only the
     # delta from the current level is recorded, as an adjustment.
-    target = quantity.to_i
+    target = Quantity.parse(quantity) || 0
     current = PartStorage.find_by(part: part, storage_location: location)&.quantity || 0
-    delta = target - current
+    delta = Quantity.sum(target, -current)
     return if delta.zero?
 
     StockMovement.create!(
@@ -566,7 +566,7 @@ class PartsController < ApplicationController
   # that zone's bag when it is one, and no bag at all when the stock goes
   # elsewhere, instead of claiming a free bag it would leave empty.
   def place_in_initial_bag(part)
-    return if params[:initial_location_id].blank? || params[:initial_quantity].to_i <= 0 || part.bag_id.present?
+    return if params[:initial_location_id].blank? || (Quantity.parse(params[:initial_quantity]) || 0) <= 0 || part.bag_id.present?
 
     location = current_organization.storage_locations.find_by(id: params[:initial_location_id])
     if location&.bag? && current_organization.ipn_generation_mode == "box_bag"
@@ -589,7 +589,7 @@ class PartsController < ApplicationController
   end
 
   def assign_initial_stock(part)
-    quantity = params[:initial_quantity].to_i
+    quantity = Quantity.parse(params[:initial_quantity]) || 0
     return if quantity <= 0
     raise InitialStockError, t("flash.parts.quantity_is_too_large") if quantity > ApplicationRecord::MAX_INTEGER
 
@@ -642,7 +642,7 @@ class PartsController < ApplicationController
   # Box & bag numbering: a part moved to another bag takes the stock it held in
   # its old one along, through the ledger.
   def move_stock_to_new_bag(part, previous_bag)
-    quantity = PartStorage.find_by(part: part, storage_location: previous_bag)&.quantity.to_i
+    quantity = PartStorage.find_by(part: part, storage_location: previous_bag)&.quantity || 0
     return unless quantity.positive?
 
     current_organization.stock_movements.create!(
@@ -720,7 +720,7 @@ class PartsController < ApplicationController
       :name, :mpn, :sku, :barcode, :ipn, :bag_id, :manufacturer, :description,
       :value, :tolerance, :voltage_rating, :power_rating, :package_type,
       :category_id, :footprint_id,
-      :unit_price, :min_stock_threshold, :target_stock,
+      :unit_price, :min_stock_threshold, :target_stock, :unit, :pack_size,
       :status, :rohs_compliant, :storage_notes,
       :kicad_symbol, :kicad_footprint,
       images: [],
@@ -804,8 +804,9 @@ class PartsController < ApplicationController
       # Compute from the preloaded associations (see index eager-loading) rather
       # than `part.total_quantity`/`part.preferred_supplier`, which each fire a
       # fresh query per part and turn the list into an N+1.
-      total_quantity: part.part_storages.to_a.sum(&:quantity),
+      total_quantity: Quantity.sum(part.part_storages.map(&:quantity)),
       min_stock_threshold: part.min_stock_threshold,
+      unit: part.unit,
       unit_price: part.unit_price&.to_f,
       location_names: part.storage_locations.map(&:name),
       supplier_name: part.part_suppliers.find(&:is_preferred)&.supplier&.name,
@@ -886,6 +887,7 @@ class PartsController < ApplicationController
       power_rating: part.power_rating,
       package_type: part.package_type,
       target_stock: part.target_stock,
+      pack_size: part.pack_size,
       lead_time_days: part.lead_time_days,
       rohs_compliant: part.rohs_compliant,
       storage_notes: part.storage_notes,

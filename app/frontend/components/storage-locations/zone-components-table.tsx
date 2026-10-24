@@ -15,6 +15,7 @@ import {
 
 import type { PartStorageEntry } from './types'
 import { t, tn } from '@/lib/i18n'
+import { formatQuantity } from '@/lib/quantity'
 
 interface ZoneComponentsTableProps {
   entries: PartStorageEntry[]
@@ -116,7 +117,7 @@ export function ZoneComponentsTable({
                         <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">{ps.part.package_type}</span>
                       )}
                     </TableCell>
-                    <TableCell className="text-right font-mono font-semibold">{ps.quantity}</TableCell>
+                    <TableCell className="text-right font-mono font-semibold">{formatQuantity(ps.quantity, ps.part.unit)}</TableCell>
                   </TableRow>
                 )
               })}

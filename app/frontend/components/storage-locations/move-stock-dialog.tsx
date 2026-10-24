@@ -16,6 +16,14 @@ import {
 
 import type { MoveDialogState } from './types'
 import { t, tn } from '@/lib/i18n'
+import { formatQuantity, isDecimalUnit, quantityStep } from '@/lib/quantity'
+
+// A typed move quantity kept between the smallest step and what the zone
+// holds: whole pieces, a measure to the thousandth.
+function clampMove(value: number, max: number, unit: string) {
+  if (!isDecimalUnit(unit)) return Math.max(1, Math.min(max, Math.floor(value)))
+  return Math.max(0.001, Math.min(max, Math.round(value * 1000) / 1000))
+}
 
 interface MoveStockDialogProps {
   moveDialog: MoveDialogState | null
@@ -76,14 +84,15 @@ export function MoveStockDialog({ moveDialog, setMoveDialog, zones, zoneName, va
                   <div className="flex items-center gap-1.5">
                     <Input
                       type="number"
-                      min={1}
+                      min={isDecimalUnit(r.unit) ? 0 : 1}
                       max={r.max}
+                      step={quantityStep(r.unit)}
                       value={r.quantity}
-                      onChange={(e) => setMoveRowQuantity(r.partId, Math.max(1, Math.min(r.max, Math.floor(Number(e.target.value) || 0))))}
+                      onChange={(e) => setMoveRowQuantity(r.partId, clampMove(Number(e.target.value) || 0, r.max, r.unit))}
                       className="h-8 w-20 text-right font-mono"
                       aria-label={t('Quantity to move for {reference}', { reference: r.reference })}
                     />
-                    <span className="w-14 text-xs text-muted-foreground">/ {r.max}</span>
+                    <span className="w-16 text-xs text-muted-foreground">/ {formatQuantity(r.max, r.unit)}</span>
                   </div>
                 </div>
               ))}

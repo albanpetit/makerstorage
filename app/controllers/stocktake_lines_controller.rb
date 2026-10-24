@@ -44,12 +44,13 @@ class StocktakeLinesController < ApplicationController
     params.require(:stocktake_line).permit(:part_id, :storage_location_id, :counted_quantity)
   end
 
-  # Nil for a blank entry; anything else that isn't a whole number is left
-  # as typed so the line's validation rejects it.
+  # Nil for a blank entry; anything else that isn't a number is left as typed
+  # so the line's validation rejects it (as it does a fraction of a part
+  # counted in pieces).
   def counted_quantity
     raw = line_params[:counted_quantity]
     return nil if raw.blank?
 
-    Integer(raw.to_s, 10, exception: false) || raw
+    Quantity.parse(raw) || raw
   end
 end

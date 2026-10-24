@@ -147,7 +147,7 @@ class OrdersController < ApplicationController
 
         line = @order.order_lines.find_or_initialize_by(part_id: part.id)
         previous_quantity = line.quantity
-        line.quantity = line.quantity.to_i + quantity
+        line.quantity = Quantity.sum(line.quantity, quantity)
         line.follow_price_breaks(previous_quantity)
         line.save!
         added += 1
@@ -422,7 +422,8 @@ class OrdersController < ApplicationController
       part: {
         id: line.part.id,
         reference: line.part.reference,
-        name: line.part.name
+        name: line.part.name,
+        unit: line.part.unit
       }
     }
   end

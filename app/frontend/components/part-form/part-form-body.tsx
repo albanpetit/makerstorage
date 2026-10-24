@@ -49,6 +49,7 @@ import {
 } from './types'
 import { t, tn } from '@/lib/i18n'
 import { mountingTypeLabel } from '@/lib/mounting-types'
+import { cleanQuantityInput, isDecimalUnit, PART_UNITS, unitLabel, unitSymbol } from '@/lib/quantity'
 
 // Lightweight disclosure section — no Radix Collapsible in the library, so a
 // button + conditional render.
@@ -388,6 +389,27 @@ export function PartFormBody({
             {errors['part.bag'] && <FieldError>{errors['part.bag']}</FieldError>}
           </Field>
         )}
+        <Field>
+          <FieldLabel>
+            <Label htmlFor="part-unit">{t('Counted in')}</Label>
+          </FieldLabel>
+          <FieldContent>
+            <Select value={part.unit} onValueChange={(value) => setPart({ unit: value })}>
+              <SelectTrigger id="part-unit" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {PART_UNITS.map((unit) => (
+                  <SelectItem key={unit} value={unit}>{unitLabel(unit)}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </FieldContent>
+          {isDecimalUnit(part.unit) && (
+            <p className="text-xs text-muted-foreground">{t('Quantities can have decimals (2.5).')}</p>
+          )}
+          {errors['part.unit'] && <FieldError>{errors['part.unit']}</FieldError>}
+        </Field>
         {mode === 'add' && storageLocations && (
           <>
             <Field>
@@ -411,11 +433,11 @@ export function PartFormBody({
               </FieldLabel>
               <FieldContent>
                 <Input
-                  inputMode="numeric"
+                  inputMode={isDecimalUnit(part.unit) ? 'decimal' : 'numeric'}
                   placeholder="0"
                   disabled={!initialLocationId}
                   value={initialQuantity}
-                  onChange={(e) => onInitialQuantityChange?.(e.target.value.replace(/[^0-9]/g, ''))}
+                  onChange={(e) => onInitialQuantityChange?.(cleanQuantityInput(e.target.value, part.unit))}
                 />
               </FieldContent>
               {errors['initial_quantity'] && <FieldError>{errors['initial_quantity']}</FieldError>}
@@ -428,9 +450,9 @@ export function PartFormBody({
           </FieldLabel>
           <FieldContent>
             <Input
-              inputMode="numeric"
+              inputMode={isDecimalUnit(part.unit) ? 'decimal' : 'numeric'}
               value={part.min_stock_threshold}
-              onChange={(e) => setPart({ min_stock_threshold: e.target.value.replace(/[^0-9]/g, '') })}
+              onChange={(e) => setPart({ min_stock_threshold: cleanQuantityInput(e.target.value, part.unit) })}
             />
           </FieldContent>
           {errors['part.min_stock_threshold'] && <FieldError>{errors['part.min_stock_threshold']}</FieldError>}
@@ -661,12 +683,33 @@ export function PartFormBody({
             </FieldLabel>
             <FieldContent>
               <Input
-                inputMode="numeric"
+                inputMode={isDecimalUnit(part.unit) ? 'decimal' : 'numeric'}
                 placeholder="e.g. 100"
                 value={part.target_stock}
-                onChange={(e) => setPart({ target_stock: e.target.value.replace(/[^0-9]/g, '') })}
+                onChange={(e) => setPart({ target_stock: cleanQuantityInput(e.target.value, part.unit) })}
               />
             </FieldContent>
+            {errors['part.target_stock'] && <FieldError>{errors['part.target_stock']}</FieldError>}
+          </Field>
+          <Field>
+            <FieldLabel>
+              <Label htmlFor="part-pack-size">{t('Pack size')}</Label>
+            </FieldLabel>
+            <FieldContent>
+              <Input
+                id="part-pack-size"
+                inputMode={isDecimalUnit(part.unit) ? 'decimal' : 'numeric'}
+                placeholder={isDecimalUnit(part.unit) ? t('e.g. 1000 for a 1 kg spool in g') : t('e.g. 100 for a bag of 100')}
+                value={part.pack_size}
+                onChange={(e) => setPart({ pack_size: cleanQuantityInput(e.target.value, part.unit) })}
+              />
+            </FieldContent>
+            <p className="text-xs text-muted-foreground">
+              {unitSymbol(part.unit)
+                ? t('How much one pack, spool or bottle holds, in {unit}. Stock can then be entered in packs.', { unit: unitSymbol(part.unit) })
+                : t('How many one pack holds. Stock can then be entered in packs.')}
+            </p>
+            {errors['part.pack_size'] && <FieldError>{errors['part.pack_size']}</FieldError>}
           </Field>
           <Field className="col-span-2 @2xl:col-span-4">
             <FieldLabel>

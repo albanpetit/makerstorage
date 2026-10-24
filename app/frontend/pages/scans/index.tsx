@@ -17,6 +17,7 @@ import { Input } from '@/components/ui/input'
 import { StorageLocationSelect } from '@/components/storage-location-select'
 import { typeMeta } from '@/components/storage-locations/zone-meta'
 import { t, tn, tx, intlLocale } from '@/lib/i18n'
+import { formatQuantity, parseQuantity, sumQuantities } from '@/lib/quantity'
 import { normalizeCode, type ScanResult, type ScannedPart, type SupplierLabel } from '@/lib/offline-scanner'
 
 interface RecentScan {
@@ -176,7 +177,7 @@ export default function ScansIndex({ code: serverCode, result: serverResult, rec
       ?? null
   }, [targetPart, locationId, preferred_location_id])
 
-  const projected = (selectedLocation?.quantity ?? 0) + delta
+  const projected = sumQuantities([ selectedLocation?.quantity ?? 0, delta ])
 
   // Back online, once the queued scans are sent: ask the server again for
   // what's on screen, so its stock and actions come back. Not while a count
@@ -234,8 +235,8 @@ export default function ScansIndex({ code: serverCode, result: serverResult, rec
     })
   }
 
-  const receiveCount = Number.parseInt(receiveQuantity, 10)
-  const canReceive = Number.isInteger(receiveCount) && receiveCount > 0 && !!selectedLocation
+  const receiveCount = parseQuantity(receiveQuantity) ?? 0
+  const canReceive = receiveCount > 0 && !!selectedLocation
 
   const receiveBag = async () => {
     if (!labelResult?.part || !selectedLocation || !canReceive) return
@@ -471,10 +472,10 @@ export default function ScansIndex({ code: serverCode, result: serverResult, rec
                     <div className="shrink-0 text-right">
                       <div className="text-[11px] text-muted-foreground">{t('In stock')}</div>
                       <div className={`font-mono text-2xl font-bold ${STOCK_STATUS_CLASS[part.stock_status]}`}>
-                        {(selectedLocation?.quantity ?? 0).toLocaleString(intlLocale())}
+                        {formatQuantity(selectedLocation?.quantity ?? 0)}
                       </div>
                       {part.locations.length > 1 && (
-                        <div className="text-[11px] text-muted-foreground">{t('of {total} total', { total: part.total_quantity })}</div>
+                        <div className="text-[11px] text-muted-foreground">{t('of {total} total', { total: formatQuantity(part.total_quantity) })}</div>
                       )}
                     </div>
                   </div>
@@ -522,7 +523,7 @@ export default function ScansIndex({ code: serverCode, result: serverResult, rec
                           >
                             {delta > 0 ? `+${delta}` : delta}
                           </div>
-                          <div className="mt-1 text-[11px] text-muted-foreground">{t('→ {quantity} after', { quantity: projected })}</div>
+                          <div className="mt-1 text-[11px] text-muted-foreground">{t('→ {quantity} after', { quantity: formatQuantity(projected) })}</div>
                         </div>
                         <Button
                           type="button"
@@ -752,8 +753,9 @@ export default function ScansIndex({ code: serverCode, result: serverResult, rec
                           <div className="flex gap-2">
                             <Input
                               type="number"
-                              min={1}
-                              inputMode="numeric"
+                              min={0}
+                              step="any"
+                              inputMode="decimal"
                               aria-label={t('Quantity received')}
                               value={receiveQuantity}
                               onChange={(e) => setReceiveQuantity(e.target.value)}

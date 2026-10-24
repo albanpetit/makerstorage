@@ -16,6 +16,7 @@ import {
 import { LIFECYCLE_META, STOCK_STATUS_META, locationLabel, stockStatusKey } from './part-meta'
 import type { Part, PartListPagination } from './types'
 import { t } from '@/lib/i18n'
+import { formatQuantity } from '@/lib/quantity'
 
 // Small square thumbnail for a part row. The URL may be a hotlinked supplier
 // image (e.g. Mouser) that the browser can't load — fall back to the icon on
@@ -222,7 +223,7 @@ export function PartsTable({
                     {part.supplier_name || '-'}
                   </TableCell>
                   <TableCell className="py-2.5 text-right font-mono text-sm font-semibold">
-                    {part.total_quantity}
+                    {formatQuantity(part.total_quantity, part.unit)}
                   </TableCell>
                   <TableCell className="py-2.5">
                     <div className="flex flex-col items-start gap-1">

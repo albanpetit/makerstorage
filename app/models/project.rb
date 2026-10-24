@@ -64,7 +64,7 @@ class Project < ApplicationRecord
                             at: except.reserved_at, id: except.id)
       end
     end
-    lines.group(:part_id).sum(:quantity)
+    lines.group(:part_id).sum(:quantity).transform_values { |quantity| Quantity.normalize(quantity) }
   end
 
   # The content type a KiCad file or project ZIP is stored under, from its
@@ -189,7 +189,7 @@ class Project < ApplicationRecord
   # of it have reserved (never below zero, so a short reservation elsewhere
   # isn't ordered twice).
   def available_for(part)
-    [ part.total_quantity - reserved_elsewhere.fetch(part.id, 0), 0 ].max
+    [ Quantity.sum(part.total_quantity, -reserved_elsewhere.fetch(part.id, 0)), 0 ].max
   end
 
   def reload(*)
@@ -206,7 +206,7 @@ class Project < ApplicationRecord
   # Required quantity per matched part, summed across the lines that use it,
   # for +kits+ copies of the project.
   def required_by_part(kits: 1)
-    project_lines.select(&:part).group_by(&:part).transform_values { |lines| lines.sum(&:quantity) * kits }
+    project_lines.select(&:part).group_by(&:part).transform_values { |lines| Quantity.normalize(Quantity.sum(lines.map(&:quantity)) * kits) }
   end
 
   # Parts whose available stock (see #available_for) can't cover their summed
@@ -214,7 +214,7 @@ class Project < ApplicationRecord
   # `project_lines: { part: :part_storages }` to avoid an N+1.
   def shortfall_by_part(kits: 1)
     required_by_part(kits: kits).filter_map do |part, required|
-      missing = required - available_for(part)
+      missing = Quantity.sum(required, -available_for(part))
       [ part, missing ] if missing.positive?
     end.to_h
   end

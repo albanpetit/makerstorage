@@ -104,7 +104,7 @@ class StockMovementsController < ApplicationController
   end
 
   def signed_quantity
-    magnitude = params.dig(:stock_movement, :quantity).to_i
+    magnitude = Quantity.parse(params.dig(:stock_movement, :quantity)) || 0
 
     case params.dig(:stock_movement, :movement_type)
     when "out"
@@ -187,6 +187,7 @@ class StockMovementsController < ApplicationController
         id: part.id,
         reference: part.reference,
         name: part.name,
+        unit: part.unit,
         category: part.category ? { name: part.category.name, color: part.category.color } : nil
       }
     }
@@ -194,7 +195,7 @@ class StockMovementsController < ApplicationController
 
   def serialize_parts
     current_organization.parts.alphabetical.map do |part|
-      { id: part.id, reference: part.reference, name: part.name }
+      { id: part.id, reference: part.reference, name: part.name, unit: part.unit, pack_size: part.pack_size }
     end
   end
 end

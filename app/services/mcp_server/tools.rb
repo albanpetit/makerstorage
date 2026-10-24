@@ -194,7 +194,7 @@ class McpServer
         footprints: organization.footprints.order(:name).pluck(:name),
         low_stock_parts_count: organization.low_stock_parts_count,
         low_stock_parts: low_stock.map do |part|
-          { id: part.id, ipn: part.ipn, name: part.name, on_hand: part.on_hand_total.to_i, min_stock_threshold: part.min_stock_threshold }
+          { id: part.id, ipn: part.ipn, name: part.name, on_hand: Quantity.normalize(part.on_hand_total || 0), min_stock_threshold: part.min_stock_threshold }
         end
       }
     end

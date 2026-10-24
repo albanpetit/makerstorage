@@ -132,7 +132,7 @@ class ProjectsController < ApplicationController
 
     candidates = shortfalls.filter_map do |part, shortfall|
       supplier_link = part.preferred_part_supplier
-      quantity = shortfall - incoming.fetch(part.id, 0)
+      quantity = Quantity.sum(shortfall, -incoming.fetch(part.id, 0))
       next unless supplier_link && quantity.positive?
 
       {
@@ -321,7 +321,7 @@ class ProjectsController < ApplicationController
         movement_type: "out", quantity_delta: -take, reason: "Build #{@project.reference}",
         project_build: build
       )
-      remaining -= take
+      remaining = Quantity.sum(remaining, -take)
     end
   end
 
@@ -440,7 +440,8 @@ class ProjectsController < ApplicationController
       part: line.part && {
         id: line.part.id,
         reference: line.part.reference,
-        name: line.part.name
+        name: line.part.name,
+        unit: line.part.unit
       }
     }
   end
