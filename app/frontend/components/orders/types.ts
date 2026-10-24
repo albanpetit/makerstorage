@@ -61,7 +61,8 @@ export interface ProjectOption {
 export interface OrderShowProps {
   order: Order
   suppliers: SupplierOption[]
-  parts: PartOption[]
+  /** Deferred: undefined until the page has loaded it. */
+  parts?: PartOption[]
   categories: CategoryOption[]
   catalog_enabled: boolean
   projects: ProjectOption[]

@@ -184,7 +184,7 @@ export default function OrderShow({ order, suppliers, parts, categories, catalog
         open={addOpen}
         onOpenChange={setAddOpen}
         order={order}
-        parts={parts}
+        parts={parts ?? []}
         categories={categories}
         catalogEnabled={catalog_enabled}
       />

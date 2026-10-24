@@ -24,9 +24,12 @@ class OrdersController < ApplicationController
     render inertia: "orders/show", props: {
       order: serialize_order(@order),
       suppliers: supplier_options,
-      # Lightweight pick-list for the "add from inventory" combobox.
-      parts: current_organization.parts.alphabetical.map do |part|
-        { id: part.id, reference: part.reference, name: part.name, mpn: part.mpn, sku: part.sku }
+      # Lightweight pick-list for the "add from inventory" combobox: one row
+      # per part of the organization, so sent after the order has rendered.
+      parts: InertiaRails.defer do
+        current_organization.parts.alphabetical.map do |part|
+          { id: part.id, reference: part.reference, name: part.name, mpn: part.mpn, sku: part.sku }
+        end
       end,
       # Catalog search tab: category pick-list + whether any provider is configured.
       categories: current_organization.categories.order(:name).map { |c| { id: c.id, name: c.name } },
