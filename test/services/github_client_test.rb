@@ -28,6 +28,11 @@ class GithubClientTest < ActiveSupport::TestCase
     assert_equal({ repository: "maker/rover", ref: "main", path: "hw" }, GithubClient.parse("github.com/maker/rover/blob/main/hw/board.kicad_pro?plain=1"))
     assert_nil GithubClient.parse("rover")
     assert_nil GithubClient.parse("https://github.com/maker/ro ver")
+    # "." and ".." would climb out of /repos/<owner>/ in the API paths.
+    assert_nil GithubClient.parse("maker/..")
+    assert_nil GithubClient.parse("https://github.com/maker/...git")
+    assert_nil GithubClient.parse("maker/.")
+    assert_equal "maker/.github", GithubClient.parse("maker/.github")[:repository]
   end
 
   test "commit_sha asks for the ref's SHA, with the token when there is one" do
