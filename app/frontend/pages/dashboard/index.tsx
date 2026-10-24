@@ -35,6 +35,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { t, tn, intlLocale } from '@/lib/i18n'
+import { formatQuantity } from '@/lib/quantity'
 
 interface Stats {
   references_count: number
@@ -69,6 +70,7 @@ interface LowStockPart {
   location_name: string | null
   quantity: number
   min_stock_threshold: number
+  unit: string
   incoming: number
 }
 
@@ -451,9 +453,9 @@ export default function Dashboard({
                           <TableCell>
                             <div className="flex items-baseline justify-between gap-2 font-mono text-xs">
                               <span className={`font-semibold ${part.quantity === 0 ? 'text-destructive' : 'text-amber-600 dark:text-amber-500'}`}>
-                                {part.quantity}
+                                {formatQuantity(part.quantity)}
                               </span>
-                              <span className="text-muted-foreground">/ {part.min_stock_threshold}</span>
+                              <span className="text-muted-foreground">/ {formatQuantity(part.min_stock_threshold, part.unit)}</span>
                             </div>
                             <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-muted">
                               <div

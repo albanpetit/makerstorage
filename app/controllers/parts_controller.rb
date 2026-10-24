@@ -6,7 +6,7 @@ class PartsController < ApplicationController
 
   before_action :verify_organization_access
   before_action :verify_organization_writer, only: %i[
-    create update destroy import lookup
+    create update destroy import lookup extract
     bulk_move bulk_update_category bulk_update_status bulk_update_tags bulk_assign_supplier
   ]
   # Bulk delete is scoped to admins/owners, not the general writer role: unlike
@@ -14,6 +14,10 @@ class PartsController < ApplicationController
   # gets the stricter gate that single-part destroy doesn't need.
   before_action :verify_organization_admin, only: %i[bulk_destroy]
   before_action :set_part, only: %i[show edit update destroy]
+
+  # Each AI read is billed to the organization's own Anthropic key.
+  rate_limit to: 20, within: 10.minutes, only: :extract, by: -> { current_user.id }, store: AUTH_RATE_LIMIT_STORE,
+             with: -> { render json: { error: t("flash.parts.too_many_ai_reads") }, status: :too_many_requests }
 
   # Raised when an import row's location names several zones; skips the row.
   class AmbiguousLocationError < StandardError; end
@@ -61,12 +65,15 @@ class PartsController < ApplicationController
       tags: serialize_tags,
       storage_locations: serialize_storage_locations,
       supplier_lookup_enabled: current_organization.supplier_lookup_configured?,
+      ai_entry_enabled: current_organization.ai_entry_configured?,
       ipn_manual_entry: current_organization.ipn_generation_mode == "manual",
       bag_options: bag_options,
       bag_boxes: bag_boxes,
       open_add: params[:new].present?,
       add_prefill: add_prefill,
-      duplicate_groups_count: PartDuplicates.new(current_organization).count
+      # Compares every part of the organization: sent after the page has
+      # rendered, so a big inventory doesn't wait on it.
+      duplicate_groups_count: InertiaRails.defer { PartDuplicates.new(current_organization).count }
     }
   end
 
@@ -106,6 +113,8 @@ class PartsController < ApplicationController
           loans: serialize_part_loans(@part),
           price_history: serialize_price_history(@part),
           consumption: serialize_part_consumption(@part),
+          alternatives: serialize_part_alternatives(@part),
+          equivalents: PartEquivalents.new(@part).suggestions.map { |suggestion| serialize_equivalent(suggestion) },
           storage_locations: serialize_storage_locations,
           categories: serialize_categories,
           footprints: serialize_footprints,
@@ -143,6 +152,8 @@ class PartsController < ApplicationController
   def create
     part = current_organization.parts.build(part_params)
     part.image_source_url = Part.supplier_image_url(params[:image_url])
+    # The datasheet read by AI-assisted entry, kept with the new part.
+    part.datasheet.attach(params[:datasheet_file]) if params[:datasheet_file].is_a?(ActionDispatch::Http::UploadedFile)
 
     # The part, its new bag and its opening stock land together: a refused
     # stock movement must not leave the part created behind an error.
@@ -195,6 +206,20 @@ class PartsController < ApplicationController
   rescue SupplierCatalog::NotConfiguredError
     render json: { error: t("flash.parts.no_supplier_catalog_is_configured_add") }, status: :unprocessable_entity
   rescue SupplierCatalog::LookupError => e
+    render json: { error: e.message }, status: :bad_gateway
+  end
+
+  # AI-assisted entry: reads the photos / datasheet the add-part dialog sends
+  # with the organization's Claude key (PartExtraction) and returns the fields
+  # to prefill as JSON. Nothing is saved. Async fetch, not an Inertia visit.
+  def extract
+    result = PartExtraction.new(current_organization).extract(Array(params[:files]), hint: params[:hint])
+    render json: { result: result }
+  rescue PartExtraction::NotConfiguredError, PartExtraction::InvalidFileError => e
+    render json: { error: e.message }, status: :unprocessable_entity
+  rescue PartExtraction::BusyError => e
+    render json: { error: e.message }, status: :service_unavailable
+  rescue PartExtraction::Error => e
     render json: { error: e.message }, status: :bad_gateway
   end
 
@@ -260,8 +285,8 @@ class PartsController < ApplicationController
     destroyed = parts.select { |part| part.destroy }
     skipped = parts.size - destroyed.size
 
-    notice = "#{destroyed.size} #{'part'.pluralize(destroyed.size)} deleted successfully."
-    notice += " #{skipped} #{'part'.pluralize(skipped)} could not be deleted because #{skipped == 1 ? 'it has' : 'they have'} stock history or purchase orders." if skipped.positive?
+    notice = t("flash.parts.bulk_deleted", count: destroyed.size)
+    notice += " #{t('flash.parts.bulk_delete_skipped', count: skipped)}" if skipped.positive?
 
     redirect_back_or_to parts_path, notice: notice
   end
@@ -273,7 +298,8 @@ class PartsController < ApplicationController
     category = current_organization.categories.find_by(id: params[:category_id])
     return bulk_error(t("flash.parts.choose_a_category")) unless category
 
-    updated = parts.update_all(category_id: category.id)
+    updated = parts.update_all(category_id: category.id, updated_at: Time.current)
+    record_bulk_update(updated, "category" => category.name)
     redirect_back_or_to parts_path, notice: t("flash.parts.bulk_category", count: updated, category: category.name)
   end
 
@@ -284,7 +310,8 @@ class PartsController < ApplicationController
     status = params[:status].to_s
     return bulk_error(t("flash.parts.choose_a_valid_status")) unless Part::STATUSES.include?(status)
 
-    updated = parts.update_all(status: status)
+    updated = parts.update_all(status: status, updated_at: Time.current)
+    record_bulk_update(updated, "status" => status)
     redirect_back_or_to parts_path, notice: t("flash.parts.bulk_status", count: updated, status: t("part_statuses.#{status}"))
   end
 
@@ -298,9 +325,11 @@ class PartsController < ApplicationController
     return bulk_error(t("flash.parts.choose_at_least_one_tag")) if tag_ids.empty?
 
     part_ids = parts.pluck(:id)
+    tag_names = current_organization.tags.where(id: tag_ids).order(:name).pluck(:name)
 
     if params[:mode] == "remove"
       PartTag.where(part_id: part_ids, tag_id: tag_ids).delete_all
+      record_bulk_update(part_ids.size, "tags_removed" => tag_names)
       redirect_back_or_to parts_path, notice: t("flash.parts.bulk_tags_removed", count: part_ids.size, tags: t("flash.parts.tags", count: tag_ids.size))
     else
       # Single query for existing links instead of a per-part tag_ids lookup,
@@ -311,6 +340,7 @@ class PartsController < ApplicationController
           .map { |tag_id| { part_id: part_id, tag_id: tag_id } }
       end
       PartTag.insert_all(rows) if rows.any?
+      record_bulk_update(part_ids.size, "tags_added" => tag_names)
       redirect_back_or_to parts_path, notice: t("flash.parts.bulk_tags_added", count: part_ids.size, tags: t("flash.parts.tags", count: tag_ids.size))
     end
   end
@@ -331,6 +361,7 @@ class PartsController < ApplicationController
         link.is_preferred = true
         link.save!
       end
+      record_bulk_update(parts.size, "supplier" => supplier.name)
     end
 
     redirect_back_or_to parts_path, notice: t("flash.parts.bulk_supplier", count: parts.size, supplier: supplier.name)
@@ -414,6 +445,12 @@ class PartsController < ApplicationController
     Array(params[:part_ids]).map(&:to_i).reject(&:zero?).uniq
   end
 
+  # Bulk edits write their rows directly (update_all, insert_all) or touch
+  # child rows only, so the activity log gets one summary event instead.
+  def record_bulk_update(count, details)
+    ActivityEvent.record!(current_organization, "update", details: { "updated" => count, **details }) if count.positive?
+  end
+
   # Redirects with a flash alert AND an Inertia `errors` prop, so the client's
   # `onError` callback fires instead of `onSuccess` — without this, a rejected
   # bulk action still looks like a success to the visit that triggered it (the
@@ -444,11 +481,11 @@ class PartsController < ApplicationController
 
         current_organization.stock_movements.create!(
           part: part, storage_location: source, user: current_user,
-          movement_type: "out", quantity_delta: -quantity, reason: "Bulk move to #{destination.name}"
+          movement_type: "out", quantity_delta: -quantity, reason: "Bulk move to #{destination.name}", transfer: true
         )
         current_organization.stock_movements.create!(
           part: part, storage_location: destination, user: current_user,
-          movement_type: "in", quantity_delta: quantity, reason: "Bulk move from #{source.name}"
+          movement_type: "in", quantity_delta: quantity, reason: "Bulk move from #{source.name}", transfer: true
         )
         moved = true
       end
@@ -483,9 +520,9 @@ class PartsController < ApplicationController
     # truth (PartStorage is maintained by StockMovement's callback), so a direct
     # write would desync the movements "Stock After" running balance. Only the
     # delta from the current level is recorded, as an adjustment.
-    target = quantity.to_i
+    target = Quantity.parse(quantity) || 0
     current = PartStorage.find_by(part: part, storage_location: location)&.quantity || 0
-    delta = target - current
+    delta = Quantity.sum(target, -current)
     return if delta.zero?
 
     StockMovement.create!(
@@ -566,7 +603,7 @@ class PartsController < ApplicationController
   # that zone's bag when it is one, and no bag at all when the stock goes
   # elsewhere, instead of claiming a free bag it would leave empty.
   def place_in_initial_bag(part)
-    return if params[:initial_location_id].blank? || params[:initial_quantity].to_i <= 0 || part.bag_id.present?
+    return if params[:initial_location_id].blank? || (Quantity.parse(params[:initial_quantity]) || 0) <= 0 || part.bag_id.present?
 
     location = current_organization.storage_locations.find_by(id: params[:initial_location_id])
     if location&.bag? && current_organization.ipn_generation_mode == "box_bag"
@@ -589,7 +626,7 @@ class PartsController < ApplicationController
   end
 
   def assign_initial_stock(part)
-    quantity = params[:initial_quantity].to_i
+    quantity = Quantity.parse(params[:initial_quantity]) || 0
     return if quantity <= 0
     raise InitialStockError, t("flash.parts.quantity_is_too_large") if quantity > ApplicationRecord::MAX_INTEGER
 
@@ -642,16 +679,16 @@ class PartsController < ApplicationController
   # Box & bag numbering: a part moved to another bag takes the stock it held in
   # its old one along, through the ledger.
   def move_stock_to_new_bag(part, previous_bag)
-    quantity = PartStorage.find_by(part: part, storage_location: previous_bag)&.quantity.to_i
+    quantity = PartStorage.find_by(part: part, storage_location: previous_bag)&.quantity || 0
     return unless quantity.positive?
 
     current_organization.stock_movements.create!(
       part: part, storage_location: previous_bag, user: current_user,
-      movement_type: "out", quantity_delta: -quantity, reason: "Moved to bag #{part.bag.code}"
+      movement_type: "out", quantity_delta: -quantity, reason: "Moved to bag #{part.bag.code}", transfer: true
     )
     current_organization.stock_movements.create!(
       part: part, storage_location: part.bag, user: current_user,
-      movement_type: "in", quantity_delta: quantity, reason: "Moved from bag #{previous_bag.code}"
+      movement_type: "in", quantity_delta: quantity, reason: "Moved from bag #{previous_bag.code}", transfer: true
     )
   end
 
@@ -720,7 +757,7 @@ class PartsController < ApplicationController
       :name, :mpn, :sku, :barcode, :ipn, :bag_id, :manufacturer, :description,
       :value, :tolerance, :voltage_rating, :power_rating, :package_type,
       :category_id, :footprint_id,
-      :unit_price, :min_stock_threshold, :target_stock,
+      :unit_price, :min_stock_threshold, :target_stock, :unit, :pack_size,
       :status, :rohs_compliant, :storage_notes,
       :kicad_symbol, :kicad_footprint,
       images: [],
@@ -804,8 +841,9 @@ class PartsController < ApplicationController
       # Compute from the preloaded associations (see index eager-loading) rather
       # than `part.total_quantity`/`part.preferred_supplier`, which each fire a
       # fresh query per part and turn the list into an N+1.
-      total_quantity: part.part_storages.to_a.sum(&:quantity),
+      total_quantity: Quantity.sum(part.part_storages.map(&:quantity)),
       min_stock_threshold: part.min_stock_threshold,
+      unit: part.unit,
       unit_price: part.unit_price&.to_f,
       location_names: part.storage_locations.map(&:name),
       supplier_name: part.part_suppliers.find(&:is_preferred)&.supplier&.name,
@@ -821,16 +859,46 @@ class PartsController < ApplicationController
     end
   end
 
-  # Confirmed projects holding this part (empty when reservations are off).
+  # Confirmed projects holding this part, directly or through their
+  # sub-assemblies (empty when reservations are off).
   def serialize_part_reservations(part)
-    return [] unless current_organization.stock_reservations_enabled
+    Project.reservations_of(current_organization, part).map do |project, quantity|
+      { project_id: project.id, reference: project.reference, name: project.name, quantity: quantity }
+    end
+  end
 
-    current_organization.projects.reserving
-      .joins(:project_lines).where(project_lines: { part_id: part.id })
-      .group("projects.id", "projects.reference", "projects.name")
-      .order("projects.reserved_at", "projects.id")
-      .sum("project_lines.quantity")
-      .map { |(id, reference, name), quantity| { project_id: id, reference: reference, name: name, quantity: quantity } }
+  # Parts linked as alternatives (PartAlternative), the most in stock first.
+  def serialize_part_alternatives(part)
+    links = part.alternative_links.to_a
+    others = current_organization.parts.where(id: links.map { |link| link.other_id(part.id) })
+      .includes(:footprint, :part_storages).index_by(&:id)
+    links.filter_map do |link|
+      other = others[link.other_id(part.id)]
+      other && { id: link.id, note: link.note, part: serialize_alternative_part(other) }
+    end.sort_by { |entry| [ -entry[:part][:total_quantity], entry[:part][:name].downcase ] }
+  end
+
+  def serialize_equivalent(suggestion)
+    {
+      part: serialize_alternative_part(suggestion.part),
+      matched: suggestion.matched,
+      better: suggestion.better,
+      missing: suggestion.missing
+    }
+  end
+
+  def serialize_alternative_part(part)
+    {
+      id: part.id,
+      reference: part.reference,
+      name: part.name,
+      mpn: part.mpn,
+      manufacturer: part.manufacturer,
+      value: part.value,
+      footprint: part.footprint&.name,
+      status: part.status,
+      total_quantity: part.part_storages.sum(&:quantity)
+    }
   end
 
   # Open loans holding some of this part, oldest first.
@@ -886,6 +954,7 @@ class PartsController < ApplicationController
       power_rating: part.power_rating,
       package_type: part.package_type,
       target_stock: part.target_stock,
+      pack_size: part.pack_size,
       lead_time_days: part.lead_time_days,
       rohs_compliant: part.rohs_compliant,
       storage_notes: part.storage_notes,

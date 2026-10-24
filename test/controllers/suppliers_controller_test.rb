@@ -26,8 +26,47 @@ class SuppliersControllerTest < ActionDispatch::IntegrationTest
     assert_equal 6, supplier_json["avg_lead_time_days"]
     assert_equal 10.0, supplier_json["stock_value"]
     assert_equal 1, supplier_json["order_count"]
-    assert_equal "RES-10K", supplier_json["components"].first["reference"]
-    assert_equal order.id, supplier_json["orders"].first["id"]
+    assert_equal order.ordered_at.iso8601, supplier_json["last_order_at"]
+    assert_nil inertia_props["supplier_detail"], "a supplier's components and orders load with its sheet"
+  end
+
+  test "index sends one supplier's components and orders on request" do
+    user = create_user
+    org = user.organizations.first
+    supplier = create_supplier(organization: org, name: "Mouser")
+    part = create_part(organization: org, mpn: "RES-10K")
+    PartSupplier.create!(part: part, supplier: supplier, unit_price: 0.04)
+    order = Order.create!(organization: org, supplier: supplier, status: "received", ordered_at: 3.days.ago.to_date, total_amount: 150.0)
+    foreign = create_supplier(organization: create_organization, name: "Elsewhere")
+
+    sign_in user
+    get suppliers_path
+    version = JSON.parse(@response.body[/data-page="app" type="application\/json"[^>]*>(.*?)<\/script>/m, 1])["version"].to_s
+    headers = { "X-Inertia" => "true", "X-Inertia-Version" => version,
+                "X-Inertia-Partial-Component" => "suppliers/index", "X-Inertia-Partial-Data" => "supplier_detail" }
+
+    get suppliers_path(supplier: supplier.id), headers: headers
+    detail = JSON.parse(@response.body)["props"]["supplier_detail"]
+    assert_equal supplier.id, detail["id"]
+    assert_equal "RES-10K", detail["components"].sole["reference"]
+    assert_equal order.id, detail["orders"].sole["id"]
+
+    get suppliers_path(supplier: foreign.id), headers: headers
+    assert_nil JSON.parse(@response.body)["props"]["supplier_detail"]
+  end
+
+  test "index computes the figures without loading each supplier's parts" do
+    user = create_user
+    org = user.organizations.first
+    suppliers = Array.new(3) { |i| create_supplier(organization: org, name: "Supplier #{i}") }
+    suppliers.each { |supplier| 2.times { PartSupplier.create!(part: create_part(organization: org), supplier: supplier) } }
+
+    sign_in user
+    get suppliers_path
+    queries = count_queries { get suppliers_path }
+    suppliers << create_supplier(organization: org, name: "Supplier 4")
+    PartSupplier.create!(part: create_part(organization: org), supplier: suppliers.last)
+    assert_equal queries, count_queries { get suppliers_path }
   end
 
   test "index does not leak another organization's suppliers" do

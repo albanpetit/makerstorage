@@ -37,6 +37,9 @@ interface ComboboxProps {
   // Adds a last row that hands the current query back (e.g. "Create …").
   onCreate?: (query: string) => void
   createLabel?: (query: string) => string
+  // Called as the search text changes (and with "" when the popover closes),
+  // for options searched on the server: they're then shown as given.
+  onQueryChange?: (query: string) => void
 }
 
 function matches(option: ComboboxOption, terms: string[]) {
@@ -64,6 +67,7 @@ function Combobox({
   id,
   onCreate,
   createLabel = (query) => (query ? t("Create “{query}”", { query }) : t("Create new…")),
+  onQueryChange,
 }: ComboboxProps) {
   const [open, setOpen] = React.useState(false)
   const [query, setQuery] = React.useState("")
@@ -76,9 +80,10 @@ function Combobox({
 
   const filtered = React.useMemo(() => {
     const terms = query.trim().toLowerCase().split(/\s+/).filter(Boolean)
-    if (terms.length === 0) return options
+    // Options searched on the server come back already filtered.
+    if (terms.length === 0 || onQueryChange) return options
     return options.filter((o) => matches(o, terms))
-  }, [options, query])
+  }, [options, query, onQueryChange])
 
   // No create row when the query names an existing option exactly. When
   // shown, it counts as the last navigable item.
@@ -91,6 +96,7 @@ function Combobox({
   React.useEffect(() => {
     if (!open) {
       setQuery("")
+      onQueryChange?.("")
       return
     }
     const index = options.findIndex((o) => o.value === value)
@@ -164,6 +170,7 @@ function Combobox({
               onChange={(e) => {
                 setQuery(e.target.value)
                 setActive(0)
+                onQueryChange?.(e.target.value)
               }}
               onKeyDown={onKeyDown}
               placeholder={searchPlaceholder}

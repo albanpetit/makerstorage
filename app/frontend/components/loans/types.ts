@@ -13,6 +13,7 @@ export interface LendablePart {
   reference: string
   ipn: string | null
   name: string
+  unit: string
   locations: { id: number; name: string; quantity: number }[]
 }
 

@@ -24,9 +24,12 @@ class OrdersController < ApplicationController
     render inertia: "orders/show", props: {
       order: serialize_order(@order),
       suppliers: supplier_options,
-      # Lightweight pick-list for the "add from inventory" combobox.
-      parts: current_organization.parts.alphabetical.map do |part|
-        { id: part.id, reference: part.reference, name: part.name, mpn: part.mpn, sku: part.sku }
+      # Lightweight pick-list for the "add from inventory" combobox: one row
+      # per part of the organization, so sent after the order has rendered.
+      parts: InertiaRails.defer do
+        current_organization.parts.alphabetical.map do |part|
+          { id: part.id, reference: part.reference, name: part.name, mpn: part.mpn, sku: part.sku }
+        end
       end,
       # Catalog search tab: category pick-list + whether any provider is configured.
       categories: current_organization.categories.order(:name).map { |c| { id: c.id, name: c.name } },
@@ -147,7 +150,7 @@ class OrdersController < ApplicationController
 
         line = @order.order_lines.find_or_initialize_by(part_id: part.id)
         previous_quantity = line.quantity
-        line.quantity = line.quantity.to_i + quantity
+        line.quantity = Quantity.sum(line.quantity, quantity)
         line.follow_price_breaks(previous_quantity)
         line.save!
         added += 1
@@ -259,13 +262,13 @@ class OrdersController < ApplicationController
     result = client.import_order(number)
 
     if result.lines.empty?
-      redirect_to orders_path, alert: "#{label} order #{number} has no importable lines."
+      redirect_to orders_path, alert: t("flash.orders.import_has_no_lines", provider: label, number: number)
       return
     end
 
     reference = result.order_number.presence || number
     if current_organization.orders.exists?(reference: reference)
-      redirect_to orders_path, alert: "#{label} order #{reference} has already been imported."
+      redirect_to orders_path, alert: t("flash.orders.import_already_imported", provider: label, reference: reference)
       return
     end
 
@@ -422,7 +425,8 @@ class OrdersController < ApplicationController
       part: {
         id: line.part.id,
         reference: line.part.reference,
-        name: line.part.name
+        name: line.part.name,
+        unit: line.part.unit
       }
     }
   end

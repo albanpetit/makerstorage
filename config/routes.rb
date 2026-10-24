@@ -58,6 +58,7 @@ Rails.application.routes.draw do
     collection do
       post :import
       post :lookup
+      post :extract
       post :rows
       post :bulk_move
       delete :bulk_destroy
@@ -73,6 +74,7 @@ Rails.application.routes.draw do
       end
     end
     resources :attachments, controller: "part_attachments", only: %i[create destroy]
+    resources :alternatives, controller: "part_alternatives", only: %i[index create destroy]
   end
 
   resources :categories, only: %i[index create update destroy]
@@ -164,6 +166,7 @@ Rails.application.routes.draw do
   # Project BOM availability checks
   resources :projects, only: %i[index show create update destroy] do
     member do
+      get :cost
       post :duplicate
       post :confirm
       post :reserve

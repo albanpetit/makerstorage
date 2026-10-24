@@ -369,6 +369,63 @@ class ProjectsControllerTest < ActionDispatch::IntegrationTest
     assert_not_nil project.reload.reserved_at
   end
 
+  test "show prices 1, 10 and 100 copies, plus the quantity asked for" do
+    @resistor.update!(unit_price: 0.1)
+    PartSupplier.create!(part: @cap, supplier: create_supplier(organization: @org, name: "Farnell"), is_preferred: true, unit_price: 0.05)
+    project = build_project([ @resistor, 2, "mpn" ], [ @cap, 4, "sku" ])
+    project.project_lines.create!(designation: "Custom coil", quantity: 1, match_type: "none")
+
+    sign_in @user
+    get project_path(project)
+    cost = inertia_props["cost"]
+    assert_equal "EUR", cost["currency"]
+    assert_equal [ 1, 10, 100 ], cost["estimates"].map { |estimate| estimate["quantity"] }
+
+    ten = cost["estimates"].second
+    assert_in_delta 2.5, ten["stock_value"] # 5 × 0.10 + 40 × 0.05
+    assert_in_delta 1.5, ten["purchase_cost"] # 15 resistors × 0.10
+    assert_in_delta 0.4, ten["per_unit"]
+    assert_equal [ false, 0, 1 ], ten.values_at("complete", "unpriced_count", "unmatched_count")
+    assert_equal [ "Custom coil", 10 ], ten["unmatched"].sole.values_at("label", "quantity")
+    resistor = ten["rows"].find { |row| row["part"]["id"] == @resistor.id }
+    assert_equal [ 20, 5, 15, true ], resistor.values_at("required", "from_stock", "to_buy", "priced")
+    assert_equal "Farnell", ten["rows"].find { |row| row["part"]["id"] == @cap.id }["supplier"]
+
+    get project_path(project, cost_quantity: 25)
+    assert_equal [ 1, 10, 25, 100 ], inertia_props["cost"]["estimates"].map { |estimate| estimate["quantity"] }
+  end
+
+  test "cost exports one quantity part by part as CSV, viewers included" do
+    @resistor.update!(unit_price: 0.1)
+    project = build_project([ @resistor, 2, "mpn" ], [ @cap, 1, "sku" ])
+    project.project_lines.create!(raw_reference: "=COIL", quantity: 1, match_type: "none")
+    viewer = create_user
+    OrganizationMembership.create!(organization: @org, user: viewer, role: "viewer")
+
+    sign_in viewer
+    get cost_project_path(project, quantity: 3)
+    assert_response :success
+    assert_equal "text/csv", response.media_type
+    assert_match(/-cost-x3\.csv/, response.headers["Content-Disposition"])
+
+    rows = CSV.parse(response.body)
+    assert_equal [ "Part", "Name", "Needed", "From stock", "Stock unit price", "To buy", "Buy unit price", "Supplier", "Cost", "Priced" ], rows.first
+    resistor = rows.find { |row| row[1] == "Resistor 10k" }
+    assert_equal [ "6", "5", "0.1", "1", "0.1", "0.6" ], resistor.values_at(2, 3, 4, 5, 6, 8)
+    assert_equal "no", rows.find { |row| row[1] == "Cap 100nF" }[9]
+    assert_equal [ "'=COIL", "3", "not in inventory" ], rows.find { |row| row[9] == "not in inventory" }.values_at(0, 2, 9)
+    assert_equal [ "Total", "0.6", "no" ], rows[-2].values_at(0, 8, 9)
+    assert_equal [ "Per unit", "0.2" ], rows[-1].values_at(0, 8)
+  end
+
+  test "another organization's project cost is not found" do
+    foreign = create_project(organization: create_organization)
+    sign_in @user
+
+    get cost_project_path(foreign)
+    assert_response :not_found
+  end
+
   test "reserving another organization's project is not found" do
     other_org = create_organization
     foreign = create_project(organization: other_org, status: "confirmed")
@@ -674,6 +731,31 @@ class ProjectsControllerTest < ActionDispatch::IntegrationTest
   end
 
   private
+
+  test "a short line lists linked alternatives with stock this project can use, and switches to one" do
+    project = create_project(organization: @org, name: "Timer")
+    line = ProjectLine.create!(project: project, part: @resistor, quantity: 8, match_type: "mpn")
+    spare = create_part(organization: @org, category: @category, name: "Resistor 10k other maker", mpn: "ERJ-6GEYJ103V")
+    empty = create_part(organization: @org, category: @category, name: "Resistor 10k none left")
+    stock(spare, 20)
+    PartAlternative.link!(@resistor, spare)
+    PartAlternative.link!(empty, @resistor)
+    # Another project reserved 10 of the spare before this one.
+    other = create_project(organization: @org, name: "Earlier", status: "confirmed", reserved_at: 1.day.ago)
+    ProjectLine.create!(project: other, part: spare, quantity: 10, match_type: "mpn")
+    sign_in @user
+
+    get project_path(project)
+
+    entry = inertia_props["project"]["lines"].sole
+    assert_equal [ { "id" => spare.id, "reference" => "ERJ-6GEYJ103V", "name" => spare.name, "available" => 10 } ], entry["alternatives"]
+
+    patch project_project_line_path(project, line), params: { project_line: { part_id: spare.id } }
+    assert_equal [ spare, "manual" ], [ line.reload.part, line.match_type ]
+
+    get project_path(project)
+    assert_empty inertia_props["project"]["lines"].sole["alternatives"], "lines that aren't short list none"
+  end
 
   def stock(part, quantity)
     StockMovement.create!(organization: @org, part: part, storage_location: @location,

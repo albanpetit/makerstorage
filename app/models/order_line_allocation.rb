@@ -7,11 +7,17 @@ class OrderLineAllocation < ApplicationRecord
   belongs_to :order_line
   belongs_to :storage_location
 
+  attribute :quantity, Quantity::Type.new
+
   # Validations
-  validates :quantity, numericality: { only_integer: true, greater_than: 0, less_than_or_equal_to: MAX_INTEGER }
+  validates :quantity, quantity: { greater_than: 0, unit_of: :part }
   validate :storage_location_must_belong_to_same_organization
 
   private
+
+  def part
+    order_line&.part
+  end
 
   def storage_location_must_belong_to_same_organization
     return unless order_line&.part && storage_location

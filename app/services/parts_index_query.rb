@@ -36,7 +36,7 @@ class PartsIndexQuery
 
     def stock_status
       return "out" if total_quantity.zero?
-      return "low" if total_quantity < min_stock_threshold.to_i
+      return "low" if total_quantity < (min_stock_threshold || 0)
 
       "ok"
     end
@@ -127,7 +127,7 @@ class PartsIndexQuery
   end
 
   def total_units
-    matching.sum(&:total_quantity)
+    Quantity.sum(matching.map(&:total_quantity))
   end
 
   def page_count
@@ -273,7 +273,7 @@ class PartsIndexQuery
   def sort_rows(list)
     indexed = list.each_with_index
     sorted = case sort
-    when "crit" then indexed.sort_by { |row, i| [ row.total_quantity.to_f / [ row.min_stock_threshold.to_i, 1 ].max, i ] }
+    when "crit" then indexed.sort_by { |row, i| [ row.total_quantity.to_f / [ row.min_stock_threshold.to_f, 1 ].max, i ] }
     when "qtyDesc" then indexed.sort_by { |row, i| [ -row.total_quantity, i ] }
     when "qtyAsc" then indexed.sort_by { |row, i| [ row.total_quantity, i ] }
     when "priceDesc" then indexed.sort_by { |row, i| [ -row.unit_price.to_f, i ] }

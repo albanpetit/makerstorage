@@ -41,7 +41,9 @@ class LoansController < ApplicationController
         returned: scope.closed.count
       },
       members: serialize_members,
-      parts: serialize_lendable_parts,
+      # Every part in stock, for the Lend dialog: loaded when it opens (a
+      # partial reload), or right away when "Lend" on a part's sheet opened it.
+      parts: params[:part_id].present? ? serialize_lendable_parts : InertiaRails.optional { serialize_lendable_parts },
       default_due_on: (today + current_organization.default_loan_days).iso8601,
       # "Lend" from a part's detail opens the dialog with that part.
       prefill_part_id: params[:part_id].presence&.to_i
@@ -170,7 +172,7 @@ class LoansController < ApplicationController
   def serialize_lendable_parts
     cache = StorageLocation.full_path_cache(current_organization.storage_locations)
     current_organization.parts.alphabetical
-      .joins(:part_storages).where(part_storages: { quantity: 1.. }).distinct
+      .joins(:part_storages).where("part_storages.quantity > 0").distinct
       .includes(part_storages: :storage_location)
       .map do |part|
         storages = part.part_storages.select { |storage| storage.quantity.positive? }.sort_by { |storage| [ -storage.quantity, storage.id ] }
@@ -179,6 +181,7 @@ class LoansController < ApplicationController
           reference: part.reference,
           ipn: part.ipn,
           name: part.name,
+          unit: part.unit,
           locations: storages.map do |storage|
             { id: storage.storage_location_id, name: storage.storage_location.full_path(cache: cache), quantity: storage.quantity }
           end
@@ -198,9 +201,9 @@ class LoansController < ApplicationController
       days_overdue: loan.days_overdue(today),
       created_at: loan.created_at.iso8601,
       closed_at: loan.closed_at&.iso8601,
-      item_count: lines.sum(&:quantity),
-      outstanding: lines.sum(&:outstanding_quantity),
-      items: lines.map { |line| "#{line.quantity} × #{line.part.name}" }.first(3),
+      item_count: Quantity.sum(lines.map(&:quantity)),
+      outstanding: Quantity.sum(lines.map(&:outstanding_quantity)),
+      items: lines.map { |line| "#{Quantity.format(line.quantity, line.part.unit)} × #{line.part.name}" }.first(3),
       more_items: [ lines.size - 3, 0 ].max
     }
   end
@@ -224,7 +227,7 @@ class LoansController < ApplicationController
       lines: loan.loan_lines.includes(:part, :storage_location).map do |line|
         {
           id: line.id,
-          part: { id: line.part.id, reference: line.part.reference, ipn: line.part.ipn, name: line.part.name },
+          part: { id: line.part.id, reference: line.part.reference, ipn: line.part.ipn, name: line.part.name, unit: line.part.unit },
           storage_location: line.storage_location && { id: line.storage_location.id, name: line.storage_location.full_path(cache: cache) },
           quantity: line.quantity,
           returned_quantity: line.returned_quantity,

@@ -1,11 +1,15 @@
 # frozen_string_literal: true
 
+require "csv"
+
 class ProjectsController < ApplicationController
   include Auth
+  include OptionListSerializers
+  include CsvText
 
   before_action :verify_organization_access
   before_action :verify_organization_writer, only: %i[create update duplicate confirm reserve release create_purchase_orders build destroy]
-  before_action :set_project, only: %i[show update duplicate confirm reserve release create_purchase_orders build destroy]
+  before_action :set_project, only: %i[show cost update duplicate confirm reserve release create_purchase_orders build destroy]
 
   # Most kits one build can deduct at once.
   MAX_BUILD_KITS = 1_000
@@ -16,9 +20,15 @@ class ProjectsController < ApplicationController
     projects = current_organization.projects
       .includes(:kicad_files_attachments, project_lines: { part: :part_storages })
       .recent
+    # One tree reader for the whole list, so sub-assemblies and reservations are read once.
+    structure = ProjectStructure.new(current_organization)
+    used_as_assembly = ProjectLine.where(subproject_id: projects.map(&:id)).distinct.pluck(:subproject_id).to_set
 
     render inertia: "projects/index", props: {
-      projects: projects.map { |project| serialize_project_summary(project) },
+      projects: projects.map do |project|
+        project.structure = structure
+        serialize_project_summary(project).merge(used_as_assembly: used_as_assembly.include?(project.id))
+      end,
       github_token_configured: current_organization.github_token.present?
     }
   end
@@ -26,11 +36,25 @@ class ProjectsController < ApplicationController
   def show
     render inertia: "projects/show", props: {
       project: serialize_project(@project),
+      # Cost for 1, 10, 100 copies plus the quantity typed on the page
+      # (?cost_quantity=N, partial reload of this prop only).
+      cost: -> { serialize_cost(@project, ProjectCost.quantities(params[:cost_quantity])) },
       # Lightweight pick-list for the review UI's re-match combobox.
       parts: current_organization.parts.alphabetical.map do |part|
         { id: part.id, reference: part.reference, name: part.name, mpn: part.mpn, sku: part.sku }
-      end
+      end,
+      # Projects this one can use as a sub-assembly: not itself, nor one that uses it.
+      subproject_options: serialize_subproject_options(@project),
+      # Where the built item can go when the project has one.
+      storage_locations: @project.output_part ? serialize_storage_locations : []
     }
+  end
+
+  # Part by part cost of +quantity+ copies (ProjectCost), as CSV.
+  def cost
+    estimate = ProjectCost.new(@project).estimate(params[:quantity].to_s.to_i.clamp(1, ProjectCost::MAX_QUANTITY))
+    filename = "#{(@project.reference.presence || "project-#{@project.id}").parameterize}-cost-x#{estimate.quantity}.csv"
+    send_data cost_csv(estimate), filename: filename, type: "text/csv"
   end
 
   def create
@@ -79,9 +103,14 @@ class ProjectsController < ApplicationController
     redirect_to projects_path, alert: project.errors.full_messages.to_sentence.presence || t("flash.projects.could_not_import_that_bom")
   end
 
-  # Name, description and revision label; the lines are edited one by one.
+  # Name, description, revision label and built item; the lines are edited one by one.
   def update
-    if @project.update(params.require(:project).permit(:name, :description, :revision))
+    attributes = params.require(:project).permit(:name, :description, :revision, :output_part_id)
+    if attributes.key?(:output_part_id)
+      part_id = attributes.delete(:output_part_id)
+      attributes[:output_part] = part_id.presence && current_organization.parts.find_by(id: part_id)
+    end
+    if @project.update(attributes)
       redirect_to project_path(@project), notice: t("flash.projects.updated")
     else
       redirect_to project_path(@project),
@@ -132,7 +161,7 @@ class ProjectsController < ApplicationController
 
     candidates = shortfalls.filter_map do |part, shortfall|
       supplier_link = part.preferred_part_supplier
-      quantity = shortfall - incoming.fetch(part.id, 0)
+      quantity = Quantity.sum(shortfall, -incoming.fetch(part.id, 0))
       next unless supplier_link && quantity.positive?
 
       {
@@ -184,7 +213,10 @@ class ProjectsController < ApplicationController
   # +kits+ copies of the project (1 by default), recording an "out" movement per
   # source location and a ProjectBuild those movements point at. Only allowed
   # when the project is fully buildable for that many kits, so we never leave a
-  # kit half-deducted.
+  # kit half-deducted. Phantom sub-assemblies are built along (their parts are
+  # deducted); stocked ones are taken from stock as their built item. When the
+  # project has a built item itself, the kits are added to stock as an "in"
+  # movement into the chosen zone (else the part's first zone).
   #
   # Building the same kit again is legitimate, but a double click or a replayed
   # request must not deduct it twice. The page posts the builds_count it showed;
@@ -203,6 +235,12 @@ class ProjectsController < ApplicationController
       return
     end
 
+    output_location = output_storage_location
+    if @project.output_part && output_location.nil?
+      redirect_to project_path(@project), alert: t("flash.projects.pick_a_zone_for_the_built_item", part: @project.output_part.name)
+      return
+    end
+
     required = @project.required_by_part(kits: kits)
     built = ActiveRecord::Base.transaction do
       now = Time.current
@@ -214,6 +252,12 @@ class ProjectsController < ApplicationController
         user: current_user, quantity: kits, built_at: now, note: params[:note].to_s.strip.presence
       )
       required.each { |part, quantity| deduct_part_stock(part, quantity, build) }
+      if output_location
+        current_organization.stock_movements.create!(
+          part: @project.output_part, storage_location: output_location, user: current_user,
+          movement_type: "in", quantity_delta: kits, reason: "Build #{@project.reference}", project_build: build
+        )
+      end
       # The build consumed what was reserved; reserve again for another kit.
       @project.release_reservation!
       true
@@ -226,6 +270,7 @@ class ProjectsController < ApplicationController
 
     notice = t("flash.projects.stock_deducted", count: required.size)
     notice = t("flash.projects.stock_deducted_kits", count: required.size, kits: kits) if kits > 1
+    notice = "#{notice} #{t('flash.projects.built_item_added', count: kits, part: @project.output_part.name)}" if output_location
     redirect_to project_path(@project), notice: notice
   rescue ActiveRecord::RecordInvalid => e
     redirect_to project_path(@project), alert: t("flash.projects.could_not_deduct_stock", errors: e.record.errors.full_messages.to_sentence)
@@ -302,8 +347,29 @@ class ProjectsController < ApplicationController
 
   def set_project
     @project = current_organization.projects
-      .includes({ kicad_files_attachments: :blob }, project_lines: { part: [ :part_storages, { part_suppliers: :supplier } ] })
+      .includes({ kicad_files_attachments: :blob }, { output_part: :part_storages },
+                project_lines: [ :subproject, { part: [ :part_storages, { part_suppliers: :supplier } ] } ])
       .find(params[:id])
+  end
+
+  # The zone a build puts the built item in: the one picked in the build
+  # dialog, else the part's first zone. Nil when the project has no built item.
+  def output_storage_location
+    return unless @project.output_part
+
+    if params[:storage_location_id].present?
+      current_organization.storage_locations.find_by(id: params[:storage_location_id])
+    else
+      @project.output_part.fallback_storage_location
+    end
+  end
+
+  # Every other project, minus the ones that use this one (a loop).
+  def serialize_subproject_options(project)
+    excluded = ProjectStructure.ancestor_ids(project.id) << project.id
+    current_organization.projects.where.not(id: excluded.to_a).includes(:output_part).order(:name, :revision).map do |option|
+      { id: option.id, name: option.name, reference: option.reference, revision: option.revision, stocked: option.output_part.present? }
+    end
   end
 
   # Draws +quantity+ of +part+ down across its positive-stock locations,
@@ -321,7 +387,7 @@ class ProjectsController < ApplicationController
         movement_type: "out", quantity_delta: -take, reason: "Build #{@project.reference}",
         project_build: build
       )
-      remaining -= take
+      remaining = Quantity.sum(remaining, -take)
     end
   end
 
@@ -336,7 +402,8 @@ class ProjectsController < ApplicationController
       line_count: project.project_lines.size,
       buildable: project.buildable?,
       short_count: project.short_lines.size,
-      unmatched_count: project.unmatched_lines.size,
+      unmatched_count: project.unmatched_lines.size + project.incomplete_assembly_lines.size,
+      assembly_count: project.subassembly_lines.size,
       checked_at: project.checked_at&.iso8601,
       created_at: project.created_at.iso8601,
       file_count: project.kicad_files.size,
@@ -346,6 +413,7 @@ class ProjectsController < ApplicationController
 
   def serialize_project(project)
     shortfalls = project.shortfall_by_part
+    alternatives = stocked_alternatives(project, shortfalls)
     {
       id: project.id,
       name: project.name,
@@ -360,16 +428,86 @@ class ProjectsController < ApplicationController
       buildable: project.buildable?,
       short_count: project.short_lines.size,
       unmatched_count: project.unmatched_lines.size,
+      incomplete_assembly_count: project.incomplete_assembly_lines.size,
       checked_at: project.checked_at&.iso8601,
       builds_count: project.builds_count,
+      output_part: project.output_part && {
+        id: project.output_part.id, reference: project.output_part.reference, name: project.output_part.name, unit: project.output_part.unit,
+        in_stock: project.output_part.total_quantity,
+        storage_location_id: project.output_part.fallback_storage_location&.id
+      },
+      used_in: serialize_used_in(project),
+      assembly_parts: serialize_assembly_parts(project, shortfalls),
       last_built_at: project.last_built_at&.iso8601,
       builds: serialize_builds(project),
-      lines: project.project_lines.map { |line| serialize_line(project, line, shortfalls) },
+      lines: project.project_lines.map { |line| serialize_line(project, line, shortfalls, alternatives) },
       files: project.kicad_files.map { |file| serialize_file(file) },
       files_have_schematics: ProjectKicadFiles.schematics?(project.kicad_files.map { |file| file.filename.to_s }),
       github: serialize_github(project),
       github_token_configured: current_organization.github_token.present?
     }
+  end
+
+  def serialize_cost(project, quantities)
+    {
+      currency: current_organization.currency,
+      quantities: quantities,
+      estimates: ProjectCost.new(project).estimates(quantities).map do |estimate|
+        {
+          quantity: estimate.quantity,
+          stock_value: estimate.stock_value.to_f,
+          purchase_cost: estimate.purchase_cost.to_f,
+          total: estimate.total.to_f,
+          per_unit: estimate.per_unit.to_f,
+          complete: estimate.complete?,
+          unpriced_count: estimate.unpriced_rows.size,
+          unmatched_count: estimate.unmatched_lines.size,
+          unmatched: estimate.unmatched_lines.map do |line|
+            { id: line.id, label: line.designation.presence || line.raw_reference.presence || line.value, quantity: line.quantity * estimate.quantity }
+          end,
+          rows: estimate.rows.map do |row|
+            {
+              part: { id: row.part.id, reference: row.part.reference, name: row.part.name },
+              required: row.required,
+              from_stock: row.from_stock,
+              to_buy: row.to_buy,
+              stock_unit_price: row.stock_unit_price&.to_f,
+              buy_unit_price: row.buy_unit_price&.to_f,
+              supplier: row.supplier&.name,
+              cost: row.cost.to_f,
+              priced: row.priced?
+            }
+          end
+        }
+      end
+    }
+  end
+
+  def cost_csv(estimate)
+    csv = +CSV.generate_line([ "Part", "Name", "Needed", "From stock", "Stock unit price", "To buy", "Buy unit price", "Supplier", "Cost", "Priced" ])
+    estimate.rows.each do |row|
+      csv << CSV.generate_line([
+        csv_text(row.part.reference),
+        csv_text(row.part.name),
+        row.required,
+        row.from_stock,
+        row.stock_unit_price&.to_d&.to_s("F"),
+        row.to_buy,
+        row.buy_unit_price&.to_d&.to_s("F"),
+        csv_text(row.supplier&.name),
+        row.cost.to_d.round(2).to_s("F"),
+        row.priced? ? "yes" : "no"
+      ])
+    end
+    estimate.unmatched_lines.each do |line|
+      csv << CSV.generate_line([
+        csv_text(line.raw_reference), csv_text(line.designation.presence || line.value),
+        line.quantity * estimate.quantity, nil, nil, nil, nil, nil, nil, "not in inventory"
+      ])
+    end
+    csv << CSV.generate_line([ "Total", nil, nil, nil, nil, nil, nil, nil, estimate.total.to_d.round(2).to_s("F"), estimate.complete? ? "yes" : "no" ])
+    csv << CSV.generate_line([ "Per unit", nil, nil, nil, nil, nil, nil, nil, estimate.per_unit.round(4).to_s("F"), nil ])
+    csv
   end
 
   def serialize_github(project)
@@ -402,7 +540,7 @@ class ProjectsController < ApplicationController
   # references they took out of stock.
   def serialize_builds(project)
     builds = project.project_builds.recent.includes(:user).limit(BUILD_HISTORY_LIMIT).to_a
-    totals = StockMovement.where(project_build_id: builds.map(&:id)).group(:project_build_id)
+    totals = StockMovement.where(project_build_id: builds.map(&:id)).where(quantity_delta: ...0).group(:project_build_id)
       .pluck(:project_build_id, Arel.sql("COUNT(DISTINCT part_id)"), Arel.sql("-SUM(quantity_delta)"))
       .to_h { |id, references, units| [ id, { references: references, units: units } ] }
 
@@ -419,10 +557,59 @@ class ProjectsController < ApplicationController
     end
   end
 
+  # Projects using this one as a sub-assembly, with how many per kit.
+  def serialize_used_in(project)
+    project.used_in_lines.includes(:project).group_by(&:project).sort_by { |parent, _| [ parent.name, parent.revision.to_s ] }.map do |parent, lines|
+      { id: parent.id, name: parent.name, reference: parent.reference, revision: parent.revision, quantity: lines.sum(&:quantity) }
+    end
+  end
+
+  # The parts the sub-assembly lines bring for one kit (expanded for phantom
+  # sub-assemblies, the built item for stocked ones), with availability.
+  def serialize_assembly_parts(project, shortfalls)
+    project.assembly_requirements.sort_by { |part, _| part.name.downcase }.map do |part, entry|
+      shortfall = shortfalls.fetch(part, 0)
+      {
+        part: { id: part.id, reference: part.reference, name: part.name, unit: part.unit },
+        quantity: entry[:quantity],
+        line_ids: entry[:line_ids],
+        in_stock: part.total_quantity,
+        reserved_elsewhere: project.reserved_elsewhere.fetch(part.id, 0),
+        shortfall: shortfall,
+        available: shortfall.zero?
+      }
+    end
+  end
+
   # Shortfall and availability come from the project-wide per-part totals, so a
   # part listed on two lines isn't shown as available on each when its stock
   # only covers one.
-  def serialize_line(project, line, shortfalls)
+  # short part id => its linked alternatives (PartAlternative) with stock this
+  # project can count on (physical stock minus what projects reserved before
+  # it), the most available first, so a short line can switch to one.
+  def stocked_alternatives(project, shortfalls)
+    short_ids = shortfalls.keys.map(&:id)
+    return {} if short_ids.empty?
+
+    links = PartAlternative.involving(short_ids).pluck(:part_id, :alternative_part_id)
+    other_ids = links.flatten.uniq
+    parts = current_organization.parts.where(id: other_ids).where.not(status: "obsolete")
+      .includes(:part_storages).index_by(&:id)
+    reserved = Project.reserved_quantities(current_organization, part_ids: other_ids, except: project)
+
+    short_ids.to_h do |id|
+      others = links.filter_map { |a, b| a == id ? b : (b == id ? a : nil) }.uniq.filter_map { |other_id| parts[other_id] }
+      entries = others.filter_map do |other|
+        available = [ Quantity.sum(other.part_storages.map(&:quantity), -reserved.fetch(other.id, 0)), 0 ].max
+        { id: other.id, reference: other.reference, name: other.name, available: available } if available.positive?
+      end
+      [ id, entries.sort_by { |entry| [ -entry[:available], entry[:name].downcase ] } ]
+    end
+  end
+
+  def serialize_line(project, line, shortfalls, alternatives)
+    return serialize_assembly_line(project, line, shortfalls) if line.assembly?
+
     shortfall = line.part ? shortfalls.fetch(line.part, 0) : 0
     {
       id: line.id,
@@ -437,10 +624,48 @@ class ProjectsController < ApplicationController
       reserved_elsewhere: line.part ? project.reserved_elsewhere.fetch(line.part.id, 0) : 0,
       shortfall: shortfall,
       available: line.part.present? && shortfall.zero?,
+      alternatives: line.part ? alternatives.fetch(line.part.id, []) : [],
       part: line.part && {
         id: line.part.id,
         reference: line.part.reference,
-        name: line.part.name
+        name: line.part.name,
+        unit: line.part.unit
+      },
+      assembly: nil
+    }
+  end
+
+  # A sub-assembly line: complete or not, and how many of the parts it brings are short.
+  def serialize_assembly_line(project, line, shortfalls)
+    subproject = line.subproject
+    brought = project.assembly_requirements.select { |_part, entry| entry[:line_ids].include?(line.id) }.keys
+    short = brought.count { |part| shortfalls.fetch(part, 0).positive? }
+    stocked_part = brought.first if project.structure.output_part_id(subproject.id)
+    {
+      id: line.id,
+      raw_reference: line.raw_reference,
+      designation: line.designation,
+      value: line.value,
+      footprint: line.footprint,
+      designators: line.designators,
+      quantity: line.quantity,
+      match_type: line.match_type,
+      in_stock: stocked_part&.total_quantity || 0,
+      reserved_elsewhere: stocked_part ? project.reserved_elsewhere.fetch(stocked_part.id, 0) : 0,
+      shortfall: stocked_part ? shortfalls.fetch(stocked_part, 0) : short,
+      available: short.zero? && project.structure.complete_assembly?(subproject.id),
+      alternatives: [],
+      part: nil,
+      assembly: {
+        id: subproject.id,
+        name: subproject.name,
+        reference: subproject.reference,
+        revision: subproject.revision,
+        stocked: stocked_part.present?,
+        output_part: stocked_part && { id: stocked_part.id, reference: stocked_part.reference, name: stocked_part.name, unit: stocked_part.unit },
+        complete: project.structure.complete_assembly?(subproject.id),
+        parts_count: brought.size,
+        short_parts: short
       }
     }
   end

@@ -46,7 +46,7 @@ class PartSupplier < ApplicationRecord
     rows = price_break_rows
     return unit_price if rows.empty? || quantity.nil?
 
-    applicable = rows.select { |row| row["quantity"] <= quantity.to_i }.last
+    applicable = rows.select { |row| row["quantity"] <= quantity.to_f }.last
     applicable ? applicable["unit_price"] : (unit_price || rows.first["unit_price"])
   end
 

@@ -105,7 +105,8 @@ class DashboardSummary
         location_name: part.storage_locations.first&.name,
         quantity: part.total_quantity,
         min_stock_threshold: part.min_stock_threshold,
-        incoming: incoming[part.id].to_i
+        unit: part.unit,
+        incoming: incoming[part.id] || 0
       }
     end
   end
@@ -158,7 +159,7 @@ class DashboardSummary
 
     rows.map do |part_id, units|
       part = parts[part_id]
-      { id: part_id, reference: part.reference, name: part.name, units: units.to_i }
+      { id: part_id, reference: part.reference, name: part.name, units: Quantity.normalize(units || 0) }
     end
   end
 
@@ -220,11 +221,16 @@ class DashboardSummary
 
   def recent_projects
     @recent_projects ||= organization.projects.recent.limit(PROJECTS_LIMIT)
-      .includes(project_lines: { part: :part_storages }).to_a
+      .includes(project_lines: { part: :part_storages }).to_a.each { |project| project.structure = project_structure }
   end
 
   def confirmed_projects
     @confirmed_projects ||= organization.projects.where(status: "confirmed")
-      .includes(project_lines: { part: :part_storages }).to_a
+      .includes(project_lines: { part: :part_storages }).to_a.each { |project| project.structure = project_structure }
+  end
+
+  # Shared by the projects above, so sub-assemblies and reservations are read once.
+  def project_structure
+    @project_structure ||= ProjectStructure.new(organization)
   end
 end

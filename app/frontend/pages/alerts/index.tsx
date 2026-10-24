@@ -20,6 +20,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { t, intlLocale, tn } from '@/lib/i18n'
+import { formatQuantity } from '@/lib/quantity'
 
 interface Alert {
   id: number
@@ -29,6 +30,7 @@ interface Alert {
   location_name: string | null
   quantity: number
   min_stock_threshold: number
+  unit: string
   severity: 'critical' | 'low'
   supplier_name: string | null
   unit_price: number
@@ -249,7 +251,7 @@ export default function AlertsIndex({ alerts, orders }: AlertsPageProps) {
                   <div className="truncate text-sm text-muted-foreground">{alert.name}</div>
                 </div>
                 <div className="min-w-0 shrink text-right text-xs text-muted-foreground">
-                  <div className="truncate">{t('Stock {quantity} / threshold {threshold}', { quantity: alert.quantity, threshold: alert.min_stock_threshold })} · {alert.supplier_name || t('No supplier')}</div>
+                  <div className="truncate">{t('Stock {quantity} / threshold {threshold}', { quantity: formatQuantity(alert.quantity, alert.unit), threshold: formatQuantity(alert.min_stock_threshold, alert.unit) })} · {alert.supplier_name || t('No supplier')}</div>
                   <div className="truncate font-mono">{alert.location_name || t('No location')}</div>
                 </div>
                 <div className="shrink-0 text-right">

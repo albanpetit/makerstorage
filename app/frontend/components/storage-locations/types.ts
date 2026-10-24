@@ -18,12 +18,14 @@ export interface PartStorageEntry {
     reference: string
     name: string
     package_type: string | null
+    unit: string
   }
 }
 
 export interface RecentMovement {
   location_id: number
   part_reference: string
+  unit: string
   movement_type: 'in' | 'out' | 'adjustment'
   quantity_delta: number
   reason: string | null
@@ -54,6 +56,7 @@ export interface MoveRow {
   name: string
   quantity: number
   max: number
+  unit: string
 }
 
 export interface MoveDialogState {

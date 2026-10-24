@@ -38,10 +38,15 @@ class PartDuplicatesControllerTest < ActionDispatch::IntegrationTest
     assert_equal [ @keep.id, other.id ], inertia_props["groups"].sole["parts"].map { |part| part["id"] }
   end
 
-  test "the inventory shows how many duplicate groups there are" do
+  test "the inventory loads how many duplicate groups there are after rendering" do
     get parts_path
+    page = JSON.parse(@response.body[/data-page="app" type="application\/json"[^>]*>(.*?)<\/script>/m, 1])
+    assert_not page["props"].key?("duplicate_groups_count"), "deferred: not in the first render"
+    assert_includes page["deferredProps"].values.flatten, "duplicate_groups_count"
 
-    assert_equal 1, inertia_props["duplicate_groups_count"]
+    get parts_path, headers: { "X-Inertia" => "true", "X-Inertia-Version" => page["version"].to_s,
+                               "X-Inertia-Partial-Component" => "parts/index", "X-Inertia-Partial-Data" => "duplicate_groups_count" }
+    assert_equal 1, JSON.parse(@response.body)["props"]["duplicate_groups_count"]
   end
 
   test "merge folds the duplicates into the kept part" do

@@ -33,7 +33,7 @@ class ThresholdSuggestionsControllerTest < ActionDispatch::IntegrationTest
 
   test "index lists used parts with their consumption, the ones to review first" do
     sign_in @user
-    get threshold_suggestions_path
+    get threshold_suggestions_path(all: 1)
     assert_response :success
 
     props = inertia_props
@@ -53,6 +53,16 @@ class ThresholdSuggestionsControllerTest < ActionDispatch::IntegrationTest
 
     assert_equal false, props["rows"].second["differs"]
     assert_nil props["rows"].third["suggested_threshold"]
+    assert_equal({ "differing" => 1, "all" => 3 }, props["counts"])
+  end
+
+  test "index sends only the parts to review unless all are asked for" do
+    sign_in @user
+    get threshold_suggestions_path
+
+    assert_equal [ @busy.id ], inertia_props["rows"].map { |row| row["id"] }
+    assert_equal false, inertia_props["show_all"]
+    assert_equal({ "differing" => 1, "all" => 3 }, inertia_props["counts"])
   end
 
   test "apply sets the suggested thresholds, skipping parts without one and other organizations' parts" do
@@ -79,7 +89,7 @@ class ThresholdSuggestionsControllerTest < ActionDispatch::IntegrationTest
     sign_in viewer
     post switch_organization_path(@org)
 
-    get threshold_suggestions_path
+    get threshold_suggestions_path(all: 1)
     assert_response :success
 
     assert_equal [ @busy.id, @steady.id, @once.id ], inertia_props["rows"].map { |row| row["id"] }

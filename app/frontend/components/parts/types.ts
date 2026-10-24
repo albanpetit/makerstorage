@@ -19,6 +19,8 @@ export interface Part {
   thumbnail_url: string | null
   total_quantity: number
   min_stock_threshold: number
+  // What the part is counted in (see lib/quantity).
+  unit: string
   unit_price: number | null
   location_names: string[]
   supplier_name: string | null
@@ -146,6 +148,7 @@ export interface PartsIndexProps {
   tags: Tag[]
   storage_locations: StorageLocationOption[]
   supplier_lookup_enabled: boolean
+  ai_entry_enabled: boolean
   ipn_manual_entry: boolean
   bag_options: BagOption[] | null
   bag_boxes: BagBox[] | null
@@ -153,5 +156,6 @@ export interface PartsIndexProps {
   // Set when the add dialog opens from a scanned supplier label.
   add_prefill: AddPartPrefill | null
   // Groups of parts PartDuplicates pairs (the Duplicates button shows when > 0).
-  duplicate_groups_count: number
+  /** Deferred: undefined until the page has loaded it. */
+  duplicate_groups_count?: number
 }

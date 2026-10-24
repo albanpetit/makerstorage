@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Field, FieldContent, FieldError, FieldLabel } from '@/components/ui/field'
 
 import type { IntegrationsForm, OrganizationSettings } from './types'
@@ -32,6 +33,8 @@ export function IntegrationsSection({ form, organization }: IntegrationsSectionP
     remove_digikey: false,
     github_token: '',
     remove_github_token: false,
+    anthropic_api_key: '',
+    remove_anthropic_api_key: false,
   })
 
   const submitIntegrations = (e: FormEvent) => {
@@ -44,7 +47,7 @@ export function IntegrationsSection({ form, organization }: IntegrationsSectionP
 
   // Stage a one-off removal flag for a single provider, submit, then clear the
   // form back to its neutral (write-only) state regardless of outcome.
-  const removeProvider = (flag: 'remove_mouser_api_key' | 'remove_mouser_order_api_key' | 'remove_digikey' | 'remove_github_token') => {
+  const removeProvider = (flag: 'remove_mouser_api_key' | 'remove_mouser_order_api_key' | 'remove_digikey' | 'remove_github_token' | 'remove_anthropic_api_key') => {
     form.transform((data) => ({
       organization: { ...data.organization, [flag]: true },
     }))
@@ -63,12 +66,17 @@ export function IntegrationsSection({ form, organization }: IntegrationsSectionP
     router.patch('/settings', { organization: { lcsc_enabled: enabled } }, { preserveScroll: true })
   }
 
+  // The model saves straight away too, like the LCSC switch.
+  const chooseAiModel = (model: string) => {
+    router.patch('/settings', { organization: { ai_model: model } }, { preserveScroll: true })
+  }
+
   return (
     <form onSubmit={submitIntegrations} className="space-y-4">
       <div>
         <h2 className="text-lg font-semibold">{t('Integrations')}</h2>
         <p className="max-w-xl text-sm text-muted-foreground">
-          {t('Connect external supplier catalogs to look up component data by part number, and GitHub to fetch projects\' KiCad files.')}
+          {t('Connect external supplier catalogs to look up component data by part number, GitHub to fetch projects\' KiCad files, and Claude to fill in parts from photos and datasheets.')}
         </p>
       </div>
 
@@ -380,6 +388,81 @@ export function IntegrationsSection({ form, organization }: IntegrationsSectionP
             </Button>
           )}
           <Button type="submit" disabled={form.processing || !form.data.organization.github_token.trim()}>
+            {t('Save')}
+          </Button>
+        </CardFooter>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>{t('Claude (AI-assisted entry)')}</CardTitle>
+          <CardDescription>
+            {tx('Fill in a new part from a photo of it or its bag label, or from its datasheet: Claude reads the files and prefills the form. Uses your organization\'s own Anthropic API key, created in the {link}, and billed to it.', {
+              link: (
+                <a
+                  href="https://console.anthropic.com/settings/keys"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium text-primary underline underline-offset-2"
+                >
+                  {t('Claude Console')}
+                </a>
+              ),
+            })}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {organization.anthropic_api_key_present && (
+            <div className="flex items-center gap-2 rounded-md border border-green-600/30 bg-green-600/10 px-3 py-2 text-sm text-green-700 dark:text-green-400">
+              <CircleCheck className="size-4 shrink-0" />
+              {t('A key is configured: “Fill in with AI” shows in the add-part dialog. Enter a new key below to replace it.')}
+            </div>
+          )}
+          <Field>
+            <FieldLabel><Label htmlFor="anthropic-api-key">{t('Anthropic API key')}</Label></FieldLabel>
+            <FieldContent>
+              <Input
+                id="anthropic-api-key"
+                type="password"
+                autoComplete="off"
+                placeholder={organization.anthropic_api_key_present ? '••••••••••••••••' : 'sk-ant-…'}
+                value={form.data.organization.anthropic_api_key}
+                onChange={(e) => form.setData('organization', {
+                  ...form.data.organization,
+                  anthropic_api_key: e.target.value,
+                })}
+              />
+            </FieldContent>
+            {form.errors['organization.anthropic_api_key'] && (
+              <FieldError>{form.errors['organization.anthropic_api_key']}</FieldError>
+            )}
+          </Field>
+          <Field>
+            <FieldLabel><Label htmlFor="ai-model">{t('Model')}</Label></FieldLabel>
+            <FieldContent>
+              <Select value={organization.ai_model} onValueChange={chooseAiModel}>
+                <SelectTrigger id="ai-model" className="w-full sm:w-64">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {organization.ai_models.map((model) => (
+                    <SelectItem key={model.value} value={model.value}>{model.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </FieldContent>
+          </Field>
+          <p className="text-xs text-muted-foreground">
+            {t('Opus reads small print and datasheets best; Sonnet and Haiku cost less per read. The files go to Anthropic only when a member clicks Read, and the answer is never saved without their review.')}
+          </p>
+        </CardContent>
+        <CardFooter className="justify-end gap-2 border-t">
+          {organization.anthropic_api_key_present && (
+            <Button type="button" variant="outline" onClick={() => removeProvider('remove_anthropic_api_key')} disabled={form.processing}>
+              {t('Remove key')}
+            </Button>
+          )}
+          <Button type="submit" disabled={form.processing || !form.data.organization.anthropic_api_key.trim()}>
             {t('Save')}
           </Button>
         </CardFooter>

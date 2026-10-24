@@ -149,7 +149,8 @@ export function AddLineDialog({ open, onOpenChange, order, parts, categories, ca
                   <Input
                     id="add-qty"
                     type="number"
-                    min={1}
+                    min={0}
+                    step="any"
                     value={addForm.data.order_line.quantity}
                     onChange={(e) => addForm.setData('order_line', { ...addForm.data.order_line, quantity: e.target.value })}
                   />

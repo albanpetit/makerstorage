@@ -37,11 +37,19 @@ class Part < ApplicationRecord
   # "none", like an unresolved import line) rather than blocking the delete or
   # leaving a dangling foreign key.
   has_many :project_lines, dependent: nil
+  # Projects whose built kits become this part: deleting it leaves them with no built item.
+  has_many :built_by_projects, class_name: "Project", foreign_key: :output_part_id, inverse_of: :output_part, dependent: :nullify
 
   # Pairs marked "not duplicates" (PartDuplicateDismissal), from either side.
   has_many :duplicate_dismissals, class_name: "PartDuplicateDismissal", dependent: :delete_all
   has_many :inverse_duplicate_dismissals, class_name: "PartDuplicateDismissal", foreign_key: :other_part_id,
            inverse_of: :other_part, dependent: :delete_all
+
+  # Parts that can stand in for this one (PartAlternative, one row per pair):
+  # use #alternative_links / #alternative_parts to read both sides.
+  has_many :part_alternatives, dependent: :delete_all
+  has_many :inverse_part_alternatives, class_name: "PartAlternative", foreign_key: :alternative_part_id,
+           inverse_of: :alternative_part, dependent: :delete_all
 
   # Active Storage for images and datasheets
   has_many_attached :images
@@ -59,7 +67,18 @@ class Part < ApplicationRecord
 
   # Constants
   STATUSES = %w[active discontinued obsolete].freeze
-  UNITS = %w[piece meter roll lot].freeze
+  # The unit a part is counted in. Count units take whole quantities; measure
+  # units (DECIMAL_UNITS) take up to three decimals: 2.5 m of wire, 0.5 L of
+  # alcohol. Every quantity of the part (stock, movements, thresholds, BOM,
+  # order and loan lines) is in this unit; changing it converts nothing.
+  UNITS = %w[piece meter gram kilogram milliliter liter roll lot].freeze
+  DECIMAL_UNITS = %w[meter gram kilogram milliliter liter].freeze
+  # Shown after a measure quantity ("2.5 m"); count units show the bare number.
+  UNIT_SYMBOLS = { "meter" => "m", "gram" => "g", "kilogram" => "kg", "milliliter" => "mL", "liter" => "L" }.freeze
+
+  attribute :min_stock_threshold, Quantity::Type.new
+  attribute :target_stock, Quantity::Type.new
+  attribute :pack_size, Quantity::Type.new
 
   # Box & bag mode: set when a new part's stock goes somewhere other than a bag
   # (an import row, an opening stock on a shelf), so it doesn't take a free bag
@@ -95,8 +114,10 @@ class Part < ApplicationRecord
     length: { maximum: 255 }, allow_blank: true
   validates :unit, presence: true, inclusion: { in: UNITS }
   validates :unit_price, numericality: { greater_than_or_equal_to: 0 }, allow_nil: true
-  validates :min_stock_threshold, numericality: { greater_than_or_equal_to: 0, less_than_or_equal_to: MAX_INTEGER }
-  validates :target_stock, numericality: { greater_than: 0, less_than_or_equal_to: MAX_INTEGER }, allow_nil: true
+  validates :min_stock_threshold, quantity: { greater_than_or_equal_to: 0, unit_of: :itself }
+  validates :target_stock, quantity: { greater_than: 0, allow_nil: true, unit_of: :itself }
+  validates :pack_size, quantity: { greater_than: 0, allow_nil: true, unit_of: :itself }
+  validate :stock_must_suit_unit, if: :will_save_change_to_unit?
   validates :lead_time_days, numericality: { greater_than_or_equal_to: 0, less_than_or_equal_to: MAX_INTEGER }, allow_nil: true
   # Hotlinked supplier image (e.g. Mouser, whose CDN blocks server-side download),
   # rendered directly in every member's browser: only https URLs on a supplier
@@ -182,11 +203,17 @@ class Part < ApplicationRecord
   # parts index, alerts, suppliers, and dashboard. Falls back to a single
   # aggregate query when the association isn't loaded.
   def total_quantity
-    if part_storages.loaded?
-      part_storages.to_a.sum(&:quantity)
-    else
-      part_storages.sum(:quantity)
-    end
+    Quantity.normalize(part_storages.loaded? ? part_storages.to_a.sum(&:quantity) : part_storages.sum(:quantity))
+  end
+
+  # Whether this part's quantities may have decimals (a measure unit).
+  def decimal_quantities?
+    DECIMAL_UNITS.include?(unit)
+  end
+
+  # The unit's name for messages ("pieces", "meters").
+  def unit_label
+    I18n.t("units.#{unit}", default: unit.to_s)
   end
 
   # Where stock with no explicit target zone lands (e.g. an order line received
@@ -278,6 +305,20 @@ class Part < ApplicationRecord
     return if bag.nil?
 
     update_columns(bag_id: nil, bag_assigned_at: nil, ipn: ipn.to_s.casecmp?(bag.code.to_s) ? nil : ipn)
+  end
+
+  # Methods - Alternatives
+
+  # This part's PartAlternative rows, from either side.
+  def alternative_links
+    PartAlternative.involving(id)
+  end
+
+  # The parts linked to this one as alternatives.
+  def alternative_parts
+    organization.parts.where(id: alternative_links.select(:part_id))
+      .or(organization.parts.where(id: alternative_links.select(:alternative_part_id)))
+      .where.not(id: id)
   end
 
   # Methods - Parameters
@@ -504,6 +545,17 @@ class Part < ApplicationRecord
     return if image_source_url.blank? || image_source_url == self.class.supplier_image_url(image_source_url)
 
     errors.add(:image_source_url, :image_host, hosts: Makerstorage::SUPPLIER_IMAGE_HOSTS.to_sentence)
+  end
+
+  # A count unit only holds whole stock: switching a part with 2.5 m in stock
+  # back to pieces would leave fractions the unit can't show.
+  def stock_must_suit_unit
+    return if decimal_quantities? || new_record?
+
+    if part_storages.where("quantity <> ROUND(quantity)").exists? ||
+       [ min_stock_threshold, target_stock, pack_size ].any? { |value| !Quantity.whole?(value) }
+      errors.add(:unit, :fractional_stock, unit: unit_label)
+    end
   end
 
   def category_must_belong_to_same_organization

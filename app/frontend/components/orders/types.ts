@@ -17,7 +17,7 @@ export interface OrderLine {
   subtotal: number | null
   allocated_quantity: number
   allocations: Allocation[]
-  part: { id: number; reference: string; name: string }
+  part: { id: number; reference: string; name: string; unit: string }
 }
 
 export interface Order {
@@ -61,7 +61,8 @@ export interface ProjectOption {
 export interface OrderShowProps {
   order: Order
   suppliers: SupplierOption[]
-  parts: PartOption[]
+  /** Deferred: undefined until the page has loaded it. */
+  parts?: PartOption[]
   categories: CategoryOption[]
   catalog_enabled: boolean
   projects: ProjectOption[]

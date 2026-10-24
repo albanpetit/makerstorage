@@ -190,7 +190,7 @@ export default function StorageLocationsIndex({ storage_locations, part_storages
     return partIds
       .map((partId) => entries.find((e) => e.part.id === partId))
       .filter((e): e is PartStorageEntry => e != null && e.quantity > 0)
-      .map((e) => ({ partId: e.part.id, reference: e.part.reference, name: e.part.name, quantity: e.quantity, max: e.quantity }))
+      .map((e) => ({ partId: e.part.id, reference: e.part.reference, name: e.part.name, quantity: e.quantity, max: e.quantity, unit: e.part.unit }))
   }
 
   // Drop onto a target zone → open the dialog with the destination fixed.
@@ -214,7 +214,7 @@ export default function StorageLocationsIndex({ storage_locations, part_storages
     moveDialog.toId != null &&
     moveDialog.toId !== moveDialog.fromId &&
     moveDialog.rows.length > 0 &&
-    moveDialog.rows.every((r) => Number.isFinite(r.quantity) && r.quantity >= 1 && r.quantity <= r.max)
+    moveDialog.rows.every((r) => Number.isFinite(r.quantity) && r.quantity > 0 && r.quantity <= r.max)
 
   function submitMove() {
     if (!moveDialog || !moveDialogValid) return
