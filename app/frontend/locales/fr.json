@@ -1911,5 +1911,6 @@
   "▲ threshold {threshold}": "▲ seuil {threshold}",
   "✓ Bag matched": "✓ Sachet reconnu",
   "✓ Scan matched": "✓ Code reconnu",
-  "✗ Unknown code": "✗ Code inconnu"
+  "✗ Unknown code": "✗ Code inconnu",
+  "Loading…": "Chargement…"
 }

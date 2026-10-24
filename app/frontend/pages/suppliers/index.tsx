@@ -1,5 +1,5 @@
 import { Head, router, useForm } from '@inertiajs/react'
-import { FormEvent, useMemo, useState } from 'react'
+import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { Plus, Mail, Truck, Package, Clock, Pencil, Trash2 } from 'lucide-react'
 
 import { AppLayout } from '@/layouts/app-layout'
@@ -79,9 +79,14 @@ interface Supplier {
   stock_value: number
   last_order_at: string | null
   order_count: number
+  catalog_provider: string | null
+}
+
+// One supplier's components and orders, loaded when its sheet opens.
+interface SupplierDetail {
+  id: number
   components: LinkedComponent[]
   orders: Order[]
-  catalog_provider: string | null
 }
 
 // Human-readable name of the catalog integration a supplier fronts, if any.
@@ -93,6 +98,7 @@ const CATALOG_PROVIDER_LABELS: Record<string, string> = {
 
 interface SuppliersPageProps {
   suppliers: Supplier[]
+  supplier_detail?: SupplierDetail | null
 }
 
 function initials(name: string) {
@@ -125,7 +131,7 @@ const EMPTY_FORM: SupplierFormData['supplier'] = {
   name: '', email: '', phone: '', website: '', country: '', city: '',
 }
 
-export default function SuppliersIndex({ suppliers }: SuppliersPageProps) {
+export default function SuppliersIndex({ suppliers, supplier_detail }: SuppliersPageProps) {
   const { canWrite, canAdminister } = usePermissions()
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const [newOpen, setNewOpen] = useState(false)
@@ -133,6 +139,12 @@ export default function SuppliersIndex({ suppliers }: SuppliersPageProps) {
   const [deleteOpen, setDeleteOpen] = useState(false)
 
   const selected = selectedId != null ? suppliers.find((s) => s.id === selectedId) : undefined
+  const detail = selected && supplier_detail?.id === selected.id ? supplier_detail : undefined
+
+  useEffect(() => {
+    if (selectedId == null || supplier_detail?.id === selectedId) return
+    router.reload({ only: ['supplier_detail'], data: { supplier: selectedId } })
+  }, [selectedId, supplier_detail?.id])
 
   const newForm = useForm<SupplierFormData>({ supplier: EMPTY_FORM })
   const editForm = useForm<SupplierFormData>({ supplier: EMPTY_FORM })
@@ -559,9 +571,11 @@ export default function SuppliersIndex({ suppliers }: SuppliersPageProps) {
 
                 <div>
                   <h3 className="mb-2 text-sm font-semibold">{t('Orders placed')}</h3>
-                  {selected.orders.length > 0 ? (
+                  {!detail ? (
+                    <div className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">{t('Loading…')}</div>
+                  ) : detail.orders.length > 0 ? (
                     <div className="divide-y rounded-lg border">
-                      {selected.orders.map((order) => (
+                      {detail.orders.map((order) => (
                         <div key={order.id} className="flex items-center gap-3 px-3 py-2.5 text-sm">
                           <span className="shrink-0 font-mono font-semibold">{order.reference || `#${order.id}`}</span>
                           <span className="min-w-0 flex-1 truncate font-mono text-xs text-muted-foreground">
@@ -585,9 +599,11 @@ export default function SuppliersIndex({ suppliers }: SuppliersPageProps) {
                   <h3 className="mb-2 text-sm font-semibold">
                     {t('Components sourced')} <span className="font-normal text-muted-foreground">· {selected.reference_count}</span>
                   </h3>
-                  {selected.components.length > 0 ? (
+                  {!detail ? (
+                    <div className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">{t('Loading…')}</div>
+                  ) : detail.components.length > 0 ? (
                     <div className="divide-y rounded-lg border">
-                      {selected.components.map((component) => (
+                      {detail.components.map((component) => (
                         <div key={component.id} className="flex items-center gap-3 px-3 py-2.5 text-sm">
                           <span className={`size-1.5 shrink-0 rounded-sm ${component.low_stock ? 'bg-amber-500' : 'bg-muted-foreground'}`} />
                           <div className="min-w-0 flex-1">
