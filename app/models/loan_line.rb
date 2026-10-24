@@ -7,9 +7,14 @@ class LoanLine < ApplicationRecord
   belongs_to :part
   belongs_to :storage_location, optional: true
 
+  # In the part's unit (see Quantity).
+  attribute :quantity, Quantity::Type.new
+  attribute :returned_quantity, Quantity::Type.new
+  attribute :lost_quantity, Quantity::Type.new
+
   # Validations
-  validates :quantity, numericality: { only_integer: true, greater_than: 0, less_than_or_equal_to: MAX_INTEGER }
-  validates :returned_quantity, :lost_quantity, numericality: { only_integer: true, greater_than_or_equal_to: 0 }
+  validates :quantity, quantity: { greater_than: 0, unit_of: :part }
+  validates :returned_quantity, :lost_quantity, quantity: { greater_than_or_equal_to: 0, unit_of: :part }
   validates :storage_location, presence: true, on: :create
   validate :settled_quantities_within_quantity
   validate :part_must_belong_to_same_organization
@@ -20,13 +25,13 @@ class LoanLine < ApplicationRecord
 
   # Methods
   def outstanding_quantity
-    quantity.to_i - returned_quantity.to_i - lost_quantity.to_i
+    Quantity.normalize(quantity.to_d - returned_quantity.to_d - lost_quantity.to_d)
   end
 
   private
 
   def settled_quantities_within_quantity
-    if returned_quantity.to_i + lost_quantity.to_i > quantity.to_i
+    if returned_quantity.to_d + lost_quantity.to_d > quantity.to_d
       errors.add(:base, :more_than_lent)
     end
   end

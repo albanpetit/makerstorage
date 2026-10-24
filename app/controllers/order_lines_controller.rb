@@ -105,10 +105,11 @@ class OrderLinesController < ApplicationController
   # (which already merge by part) all see one line per part.
   def line_for(part, quantity)
     line = @order.order_lines.find_or_initialize_by(part: part)
-    added = quantity.to_s.match?(/\A\d+\z/) ? quantity.to_i : 0
-    # Anything but a positive whole number leaves 0, which the line's
-    # validation rejects, rather than silently adding nothing.
-    line.quantity = added.positive? ? line.quantity.to_i + added : 0
+    added = Quantity.parse(quantity) || 0
+    # Anything but a positive number leaves 0, which the line's validation
+    # rejects, rather than silently adding nothing (a fraction of a part
+    # counted in pieces is rejected by the line too).
+    line.quantity = added.positive? ? Quantity.sum(line.quantity, added) : 0
     line
   end
 
@@ -144,7 +145,7 @@ class OrderLinesController < ApplicationController
     rows = raw.respond_to?(:values) ? raw.values : Array(raw)
     rows
       .select { |a| a.respond_to?(:key?) }
-      .map { |a| { storage_location_id: a[:storage_location_id], quantity: a[:quantity].to_i } }
+      .map { |a| { storage_location_id: a[:storage_location_id], quantity: Quantity.parse(a[:quantity]) || 0 } }
       .reject { |a| a[:storage_location_id].blank? }
   end
 
@@ -157,8 +158,8 @@ class OrderLinesController < ApplicationController
       return
     end
 
-    unless allocs.sum { |a| a[:quantity] } == line.quantity
-      raise AllocationError, t("flash.order_lines.the_storage_split_must_add_up", quantity: line.quantity)
+    unless Quantity.sum(allocs.map { |a| a[:quantity] }) == line.quantity
+      raise AllocationError, t("flash.order_lines.the_storage_split_must_add_up", quantity: Quantity.format(line.quantity, line.part.unit))
     end
 
     ids = allocs.map { |a| a[:storage_location_id].to_s }.uniq

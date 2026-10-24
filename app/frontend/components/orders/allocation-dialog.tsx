@@ -16,6 +16,7 @@ import { StorageLocationSelect, type StorageLocationOption } from '@/components/
 
 import type { Order, OrderLine } from './types'
 import { t, tn } from '@/lib/i18n'
+import { formatQuantity, parseQuantity, quantityStep, sumQuantities } from '@/lib/quantity'
 
 interface AllocationDialogProps {
   order: Order
@@ -48,10 +49,10 @@ export function AllocationDialog({ order, allocLine, onClose, storageLocations }
     <Dialog open={allocLine !== null} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="sm:max-w-lg">
         {allocLine && (() => {
-          const total = allocRows.reduce((sum, r) => sum + (Number(r.quantity) || 0), 0)
-          const remaining = allocLine.quantity - total
+          const total = sumQuantities(allocRows.map((r) => parseQuantity(r.quantity) ?? 0))
+          const remaining = sumQuantities([ allocLine.quantity, -total ])
           const complete = allocRows.length > 0 &&
-            allocRows.every((r) => r.storage_location_id != null && Number(r.quantity) > 0) &&
+            allocRows.every((r) => r.storage_location_id != null && (parseQuantity(r.quantity) ?? 0) > 0) &&
             remaining === 0
           return (
             <>
@@ -79,7 +80,8 @@ export function AllocationDialog({ order, allocLine, onClose, storageLocations }
                     />
                     <Input
                       type="number"
-                      min={1}
+                      min={0}
+                      step={quantityStep(allocLine.part.unit)}
                       value={row.quantity}
                       onChange={(e) => setAllocRows((rows) => rows.map((r, idx) => (idx === i ? { ...r, quantity: e.target.value } : r)))}
                       className="h-9 w-20 text-right font-mono"
@@ -108,7 +110,7 @@ export function AllocationDialog({ order, allocLine, onClose, storageLocations }
                     {t('Add zone')}
                   </Button>
                   <span className={`text-xs ${remaining === 0 ? 'text-muted-foreground' : 'text-amber-600 dark:text-amber-400'}`}>
-                    {remaining === 0 ? t('All units allocated') : remaining > 0 ? t('{count} left to allocate', { count: remaining }) : t('{count} over', { count: -remaining })}
+                    {remaining === 0 ? t('All units allocated') : remaining > 0 ? t('{count} left to allocate', { count: formatQuantity(remaining, allocLine.part.unit) }) : t('{count} over', { count: formatQuantity(-remaining, allocLine.part.unit) })}
                   </span>
                 </div>
               </div>
@@ -131,7 +133,7 @@ export function AllocationDialog({ order, allocLine, onClose, storageLocations }
                     onClick={() =>
                       patchAllocations(
                         allocLine,
-                        allocRows.map((r) => ({ storage_location_id: r.storage_location_id as number, quantity: Number(r.quantity) }))
+                        allocRows.map((r) => ({ storage_location_id: r.storage_location_id as number, quantity: parseQuantity(r.quantity) ?? 0 }))
                       )
                     }
                   >

@@ -48,6 +48,7 @@ import { Badge } from '@/components/ui/badge'
 import { t, tn } from '@/lib/i18n'
 import { mountingTypeLabel } from '@/lib/mounting-types'
 import { formatUnitPrice } from '@/lib/money'
+import { PART_UNITS, quantityStep, unitLabel } from '@/lib/quantity'
 
 interface Category {
   id: number
@@ -101,6 +102,8 @@ interface Part {
   unit_price: number | null
   min_stock_threshold: number
   target_stock: number | null
+  unit: string
+  pack_size: number | null
   rohs_compliant: boolean
   storage_notes: string | null
   category_id: number
@@ -147,6 +150,8 @@ export default function EditPart({ part, categories, footprints, suppliers, tags
       unit_price: part.unit_price?.toString() || '',
       min_stock_threshold: part.min_stock_threshold.toString(),
       target_stock: part.target_stock?.toString() || '',
+      unit: part.unit,
+      pack_size: part.pack_size?.toString() || '',
       status: part.status,
       rohs_compliant: part.rohs_compliant,
       storage_notes: part.storage_notes || '',
@@ -596,6 +601,25 @@ export default function EditPart({ part, categories, footprints, suppliers, tags
 
                 <Field>
                   <FieldLabel>
+                    <Label htmlFor="unit">{t('Counted in')}</Label>
+                  </FieldLabel>
+                  <FieldContent>
+                    <Select value={data.part.unit} onValueChange={(value) => setData('part', { ...data.part, unit: value })}>
+                      <SelectTrigger id="unit" className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {PART_UNITS.map((unit) => (
+                          <SelectItem key={unit} value={unit}>{unitLabel(unit)}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </FieldContent>
+                  {errors['part.unit'] && <FieldError>{errors['part.unit']}</FieldError>}
+                </Field>
+
+                <Field>
+                  <FieldLabel>
                     <Label htmlFor="min_stock_threshold">{t('Min Stock Threshold')}</Label>
                   </FieldLabel>
                   <FieldContent>
@@ -603,6 +627,7 @@ export default function EditPart({ part, categories, footprints, suppliers, tags
                       id="min_stock_threshold"
                       type="number"
                       min="0"
+                      step={quantityStep(data.part.unit)}
                       value={data.part.min_stock_threshold}
                       onChange={(e) => setData('part', { ...data.part, min_stock_threshold: e.target.value })}
                     />
@@ -618,12 +643,30 @@ export default function EditPart({ part, categories, footprints, suppliers, tags
                     <Input
                       id="target_stock"
                       type="number"
-                      min="1"
+                      min="0"
+                      step={quantityStep(data.part.unit)}
                       value={data.part.target_stock}
                       onChange={(e) => setData('part', { ...data.part, target_stock: e.target.value })}
                     />
                   </FieldContent>
                   {errors['part.target_stock'] && <FieldError>{errors['part.target_stock']}</FieldError>}
+                </Field>
+
+                <Field>
+                  <FieldLabel>
+                    <Label htmlFor="pack_size">{t('Pack size')}</Label>
+                  </FieldLabel>
+                  <FieldContent>
+                    <Input
+                      id="pack_size"
+                      type="number"
+                      min="0"
+                      step={quantityStep(data.part.unit)}
+                      value={data.part.pack_size}
+                      onChange={(e) => setData('part', { ...data.part, pack_size: e.target.value })}
+                    />
+                  </FieldContent>
+                  {errors['part.pack_size'] && <FieldError>{errors['part.pack_size']}</FieldError>}
                 </Field>
 
                 <Field className="md:col-span-2 lg:col-span-4">

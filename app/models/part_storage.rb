@@ -3,8 +3,11 @@ class PartStorage < ApplicationRecord
   belongs_to :part
   belongs_to :storage_location
 
+  # In the part's unit (see Quantity).
+  attribute :quantity, Quantity::Type.new
+
   # Validations
-  validates :quantity, numericality: { greater_than_or_equal_to: 0, only_integer: true }
+  validates :quantity, quantity: { greater_than_or_equal_to: 0, unit_of: :part }
   validates :part_id, uniqueness: { scope: :storage_location_id }
   validate :storage_location_must_belong_to_same_organization
 

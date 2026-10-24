@@ -8,8 +8,11 @@ class ProjectLine < ApplicationRecord
   # can judge each proposed match. "none" = no inventory part found.
   MATCH_TYPES = %w[mpn sku supplier_sku value_footprint name manual none].freeze
 
+  # Per build, in the part's unit (0.2 m of wire per board, see Quantity).
+  attribute :quantity, Quantity::Type.new
+
   # Validations
-  validates :quantity, numericality: { only_integer: true, greater_than: 0, less_than_or_equal_to: MAX_INTEGER }
+  validates :quantity, quantity: { greater_than: 0, unit_of: :part }
   validates :match_type, presence: true, inclusion: { in: MATCH_TYPES }
   validate :part_must_belong_to_same_organization
 
@@ -20,7 +23,7 @@ class ProjectLine < ApplicationRecord
 
   def shortfall
     return 0 if part.nil?
-    [ quantity - in_stock, 0 ].max
+    [ Quantity.sum(quantity, -in_stock), 0 ].max
   end
 
   # Matched to a real part AND enough of it is in stock to cover the requirement.

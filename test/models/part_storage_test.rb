@@ -19,9 +19,15 @@ class PartStorageTest < ActiveSupport::TestCase
     assert_includes ps.errors[:quantity], "must be greater than or equal to 0"
   end
 
-  test "rejects a non-integer quantity" do
+  test "rejects a non-integer quantity of a part counted in pieces" do
     ps = PartStorage.new(part: @part, storage_location: @location, quantity: 1.5)
     assert_not ps.valid?
+  end
+
+  test "accepts a decimal quantity of a part counted in a measure" do
+    @part.update!(unit: "meter")
+    ps = PartStorage.new(part: @part, storage_location: @location, quantity: 1.5)
+    assert ps.valid?
   end
 
   test "one row per part and location pair" do

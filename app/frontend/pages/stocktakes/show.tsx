@@ -36,6 +36,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { cn } from '@/lib/utils'
 import { t, tn, intlLocale } from '@/lib/i18n'
+import { formatQuantity, isDecimalUnit, parseQuantity, quantityStep } from '@/lib/quantity'
 
 interface Stocktake {
   id: number
@@ -60,7 +61,7 @@ interface Stocktake {
 
 interface StocktakeLine {
   id: number
-  part: { id: number; reference: string; ipn: string | null; name: string; unit_price: number | null }
+  part: { id: number; reference: string; ipn: string | null; name: string; unit: string; unit_price: number | null }
   zone: { id: number; name: string; short_name: string; code: string | null }
   // Null while a blind count hides it.
   expected_quantity: number | null
@@ -104,11 +105,11 @@ function formatMoney(value: number, currency: string) {
   }
 }
 
-function signed(value: number) {
-  return value > 0 ? `+${value}` : String(value)
+function signed(value: number, unit?: string) {
+  return `${value > 0 ? '+' : ''}${formatQuantity(value, unit)}`
 }
 
-function DifferenceBadge({ difference }: { difference: number | null }) {
+function DifferenceBadge({ difference, unit }: { difference: number | null; unit?: string }) {
   if (difference === null) {
     return <span className="text-xs text-muted-foreground">{t('Not counted')}</span>
   }
@@ -126,7 +127,7 @@ function DifferenceBadge({ difference }: { difference: number | null }) {
         ? 'bg-blue-100 font-mono text-blue-700 dark:bg-blue-950 dark:text-blue-400'
         : 'bg-amber-100 font-mono text-amber-700 dark:bg-amber-950 dark:text-amber-400'}
     >
-      {signed(difference)}
+      {signed(difference, unit)}
     </Badge>
   )
 }
@@ -200,9 +201,9 @@ export default function StocktakeShow({ stocktake, lines, zones, current_zone_id
 
   const saveCount = (line: StocktakeLine, raw: string) => {
     const trimmed = raw.trim()
-    const quantity = trimmed === '' ? null : Number(trimmed)
+    const quantity = trimmed === '' ? null : parseQuantity(trimmed)
     if (quantity === line.counted_quantity) return
-    if (quantity !== null && (!Number.isInteger(quantity) || quantity < 0)) return
+    if (quantity === null ? trimmed !== '' : quantity < 0 || (!isDecimalUnit(line.part.unit) && !Number.isInteger(quantity))) return
     router.patch(`${base}/lines/${line.id}`, { stocktake_line: { counted_quantity: trimmed } }, {
       preserveScroll: true,
       preserveState: true,
@@ -400,7 +401,7 @@ export default function StocktakeShow({ stocktake, lines, zones, current_zone_id
           <SummaryCard label={t('Differences')} value={stocktake.discrepancy_count} tone={stocktake.discrepancy_count > 0 ? 'amber' : undefined} />
           <SummaryCard
             label={t('Units found / missing')}
-            value={`+${stocktake.units_found} / −${stocktake.units_missing}`}
+            value={`+${formatQuantity(stocktake.units_found)} / −${formatQuantity(stocktake.units_missing)}`}
           />
           <SummaryCard
             label={t('Value difference')}
@@ -496,7 +497,7 @@ export default function StocktakeShow({ stocktake, lines, zones, current_zone_id
                       {line.zone.code && <div className="font-mono text-xs text-muted-foreground">{line.zone.code}</div>}
                     </TableCell>
                     <TableCell className="text-right font-mono">
-                      {line.expected_quantity === null ? <span className="text-muted-foreground">{t('hidden')}</span> : line.expected_quantity}
+                      {line.expected_quantity === null ? <span className="text-muted-foreground">{t('hidden')}</span> : formatQuantity(line.expected_quantity, line.part.unit)}
                     </TableCell>
                     <TableCell className="text-right">
                       {counting ? (
@@ -511,7 +512,7 @@ export default function StocktakeShow({ stocktake, lines, zones, current_zone_id
                               onClick={() => saveCount(line, String(line.expected_quantity))}
                             >
                               <Check className="size-3.5" />
-                              {line.expected_quantity}
+                              {formatQuantity(line.expected_quantity, line.part.unit)}
                             </Button>
                           )}
                           <Input
@@ -523,7 +524,8 @@ export default function StocktakeShow({ stocktake, lines, zones, current_zone_id
                             }}
                             type="number"
                             min={0}
-                            inputMode="numeric"
+                            step={quantityStep(line.part.unit)}
+                            inputMode={isDecimalUnit(line.part.unit) ? 'decimal' : 'numeric'}
                             defaultValue={line.counted_quantity ?? ''}
                             aria-label={t('Counted {reference}', { reference: line.part.reference })}
                             className="h-8 w-20 text-right font-mono sm:w-24"
@@ -532,23 +534,23 @@ export default function StocktakeShow({ stocktake, lines, zones, current_zone_id
                           />
                         </div>
                       ) : (
-                        <span className="font-mono">{line.counted_quantity ?? '—'}</span>
+                        <span className="font-mono">{line.counted_quantity === null ? '—' : formatQuantity(line.counted_quantity, line.part.unit)}</span>
                       )}
                       {line.counted_by && (
                         <div className="mt-0.5 hidden text-[11px] text-muted-foreground sm:block">{line.counted_by}</div>
                       )}
                       {line.counted_quantity !== null && (
                         <div className="mt-1 sm:hidden">
-                          <DifferenceBadge difference={line.difference} />
+                          <DifferenceBadge difference={line.difference} unit={line.part.unit} />
                         </div>
                       )}
                     </TableCell>
                     <TableCell className="hidden sm:table-cell">
-                      <DifferenceBadge difference={line.difference} />
+                      <DifferenceBadge difference={line.difference} unit={line.part.unit} />
                     </TableCell>
                     {stocktake.status === 'completed' && (
                       <TableCell className="text-right font-mono text-sm">
-                        {line.adjustment ? signed(line.adjustment.quantity_delta) : '—'}
+                        {line.adjustment ? signed(line.adjustment.quantity_delta, line.part.unit) : '—'}
                       </TableCell>
                     )}
                   </TableRow>

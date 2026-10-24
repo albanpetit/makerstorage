@@ -81,7 +81,7 @@ class PartConsumption
     rows.to_h do |part_id, consumed, count, last_used_at|
       # SQLite hands MAX() back as text (UTC), not as a time.
       last_used_at = ActiveSupport::TimeZone["UTC"].parse(last_used_at) if last_used_at.is_a?(String)
-      [ part_id, entry(part_id, consumed.to_i, count, first_movements[part_id], lead_times[part_id], last_used_at) ]
+      [ part_id, entry(part_id, Quantity.normalize(consumed || 0), count, first_movements[part_id], lead_times[part_id], last_used_at) ]
     end
   end
 

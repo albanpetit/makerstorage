@@ -32,7 +32,7 @@ class ScansController < ApplicationController
   def create_movement
     part = current_organization.parts.find(scan_params[:part_id])
     location = current_organization.storage_locations.find(scan_params[:storage_location_id])
-    delta = scan_params[:quantity_delta].to_i
+    delta = Quantity.parse(scan_params[:quantity_delta]) || 0
 
     movement = current_organization.stock_movements.build(
       part: part,
@@ -56,7 +56,7 @@ class ScansController < ApplicationController
   def receive
     part = current_organization.parts.find(receive_params[:part_id])
     location = current_organization.storage_locations.find(receive_params[:storage_location_id])
-    quantity = receive_params[:quantity].to_i
+    quantity = Quantity.parse(receive_params[:quantity]) || 0
 
     movement = current_organization.stock_movements.build(
       part: part,
@@ -69,7 +69,7 @@ class ScansController < ApplicationController
     )
 
     if movement.save
-      redirect_to scan_path, notice: t("flash.scans.bag_received", quantity: quantity, reference: part.reference, zone: location.name)
+      redirect_to scan_path, notice: t("flash.scans.bag_received", quantity: Quantity.format(quantity, part.unit), reference: part.reference, zone: location.name)
     else
       redirect_back_or_to scan_path, alert: t("flash.scans.bag_receive_failed"), inertia: { errors: inertia_errors(movement, as: :stock_movement) }
     end

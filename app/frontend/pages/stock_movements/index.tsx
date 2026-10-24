@@ -36,6 +36,8 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { t, intlLocale, tn } from '@/lib/i18n'
+import { formatQuantity, sumQuantities } from '@/lib/quantity'
+import { QuantityInput } from '@/components/quantity-input'
 
 type MovementFilter = 'all' | Movement['movement_type']
 
@@ -59,6 +61,7 @@ interface MovementPart {
   id: number
   reference: string
   name: string
+  unit: string
   category: { name: string; color: string | null } | null
 }
 
@@ -78,6 +81,8 @@ interface PartOption {
   id: number
   reference: string
   name: string
+  unit: string
+  pack_size: number | null
 }
 
 interface StockMovementsPageProps {
@@ -163,11 +168,12 @@ export default function StockMovementsIndex({ movements, pagination, filter, sta
     })
   }
 
-  const net = stats.inbound - stats.outbound
+  const net = sumQuantities([ stats.inbound, -stats.outbound ])
+  const selectedPart = parts.find((part) => String(part.id) === newForm.data.stock_movement.part_id)
   const statCards = [
-    { label: t('Inbound'), value: `+${stats.inbound.toLocaleString(intlLocale())}`, icon: ArrowDown, className: 'text-emerald-600 dark:text-emerald-400' },
-    { label: t('Outbound'), value: `−${stats.outbound.toLocaleString(intlLocale())}`, icon: ArrowUp, className: 'text-red-600 dark:text-red-400' },
-    { label: t('Net balance'), value: `${net >= 0 ? '+' : ''}${net.toLocaleString(intlLocale())}`, icon: ArrowLeftRight, className: '' },
+    { label: t('Inbound'), value: `+${formatQuantity(stats.inbound)}`, icon: ArrowDown, className: 'text-emerald-600 dark:text-emerald-400' },
+    { label: t('Outbound'), value: `−${formatQuantity(stats.outbound)}`, icon: ArrowUp, className: 'text-red-600 dark:text-red-400' },
+    { label: t('Net balance'), value: `${net >= 0 ? '+' : ''}${formatQuantity(net)}`, icon: ArrowLeftRight, className: '' },
     { label: t('Movements'), value: stats.total.toLocaleString(intlLocale()), icon: Package, className: '' },
   ]
 
@@ -314,10 +320,10 @@ export default function StockMovementsIndex({ movements, pagination, filter, sta
                           <TableCell className={`py-2.5 text-right font-mono text-sm font-semibold ${
                             m.quantity_delta > 0 ? 'text-emerald-600 dark:text-emerald-400' : m.quantity_delta < 0 ? 'text-red-600 dark:text-red-400' : ''
                           }`}>
-                            {m.quantity_delta > 0 ? `+${m.quantity_delta}` : m.quantity_delta}
+                            {m.quantity_delta > 0 ? '+' : ''}{formatQuantity(m.quantity_delta, m.part.unit)}
                           </TableCell>
                           <TableCell className="py-2.5 text-right font-mono text-sm text-muted-foreground">
-                            {m.balance_after.toLocaleString(intlLocale())}
+                            {formatQuantity(m.balance_after, m.part.unit)}
                           </TableCell>
                         </TableRow>
                       )
@@ -436,11 +442,11 @@ export default function StockMovementsIndex({ movements, pagination, filter, sta
                     <Label>{t('Quantity')}</Label>
                   </FieldLabel>
                   <FieldContent>
-                    <Input
-                      inputMode="numeric"
-                      placeholder="0"
+                    <QuantityInput
+                      unit={selectedPart?.unit}
+                      packSize={selectedPart?.pack_size}
                       value={newForm.data.stock_movement.quantity}
-                      onChange={(e) => newForm.setData('stock_movement', { ...newForm.data.stock_movement, quantity: e.target.value.replace(/[^0-9]/g, '') })}
+                      onValueChange={(quantity) => newForm.setData('stock_movement', { ...newForm.data.stock_movement, quantity })}
                     />
                   </FieldContent>
                 </Field>
@@ -452,11 +458,11 @@ export default function StockMovementsIndex({ movements, pagination, filter, sta
                   <Label>{t('Quantity')}</Label>
                 </FieldLabel>
                 <FieldContent>
-                  <Input
-                    inputMode="numeric"
-                    placeholder="0"
+                  <QuantityInput
+                    unit={selectedPart?.unit}
+                    packSize={selectedPart?.pack_size}
                     value={newForm.data.stock_movement.quantity}
-                    onChange={(e) => newForm.setData('stock_movement', { ...newForm.data.stock_movement, quantity: e.target.value.replace(/[^0-9]/g, '') })}
+                    onValueChange={(quantity) => newForm.setData('stock_movement', { ...newForm.data.stock_movement, quantity })}
                   />
                 </FieldContent>
               </Field>

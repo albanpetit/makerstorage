@@ -31,7 +31,7 @@ class NotificationDigest
       .order(Arel.sql("COALESCE(SUM(part_storages.quantity), 0) * 1.0 / NULLIF(parts.min_stock_threshold, 0)"), :name)
       .map do |part|
         LowStockItem.new(part_id: part.id, code: part.ipn.presence || part.mpn, name: part.name,
-                         quantity: part.stock_quantity.to_i, threshold: part.min_stock_threshold)
+                         quantity: Quantity.normalize(part.stock_quantity || 0), threshold: part.min_stock_threshold)
       end
   end
 

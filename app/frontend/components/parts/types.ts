@@ -19,6 +19,8 @@ export interface Part {
   thumbnail_url: string | null
   total_quantity: number
   min_stock_threshold: number
+  // What the part is counted in (see lib/quantity).
+  unit: string
   unit_price: number | null
   location_names: string[]
   supplier_name: string | null

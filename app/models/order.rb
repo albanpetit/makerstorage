@@ -60,6 +60,7 @@ class Order < ApplicationRecord
       .where(orders: { organization_id: organization.id, status: OPEN_STATUSES }, part_id: part_ids)
       .group(:part_id)
       .sum(:quantity)
+      .transform_values { |quantity| Quantity.normalize(quantity) }
   end
 
   # Methods
@@ -143,7 +144,7 @@ class Order < ApplicationRecord
 
       # Whatever the split doesn't cover (all of it when there's no split) goes
       # to the fallback location, so a short split can never lose stock.
-      remainder = line.quantity - allocations.sum(&:quantity)
+      remainder = Quantity.sum(line.quantity, -Quantity.sum(allocations.map(&:quantity)))
       next unless remainder.positive?
 
       location = line.part.fallback_storage_location

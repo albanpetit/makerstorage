@@ -24,8 +24,10 @@ class McpServer
       power_rating: { type: "string", description: "e.g. \"0.1W\"." },
       category: { type: "string", description: "Existing category: full path (\"Passives > Resistors\") or unique name." },
       footprint: { type: "string", description: "Existing footprint name (see inventory_overview)." },
-      min_stock_threshold: { type: "integer", minimum: 0, description: "Low-stock alert below this quantity." },
-      target_stock: { type: "integer", minimum: 1, description: "Quantity to reorder up to." },
+      unit: { type: "string", enum: Part::UNITS, description: "What the part is counted in (default piece). #{Part::DECIMAL_UNITS.join(', ')} take decimal quantities." },
+      pack_size: { type: "number", exclusiveMinimum: 0, description: "How much one pack holds, in the part's unit (a 1 kg spool counted in gram: 1000)." },
+      min_stock_threshold: { type: "number", minimum: 0, description: "Low-stock alert below this quantity." },
+      target_stock: { type: "number", exclusiveMinimum: 0, description: "Quantity to reorder up to." },
       unit_price: { type: "number", minimum: 0, description: "Unit price in the organization's currency." },
       status: { type: "string", enum: Part::STATUSES },
       rohs_compliant: { type: "boolean" },
@@ -52,7 +54,7 @@ class McpServer
           required: %w[direction quantity],
           properties: PART_LOOKUP.merge(
             direction: { type: "string", enum: %w[in out], description: "in adds stock, out removes it." },
-            quantity: { type: "integer", minimum: 1, maximum: ApplicationRecord::MAX_INTEGER },
+            quantity: { type: "number", exclusiveMinimum: 0, maximum: Quantity::MAX, description: "In the part's unit: whole for pieces, decimals allowed for a measure (2.5 meter)." },
             location_id: { type: "integer", description: "Storage location id." },
             location: { type: "string", description: "Or the location's code or exact name." },
             reason: REASON
@@ -72,7 +74,7 @@ class McpServer
             from_location: { type: "string", description: "Code or exact name of the location to take from. Optional when the part sits in one place." },
             to_location_id: { type: "integer" },
             to_location: { type: "string", description: "Code or exact name of the destination." },
-            quantity: { type: "integer", minimum: 1, maximum: ApplicationRecord::MAX_INTEGER, description: "Default: everything at the source." },
+            quantity: { type: "number", exclusiveMinimum: 0, maximum: Quantity::MAX, description: "Default: everything at the source." },
             reason: REASON
           )
         },
@@ -89,7 +91,7 @@ class McpServer
           properties: PART_LOOKUP.merge(
             location_id: { type: "integer" },
             location: { type: "string", description: "Code or exact name. Optional when the part sits in one place." },
-            counted_quantity: { type: "integer", minimum: 0, maximum: ApplicationRecord::MAX_INTEGER },
+            counted_quantity: { type: "number", minimum: 0, maximum: Quantity::MAX, description: "In the part's unit." },
             reason: REASON
           )
         },
@@ -104,7 +106,7 @@ class McpServer
           type: "object",
           required: %w[name category],
           properties: PART_FIELDS.merge(
-            initial_quantity: { type: "integer", minimum: 0, maximum: ApplicationRecord::MAX_INTEGER, description: "Opening stock." },
+            initial_quantity: { type: "number", minimum: 0, maximum: Quantity::MAX, description: "Opening stock, in the part's unit." },
             location_id: { type: "integer", description: "Where the opening stock is." },
             location: { type: "string", description: "Or its code or exact name." }
           )
@@ -167,7 +169,7 @@ class McpServer
       direction = string_argument(arguments, "direction")
       raise ToolError, "direction must be in or out" unless %w[in out].include?(direction)
 
-      quantity = integer_argument(arguments, "quantity", default: nil, min: 1, max: ApplicationRecord::MAX_INTEGER)
+      quantity = quantity_argument(arguments, "quantity", default: nil, positive: true)
       raise ToolError, "quantity is required" if quantity.nil?
 
       location = location_argument(arguments, "location") ||
@@ -186,7 +188,7 @@ class McpServer
       raise ToolError, "The source and the destination are the same location" if source == destination
 
       available = quantity_at(part, source)
-      quantity = integer_argument(arguments, "quantity", default: available, min: 1, max: ApplicationRecord::MAX_INTEGER)
+      quantity = quantity_argument(arguments, "quantity", default: available, positive: true)
       raise ToolError, "There is no stock of this part in #{source.name}" if quantity.zero?
 
       given = string_argument(arguments, "reason")
@@ -206,7 +208,7 @@ class McpServer
 
     def set_stock_count(arguments)
       part = find_part(part_lookup(arguments))
-      counted = integer_argument(arguments, "counted_quantity", default: nil, min: 0, max: ApplicationRecord::MAX_INTEGER)
+      counted = quantity_argument(arguments, "counted_quantity", default: nil, positive: false)
       raise ToolError, "counted_quantity is required" if counted.nil?
 
       location = location_argument(arguments, "location") || only_location(part, "location", allow_empty: false)
@@ -223,7 +225,7 @@ class McpServer
 
       part = organization.parts.build
       assign_part_fields(part, arguments)
-      quantity = integer_argument(arguments, "initial_quantity", default: 0, min: 0, max: ApplicationRecord::MAX_INTEGER)
+      quantity = quantity_argument(arguments, "initial_quantity", default: 0, positive: false)
       location = location_argument(arguments, "location")
       raise ToolError, "Give the location of the opening stock (location or location_id)" if quantity.positive? && location.nil?
 
@@ -286,7 +288,7 @@ class McpServer
           value: line[:value],
           footprint: line[:footprint],
           designators: clean(raw["designators"]),
-          quantity: integer_argument(raw, "quantity", default: 1, min: 1, max: ApplicationRecord::MAX_INTEGER, label: "Line #{index + 1} quantity")
+          quantity: quantity_argument(raw, "quantity", default: 1, positive: true, label: "Line #{index + 1} quantity")
         )
       end
 
@@ -328,12 +330,19 @@ class McpServer
       end
       part.package_type = clean(arguments["package"]) if arguments.key?("package")
       if arguments.key?("min_stock_threshold")
-        part.min_stock_threshold = integer_argument(arguments, "min_stock_threshold", default: 0, min: 0, max: ApplicationRecord::MAX_INTEGER)
+        part.min_stock_threshold = quantity_argument(arguments, "min_stock_threshold", default: 0, positive: false)
       end
       if arguments.key?("target_stock")
-        part.target_stock = integer_argument(arguments, "target_stock", default: nil, min: 1, max: ApplicationRecord::MAX_INTEGER)
+        part.target_stock = quantity_argument(arguments, "target_stock", default: nil, positive: true)
       end
+      part.pack_size = quantity_argument(arguments, "pack_size", default: nil, positive: true) if arguments.key?("pack_size")
       part.unit_price = decimal_argument(arguments, "unit_price") if arguments.key?("unit_price")
+      if arguments.key?("unit")
+        unit = string_argument(arguments, "unit")
+        raise ToolError, "unit must be one of #{Part::UNITS.join(', ')}" unless Part::UNITS.include?(unit)
+
+        part.unit = unit
+      end
       if arguments.key?("status")
         status = string_argument(arguments, "status")
         raise ToolError, "status must be one of #{Part::STATUSES.join(', ')}" unless Part::STATUSES.include?(status)
@@ -441,6 +450,20 @@ class McpServer
     # Ledger reasons say which assistant made the change, next to the user's name.
     def reason_text(text)
       "#{text.truncate(MAX_REASON_LENGTH)} (via #{client_name.presence || 'MCP'})"
+    end
+
+    # A quantity in the part's unit (see Quantity): the part's validations
+    # reject a fraction of a part counted in pieces.
+    def quantity_argument(arguments, key, default:, positive:, label: key)
+      raw = arguments[key]
+      return default if raw.nil? || raw == ""
+
+      value = Quantity.parse(raw)
+      if value.nil? || (positive ? value <= 0 : value.negative?) || value > Quantity::MAX
+        raise ToolError, "#{label} must be a number #{positive ? 'above 0' : 'of 0 or more'}, at most #{Quantity::MAX}"
+      end
+
+      value
     end
 
     def decimal_argument(arguments, key)

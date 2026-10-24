@@ -41,10 +41,11 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { t, tn } from '@/lib/i18n'
+import { formatQuantity, parseQuantity, quantityStep } from '@/lib/quantity'
 
 interface LoanLine {
   id: number
-  part: { id: number; reference: string; ipn: string | null; name: string }
+  part: { id: number; reference: string; ipn: string | null; name: string; unit: string }
   storage_location: { id: number; name: string } | null
   quantity: number
   returned_quantity: number
@@ -221,9 +222,9 @@ export default function LoanShow({ loan, storage_locations }: LoanShowProps) {
                     <div className="font-mono text-xs text-muted-foreground">{line.part.ipn ?? line.part.reference}</div>
                   </TableCell>
                   <TableCell className="text-xs text-muted-foreground">{line.storage_location?.name ?? '—'}</TableCell>
-                  <TableCell className="text-right font-mono">{line.quantity}</TableCell>
-                  <TableCell className="text-right font-mono">{line.returned_quantity || '—'}</TableCell>
-                  <TableCell className="text-right font-mono">{line.lost_quantity || '—'}</TableCell>
+                  <TableCell className="text-right font-mono">{formatQuantity(line.quantity, line.part.unit)}</TableCell>
+                  <TableCell className="text-right font-mono">{line.returned_quantity ? formatQuantity(line.returned_quantity, line.part.unit) : '—'}</TableCell>
+                  <TableCell className="text-right font-mono">{line.lost_quantity ? formatQuantity(line.lost_quantity, line.part.unit) : '—'}</TableCell>
                   <TableCell className={`text-right font-mono font-semibold ${line.outstanding > 0 && loan.status === 'overdue' ? 'text-destructive' : ''}`}>
                     {line.outstanding}
                   </TableCell>
@@ -269,12 +270,13 @@ export default function LoanShow({ loan, storage_locations }: LoanShowProps) {
                   <Input
                     id="settle-qty"
                     type="number"
-                    min={1}
+                    min={0}
+                    step={quantityStep(settle.line.part.unit)}
                     max={settle.line.outstanding}
                     value={quantity}
                     onChange={(e) => setQuantity(e.target.value)}
                   />
-                  <p className="text-xs text-muted-foreground">{t('{count} still out.', { count: settle.line.outstanding })}</p>
+                  <p className="text-xs text-muted-foreground">{t('{count} still out.', { count: formatQuantity(settle.line.outstanding, settle.line.part.unit) })}</p>
                 </div>
                 {settle.mode === 'return' && (
                   <div className="space-y-2">
@@ -294,7 +296,7 @@ export default function LoanShow({ loan, storage_locations }: LoanShowProps) {
                 <Button
                   type="submit"
                   variant={settle.mode === 'return' ? 'default' : 'destructive'}
-                  disabled={processing || !(Number(quantity) > 0) || (settle.mode === 'return' && !locationId)}
+                  disabled={processing || !((parseQuantity(quantity) ?? 0) > 0) || (settle.mode === 'return' && !locationId)}
                 >
                   {settle.mode === 'return' ? t('Return') : t('Write off')}
                 </Button>

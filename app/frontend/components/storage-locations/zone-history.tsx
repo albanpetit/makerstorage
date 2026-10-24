@@ -4,6 +4,7 @@ import { Card } from '@/components/ui/card'
 import { MOVEMENT_META, formatDate } from './zone-meta'
 import type { RecentMovement } from './types'
 import { t } from '@/lib/i18n'
+import { formatQuantity } from '@/lib/quantity'
 
 // The latest stock movements in the selected zone and its sub-zones.
 export function ZoneHistory({ movements }: { movements: RecentMovement[] }) {
@@ -25,7 +26,7 @@ export function ZoneHistory({ movements }: { movements: RecentMovement[] }) {
               <span className="min-w-0 flex-1 truncate text-muted-foreground">{m.reason}</span>
               <span className="shrink-0 whitespace-nowrap text-xs text-muted-foreground">{formatDate(m.created_at)}</span>
               <span className="w-12 shrink-0 text-right font-mono font-semibold">
-                {m.quantity_delta > 0 ? `+${m.quantity_delta}` : m.quantity_delta}
+                {m.quantity_delta > 0 ? '+' : ''}{formatQuantity(m.quantity_delta, m.unit)}
               </span>
             </div>
           ))}
