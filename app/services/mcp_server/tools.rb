@@ -123,6 +123,25 @@ class McpServer
         }
       },
       {
+        name: "get_project_cost",
+        title: "Get project cost",
+        description: "What building N copies of a project costs from the prices on file: per copy and in total, " \
+                     "split between parts taken from stock (valued at their unit price) and parts to buy (at the " \
+                     "supplier's price break for the quantity bought). Parts with no price and BOM lines not in " \
+                     "the inventory are listed: when there are any, totals are a lower bound.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            id: { type: "integer", description: "Project id (from list_projects)." },
+            reference: { type: "string", description: "Project reference (PRJ-…) or exact name." },
+            quantities: {
+              type: "array", items: { type: "integer", minimum: 1, maximum: ProjectCost::MAX_QUANTITY }, maxItems: 5,
+              description: "Numbers of copies to price (default #{ProjectCost::DEFAULT_QUANTITIES.join(", ")})."
+            }
+          }
+        }
+      },
+      {
         name: "list_loans",
         title: "List loans",
         description: "Tools and parts lent to members (or others): who has what, since when, the due date and " \
@@ -519,6 +538,47 @@ class McpServer
             available: available[part.id],
             missing: missing[part.id],
             incoming: incoming.fetch(part.id, 0)
+          }
+        end
+      }
+    end
+
+    def get_project_cost(arguments)
+      project = find_project(arguments)
+      project = organization.projects.includes(project_lines: { part: [ :part_storages, { part_suppliers: :supplier } ] }).find(project.id)
+      quantities = Array(arguments["quantities"]).filter_map { |value| Integer(value.to_s, exception: false) }
+        .select { |value| value.between?(1, ProjectCost::MAX_QUANTITY) }.uniq.first(5).sort
+      quantities = ProjectCost::DEFAULT_QUANTITIES if quantities.empty?
+
+      {
+        id: project.id,
+        reference: project.reference,
+        name: project.name,
+        currency: organization.currency,
+        url: "#{base_url}/projects/#{project.id}",
+        estimates: ProjectCost.new(project).estimates(quantities).map do |estimate|
+          {
+            quantity: estimate.quantity,
+            total: estimate.total.to_f.round(2),
+            per_copy: estimate.per_unit.to_f.round(4),
+            from_stock_value: estimate.stock_value.to_f.round(2),
+            to_buy_cost: estimate.purchase_cost.to_f.round(2),
+            complete: estimate.complete?,
+            unpriced_parts: estimate.unpriced_rows.map { |row| part_brief(row.part) },
+            lines_not_in_inventory: estimate.unmatched_lines.map { |line| line.raw_reference.presence || line.designation.presence || line.value },
+            parts: estimate.rows.map do |row|
+              {
+                part: row.part.reference,
+                name: row.part.name,
+                needed: row.required,
+                from_stock: row.from_stock,
+                to_buy: row.to_buy,
+                stock_unit_price: row.stock_unit_price&.to_f,
+                buy_unit_price: row.buy_unit_price&.to_f,
+                supplier: row.supplier&.name,
+                cost: row.cost.to_f.round(2)
+              }
+            end
           }
         end
       }

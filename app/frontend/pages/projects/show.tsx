@@ -40,6 +40,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Combobox, type ComboboxOption } from '@/components/ui/combobox'
 import { GithubFields, type GithubLinkData } from '@/components/projects/github-fields'
 import { StorageLocationSelect, type StorageLocationOption } from '@/components/storage-location-select'
+import { ProjectCostCard, type ProjectCostData } from '@/components/projects/project-cost-card'
 import {
   Table,
   TableBody,
@@ -217,6 +218,7 @@ interface ProjectShowProps {
   parts: PartOption[]
   subproject_options: SubprojectOption[]
   storage_locations: StorageLocationOption[]
+  cost: ProjectCostData
 }
 
 const NONE = '__none__'
@@ -241,7 +243,7 @@ function partLabel(part: LinePart) {
   return part.reference && part.reference !== part.name ? `${part.reference} — ${part.name}` : part.name
 }
 
-export default function ProjectShow({ project, parts, subproject_options, storage_locations }: ProjectShowProps) {
+export default function ProjectShow({ project, parts, subproject_options, storage_locations, cost }: ProjectShowProps) {
   const { canWrite } = usePermissions()
   const [buildOpen, setBuildOpen] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
@@ -714,6 +716,8 @@ export default function ProjectShow({ project, parts, subproject_options, storag
         {project.assembly_parts.length > 0 && (
           <AssemblyParts parts={project.assembly_parts} lines={project.lines} reservationsEnabled={project.reservations_enabled} />
         )}
+
+        <ProjectCostCard projectId={project.id} cost={cost} />
 
         <BuildHistory builds={project.builds} />
       </div>

@@ -1990,5 +1990,30 @@
   "Use another project as a sub-assembly: its parts (or its built item, when it has one) count in this project's needs, times the quantity.": "Utilisez un autre projet comme sous-ensemble : ses composants (ou son article fabriqué, s’il en a un) comptent dans les besoins de ce projet, multipliés par la quantité.",
   "Pick a project": "Choisissez un projet",
   "No other project to use": "Aucun autre projet utilisable",
-  "Search projects…": "Rechercher un projet…"
+  "Search projects…": "Rechercher un projet…",
+  "(left out: the totals are a minimum).": "(non comptés : les totaux sont un minimum).",
+  "Copies": "Exemplaires",
+  "Cost": "Coût",
+  "Cost to build": "Coût de fabrication",
+  "Estimate": "Chiffrer",
+  "From stock": "Pris en stock",
+  "From the prices on file: parts in stock at their unit price, parts to buy at the supplier’s price break for the quantity bought.": "D’après les prix connus : les composants en stock à leur prix unitaire, ceux à acheter au palier de prix du fournisseur pour la quantité achetée.",
+  "Needed": "Nécessaire",
+  "Number of copies to price": "Nombre d’exemplaires à chiffrer",
+  "Other quantity": "Autre quantité",
+  "Part by part for {count} copies": {
+    "one": "Détail pour {count} exemplaire",
+    "other": "Détail pour {count} exemplaires"
+  },
+  "Per copy": "Par exemplaire",
+  "stock {price}": "stock {price}",
+  "To buy": "À acheter",
+  "{count} lines are not in the inventory": {
+    "one": "{count} ligne n’est pas dans l’inventaire",
+    "other": "{count} lignes ne sont pas dans l’inventaire"
+  },
+  "{count} parts have no price": {
+    "one": "{count} composant n’a pas de prix",
+    "other": "{count} composants n’ont pas de prix"
+  }
 }

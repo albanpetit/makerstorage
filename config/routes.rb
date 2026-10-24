@@ -159,6 +159,7 @@ Rails.application.routes.draw do
   # Project BOM availability checks
   resources :projects, only: %i[index show create update destroy] do
     member do
+      get :cost
       post :duplicate
       post :confirm
       post :reserve
