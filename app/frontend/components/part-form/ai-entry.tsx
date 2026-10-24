@@ -29,9 +29,10 @@ export interface AiEntryResult {
   existing_part: { id: number; name: string } | null
 }
 
-// Server limits (PartExtraction): 4 files, photos up to 5 MB, PDFs up to 25 MB.
+// Server limits (PartExtraction): 4 files, photos up to 5 MB, PDFs up to
+// 20 MB, and 20 MB for all the files together.
 const MAX_FILES = 4
-const MAX_PDF_SIZE = 25 * 1024 * 1024
+const MAX_TOTAL_SIZE = 20 * 1024 * 1024
 // Phone photos are shrunk before upload: plenty for reading a label, and
 // well under the API's 5 MB per image.
 const MAX_IMAGE_EDGE = 2000
@@ -99,16 +100,16 @@ export function AiEntry({ onApply, attached }: AiEntryProps) {
 
   const read = async () => {
     if (files.length === 0) return
-    const tooLarge = files.find((file) => isPdf(file) && file.size > MAX_PDF_SIZE)
-    if (tooLarge) {
-      setError(t('{name} is too large (the limit is {size}).', { name: tooLarge.name, size: '25 MB' }))
-      return
-    }
     setLoading(true)
     setError(null)
     setResult(null)
     try {
       const prepared = await Promise.all(files.map((file) => (isPdf(file) ? file : shrinkImage(file))))
+      // Checked after shrinking: phone photos only count for what is sent.
+      if (prepared.reduce((sum, file) => sum + file.size, 0) > MAX_TOTAL_SIZE) {
+        setError(t('Together, the files are larger than {size}: send fewer or smaller ones.', { size: '20 MB' }))
+        return
+      }
       const body = new FormData()
       prepared.forEach((file) => body.append('files[]', file))
       if (hint.trim()) body.append('hint', hint.trim())

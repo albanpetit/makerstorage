@@ -213,6 +213,8 @@ class PartsController < ApplicationController
     render json: { result: result }
   rescue PartExtraction::NotConfiguredError, PartExtraction::InvalidFileError => e
     render json: { error: e.message }, status: :unprocessable_entity
+  rescue PartExtraction::BusyError => e
+    render json: { error: e.message }, status: :service_unavailable
   rescue PartExtraction::Error => e
     render json: { error: e.message }, status: :bad_gateway
   end

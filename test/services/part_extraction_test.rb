@@ -164,6 +164,70 @@ class PartExtractionTest < ActiveSupport::TestCase
     assert_match(/declined/, error.message)
   end
 
+  test "sends with a short timeout and no retry" do
+    client = FakeClient.new(answer: answer)
+
+    PartExtraction.new(@org, client: client).extract([ upload(PNG, "image/png", "a.png") ])
+
+    assert_equal({ timeout: PartExtraction::TIMEOUT, max_retries: 0 }, client.requests.sole[:request_options])
+    assert_operator PartExtraction::TIMEOUT, :<=, 60
+  end
+
+  test "refuses files that together exceed what the API takes" do
+    client = FakeClient.new(answer: answer)
+    half = PDF + ("\x00".b * (PartExtraction::MAX_TOTAL_SIZE / 2))
+
+    error = assert_raises(PartExtraction::InvalidFileError) do
+      PartExtraction.new(@org, client: client).extract([ upload(half, "application/pdf", "a.pdf"), upload(half, "application/pdf", "b.pdf") ])
+    end
+    assert_match(/Together, the files are larger than 20 MB/, error.message)
+    assert_empty client.requests
+  end
+
+  test "a read waits for a free slot and gives up when the server is busy" do
+    client = FakeClient.new(answer: answer)
+    PartExtraction::SLOTS.acquire(PartExtraction::MAX_CONCURRENT)
+    begin
+      stub_singleton(PartExtraction, :queue_wait, -> { 0 }) do
+        error = assert_raises(PartExtraction::BusyError) do
+          PartExtraction.new(@org, client: client).extract([ upload(PNG, "image/png", "a.png") ])
+        end
+        assert_match(/Another AI read is running/, error.message)
+      end
+    ensure
+      PartExtraction::SLOTS.release(PartExtraction::MAX_CONCURRENT)
+    end
+    assert_empty client.requests
+
+    # The slot is given back after a read, even a failed one.
+    failing = FakeClient.new(error: Anthropic::Errors::APIConnectionError.new(url: URI("https://api.anthropic.com/v1/messages")))
+    assert_raises(PartExtraction::Error) { PartExtraction.new(@org, client: failing).extract([ upload(PNG, "image/png", "a.png") ]) }
+    assert_equal PartExtraction::MAX_CONCURRENT, PartExtraction::SLOTS.available_permits
+  end
+
+  # Stands in for Anthropic::Client in key checks: models.list answers or raises.
+  class FakeModelsClient
+    def initialize(error: nil) = @error = error
+    def models = self
+
+    def list(**)
+      raise @error if @error
+
+      []
+    end
+  end
+
+  test "key_problem checks the format, then asks Anthropic" do
+    url = URI("https://api.anthropic.com/v1/models")
+    refused = Anthropic::Errors::AuthenticationError.new(url: url, status: 401, headers: {}, body: nil, request: nil, response: nil, message: "invalid x-api-key")
+
+    assert_match(/doesn't look like an Anthropic API key/, PartExtraction.key_problem("hello", client: FakeModelsClient.new))
+    assert_nil PartExtraction.key_problem("sk-ant-good", client: FakeModelsClient.new)
+    assert_match(/Anthropic refused this key/, PartExtraction.key_problem("sk-ant-bad", client: FakeModelsClient.new(error: refused)))
+    # Anthropic out of reach: the key can't be checked, so it's accepted.
+    assert_nil PartExtraction.key_problem("sk-ant-offline", client: FakeModelsClient.new(error: Anthropic::Errors::APIConnectionError.new(url: url)))
+  end
+
   test "answers in the user's language" do
     client = FakeClient.new(answer: answer)
 

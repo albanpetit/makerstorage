@@ -423,7 +423,11 @@ class SettingsControllerTest < ActionDispatch::IntegrationTest
     org = user.organizations.first
     sign_in user
 
-    patch settings_path, params: { organization: { anthropic_api_key: "  sk-ant-secret  " } }
+    checked = []
+    stub_singleton(PartExtraction, :key_problem, ->(key) { checked << key && nil }) do
+      patch settings_path, params: { organization: { anthropic_api_key: "  sk-ant-secret  " } }
+    end
+    assert_equal [ "sk-ant-secret" ], checked
     assert_equal "sk-ant-secret", org.reload.anthropic_api_key
     assert org.ai_entry_configured?
 
@@ -444,6 +448,22 @@ class SettingsControllerTest < ActionDispatch::IntegrationTest
     patch settings_path, params: { organization: { remove_anthropic_api_key: "true" } }
     assert_nil org.reload.anthropic_api_key
     refute org.ai_entry_configured?
+  end
+
+  test "an Anthropic key that Anthropic refuses isn't saved" do
+    user = create_user
+    org = user.organizations.first
+    org.update!(anthropic_api_key: "sk-ant-old")
+    sign_in user
+
+    stub_singleton(PartExtraction, :key_problem, ->(_key) { "Anthropic refused this key." }) do
+      patch settings_path, params: { organization: { anthropic_api_key: "sk-ant-typo" } }
+    end
+
+    assert_redirected_to settings_path
+    assert_equal "sk-ant-old", org.reload.anthropic_api_key
+    follow_redirect!
+    assert_equal [ "Anthropic refused this key." ], inertia_props.dig("errors", "organization.anthropic_api_key")
   end
 
   test "update leaves an existing Mouser key untouched on a blank submit" do

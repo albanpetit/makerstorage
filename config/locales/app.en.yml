@@ -53,9 +53,13 @@ en:
           other: '%{count} values of %{name} are not a number (%{examples}).'
   errors:
     ai_entry:
+      busy: Another AI read is running on the server. Try again in a moment.
       declined: Claude declined to read these files.
       file_too_large: '%{name} is too large (the limit is %{size}).'
+      files_too_large: 'Together, the files are larger than %{size}: send fewer or smaller ones.'
+      key_format: 'This doesn''t look like an Anthropic API key (it starts with %{prefix}).'
       key_refused: Anthropic refused the API key. Check it in Settings → Integrations.
+      key_refused_on_save: Anthropic refused this key. Check that it was copied whole and is still active.
       no_file: Add a photo or a datasheet first.
       not_configured: AI-assisted entry isn't set up. An admin can add an Anthropic API key in Settings → Integrations.
       rate_limited: Anthropic's rate limit was reached. Try again in a minute.

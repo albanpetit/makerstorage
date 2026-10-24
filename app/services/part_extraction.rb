@@ -14,6 +14,7 @@ class PartExtraction
   class Error < StandardError; end
   class NotConfiguredError < Error; end
   class InvalidFileError < Error; end
+  class BusyError < Error; end
 
   # Models an organization can choose (value: the label shown in Settings).
   MODELS = {
@@ -25,15 +26,26 @@ class PartExtraction
 
   IMAGE_TYPES = %w[image/jpeg image/png image/gif image/webp].freeze
   PDF_TYPE = "application/pdf"
-  # The API's own limits: 5 MB per image, 32 MB per request (PDFs included).
+  # The API's own limits: 5 MB per image, 32 MB per request. Files travel
+  # base64-encoded (a third larger), so 20 MB of files is about 27 MB sent.
   MAX_IMAGE_SIZE = 5.megabytes
-  MAX_PDF_SIZE = 25.megabytes
+  MAX_PDF_SIZE = 20.megabytes
+  MAX_TOTAL_SIZE = 20.megabytes
   MAX_FILES = 4
   MAX_HINT_LENGTH = 500
 
-  # A datasheet read can take a while; the add-part dialog waits for it.
-  TIMEOUT = 120
+  # The read runs inside the web request (the add-part dialog waits for it),
+  # so it holds a Puma thread: a short timeout, no retry, and at most
+  # MAX_CONCURRENT reads per server process, so the other threads stay free
+  # for the rest of the app. A read that finds every slot taken waits up to
+  # QUEUE_WAIT seconds, then gives up with a "busy, try again" message.
+  TIMEOUT = 60
+  MAX_CONCURRENT = 1
+  QUEUE_WAIT = 5
+  SLOTS = Concurrent::Semaphore.new(MAX_CONCURRENT)
   MAX_TOKENS = 16_000
+  KEY_PREFIX = "sk-ant-"
+  KEY_CHECK_TIMEOUT = 10
 
   TEXT_FIELDS = %w[name mpn manufacturer description value package_type tolerance voltage_rating power_rating].freeze
   FIELD_LIMITS = { "description" => 2000 }.freeze
@@ -65,8 +77,30 @@ class PartExtraction
     organization.ai_entry_configured?
   end
 
+  def self.queue_wait
+    QUEUE_WAIT
+  end
+
   def self.model_label(model)
     MODELS.fetch(model, model)
+  end
+
+  # Checks an API key before Settings saves it: its format, then a free call
+  # (listing models) that Anthropic refuses with a bad key. Returns nil when
+  # the key looks good, else the message to show. When Anthropic can't be
+  # reached (an install without internet access, an outage) the key can't
+  # be checked and is accepted; the first read reports a bad key anyway.
+  def self.key_problem(key, client: nil)
+    return I18n.t("errors.ai_entry.key_format", prefix: KEY_PREFIX) unless key.to_s.start_with?(KEY_PREFIX)
+
+    client ||= Anthropic::Client.new(api_key: key, max_retries: 0, timeout: KEY_CHECK_TIMEOUT)
+    client.models.list(limit: 1)
+    nil
+  rescue Anthropic::Errors::AuthenticationError, Anthropic::Errors::PermissionDeniedError
+    I18n.t("errors.ai_entry.key_refused_on_save")
+  rescue Anthropic::Errors::APIError => e
+    Rails.logger.warn("[PartExtraction] could not check the API key: #{e.class}: #{e.message}")
+    nil
   end
 
   def initialize(organization, client: nil)
@@ -85,15 +119,21 @@ class PartExtraction
     files = Array(files).compact_blank
     raise InvalidFileError, I18n.t("errors.ai_entry.no_file") if files.empty?
     raise InvalidFileError, I18n.t("errors.ai_entry.too_many_files", count: MAX_FILES) if files.size > MAX_FILES
+    if files.sum(&:size) > MAX_TOTAL_SIZE
+      raise InvalidFileError, I18n.t("errors.ai_entry.files_too_large", size: ActiveSupport::NumberHelper.number_to_human_size(MAX_TOTAL_SIZE))
+    end
 
-    message = client.messages.create(
-      model: @organization.ai_model,
-      max_tokens: MAX_TOKENS,
-      system_: SYSTEM_PROMPT,
-      output_config: { effort: :medium, format_: { type: :json_schema, schema: output_schema } },
-      messages: [ { role: "user", content: files.map { |file| content_block(file) } + [ { type: "text", text: request_text(hint) } ] } ],
-      request_options: { timeout: TIMEOUT, max_retries: 1 }
-    )
+    content = files.map { |file| content_block(file) } + [ { type: "text", text: request_text(hint) } ]
+    message = with_slot do
+      client.messages.create(
+        model: @organization.ai_model,
+        max_tokens: MAX_TOKENS,
+        system_: SYSTEM_PROMPT,
+        output_config: { effort: :medium, format_: { type: :json_schema, schema: output_schema } },
+        messages: [ { role: "user", content: content } ],
+        request_options: { timeout: TIMEOUT, max_retries: 0 }
+      )
+    end
     normalize(parse(message))
   rescue Anthropic::Errors::AuthenticationError, Anthropic::Errors::PermissionDeniedError
     raise Error, I18n.t("errors.ai_entry.key_refused")
@@ -108,6 +148,16 @@ class PartExtraction
   end
 
   private
+
+  def with_slot
+    raise BusyError, I18n.t("errors.ai_entry.busy") unless SLOTS.try_acquire(1, self.class.queue_wait)
+
+    begin
+      yield
+    ensure
+      SLOTS.release
+    end
+  end
 
   def client
     @client ||= Anthropic::Client.new(api_key: @organization.anthropic_api_key)

@@ -27,8 +27,15 @@ class SettingsController < ApplicationController
 
   def update
     remove_logo = ActiveModel::Type::Boolean.new.cast(params.dig(:organization, :remove_logo))
+    permitted = organization_params
 
-    if current_organization.update(organization_params)
+    # A new Anthropic key is tried before it's saved (PartExtraction.key_problem).
+    if permitted[:anthropic_api_key].present? && (problem = PartExtraction.key_problem(permitted[:anthropic_api_key]))
+      return redirect_to settings_path, inertia: { errors: { "organization.anthropic_api_key" => [ problem ] } },
+                                        alert: t("flash.settings.failed_to_update_settings")
+    end
+
+    if current_organization.update(permitted)
       # Only once the rest of the form saved: purging first lost the logo even
       # when a validation error rejected the update.
       current_organization.logo.purge if remove_logo && params.dig(:organization, :logo).blank?

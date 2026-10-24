@@ -1150,6 +1150,21 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "Could not reach Anthropic.", JSON.parse(@response.body)["error"]
   end
 
+  test "extract answers 503 while the server's AI slots are taken" do
+    user = create_user
+    user.organizations.first.update!(anthropic_api_key: "sk-ant-test")
+    sign_in user
+
+    extraction = Object.new
+    extraction.define_singleton_method(:extract) { |*, **| raise PartExtraction::BusyError, "Another AI read is running." }
+    stub_singleton(PartExtraction, :new, ->(*) { extraction }) do
+      post extract_parts_path, params: { files: [ ai_upload ] }
+    end
+
+    assert_response :service_unavailable
+    assert_equal "Another AI read is running.", JSON.parse(@response.body)["error"]
+  end
+
   test "viewers can't use AI-assisted entry" do
     owner = create_user
     org = owner.organizations.first

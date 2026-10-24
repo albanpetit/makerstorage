@@ -19,8 +19,10 @@ class AiPartEntrySystemTest < ApplicationSystemTestCase
     visit settings_path
     click_on "Integrations"
     fill_in "Anthropic API key", with: "sk-ant-test"
-    within(:xpath, "//div[@data-slot='card'][.//*[text()='Claude (AI-assisted entry)']]") { click_on "Save" }
-    assert_text "A key is configured"
+    stub_singleton(PartExtraction, :key_problem, ->(_key) { nil }) do
+      within(:xpath, "//div[@data-slot='card'][.//*[text()='Claude (AI-assisted entry)']]") { click_on "Save" }
+      assert_text "A key is configured"
+    end
     assert @org.reload.ai_entry_configured?
 
     extraction = Object.new
