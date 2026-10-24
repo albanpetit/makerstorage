@@ -1,6 +1,6 @@
 import { Head, Link, router } from '@inertiajs/react'
 import { FormEvent, useRef, useState } from 'react'
-import { ClipboardList, Plus, Upload, Trash2, CheckCircle2, AlertTriangle, Lock, Paperclip, GitBranch } from 'lucide-react'
+import { ClipboardList, Plus, Upload, Trash2, CheckCircle2, AlertTriangle, Lock, Paperclip, GitBranch, Layers } from 'lucide-react'
 
 import { AppLayout } from '@/layouts/app-layout'
 import { usePermissions } from '@/hooks/use-permissions'
@@ -40,7 +40,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { t, intlLocale } from '@/lib/i18n'
+import { t, tn, intlLocale } from '@/lib/i18n'
 
 interface ProjectSummary {
   id: number
@@ -57,6 +57,8 @@ interface ProjectSummary {
   created_at: string
   file_count: number
   github_repository: string | null
+  assembly_count: number
+  used_as_assembly: boolean
 }
 
 interface ProjectsPageProps {
@@ -176,6 +178,20 @@ export default function ProjectsIndex({ projects, github_token_configured }: Pro
                           >
                             <GitBranch className="size-3.5" />
                           </span>
+                        )}
+                        {project.assembly_count > 0 && (
+                          <span
+                            className="inline-flex items-center gap-0.5 text-xs font-normal text-muted-foreground"
+                            title={tn('Uses {count} sub-assembly', 'Uses {count} sub-assemblies', project.assembly_count)}
+                          >
+                            <Layers className="size-3.5" />
+                            {project.assembly_count}
+                          </span>
+                        )}
+                        {project.used_as_assembly && (
+                          <Badge variant="outline" className="text-xs font-normal" title={t('Used as a sub-assembly by another project')}>
+                            {t('Sub-assembly')}
+                          </Badge>
                         )}
                         {project.file_count > 0 && (
                           <span

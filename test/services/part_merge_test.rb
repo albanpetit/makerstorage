@@ -36,6 +36,7 @@ class PartMergeTest < ActiveSupport::TestCase
     duplicate.tags << tag << other_tag
     project = create_project(organization: @org)
     line = project.project_lines.create!(part: duplicate, quantity: 2, match_type: "mpn")
+    built_as_duplicate = create_project(organization: @org, output_part: duplicate)
 
     result = merge!(keep, duplicate)
 
@@ -47,6 +48,7 @@ class PartMergeTest < ActiveSupport::TestCase
     assert_ledger_matches(keep)
     assert_equal keep.id, line.reload.part_id
     assert_equal "mpn", line.match_type
+    assert_equal keep.id, built_as_duplicate.reload.output_part_id
     assert_equal [ tag.id, other_tag.id ].sort, keep.tag_ids.sort
     assert_equal 1, result.merged_count
     assert_equal 2, result.stock_rows

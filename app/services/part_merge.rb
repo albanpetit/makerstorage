@@ -11,7 +11,7 @@
 #   orders       order lines move; on an order that already has a line for the
 #                kept part the two are combined into one (quantities added),
 #                keeping their zone split only when both lines had one
-#   projects     BOM lines point to the kept part
+#   projects     BOM lines and built items point to the kept part
 #   stocktakes   count lines move; two lines of one count on the same zone
 #                become one, adding up what each expected and counted
 #   loans        loan lines point to the kept part
@@ -69,6 +69,7 @@ class PartMerge
     counts[:movements] = StockMovement.where(part_id: from).update_all(part_id: to)
     counts[:order_lines] = fold_order_lines(from, to)
     counts[:project_lines] = ProjectLine.where(part_id: from).update_all(part_id: to)
+    Project.where(output_part_id: from).update_all(output_part_id: to)
     fold_stocktake_lines(from, to)
     LoanLine.where(part_id: from).update_all(part_id: to)
     repoint_links(PartTag, :part_id, from, to, :tag_id)

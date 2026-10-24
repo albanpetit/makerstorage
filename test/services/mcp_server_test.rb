@@ -192,6 +192,22 @@ class McpServerTest < ActiveSupport::TestCase
     assert_raises_tool_error { call("get_project", "id" => -1) }
   end
 
+  test "get_project counts the parts its sub-assemblies bring" do
+    board = create_project(organization: @org, name: "Board", reference: "PRJ-2")
+    ProjectLine.create!(project: board, part: @r4k7, quantity: 1, match_type: "manual")
+    project = create_project(organization: @org, name: "Kit", reference: "PRJ-3")
+    ProjectLine.create!(project: project, part: @r10k, quantity: 1, match_type: "manual")
+    ProjectLine.create!(project: project, subproject: board, quantity: 3, match_type: "assembly", designation: "Board")
+
+    data = call("get_project", "reference" => "PRJ-3", "builds" => 2)
+    assert_equal false, data[:buildable]
+    assert_equal 1, data[:max_builds]
+    assembly = data[:lines].last
+    assert_equal [ "short", "Board", false ], [ assembly[:status], assembly.dig(:sub_assembly, :name), assembly.dig(:sub_assembly, :stocked) ]
+    brought = data[:parts_from_sub_assemblies].sole
+    assert_equal [ @r4k7.name, 3, 6, 4, 2 ], [ brought.dig(:part, :name), brought[:quantity_per_build], brought[:part_required_total], brought[:available], brought[:missing] ]
+  end
+
   test "list_loans reports open and overdue loans with what is still out" do
     @org.update!(timezone: "Etc/UTC")
     late = @org.loans.new(borrower_name: "Ada Lovelace", due_on: @org.local_date - 3)

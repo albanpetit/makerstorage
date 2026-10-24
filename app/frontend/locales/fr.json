@@ -1931,7 +1931,44 @@
   "✓ Bag matched": "✓ Sachet reconnu",
   "✓ Scan matched": "✓ Code reconnu",
   "✗ Unknown code": "✗ Code inconnu",
-  "Loading…": "Chargement…",
   "Tags added": "Tags ajoutés",
-  "Tags removed": "Tags retirés"
+  "Tags removed": "Tags retirés",
+  "Uses {count} sub-assemblies": {
+    "one": "Utilise {count} sous-ensemble",
+    "other": "Utilise {count} sous-ensembles"
+  },
+  "Used as a sub-assembly by another project": "Utilisé comme sous-ensemble par un autre projet",
+  "Sub-assembly": "Sous-ensemble",
+  "sub-assembly": "sous-ensemble",
+  "No lines yet.": "Aucune ligne pour l’instant.",
+  "Add the parts this project needs.": "Ajoutez les composants dont ce projet a besoin.",
+  "Sub-assemblies built along have their parts deducted too; stocked ones are taken from stock.": "Les sous-ensembles fabriqués avec le projet voient aussi leurs composants déduits ; ceux qui sont stockés sont pris dans le stock.",
+  "Put the {count} × {part} built in": "Ranger les {count} × {part} fabriqués dans",
+  "Stocked as {part}": "Stocké comme {part}",
+  "Built along: {count} parts": {
+    "one": "Fabriqué avec : {count} composant",
+    "other": "Fabriqué avec : {count} composants"
+  },
+  "Its BOM is empty or has lines not in inventory": "Sa nomenclature est vide ou contient des lignes absentes de l’inventaire",
+  "Incomplete": "Incomplet",
+  "{count} parts short": {
+    "one": "{count} composant manquant",
+    "other": "{count} composants manquants"
+  },
+  "Each kit built is added to stock as this part, and projects using this one take it from there.": "Chaque kit fabriqué entre en stock sous ce composant, et les projets qui utilisent celui-ci le prennent dans le stock.",
+  "Projects using this one build it along: its parts are deducted with theirs. Set a built item to keep built kits in stock instead.": "Les projets qui utilisent celui-ci le fabriquent avec eux : ses composants sont déduits avec les leurs. Choisissez un article fabriqué pour garder plutôt les kits fabriqués en stock.",
+  "Built item": "Article fabriqué",
+  "{count} in stock": "{count} en stock",
+  "Used in": "Utilisé dans",
+  "No project yet": "Aucun projet pour l’instant",
+  "Parts from sub-assemblies": "Composants des sous-ensembles",
+  "per kit, counted in the availability above": "par kit, comptés dans la disponibilité ci-dessus",
+  "From": "Provenance",
+  "The inventory part a built kit becomes (e.g. an assembled board). Each build adds it to stock, and projects using this one as a sub-assembly take it from stock instead of its parts.": "Le composant de l’inventaire que devient un kit fabriqué (par exemple une carte assemblée). Chaque fabrication l’ajoute au stock, et les projets qui utilisent celui-ci comme sous-ensemble le prennent dans le stock au lieu de ses composants.",
+  "stocked": "stocké",
+  "built along": "fabriqué avec",
+  "Use another project as a sub-assembly: its parts (or its built item, when it has one) count in this project's needs, times the quantity.": "Utilisez un autre projet comme sous-ensemble : ses composants (ou son article fabriqué, s’il en a un) comptent dans les besoins de ce projet, multipliés par la quantité.",
+  "Pick a project": "Choisissez un projet",
+  "No other project to use": "Aucun autre projet utilisable",
+  "Search projects…": "Rechercher un projet…"
 }

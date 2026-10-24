@@ -7,20 +7,22 @@ class ProjectLinesController < ApplicationController
   before_action :verify_organization_writer
   before_action :set_line, except: :create
 
-  # Adds a line by hand: an inventory part, or a free-text component that
-  # isn't in stock yet (a designation or reference is then required).
+  # Adds a line by hand: an inventory part, another project used as a
+  # sub-assembly, or a free-text component that isn't in stock yet (a
+  # designation or reference is then required).
   def create
     project = current_organization.projects.find(params[:project_id])
-    line_params = params.require(:project_line).permit(:part_id, :raw_reference, :designation, :value, :footprint, :designators, :quantity)
-    part = line_params[:part_id].presence && current_organization.parts.find_by(id: line_params[:part_id])
+    line_params = params.require(:project_line).permit(:part_id, :subproject_id, :raw_reference, :designation, :value, :footprint, :designators, :quantity)
+    subproject = line_params[:subproject_id].presence && current_organization.projects.find_by(id: line_params[:subproject_id])
+    part = subproject ? nil : line_params[:part_id].presence && current_organization.parts.find_by(id: line_params[:part_id])
 
     line = project.project_lines.new(
-      line_params.except(:part_id).to_h.transform_values { |value| value.to_s.strip.presence }.merge(
-        part: part, match_type: part ? "manual" : "none"
+      line_params.except(:part_id, :subproject_id).to_h.transform_values { |value| value.to_s.strip.presence }.merge(
+        part: part, subproject: subproject, match_type: subproject ? "assembly" : part ? "manual" : "none"
       )
     )
-    line.raw_reference ||= part && (part.mpn.presence || part.reference)
-    line.designation ||= part&.name
+    line.raw_reference ||= subproject&.reference || (part && (part.mpn.presence || part.reference))
+    line.designation ||= subproject ? [ subproject.name, (subproject.revision.presence && "rev #{subproject.revision}") ].compact.join(" ") : part&.name
     line.quantity ||= 1
 
     if line.designation.blank? && line.raw_reference.blank?
@@ -37,6 +39,7 @@ class ProjectLinesController < ApplicationController
   # The confirm-step edit: re-point a line at a different inventory part (or
   # clear the match), and/or change the required quantity. Choosing a part by
   # hand is recorded as a "manual" match; clearing it falls back to "none".
+  # Either way a sub-assembly line stops using its project.
   def update
     line_params = params.require(:project_line)
     attributes = {}
@@ -45,6 +48,7 @@ class ProjectLinesController < ApplicationController
       part_id = params.dig(:project_line, :part_id).presence
       part = part_id && current_organization.parts.find_by(id: part_id)
       attributes[:part] = part
+      attributes[:subproject] = nil
       attributes[:match_type] = part ? "manual" : "none"
     end
 

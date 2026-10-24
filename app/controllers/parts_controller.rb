@@ -837,16 +837,12 @@ class PartsController < ApplicationController
     end
   end
 
-  # Confirmed projects holding this part (empty when reservations are off).
+  # Confirmed projects holding this part, directly or through their
+  # sub-assemblies (empty when reservations are off).
   def serialize_part_reservations(part)
-    return [] unless current_organization.stock_reservations_enabled
-
-    current_organization.projects.reserving
-      .joins(:project_lines).where(project_lines: { part_id: part.id })
-      .group("projects.id", "projects.reference", "projects.name")
-      .order("projects.reserved_at", "projects.id")
-      .sum("project_lines.quantity")
-      .map { |(id, reference, name), quantity| { project_id: id, reference: reference, name: name, quantity: quantity } }
+    Project.reservations_of(current_organization, part).map do |project, quantity|
+      { project_id: project.id, reference: project.reference, name: project.name, quantity: quantity }
+    end
   end
 
   # Parts linked as alternatives (PartAlternative), the most in stock first.

@@ -111,7 +111,8 @@ class McpServer
         title: "Get project availability",
         description: "A project's BOM line by line with matched parts, what is missing to build it (taking " \
                      "other projects' reservations into account), what open orders will bring, and how many " \
-                     "builds the stock allows.",
+                     "builds the stock allows. A line can be a sub-assembly (another project): the parts it " \
+                     "brings are counted and listed in parts_from_sub_assemblies.",
         inputSchema: {
           type: "object",
           properties: {
@@ -247,8 +248,7 @@ class McpServer
     def get_part(arguments)
       part = find_part(arguments)
       stock = stock_figures([ part ])[part.id]
-      reservations = reserving_lines.where(part_id: part.id).group(:project_id).sum(:quantity)
-      reserving_projects = organization.projects.where(id: reservations.keys).index_by(&:id)
+      reservations = Project.reservations_of(organization, part)
 
       part_summary(part, stock).merge(
         description: part.description,
@@ -293,9 +293,8 @@ class McpServer
               expected_delivery: line.order.expected_delivery&.iso8601
             }
           end,
-        reserved_by: reservations.map do |project_id, quantity|
-          project = reserving_projects[project_id]
-          { project_id: project_id, project: project&.name, reference: project&.reference, quantity: quantity }
+        reserved_by: reservations.map do |project, quantity|
+          { project_id: project.id, project: project.name, reference: project.reference, quantity: quantity }
         end,
         used_in_projects: part.project_lines.includes(:project).map(&:project).uniq.map do |project|
           { id: project.id, reference: project.reference, name: project.name, status: project.status }
@@ -452,13 +451,18 @@ class McpServer
     def get_project(arguments)
       project = find_project(arguments)
       builds = integer_argument(arguments, "builds", default: 1, min: 1, max: MAX_BUILDS)
-      lines = project.project_lines.includes(part: [ :footprint, :part_storages ]).order(:id).to_a
-      required = lines.select(&:part).group_by(&:part_id).transform_values { |part_lines| part_lines.sum(&:quantity) }
-      parts = lines.filter_map(&:part).uniq.index_by(&:id)
+      ActiveRecord::Associations::Preloader.new(
+        records: [ project ], associations: { project_lines: [ :subproject, { part: [ :footprint, :part_storages ] } ] }
+      ).call
+      lines = project.project_lines.sort_by(&:id)
+      # Per part for one build, sub-assemblies included (see ProjectStructure).
+      required = project.required_by_part.transform_keys(&:id)
+      parts = project.required_by_part.keys.index_by(&:id)
       available = parts.transform_values { |part| project.available_for(part) }
       incoming = Order.incoming_quantities(organization, parts.keys)
       missing = required.to_h { |part_id, quantity| [ part_id, [ quantity * builds - available[part_id], 0 ].max ] }
-      unmatched = lines.count { |line| line.part.nil? }
+      unmatched = project.unmatched_lines.size + project.incomplete_assembly_lines.size
+      from_assemblies = project.assembly_requirements
 
       {
         id: project.id,
@@ -472,6 +476,7 @@ class McpServer
         buildable: lines.any? && unmatched.zero? && missing.values.all?(&:zero?),
         max_builds: lines.any? && unmatched.zero? ? max_builds(required, available.transform_values { |quantity| { available: quantity } }) : nil,
         builds_count: project.builds_count,
+        built_item: project.output_part && part_brief(project.output_part),
         url: "#{base_url}/projects/#{project.id}",
         lines: lines.map do |line|
           base = {
@@ -483,6 +488,18 @@ class McpServer
             quantity_per_build: line.quantity,
             match_type: line.match_type
           }
+          if line.assembly?
+            brought = from_assemblies.select { |_part, entry| entry[:line_ids].include?(line.id) }.keys.map(&:id)
+            complete = project.structure.complete_assembly?(line.subproject_id)
+            next base.merge(
+              status: !complete ? "incomplete" : brought.any? { |part_id| missing[part_id].positive? } ? "short" : "ok",
+              sub_assembly: {
+                id: line.subproject.id, reference: line.subproject.reference, name: line.subproject.name,
+                revision: line.subproject.revision, stocked: project.structure.output_part_id(line.subproject_id).present?,
+                url: "#{base_url}/projects/#{line.subproject_id}"
+              }
+            )
+          end
           next base.merge(status: "unmatched") if line.part.nil?
 
           base.merge(
@@ -493,6 +510,16 @@ class McpServer
             missing: missing[line.part_id],
             incoming: incoming.fetch(line.part_id, 0)
           )
+        end,
+        parts_from_sub_assemblies: from_assemblies.map do |part, entry|
+          {
+            part: part_brief(part),
+            quantity_per_build: entry[:quantity],
+            part_required_total: required[part.id] * builds,
+            available: available[part.id],
+            missing: missing[part.id],
+            incoming: incoming.fetch(part.id, 0)
+          }
         end
       }
     end
@@ -606,12 +633,6 @@ class McpServer
         end
         [ id, entries.sort_by { |entry| -entry[:available] } ]
       end
-    end
-
-    def reserving_lines
-      return ProjectLine.none unless organization.stock_reservations_enabled
-
-      ProjectLine.joins(:project).merge(organization.projects.reserving)
     end
 
     # How many complete builds the stock covers: the scarcest part decides.
