@@ -39,19 +39,24 @@ interface Row {
 }
 
 interface ThresholdsPageProps {
+  /** Only the rows to review unless +show_all+. */
   rows: Row[]
+  show_all: boolean
+  counts: { differing: number; all: number }
   window_days: number
   cover_days: number
 }
 
-export default function AlertsThresholds({ rows, window_days, cover_days }: ThresholdsPageProps) {
+export default function AlertsThresholds({ rows, show_all: showAll, counts, window_days, cover_days }: ThresholdsPageProps) {
   const { canWrite } = usePermissions()
-  const [showAll, setShowAll] = useState(false)
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const [detailPartId, setDetailPartId] = useState<number | null>(null)
 
-  const differing = useMemo(() => rows.filter((row) => row.differs), [rows])
-  const visible = showAll ? rows : differing
+  const visible = useMemo(() => (showAll ? rows : rows.filter((row) => row.differs)), [rows, showAll])
+  const setShowAll = (all: boolean) => {
+    if (all === showAll) return
+    router.get('/alerts/thresholds', all ? { all: '1' } : {}, { preserveScroll: true, preserveState: true })
+  }
   const selectable = visible.filter((row) => row.suggested_threshold != null && row.suggested_threshold !== row.min_stock_threshold)
   const allSelected = selectable.length > 0 && selectable.every((row) => selected.has(row.id))
 
@@ -104,8 +109,8 @@ export default function AlertsThresholds({ rows, window_days, cover_days }: Thre
 
         <div className="flex flex-wrap items-center gap-2">
           {[
-            { value: false, label: t('To review'), count: differing.length },
-            { value: true, label: t('All used components'), count: rows.length },
+            { value: false, label: t('To review'), count: counts.differing },
+            { value: true, label: t('All used components'), count: counts.all },
           ].map((tab) => (
             <Button
               key={String(tab.value)}
@@ -126,7 +131,7 @@ export default function AlertsThresholds({ rows, window_days, cover_days }: Thre
         {visible.length === 0 ? (
           <Card>
             <CardContent className="py-10 text-center text-sm text-muted-foreground">
-              {rows.length === 0
+              {counts.all === 0
                 ? t('No component was used in the last {days} days.', { days: window_days })
                 : t('Every threshold is in line with recent use.')}
             </CardContent>

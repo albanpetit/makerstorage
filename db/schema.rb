@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_22_204700) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_24_110000) do
   create_table "active_storage_attachments", force: :cascade do |t|
     t.bigint "blob_id", null: false
     t.datetime "created_at", null: false
@@ -467,6 +467,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_22_204700) do
     t.integer "project_build_id"
     t.string "offline_uuid"
     t.datetime "scanned_at"
+    t.boolean "transfer", default: false, null: false
     t.index ["created_at"], name: "index_stock_movements_on_created_at"
     t.index ["movement_type"], name: "index_stock_movements_on_movement_type"
     t.index ["organization_id", "offline_uuid"], name: "index_stock_movements_on_organization_id_and_offline_uuid", unique: true, where: "offline_uuid IS NOT NULL"

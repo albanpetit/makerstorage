@@ -6,6 +6,19 @@ class LocaleTest < ActionDispatch::IntegrationTest
     sign_in @user
   end
 
+  test "bulk deletes and print errors answer in French too" do
+    @user.update!(locale: "fr")
+    org = @user.organizations.first
+    part = create_part(organization: org)
+    printer = org.label_printers.create!(name: "QL", protocol: "brother_ql", host: "192.168.1.20", media: "62x29")
+
+    delete bulk_destroy_parts_path, params: { part_ids: [ part.id ] }
+    assert_equal "1 composant supprimé.", flash[:notice]
+
+    post print_label_printer_path(printer), params: { labels: [] }, as: :json
+    assert_equal "Rien à imprimer.", JSON.parse(response.body)["error"]
+  end
+
   test "English by default" do
     get profile_path
     assert_equal "en", inertia_props["locale"]

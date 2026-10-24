@@ -66,7 +66,9 @@ class PartsController < ApplicationController
       bag_boxes: bag_boxes,
       open_add: params[:new].present?,
       add_prefill: add_prefill,
-      duplicate_groups_count: PartDuplicates.new(current_organization).count
+      # Compares every part of the organization: sent after the page has
+      # rendered, so a big inventory doesn't wait on it.
+      duplicate_groups_count: InertiaRails.defer { PartDuplicates.new(current_organization).count }
     }
   end
 
@@ -260,8 +262,8 @@ class PartsController < ApplicationController
     destroyed = parts.select { |part| part.destroy }
     skipped = parts.size - destroyed.size
 
-    notice = "#{destroyed.size} #{'part'.pluralize(destroyed.size)} deleted successfully."
-    notice += " #{skipped} #{'part'.pluralize(skipped)} could not be deleted because #{skipped == 1 ? 'it has' : 'they have'} stock history or purchase orders." if skipped.positive?
+    notice = t("flash.parts.bulk_deleted", count: destroyed.size)
+    notice += " #{t('flash.parts.bulk_delete_skipped', count: skipped)}" if skipped.positive?
 
     redirect_back_or_to parts_path, notice: notice
   end
@@ -273,7 +275,8 @@ class PartsController < ApplicationController
     category = current_organization.categories.find_by(id: params[:category_id])
     return bulk_error(t("flash.parts.choose_a_category")) unless category
 
-    updated = parts.update_all(category_id: category.id)
+    updated = parts.update_all(category_id: category.id, updated_at: Time.current)
+    record_bulk_update(updated, "category" => category.name)
     redirect_back_or_to parts_path, notice: t("flash.parts.bulk_category", count: updated, category: category.name)
   end
 
@@ -284,7 +287,8 @@ class PartsController < ApplicationController
     status = params[:status].to_s
     return bulk_error(t("flash.parts.choose_a_valid_status")) unless Part::STATUSES.include?(status)
 
-    updated = parts.update_all(status: status)
+    updated = parts.update_all(status: status, updated_at: Time.current)
+    record_bulk_update(updated, "status" => status)
     redirect_back_or_to parts_path, notice: t("flash.parts.bulk_status", count: updated, status: t("part_statuses.#{status}"))
   end
 
@@ -298,9 +302,11 @@ class PartsController < ApplicationController
     return bulk_error(t("flash.parts.choose_at_least_one_tag")) if tag_ids.empty?
 
     part_ids = parts.pluck(:id)
+    tag_names = current_organization.tags.where(id: tag_ids).order(:name).pluck(:name)
 
     if params[:mode] == "remove"
       PartTag.where(part_id: part_ids, tag_id: tag_ids).delete_all
+      record_bulk_update(part_ids.size, "tags_removed" => tag_names)
       redirect_back_or_to parts_path, notice: t("flash.parts.bulk_tags_removed", count: part_ids.size, tags: t("flash.parts.tags", count: tag_ids.size))
     else
       # Single query for existing links instead of a per-part tag_ids lookup,
@@ -311,6 +317,7 @@ class PartsController < ApplicationController
           .map { |tag_id| { part_id: part_id, tag_id: tag_id } }
       end
       PartTag.insert_all(rows) if rows.any?
+      record_bulk_update(part_ids.size, "tags_added" => tag_names)
       redirect_back_or_to parts_path, notice: t("flash.parts.bulk_tags_added", count: part_ids.size, tags: t("flash.parts.tags", count: tag_ids.size))
     end
   end
@@ -331,6 +338,7 @@ class PartsController < ApplicationController
         link.is_preferred = true
         link.save!
       end
+      record_bulk_update(parts.size, "supplier" => supplier.name)
     end
 
     redirect_back_or_to parts_path, notice: t("flash.parts.bulk_supplier", count: parts.size, supplier: supplier.name)
@@ -414,6 +422,12 @@ class PartsController < ApplicationController
     Array(params[:part_ids]).map(&:to_i).reject(&:zero?).uniq
   end
 
+  # Bulk edits write their rows directly (update_all, insert_all) or touch
+  # child rows only, so the activity log gets one summary event instead.
+  def record_bulk_update(count, details)
+    ActivityEvent.record!(current_organization, "update", details: { "updated" => count, **details }) if count.positive?
+  end
+
   # Redirects with a flash alert AND an Inertia `errors` prop, so the client's
   # `onError` callback fires instead of `onSuccess` — without this, a rejected
   # bulk action still looks like a success to the visit that triggered it (the
@@ -444,11 +458,11 @@ class PartsController < ApplicationController
 
         current_organization.stock_movements.create!(
           part: part, storage_location: source, user: current_user,
-          movement_type: "out", quantity_delta: -quantity, reason: "Bulk move to #{destination.name}"
+          movement_type: "out", quantity_delta: -quantity, reason: "Bulk move to #{destination.name}", transfer: true
         )
         current_organization.stock_movements.create!(
           part: part, storage_location: destination, user: current_user,
-          movement_type: "in", quantity_delta: quantity, reason: "Bulk move from #{source.name}"
+          movement_type: "in", quantity_delta: quantity, reason: "Bulk move from #{source.name}", transfer: true
         )
         moved = true
       end
@@ -647,11 +661,11 @@ class PartsController < ApplicationController
 
     current_organization.stock_movements.create!(
       part: part, storage_location: previous_bag, user: current_user,
-      movement_type: "out", quantity_delta: -quantity, reason: "Moved to bag #{part.bag.code}"
+      movement_type: "out", quantity_delta: -quantity, reason: "Moved to bag #{part.bag.code}", transfer: true
     )
     current_organization.stock_movements.create!(
       part: part, storage_location: part.bag, user: current_user,
-      movement_type: "in", quantity_delta: quantity, reason: "Moved from bag #{previous_bag.code}"
+      movement_type: "in", quantity_delta: quantity, reason: "Moved from bag #{previous_bag.code}", transfer: true
     )
   end
 
