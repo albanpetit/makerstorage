@@ -3,8 +3,6 @@ import { useState, type ReactNode } from 'react'
 import {
   AlertTriangle,
   ArrowRight,
-  CheckCircle2,
-  Circle,
   CircleCheck,
   Clock,
   Coins,
@@ -20,9 +18,11 @@ import {
 import { AppLayout } from '@/layouts/app-layout'
 import { usePermissions } from '@/hooks/use-permissions'
 import { PageHeader } from '@/components/page-header'
+import { FlashMessages } from '@/components/flash-messages'
 import { GlobalSearch } from '@/components/global-search'
 import { PartDetailSheet } from '@/components/part-detail-sheet'
 import { ActivityChart, type ActivityDay } from '@/components/dashboard/activity-chart'
+import { GettingStartedCard, type GettingStarted } from '@/components/dashboard/getting-started'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -116,13 +116,6 @@ interface RecentMovement {
   reason: string | null
   user_name: string | null
   created_at: string
-}
-
-interface GettingStarted {
-  zone: boolean
-  supplier: boolean
-  part: boolean
-  movement: boolean
 }
 
 interface DashboardProps {
@@ -269,57 +262,6 @@ function StatCard({
   )
 }
 
-function GettingStartedCard({ steps, canWrite }: { steps: GettingStarted; canWrite: boolean }) {
-  const items = [
-    { done: steps.zone, label: t('Create your storage zones'), hint: t('Rooms, cabinets, drawers and boxes.'), href: '/storage_locations' },
-    { done: steps.supplier, label: t('Add your suppliers'), hint: t('Or connect Mouser and DigiKey in Settings.'), href: '/suppliers' },
-    { done: steps.part, label: t('Add your first part'), hint: t('By hand, from a supplier lookup or a CSV import.'), href: '/parts?new=1' },
-    { done: steps.movement, label: t('Put stock on a shelf'), hint: t('Record a stock entry or receive an order.'), href: '/parts' },
-  ]
-  const doneCount = items.filter((item) => item.done).length
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{t('Get started')}</CardTitle>
-        <CardDescription>
-          {t('{done} of {total} done. A few steps and this page fills up with your stock.', { done: doneCount, total: items.length })}
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <ol className="grid gap-2 sm:grid-cols-2">
-          {items.map((item) => {
-            const content = (
-              <>
-                {item.done ? (
-                  <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-600" />
-                ) : (
-                  <Circle className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-                )}
-                <div>
-                  <p className={`text-sm font-medium ${item.done ? 'text-muted-foreground line-through' : ''}`}>{item.label}</p>
-                  <p className="text-xs text-muted-foreground">{item.hint}</p>
-                </div>
-              </>
-            )
-            return (
-              <li key={item.label}>
-                {canWrite && !item.done ? (
-                  <Link href={item.href} className="flex gap-3 rounded-lg border p-3 hover:bg-muted/50">
-                    {content}
-                  </Link>
-                ) : (
-                  <div className="flex gap-3 rounded-lg border p-3">{content}</div>
-                )}
-              </li>
-            )
-          })}
-        </ol>
-      </CardContent>
-    </Card>
-  )
-}
-
 export default function Dashboard({
   stats,
   activity,
@@ -332,7 +274,7 @@ export default function Dashboard({
   recent_movements,
   getting_started,
 }: DashboardProps) {
-  const { canWrite } = usePermissions()
+  const { canWrite, canAdminister } = usePermissions()
   const { auth } = usePage<DashboardProps>().props
   const [detailPartId, setDetailPartId] = useState<number | null>(null)
 
@@ -385,7 +327,11 @@ export default function Dashboard({
       <Head title={t('Dashboard')} />
 
       <div className="space-y-6">
-        {getting_started && <GettingStartedCard steps={getting_started} canWrite={canWrite} />}
+        <FlashMessages />
+
+        {getting_started && (
+          <GettingStartedCard gettingStarted={getting_started} canWrite={canWrite} canAdminister={canAdminister} />
+        )}
 
         {/* Headline figures */}
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">

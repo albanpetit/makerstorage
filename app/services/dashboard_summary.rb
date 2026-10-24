@@ -185,14 +185,23 @@ class DashboardSummary
   end
 
   # First steps for a new organization; nil once it has parts in stock.
+  # The "first steps" list (see Organization#onboarding_steps), until it's
+  # put away or every step is done; a finished list is put away for good so
+  # it doesn't come back when, say, the last project is deleted. Demos have
+  # none. `choose_template` asks the dashboard to offer the templates first.
   def getting_started
-    return nil if organization.stock_movements.exists?
+    return nil if organization.demo? || organization.onboarding_dismissed_at
+
+    steps = organization.onboarding_steps
+    if steps.values.all?
+      organization.update_column(:onboarding_dismissed_at, Time.current)
+      return nil
+    end
 
     {
-      zone: organization.storage_locations.exists?,
-      supplier: organization.suppliers.where(catalog_provider: nil).exists?,
-      part: organization.parts.exists?,
-      movement: false
+      choose_template: organization.template_choice_pending?,
+      template: organization.onboarding_template,
+      steps: steps.map { |key, done| { key: key.to_s, done: done } }
     }
   end
 

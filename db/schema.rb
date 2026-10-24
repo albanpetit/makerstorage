@@ -281,6 +281,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_24_113600) do
     t.integer "threshold_cover_days", default: 30, null: false
     t.string "anthropic_api_key"
     t.string "ai_model", default: "claude-opus-5-5", null: false
+    t.string "onboarding_template"
+    t.datetime "onboarding_dismissed_at"
+    t.boolean "demo", default: false, null: false
     t.index ["email"], name: "index_organizations_on_email"
     t.index ["kicad_token_digest"], name: "index_organizations_on_kicad_token_digest", unique: true
     t.index ["name"], name: "index_organizations_on_name"

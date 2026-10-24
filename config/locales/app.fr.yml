@@ -229,6 +229,7 @@ fr:
       invalid: "Ce scan est illisible."
       not_found: "Le composant ou la zone n’existe plus."
     organization_merge:
+      into_demo: Rien ne peut être fusionné dans une organisation de démo.
       into_itself: Une organisation ne peut pas être fusionnée avec elle-même.
       personal: Une organisation personnelle ne peut pas être fusionnée dans une autre.
       source_not_deleted: '%{name} n''a pas pu être supprimée une fois ses données déplacées.'
@@ -333,6 +334,11 @@ fr:
       digikey_authorization_could_not_be_verified: L'autorisation DigiKey n'a pas pu être vérifiée. Réessayez de vous connecter.
       digikey_authorization_was_cancelled: L'autorisation DigiKey a été annulée.
       you_switched_organization_during_the_digikey: Vous avez changé d'organisation pendant la connexion DigiKey. Reconnectez-vous depuis cette organisation.
+    onboarding:
+      demo_opened: Vous êtes dans « %{organization_name} », une démo remplie de stock d’exemple. Supprimez-la depuis le bandeau quand vous avez fini.
+      template_applied: 'Modèle appliqué : %{categories} catégories et %{storage_locations} zones de stockage ajoutées.'
+      too_many_demos: Trop de démos ouvertes. Réessayez plus tard.
+      unknown_template: Modèle inconnu.
     order_lines:
       a_chosen_storage_zone_doesn_t: Une zone de stockage choisie n'appartient pas à cette organisation.
       added_to_the_order: '%{reference} ajouté à la commande.'

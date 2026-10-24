@@ -154,6 +154,11 @@ const FIELD_LABELS: Record<string, string> = {
   get github_token() { return t('GitHub token') },
   get merged() { return t('Merged parts') },
   get parts() { return t('Parts') },
+  get template() { return t('Template') },
+  get categories() { return t('Categories') },
+  get footprints() { return t('Footprints') },
+  get storage_locations() { return t('Storage zones') },
+  get parameters() { return t('Parameters') },
   get records() { return t('Records') },
   get file() { return t('File') },
   get created() { return t('New parts') },
@@ -169,6 +174,9 @@ const FIELD_LABELS: Record<string, string> = {
 
 // Enumerated values (roles, statuses, digest frequency) shown translated.
 const VALUE_LABELS: Record<string, string> = {
+  get makerspace() { return t('Makerspace or fablab') },
+  get home_lab() { return t('Home workshop') },
+  get classroom() { return t('Classroom or school lab') },
   get owner() { return t('Owner') },
   get admin() { return t('Admin') },
   get member() { return t('Member') },
@@ -187,7 +195,7 @@ const VALUE_LABELS: Record<string, string> = {
   get in_progress() { return t('In progress') },
   get completed() { return t('Completed') },
 }
-const ENUM_FIELDS = new Set(['role', 'status', 'notification_frequency'])
+const ENUM_FIELDS = new Set(['role', 'status', 'notification_frequency', 'template'])
 
 function fieldLabel(key: string) {
   if (key in FIELD_LABELS) return FIELD_LABELS[key]

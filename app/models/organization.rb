@@ -3,7 +3,8 @@ class Organization < ApplicationRecord
   # "changed"; tokens refreshed or stamped behind the user's back are ignored.
   audited on: %i[update],
     ignore: %i[ipn_next_sequence notifications_sent_on digikey_access_token digikey_refresh_token
-               digikey_token_expires_at kicad_token_created_at kicad_token_last_used_at],
+               digikey_token_expires_at kicad_token_created_at kicad_token_last_used_at
+               onboarding_template onboarding_dismissed_at],
     secret: %i[mouser_api_key mouser_order_api_key digikey_client_id digikey_client_secret
                kicad_token_digest github_token anthropic_api_key]
 
@@ -345,6 +346,35 @@ class Organization < ApplicationRecord
     users = User.where(id: organization_memberships.granting_access.where(email_notifications: true).select(:user_id))
     users = users.where.not(confirmed_at: nil) if User.email_verification?
     users
+  end
+
+  # Methods - Guided onboarding (dashboard, OrganizationTemplate)
+  #
+  # What onboarding_template holds when the owner chose to start empty.
+  NO_TEMPLATE = "none"
+
+  # Whether the dashboard offers to start from a template: nothing picked yet,
+  # the first steps not put away, and nothing set up by hand (the catalog
+  # suppliers every organization gets don't count).
+  def template_choice_pending?
+    onboarding_template.nil? && onboarding_dismissed_at.nil? && !demo? &&
+      !categories.exists? && !storage_locations.exists? && !parts.exists?
+  end
+
+  # The "first steps" list, each step ticked from the organization's data
+  # (nothing is ticked by hand). Inviting members is left out of a home
+  # workshop.
+  def onboarding_steps
+    steps = {
+      categories: categories.exists?,
+      zones: storage_locations.exists?,
+      supplier: suppliers.where(catalog_provider: nil).exists? || supplier_lookup_configured?,
+      part: parts.exists?,
+      stock: stock_movements.exists?,
+      project: projects.exists?
+    }
+    steps[:members] = organization_memberships.count > 1 unless onboarding_template == "home_lab"
+    steps
   end
 
   # Methods - Stats
