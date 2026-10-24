@@ -34,7 +34,7 @@ class PartSuppliersController < ApplicationController
   def set_preferred
     # Mark this one as preferred (callback will unset others)
     @part_supplier.update!(is_preferred: true)
-    redirect_to edit_part_path(@part), notice: "#{@part_supplier.supplier.name} set as preferred supplier."
+    redirect_to edit_part_path(@part), notice: t("flash.part_suppliers.set_as_preferred", supplier: @part_supplier.supplier.name)
   end
 
   private

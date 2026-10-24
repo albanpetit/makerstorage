@@ -43,8 +43,8 @@ class MembersController < ApplicationController
         return
       end
 
-      state = existing.pending_invitation? ? "has already been invited to" : "is already a member of"
-      redirect_to members_path, alert: "#{user.email} #{state} this organization."
+      key = existing.pending_invitation? ? "already_invited" : "already_member"
+      redirect_to members_path, alert: t("flash.members.#{key}", email: user.email)
       return
     end
 

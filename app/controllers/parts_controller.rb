@@ -262,8 +262,8 @@ class PartsController < ApplicationController
     destroyed = parts.select { |part| part.destroy }
     skipped = parts.size - destroyed.size
 
-    notice = "#{destroyed.size} #{'part'.pluralize(destroyed.size)} deleted successfully."
-    notice += " #{skipped} #{'part'.pluralize(skipped)} could not be deleted because #{skipped == 1 ? 'it has' : 'they have'} stock history or purchase orders." if skipped.positive?
+    notice = t("flash.parts.bulk_deleted", count: destroyed.size)
+    notice += " #{t('flash.parts.bulk_delete_skipped', count: skipped)}" if skipped.positive?
 
     redirect_back_or_to parts_path, notice: notice
   end

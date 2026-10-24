@@ -262,13 +262,13 @@ class OrdersController < ApplicationController
     result = client.import_order(number)
 
     if result.lines.empty?
-      redirect_to orders_path, alert: "#{label} order #{number} has no importable lines."
+      redirect_to orders_path, alert: t("flash.orders.import_has_no_lines", provider: label, number: number)
       return
     end
 
     reference = result.order_number.presence || number
     if current_organization.orders.exists?(reference: reference)
-      redirect_to orders_path, alert: "#{label} order #{reference} has already been imported."
+      redirect_to orders_path, alert: t("flash.orders.import_already_imported", provider: label, reference: reference)
       return
     end
 
