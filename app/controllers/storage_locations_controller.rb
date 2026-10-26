@@ -11,11 +11,14 @@ class StorageLocationsController < ApplicationController
   MAX_BAGS_PER_REQUEST = 200
 
   def index
-    locations = current_organization.storage_locations.alphabetical
+    locations = current_organization.storage_locations.alphabetical.to_a
+    counts = zone_stock_counts
 
     render inertia: "storage_locations/index", props: {
-      storage_locations: locations.map { |location| serialize_location(location) },
-      part_storages: serialize_part_storages,
+      storage_locations: locations.map { |location| serialize_location(location, counts[location.id]) },
+      # The stock of one zone (the one shown), not of every zone: the page
+      # asks for another with a partial reload (?stock_zone=ID).
+      zone_stock: -> { serialize_zone_stock(stock_zone_id(locations)) },
       recent_movements: serialize_recent_movements,
       # Joins a box code and bag number into the bag's code (box & bag storage).
       bag_separator: current_organization.ipn_separator,
@@ -157,40 +160,62 @@ class StorageLocationsController < ApplicationController
     params.require(:storage_location).permit(:name, :location_type, :code, :parent_id)
   end
 
-  def serialize_location(location)
+  # +counts+: the zone's own stock rows and units (sub-zones not included).
+  def serialize_location(location, counts = nil)
     {
       id: location.id,
       name: location.name,
       location_type: location.location_type,
       code: location.code,
       parent_id: location.parent_id,
-      position: location.position
+      position: location.position,
+      refs: counts ? counts[0] : 0,
+      units: counts ? Quantity.normalize(counts[1]) : 0
     }
   end
 
   # An emptied row stays listed under its zone, except in a bag another part
   # holds: that one was stray stock moved out, and the bag holds one component.
-  def serialize_part_storages
-    bag_holders = current_organization.parts.where.not(bag_id: nil).pluck(:bag_id, :id).to_h
-    part_storages = current_organization.storage_locations.includes(part_storages: :part).flat_map(&:part_storages)
-    part_storages.reject! do |part_storage|
-      holder = bag_holders[part_storage.storage_location_id]
-      part_storage.quantity.zero? && holder && holder != part_storage.part_id
-    end
-    part_storages.map do |part_storage|
-      part = part_storage.part
-      {
-        location_id: part_storage.storage_location_id,
-        quantity: part_storage.quantity,
-        part: {
-          id: part.id,
-          reference: part.reference,
-          name: part.name,
-          package_type: part.package_type,
-          unit: part.unit
-        }
+  def listed_part_storages
+    stray = PartStorage.where(quantity: 0)
+      .joins("INNER JOIN parts holders ON holders.bag_id = part_storages.storage_location_id AND holders.id <> part_storages.part_id")
+    PartStorage.joins(:storage_location).where(storage_locations: { organization_id: current_organization.id })
+      .where.not(id: stray.select(:id))
+  end
+
+  # { zone id => [stock rows, units] }, in one query.
+  def zone_stock_counts
+    listed_part_storages.group(:storage_location_id)
+      .pluck(:storage_location_id, Arel.sql("COUNT(*)"), Arel.sql("SUM(part_storages.quantity)"))
+      .to_h { |id, refs, units| [ id, [ refs, units ] ] }
+  end
+
+  # The zone asked for (?stock_zone, else ?zone), else the first top-level
+  # zone, which the page shows when nothing is selected.
+  def stock_zone_id(locations)
+    ids = locations.map(&:id)
+    [ params[:stock_zone], params[:zone] ].map(&:to_i).find { |id| ids.include?(id) } ||
+      locations.find { |location| location.parent_id.nil? }&.id
+  end
+
+  def serialize_zone_stock(zone_id)
+    entries = zone_id ? listed_part_storages.where(storage_location_id: zone_id).includes(:part).to_a : []
+    { zone_id: zone_id, entries: entries.map { |part_storage| serialize_part_storage(part_storage) } }
+  end
+
+  def serialize_part_storage(part_storage)
+    part = part_storage.part
+    {
+      location_id: part_storage.storage_location_id,
+      quantity: part_storage.quantity,
+      part: {
+        id: part.id,
+        reference: part.reference,
+        name: part.name,
+        package_type: part.package_type,
+        unit: part.unit
       }
-    end
+    }
   end
 
   def serialize_recent_movements

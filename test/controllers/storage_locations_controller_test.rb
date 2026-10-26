@@ -24,9 +24,48 @@ class StorageLocationsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "Shelf A", location_json["name"]
     assert_equal room.id, location_json["parent_id"]
 
-    part_storage_json = props["part_storages"].find { |ps| ps["location_id"] == shelf.id }
+    assert_equal [ 1, 25 ], location_json.values_at("refs", "units")
+    assert_equal [ 0, 0 ], props["storage_locations"].find { |l| l["id"] == room.id }.values_at("refs", "units")
+
+    # The first top-level zone's stock comes with the page; another one on request.
+    assert_equal({ "zone_id" => room.id, "entries" => [] }, props["zone_stock"])
+    get storage_locations_path(stock_zone: shelf.id)
+    part_storage_json = inertia_props["zone_stock"]["entries"].sole
+    assert_equal shelf.id, inertia_props["zone_stock"]["zone_id"]
     assert_equal 25, part_storage_json["quantity"]
     assert_equal "RES-10K", part_storage_json["part"]["reference"]
+  end
+
+  test "zone stock is only sent for the organization's own zones" do
+    user = create_user
+    org = user.organizations.first
+    shelf = create_storage_location(organization: org, name: "Shelf A")
+    other_org = create_organization
+    foreign = create_storage_location(organization: other_org, name: "Foreign shelf")
+    PartStorage.create!(part: create_part(organization: other_org), storage_location: foreign, quantity: 7)
+
+    sign_in user
+    get storage_locations_path(stock_zone: foreign.id)
+
+    assert_equal({ "zone_id" => shelf.id, "entries" => [] }, inertia_props["zone_stock"])
+  end
+
+  test "the zones page doesn't grow with the stock it holds" do
+    user = create_user
+    org = user.organizations.first
+    shelf = create_storage_location(organization: org, name: "Shelf A")
+    category = create_category(organization: org)
+    add_stock = -> { PartStorage.create!(part: create_part(organization: org, category: category), storage_location: shelf, quantity: 3) }
+    sign_in user
+
+    2.times { add_stock.call }
+    baseline = count_queries { get storage_locations_path }
+    20.times { add_stock.call }
+    grown = count_queries { get storage_locations_path }
+
+    assert grown - baseline <= 3, "zones page query count grew from #{baseline} to #{grown}"
+    assert_equal 22, inertia_props["zone_stock"]["entries"].size
+    assert_equal 66, inertia_props["storage_locations"].sole["units"]
   end
 
   test "does not leak another organization's zones" do

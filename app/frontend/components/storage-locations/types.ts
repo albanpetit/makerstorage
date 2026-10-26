@@ -8,6 +8,9 @@ export interface StorageLocationRecord {
   parent_id: number | null
   // A bag's number inside its box (null for other zones).
   position: number | null
+  // Stock rows and units held directly in this zone (sub-zones not included).
+  refs: number
+  units: number
 }
 
 export interface PartStorageEntry {
@@ -34,7 +37,8 @@ export interface RecentMovement {
 
 export interface StorageLocationsPageProps {
   storage_locations: StorageLocationRecord[]
-  part_storages: PartStorageEntry[]
+  // The stock of one zone: the one shown, fetched again when another is picked.
+  zone_stock: { zone_id: number | null; entries: PartStorageEntry[] }
   recent_movements: RecentMovement[]
   // Zone to open on load (`?zone=ID`), already scoped to the organization.
   selected_zone_id: number | null

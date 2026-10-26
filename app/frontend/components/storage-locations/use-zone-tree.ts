@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 
-import type { PartStorageEntry, StorageLocationRecord } from './types'
+import type { StorageLocationRecord } from './types'
 
 export interface TreeRow {
   location: StorageLocationRecord
@@ -12,7 +12,7 @@ export interface TreeRow {
 // Derived views of the flat zone list: parent/child lookups, per-zone
 // aggregate counts, the searchable + collapsible tree rows, and the indented
 // option lists used by the zone pickers.
-export function useZoneTree(storage_locations: StorageLocationRecord[], part_storages: PartStorageEntry[], query: string) {
+export function useZoneTree(storage_locations: StorageLocationRecord[], query: string) {
   const [expanded, setExpanded] = useState<Set<number>>(
     () => new Set(storage_locations.filter((z) => storage_locations.some((c) => c.parent_id === z.id)).map((z) => z.id))
   )
@@ -31,19 +31,10 @@ export function useZoneTree(storage_locations: StorageLocationRecord[], part_sto
     return map
   }, [storage_locations])
 
-  const partStoragesByLocation = useMemo(() => {
-    const map = new Map<number, PartStorageEntry[]>()
-    part_storages.forEach((ps) => {
-      if (!map.has(ps.location_id)) map.set(ps.location_id, [])
-      map.get(ps.location_id)!.push(ps)
-    })
-    return map
-  }, [part_storages])
-
   function aggCounts(id: number): { refs: number; units: number } {
-    const direct = partStoragesByLocation.get(id) || []
-    let refs = direct.length
-    let units = direct.reduce((sum, ps) => sum + ps.quantity, 0)
+    const zone = byId.get(id)
+    let refs = zone?.refs ?? 0
+    let units = zone?.units ?? 0
     for (const child of childrenByParent.get(id) || []) {
       const agg = aggCounts(child.id)
       refs += agg.refs
@@ -100,7 +91,7 @@ export function useZoneTree(storage_locations: StorageLocationRecord[], part_sto
     walk(null, 0)
     return rows
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [childrenByParent, visibleIds, expanded, partStoragesByLocation])
+  }, [childrenByParent, visibleIds, expanded, byId])
 
   function toggleExpand(id: number) {
     setExpanded((prev) => {
@@ -125,7 +116,6 @@ export function useZoneTree(storage_locations: StorageLocationRecord[], part_sto
   return {
     byId,
     childrenByParent,
-    partStoragesByLocation,
     aggCounts,
     subtreeIds,
     pathOf,

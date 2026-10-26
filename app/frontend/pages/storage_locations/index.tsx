@@ -1,5 +1,5 @@
 import { Head, useForm, router } from '@inertiajs/react'
-import { FormEvent, useEffect, useState } from 'react'
+import { FormEvent, useEffect, useRef, useState } from 'react'
 import {
   Search,
   Plus,
@@ -57,7 +57,7 @@ import { ZoneHistory } from '@/components/storage-locations/zone-history'
 import { typeMeta } from '@/components/storage-locations/zone-meta'
 import { t, intlLocale, tx } from '@/lib/i18n'
 
-export default function StorageLocationsIndex({ storage_locations, part_storages, recent_movements, selected_zone_id, bag_separator }: StorageLocationsPageProps) {
+export default function StorageLocationsIndex({ storage_locations, zone_stock, recent_movements, selected_zone_id, bag_separator }: StorageLocationsPageProps) {
   const { canWrite } = usePermissions()
   const [query, setQuery] = useState('')
   const [selectedId, setSelectedId] = useState<number | null>(selected_zone_id ?? null)
@@ -82,15 +82,32 @@ export default function StorageLocationsIndex({ storage_locations, part_storages
   const [draggingPartIds, setDraggingPartIds] = useState<number[] | null>(null)
   const [moveDialog, setMoveDialog] = useState<MoveDialogState | null>(null)
 
-  const tree = useZoneTree(storage_locations, part_storages, query)
+  const tree = useZoneTree(storage_locations, query)
   const {
-    byId, childrenByParent, partStoragesByLocation, aggCounts, subtreeIds, pathOf,
+    byId, childrenByParent, aggCounts, subtreeIds, pathOf,
     visibleIds, treeRows, expanded, setExpanded, toggleExpand, expandAll, collapseAll,
   } = tree
 
   const roots = childrenByParent.get(null) || []
   const selected = selectedId != null ? byId.get(selectedId) : undefined
   const effectiveSelected = selected || roots[0]
+
+  // The server sends the stock of one zone: fetch the shown zone's when it
+  // isn't the one we have (another zone picked, or a reload that sent the
+  // default one). Asked once per zone so a vanished zone can't loop.
+  const shownZoneId = effectiveSelected?.id ?? null
+  const zoneStockLoaded = zone_stock.zone_id === shownZoneId
+  const requestedZoneId = useRef<number | null>(null)
+  useEffect(() => {
+    if (zoneStockLoaded) {
+      requestedZoneId.current = null
+      return
+    }
+    if (shownZoneId == null || requestedZoneId.current === shownZoneId) return
+    requestedZoneId.current = shownZoneId
+    router.reload({ only: ['zone_stock'], data: { stock_zone: shownZoneId } })
+  }, [shownZoneId, zoneStockLoaded])
+  const zoneEntries = zoneStockLoaded ? zone_stock.entries : []
 
   const newForm = useForm<ZoneFormData>({
     storage_location: { name: '', location_type: 'box', code: '', parent_id: '' },
@@ -186,7 +203,7 @@ export default function StorageLocationsIndex({ storage_locations, part_storages
   // Build editable move rows for the given parts, sourced from the zone they
   // currently live in (their full on-hand quantity is the max and the default).
   function buildMoveRows(fromZoneId: number, partIds: number[]): MoveRow[] {
-    const entries = partStoragesByLocation.get(fromZoneId) || []
+    const entries = fromZoneId === zone_stock.zone_id ? zone_stock.entries : []
     return partIds
       .map((partId) => entries.find((e) => e.part.id === partId))
       .filter((e): e is PartStorageEntry => e != null && e.quantity > 0)
@@ -294,7 +311,7 @@ export default function StorageLocationsIndex({ storage_locations, part_storages
 
   const selMeta = effectiveSelected ? typeMeta(effectiveSelected.location_type) : null
   const selChildren = effectiveSelected ? childrenByParent.get(effectiveSelected.id) || [] : []
-  const selDirect = effectiveSelected ? partStoragesByLocation.get(effectiveSelected.id) || [] : []
+  const selDirect = zoneEntries
   const selAgg = effectiveSelected ? aggCounts(effectiveSelected.id) : { refs: 0, units: 0 }
   const path = effectiveSelected ? pathOf(effectiveSelected.id) : []
   const parent = effectiveSelected?.parent_id != null ? byId.get(effectiveSelected.parent_id) : undefined
@@ -559,6 +576,7 @@ export default function StorageLocationsIndex({ storage_locations, part_storages
               {/* Components stored here */}
               <ZoneComponentsTable
                 entries={selDirect}
+                loading={!zoneStockLoaded}
                 selectedPartIds={selectedPartIds}
                 onSelectionChange={setSelectedPartIds}
                 onToggle={toggleSelectPart}
