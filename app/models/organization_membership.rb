@@ -8,8 +8,10 @@ class OrganizationMembership < ApplicationRecord
 
   ROLES = %w[owner admin member viewer].freeze
   # An unanswered invitation stops being offered after this long; inviting the
-  # same email again renews it.
-  INVITATION_VALIDITY = 30.days
+  # same email again renews it. Counted in hours, not calendar days, so the
+  # cutoff is the same instant whatever the request's time zone (30.days.ago
+  # shifts by an hour across a DST change in the organization's zone).
+  INVITATION_VALIDITY = (30 * 24).hours
 
   validates :role, presence: true, inclusion: { in: ROLES }
   validates :user_id, uniqueness: { scope: :organization_id }
