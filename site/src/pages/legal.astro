@@ -1,0 +1,67 @@
+---
+import Legal from "../layouts/Legal.astro";
+import { APP_URL, CONTACT_EMAIL, PUBLISHER, REPO_URL } from "../site";
+
+const base = import.meta.env.BASE_URL;
+const app = new URL(APP_URL).host;
+---
+
+<Legal title="Legal notice" description="Publisher and hosting of makerstorage.io and the hosted Makerstorage app." updated="October 30, 2026">
+  <h2>Publisher</h2>
+  <p>
+    makerstorage.io and the hosted app at <a href={APP_URL}>{app}</a> are published by {PUBLISHER}, as a private
+    individual, non-commercially. Contact: <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.
+  </p>
+  <p>Publication director: {PUBLISHER}.</p>
+
+  <h2>Hosting</h2>
+  <ul>
+    <li>
+      This website: GitHub Pages, GitHub, Inc., 88 Colin P. Kelly Jr. Street, San Francisco, CA 94107, United States.
+    </li>
+    <li>
+      The app ({app}): a server run by the publisher, reached through Cloudflare, Inc., 101 Townsend Street, San
+      Francisco, CA 94107, United States.
+    </li>
+  </ul>
+
+  <h2>Intellectual property</h2>
+  <p>
+    Makerstorage is free software under the <a href={`${REPO_URL}/blob/main/LICENSE`}>GNU AGPL-3.0</a>; its source code
+    is on <a href={REPO_URL}>GitHub</a>. What you store in the app stays yours.
+  </p>
+
+  <h2>Personal data</h2>
+  <p>See the <a href={`${base}privacy/`}>privacy policy</a>.</p>
+
+  <hr />
+
+  <h2 id="fr">Mentions légales</h2>
+  <h3>Éditeur</h3>
+  <p>
+    Le site makerstorage.io et l’application hébergée <a href={APP_URL}>{app}</a> sont édités par {PUBLISHER}, à titre
+    personnel et non commercial. Contact : <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.
+  </p>
+  <p>Directeur de la publication : {PUBLISHER}.</p>
+
+  <h3>Hébergement</h3>
+  <ul>
+    <li>
+      Ce site : GitHub Pages, GitHub, Inc., 88 Colin P. Kelly Jr. Street, San Francisco, CA 94107, États-Unis.
+    </li>
+    <li>
+      L’application ({app}) : serveur administré par l’éditeur, accessible via Cloudflare, Inc., 101 Townsend Street,
+      San Francisco, CA 94107, États-Unis.
+    </li>
+  </ul>
+
+  <h3>Propriété intellectuelle</h3>
+  <p>
+    Makerstorage est un logiciel libre sous licence <a href={`${REPO_URL}/blob/main/LICENSE`}>GNU AGPL-3.0</a> ; son code
+    source est publié sur <a href={REPO_URL}>GitHub</a>. Les données que vous enregistrez dans l’application restent les
+    vôtres.
+  </p>
+
+  <h3>Données personnelles</h3>
+  <p>Voir la <a href={`${base}privacy/#fr`}>politique de confidentialité</a>.</p>
+</Legal>
