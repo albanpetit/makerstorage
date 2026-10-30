@@ -2053,5 +2053,13 @@
   "This is a demo organization filled with sample data. Try anything: nothing here is real.": "Ceci est une organisation de démo remplie de données d’exemple. Essayez tout : rien n’est réel ici.",
   "Delete the demo": "Supprimer la démo",
   "Template": "Modèle",
-  "Storage zones": "Zones de stockage"
+  "Storage zones": "Zones de stockage",
+  "Delete account": "Supprimer le compte",
+  "Permanently deletes your account and the organizations only you use, with all their data. In organizations shared with others, your history stays but no longer shows your name.": "Supprime définitivement votre compte et les organisations que vous êtes seul à utiliser, avec toutes leurs données. Dans les organisations partagées, votre historique reste mais n’affiche plus votre nom.",
+  "Privacy policy": "Politique de confidentialité",
+  "You are the only owner of {organizations}, which other members use. Name another owner there first, or delete the organization.": "Vous êtes le seul propriétaire de {organizations}, que d’autres membres utilisent. Nommez-y d’abord un autre propriétaire, ou supprimez l’organisation.",
+  "Delete your account?": "Supprimer votre compte ?",
+  "This cannot be undone. Download a backup of your organizations first if you may want their data back. To confirm, enter your password.": "Cette action est irréversible. Téléchargez d’abord une sauvegarde de vos organisations si vous pourriez vouloir récupérer leurs données. Pour confirmer, saisissez votre mot de passe.",
+  "Legal notice": "Mentions légales",
+  "Legal": "Informations légales"
 }

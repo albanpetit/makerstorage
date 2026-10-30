@@ -1,0 +1,173 @@
+---
+import Legal from "../layouts/Legal.astro";
+import { APP_URL, CONTACT_EMAIL, PUBLISHER } from "../site";
+
+const app = new URL(APP_URL).host;
+const mail = `mailto:${CONTACT_EMAIL}`;
+---
+
+<Legal title="Privacy policy" description="What personal data makerstorage.io and the hosted Makerstorage app collect, why, for how long, and your rights." updated="October 30, 2026">
+  <p>
+    This policy covers makerstorage.io and the hosted app at <a href={APP_URL}>{app}</a>. A Makerstorage instance you or
+    your makerspace run on your own server is not covered: whoever runs it is responsible for it.
+  </p>
+
+  <h2>Who is responsible</h2>
+  <p>{PUBLISHER}, private individual, <a href={mail}>{CONTACT_EMAIL}</a> (data controller).</p>
+
+  <h2>This website</h2>
+  <p>
+    makerstorage.io sets no cookies, runs no analytics and loads nothing from third parties (its fonts are served by the
+    site itself). Its host, GitHub Pages, records technical logs including your IP address to run and secure the
+    service.
+  </p>
+
+  <h2>The hosted app</h2>
+  <h3>What we store</h3>
+  <ul>
+    <li><strong>Your account</strong>: first and last name, email address, password (stored hashed only), language, sign-up and email confirmation dates, and a count of failed sign-in attempts.</li>
+    <li><strong>Your organizations</strong>: what you and your members enter (parts, storage zones, orders, projects, files), member emails and roles, invitations.</li>
+    <li><strong>Activity log</strong>: who changed what in an organization, and when.</li>
+    <li><strong>Loans</strong>: the borrower’s name and, if entered, a contact (email or phone), also for people without an account.</li>
+    <li><strong>Integration keys</strong> an organization adds (Mouser, DigiKey, GitHub, Anthropic), stored encrypted.</li>
+    <li><strong>Server logs</strong>: IP address, page requested and time of each request.</li>
+  </ul>
+  <p>We don’t sell any of it, show no ads and don’t track you across sites.</p>
+
+  <h3>Why, and on what basis</h3>
+  <p>
+    To provide the service you signed up for (GDPR art. 6(1)(b)): your account, your organizations’ inventory,
+    account emails (confirmation, password reset) and the digests you turn on. Server logs and the activity log serve our
+    legitimate interest in keeping the service secure and letting organizations see who did what (art. 6(1)(f)).
+  </p>
+
+  <h3>How long</h3>
+  <table>
+    <thead><tr><th>Data</th><th>Kept</th></tr></thead>
+    <tbody>
+      <tr><td>Account</td><td>Until you delete it (Profile → Delete account)</td></tr>
+      <tr><td>Organization data</td><td>Until an owner deletes it, or the account of its only member is deleted</td></tr>
+      <tr><td>Activity log entries</td><td>2 years</td></tr>
+      <tr><td>Borrower contact on a loan</td><td>1 year after the loan is returned</td></tr>
+      <tr><td>Server logs</td><td>Rotated by size, usually a few days</td></tr>
+      <tr><td>Server backups</td><td>The last 7 days, so deleted data is fully gone after a week</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Cookies and browser storage</h3>
+  <p>All of them are needed for the app to work or remember a choice you made, so no consent banner is required:</p>
+  <ul>
+    <li>Session cookie: keeps you signed in, protects forms (until you close the browser or sign out).</li>
+    <li><code>remember_user_token</code>: “Remember me” at sign-in (2 weeks).</li>
+    <li><code>sidebar_state</code>: whether the sidebar is open (7 days).</li>
+    <li>Browser storage: theme, label printing choices, and the offline scanner’s copy of your inventory (until you sign out or clear it).</li>
+  </ul>
+
+  <h3>Who else receives data</h3>
+  <ul>
+    <li>Cloudflare, Inc. carries all traffic to the app (network and security provider).</li>
+    <li>Our email provider delivers account emails and digests.</li>
+    <li>
+      Only when an organization turns them on, with its own keys: Mouser, DigiKey, LCSC (part lookups, orders), GitHub
+      (project files) and Anthropic (AI-assisted part entry: the photos or datasheets you send). Part images from
+      Mouser, DigiKey or LCSC may be shown straight from their servers, which then see your IP address.
+    </li>
+  </ul>
+  <p>
+    Some of these companies are in the United States; transfers rely on the EU–US Data Privacy Framework or the
+    European Commission’s standard contractual clauses.
+  </p>
+
+  <h2>Your rights</h2>
+  <p>
+    You can access, correct, export or delete your data, object to or restrict its use. Most of it you can do yourself:
+    edit your profile, download your organization (Settings → Backup, for admins), delete your account (Profile → Delete
+    account). For anything else, write to <a href={mail}>{CONTACT_EMAIL}</a>. You can also complain to your data
+    protection authority; in France, the <a href="https://www.cnil.fr/fr/plaintes">CNIL</a>.
+  </p>
+
+  <hr />
+
+  <h2 id="fr">Politique de confidentialité</h2>
+  <p>
+    Cette politique concerne makerstorage.io et l’application hébergée <a href={APP_URL}>{app}</a>. Une instance de
+    Makerstorage installée sur votre propre serveur ou celui de votre makerspace n’est pas concernée : c’est la personne
+    qui l’administre qui en est responsable.
+  </p>
+
+  <h3>Responsable du traitement</h3>
+  <p>{PUBLISHER}, particulier, <a href={mail}>{CONTACT_EMAIL}</a>.</p>
+
+  <h3>Ce site</h3>
+  <p>
+    makerstorage.io ne dépose aucun cookie, ne mesure pas l’audience et ne charge rien depuis des tiers (ses polices sont
+    servies par le site lui-même). Son hébergeur, GitHub Pages, conserve des journaux techniques contenant votre adresse
+    IP pour faire fonctionner et sécuriser le service.
+  </p>
+
+  <h3>Données conservées par l’application</h3>
+  <ul>
+    <li><strong>Votre compte</strong> : prénom, nom, adresse e-mail, mot de passe (uniquement sous forme hachée), langue, les dates d’inscription et de confirmation de l’adresse, et le nombre de connexions échouées.</li>
+    <li><strong>Vos organisations</strong> : ce que vous et vos membres y saisissez (composants, zones de stockage, commandes, projets, fichiers), les e-mails et rôles des membres, les invitations.</li>
+    <li><strong>Journal d’activité</strong> : qui a modifié quoi dans une organisation, et quand.</li>
+    <li><strong>Prêts</strong> : le nom de l’emprunteur et, s’il est saisi, un contact (e-mail ou téléphone), y compris pour une personne sans compte.</li>
+    <li><strong>Clés d’intégration</strong> ajoutées par une organisation (Mouser, DigiKey, GitHub, Anthropic), chiffrées.</li>
+    <li><strong>Journaux du serveur</strong> : adresse IP, page demandée et heure de chaque requête.</li>
+  </ul>
+  <p>Rien n’est vendu, il n’y a pas de publicité ni de pistage d’un site à l’autre.</p>
+
+  <h3>Finalités et bases légales</h3>
+  <p>
+    Fournir le service auquel vous vous êtes inscrit (exécution du contrat, art. 6.1.b RGPD) : votre compte, l’inventaire
+    de vos organisations, les e-mails liés au compte (confirmation, mot de passe oublié) et les récapitulatifs que vous
+    activez. Les journaux du serveur et le journal d’activité relèvent de notre intérêt légitime à sécuriser le service et
+    à permettre aux organisations de savoir qui a fait quoi (art. 6.1.f).
+  </p>
+
+  <h3>Durées de conservation</h3>
+  <table>
+    <thead><tr><th>Données</th><th>Durée</th></tr></thead>
+    <tbody>
+      <tr><td>Compte</td><td>Jusqu’à sa suppression (Profil → Supprimer le compte)</td></tr>
+      <tr><td>Données d’une organisation</td><td>Jusqu’à sa suppression par un propriétaire, ou celle du compte de son seul membre</td></tr>
+      <tr><td>Journal d’activité</td><td>2 ans</td></tr>
+      <tr><td>Contact de l’emprunteur d’un prêt</td><td>1 an après le retour</td></tr>
+      <tr><td>Journaux du serveur</td><td>Rotation par taille, en général quelques jours</td></tr>
+      <tr><td>Sauvegardes du serveur</td><td>Les 7 derniers jours : une donnée supprimée disparaît complètement en une semaine</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Cookies et stockage du navigateur</h3>
+  <p>Tous sont nécessaires au fonctionnement ou mémorisent un choix que vous avez fait, ils ne demandent donc pas de consentement :</p>
+  <ul>
+    <li>Cookie de session : maintient la connexion et protège les formulaires (jusqu’à la fermeture du navigateur ou la déconnexion).</li>
+    <li><code>remember_user_token</code> : « Se souvenir de moi » à la connexion (2 semaines).</li>
+    <li><code>sidebar_state</code> : barre latérale ouverte ou fermée (7 jours).</li>
+    <li>Stockage du navigateur : thème, choix d’impression d’étiquettes, et la copie de l’inventaire du scanner hors ligne (jusqu’à la déconnexion ou l’effacement).</li>
+  </ul>
+
+  <h3>Destinataires</h3>
+  <ul>
+    <li>Cloudflare, Inc. achemine tout le trafic vers l’application (réseau et sécurité).</li>
+    <li>Notre prestataire d’e-mail envoie les e-mails du compte et les récapitulatifs.</li>
+    <li>
+      Seulement si une organisation les active, avec ses propres clés : Mouser, DigiKey, LCSC (recherche de composants,
+      commandes), GitHub (fichiers de projets) et Anthropic (saisie assistée par IA : les photos ou fiches techniques
+      envoyées). Les images de composants de Mouser, DigiKey ou LCSC peuvent être affichées directement depuis leurs
+      serveurs, qui voient alors votre adresse IP.
+    </li>
+  </ul>
+  <p>
+    Certaines de ces sociétés sont établies aux États-Unis ; les transferts reposent sur le cadre de protection des
+    données UE–États-Unis (Data Privacy Framework) ou les clauses contractuelles types de la Commission européenne.
+  </p>
+
+  <h3>Vos droits</h3>
+  <p>
+    Vous pouvez accéder à vos données, les rectifier, les exporter, les effacer, vous opposer à leur traitement ou le
+    limiter. Vous pouvez faire l’essentiel vous-même : modifier votre profil, télécharger votre organisation (Réglages →
+    Sauvegarde, pour les administrateurs), supprimer votre compte (Profil → Supprimer le compte). Pour le reste, écrivez à
+    <a href={mail}>{CONTACT_EMAIL}</a>. Vous pouvez aussi adresser une réclamation à la
+    <a href="https://www.cnil.fr/fr/plaintes">CNIL</a>.
+  </p>
+</Legal>

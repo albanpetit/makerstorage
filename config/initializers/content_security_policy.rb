@@ -17,9 +17,10 @@ Rails.application.configure do
     # Inline scripts must carry the request nonce (see the theme script in the
     # application layout); everything else is Vite's same-origin bundles.
     policy.script_src  :self
-    # Radix/shadcn set inline style attributes; fonts come from Google Fonts.
-    policy.style_src   :self, :unsafe_inline, "https://fonts.googleapis.com"
-    policy.font_src    :self, :data, "https://fonts.gstatic.com"
+    # Radix/shadcn set inline style attributes. Fonts are bundled by Vite and
+    # served same-origin: no third-party font CDN (it would see every visitor).
+    policy.style_src   :self, :unsafe_inline
+    policy.font_src    :self, :data
     # Supplier catalog images are hotlinked from their CDNs, limited to the
     # supplier image hosts Part#image_source_url accepts; uploads are served
     # same-origin; previews use blob:/data: URLs.
@@ -37,6 +38,7 @@ Rails.application.configure do
       # preamble (which needs eval).
       vite = ViteRuby.config.host_with_port
       policy.script_src(*policy.script_src, :unsafe_eval, "http://#{vite}")
+      policy.font_src(*policy.font_src, "http://#{vite}")
       policy.connect_src(*policy.connect_src, "http://#{vite}", "ws://#{vite}")
     end
   end

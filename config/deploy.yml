@@ -77,6 +77,11 @@ env:
     # the browser instead.
     NETWORK_PRINTING: false
 
+    # The operator's privacy policy and legal notice, linked from the sign-in
+    # pages and the profile (pages of the marketing site, site/).
+    PRIVACY_POLICY_URL: <%= ENV["PRIVACY_POLICY_URL"] || "https://makerstorage.io/privacy/" %>
+    LEGAL_NOTICE_URL: <%= ENV["LEGAL_NOTICE_URL"] || "https://makerstorage.io/legal/" %>
+
     # Run the Solid Queue Supervisor inside the web server's Puma process to do jobs.
     # When you start using multiple servers, you should split out job processing to a dedicated machine.
     SOLID_QUEUE_IN_PUMA: true
