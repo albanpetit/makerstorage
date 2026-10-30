@@ -470,13 +470,16 @@ en:
         one: '%{count} tag'
         other: '%{count} tags'
     profiles:
+      account_deleted: "Your account was deleted."
       app_disconnected: "%{name} disconnected."
       changes_allowed: "%{name} can now change the inventory."
       confirm_from_the_email_we_sent: ' Confirm %{unconfirmed_email} from the email we sent there to start signing in with it.'
       enter_your_current_password_to_change: Enter your current password to change your email.
+      enter_your_current_password_to_delete: "Enter your current password to delete your account."
       failed_to_update_password: Failed to update password.
       failed_to_update_profile: Failed to update profile.
       locale_updated: Language updated.
+      name_another_owner_first: "Name another owner of %{organizations} first, or delete it: other members would be left without an owner."
       notifications_off: Email notifications off for %{organization}.
       notifications_on: Email notifications on for %{organization}.
       now_read_only: "%{name} is now read-only."

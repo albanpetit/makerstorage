@@ -101,6 +101,43 @@ class User < ApplicationRecord
     active_organization_memberships.find_by(organization: organization)&.role
   end
 
+  # The name the activity log and loans keep for someone whose account is gone.
+  DELETED_USER_NAME = "Deleted user"
+
+  # Organizations that keep the account from being deleted: the user is their
+  # only active owner while other people still have access, so deleting the
+  # account would leave them ownerless. Another owner must be named first (or
+  # the organization deleted).
+  def organizations_blocking_deletion
+    organizations.select do |organization|
+      memberships = organization.organization_memberships.granting_access
+      memberships.owners.where.not(user_id: id).none? && memberships.where.not(user_id: id).exists?
+    end
+  end
+
+  # Deletes the account (GDPR erasure, Profile → Delete account). Organizations
+  # nobody else can open go with it; elsewhere the user's history stays but no
+  # longer names them: activity entries and loans they borrowed read "Deleted
+  # user", the loan contact is cleared, and authored rows lose their author
+  # (the has_many :nullify above). Returns false, deleting nothing, while
+  # #organizations_blocking_deletion isn't empty.
+  def destroy_account!
+    return false if organizations_blocking_deletion.any?
+
+    # Not logged: an entry for the cascade would name the very person erased.
+    ActivityEvent.without_recording do
+      transaction do
+        organizations.each do |organization|
+          organization.destroy! if organization.organization_memberships.granting_access.where.not(user_id: id).none?
+        end
+        activity_events.update_all(user_id: nil, user_name: DELETED_USER_NAME)
+        borrowed_loans.update_all(borrower_id: nil, borrower_name: DELETED_USER_NAME, borrower_contact: nil)
+        destroy!
+      end
+    end
+    true
+  end
+
   # Devise holds a new sign-in email in unconfirmed_email until it's confirmed;
   # with verification off there's no mail to confirm it with, so apply it now.
   def postpone_email_change?

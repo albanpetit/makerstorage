@@ -222,7 +222,7 @@ Rails.application.routes.draw do
   get "backup/export", to: "backups#export", as: :export_backup
   post "backup/import", to: "backups#import", as: :import_backup
 
-  resource :profile, only: %i[show update]
+  resource :profile, only: %i[show update destroy]
   patch "profile/locale", to: "profiles#update_locale", as: :profile_locale
   patch "profile/notifications/:id", to: "profiles#update_notifications", as: :profile_notifications
   delete "profile/connected_apps/:id", to: "profiles#revoke_connected_app", as: :profile_connected_app

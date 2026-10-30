@@ -16,6 +16,7 @@ import { Field, FieldContent, FieldError, FieldLabel } from '@/components/ui/fie
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { t, intlLocale, LOCALES, LOCALE_NAMES, type Locale } from '@/lib/i18n'
 import { roleLabel } from '@/lib/roles'
+import { DeleteAccountCard } from '@/components/delete-account-card'
 
 interface ProfileUser {
   firstname: string
@@ -62,10 +63,12 @@ interface PageProps {
   notification_memberships: NotificationMembership[]
   mcp_url: string
   connected_apps: ConnectedApp[]
+  // Organizations the user is the only owner of while others use them.
+  deletion_blocked_by: string[]
 }
 
 export default function Profile({
-  user, invitations, email_notifications_available, notification_memberships, mcp_url, connected_apps,
+  user, invitations, email_notifications_available, notification_memberships, mcp_url, connected_apps, deletion_blocked_by,
 }: PageProps) {
   const [copied, setCopied] = useState(false)
   const copyMcpUrl = () => {
@@ -445,6 +448,8 @@ export default function Profile({
             </CardFooter>
           </Card>
         </form>
+
+        <DeleteAccountCard blockedBy={deletion_blocked_by} />
       </div>
     </AppLayout>
   )
