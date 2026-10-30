@@ -117,5 +117,11 @@ module Makerstorage
     # Direct printing to network label printers (LabelPrinting::Network). On
     # unless NETWORK_PRINTING=false, e.g. on a shared instance with no printers.
     config.x.network_printing = !%w[0 false no off].include?(ENV["NETWORK_PRINTING"].to_s.strip.downcase)
+
+    # Privacy policy and legal notice of the instance's operator (GDPR art. 13,
+    # French LCEN), linked from the sign-in pages and the profile. Each install
+    # writes its own: unset, no link is shown.
+    config.x.privacy_policy_url = ENV["PRIVACY_POLICY_URL"].presence
+    config.x.legal_notice_url = ENV["LEGAL_NOTICE_URL"].presence
   end
 end
