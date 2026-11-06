@@ -1,0 +1,29 @@
+---
+import Base from "./Base.astro";
+import Header from "../components/Header.astro";
+import Footer from "../components/Footer.astro";
+
+interface Props {
+  title: string;
+  description: string;
+  updated: string;
+}
+
+// Legal pages (privacy policy, legal notice): English first, then French, the
+// language most of the hosted instance's users read.
+const { title, description, updated } = Astro.props;
+---
+
+<Base title={`${title} · Makerstorage`} description={description}>
+  <Header />
+  <main class="mx-auto max-w-3xl px-4 py-16 sm:px-6">
+    <h1 class="text-3xl font-semibold tracking-tight sm:text-4xl">{title}</h1>
+    <p class="mt-3 text-sm text-muted-foreground">
+      Last updated {updated} · <a href="#fr" class="underline underline-offset-4 hover:text-foreground">Version française</a>
+    </p>
+    <div class="legal mt-10">
+      <slot />
+    </div>
+  </main>
+  <Footer />
+</Base>

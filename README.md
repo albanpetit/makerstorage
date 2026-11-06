@@ -160,6 +160,8 @@ confirmed.
 | `FORCE_SSL`           | —                                      | Set to `true` behind a TLS-terminating proxy: redirects to HTTPS, sends HSTS, and marks the session cookie `Secure`. Leave unset for plain-HTTP LAN installs. |
 | `CSP_ENFORCE`         | —                                      | Set to `true` to enforce the Content-Security-Policy. By default it is report-only: violations are logged as `[CSP] …` but nothing is blocked. Check those logs before turning it on. |
 | `NETWORK_PRINTING`    | on                                     | Set to `false` to turn off direct printing to network label printers (Settings → Label printers), e.g. on a shared instance. When on, the server only connects to local-network addresses (10.x, 172.16–31.x, 192.168.x, 100.64/10, fc00::/7) on printer ports (9100–9109, 6101). |
+| `PRIVACY_POLICY_URL`  | —                                      | Your privacy policy, linked from the sign-in pages and the profile. See [Privacy (GDPR)](#privacy-gdpr). |
+| `LEGAL_NOTICE_URL`    | —                                      | Your legal notice (e.g. *mentions légales* in France), linked next to it. |
 
 ```bash
 docker run -d --name makerstorage \
@@ -244,6 +246,28 @@ An admin turns it on in Settings → KiCad library, which downloads a
 (shown once; a new file replaces the token, *Revoke* turns access off). In
 KiCad, add that file in Preferences → Manage Symbol Libraries. KiCad must be
 able to reach the server: use its LAN or public address, not `localhost`.
+
+### Privacy (GDPR)
+
+Whoever runs an instance is the data controller for its users: on a makerspace's
+own server that's the makerspace, not the Makerstorage project. What the app
+does for you:
+
+- **No tracking and no consent banner needed**: the only cookies are the
+  session, "remember me" and the sidebar state; fonts are served by the app
+  itself and no analytics or third-party script is loaded. Part images from
+  Mouser, DigiKey or LCSC may be shown straight from their CDN.
+- **Erasure**: users delete their account from Profile → Delete account. Organizations nobody else uses go
+  with it; elsewhere their history stays but reads "Deleted user".
+- **Retention**: activity log entries are deleted after 2 years, and a loan's
+  borrower contact is cleared a year after the loan closed (`PurgePersonalDataJob`, daily).
+- **Portability**: organization admins download everything as a ZIP (Settings → Backup).
+- Integrations an organization turns on (Mouser, DigiKey, LCSC, GitHub, AI-assisted
+  entry with Anthropic) send it data with that organization's own keys.
+
+Set `PRIVACY_POLICY_URL` and `LEGAL_NOTICE_URL` to your own pages so they're
+linked from the app; [site/src/pages/privacy.astro](site/src/pages/privacy.astro)
+is the hosted instance's and can serve as a model.
 
 ## How this project is developed
 
