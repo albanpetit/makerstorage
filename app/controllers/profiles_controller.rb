@@ -14,6 +14,8 @@ class ProfilesController < ApplicationController
         unconfirmed_email: current_user.unconfirmed_email,
         locale: current_user.locale
       },
+      # Organizations that must get another owner before the account can go.
+      deletion_blocked_by: current_user.organizations_blocking_deletion.map(&:name).sort,
       # Hidden until the address is confirmed: they're addressed to an email the
       # user hasn't yet proven is theirs.
       invitations: visible_invitations.map do |invitation|
@@ -94,6 +96,25 @@ class ProfilesController < ApplicationController
 
   def update
     password_change? ? update_password : update_details
+  end
+
+  # Deletes the account (User#destroy_account!), confirmed with the current
+  # password, then signs out.
+  def destroy
+    password = params.dig(:user, :current_password)
+    unless current_password_valid?(password)
+      current_user.errors.add(:current_password, password.blank? ? :blank : :invalid)
+      return redirect_to profile_path, inertia: { errors: inertia_errors(current_user, as: :user) },
+        alert: t("flash.profiles.enter_your_current_password_to_delete")
+    end
+
+    blocking = current_user.organizations_blocking_deletion
+    if blocking.any? || !current_user.destroy_account!
+      return redirect_to profile_path, alert: t("flash.profiles.name_another_owner_first", organizations: blocking.map(&:name).to_sentence)
+    end
+
+    sign_out(current_user)
+    redirect_to new_user_session_path, notice: t("flash.profiles.account_deleted")
   end
 
   private

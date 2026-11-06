@@ -9,6 +9,10 @@ class ApplicationController < ActionController::Base
   inertia_share flash: -> { flash.to_hash }
   # The React UI translates itself from this (app/frontend/lib/i18n.ts).
   inertia_share locale: -> { I18n.locale.to_s }
+  # The operator's privacy policy and legal notice, when the install has them.
+  inertia_share legal: -> {
+    { privacy_policy_url: Rails.configuration.x.privacy_policy_url, legal_notice_url: Rails.configuration.x.legal_notice_url }
+  }
 
   inertia_share auth: -> {
     if user_signed_in?

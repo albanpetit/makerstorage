@@ -19,6 +19,9 @@ production:
   purge_stale_oauth:
     class: PurgeStaleOauthJob
     schedule: every day at 4:30am
+  purge_personal_data:
+    class: PurgePersonalDataJob
+    schedule: every day at 4:45am
   # Hourly so each organization gets its digest at 8am in its own time zone.
   send_notification_digests:
     class: NotificationDigestJob

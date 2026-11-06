@@ -1,4 +1,5 @@
 import { PropsWithChildren } from 'react'
+import { usePage } from '@inertiajs/react'
 
 import logo from '/assets/logo.svg'
 import authImage from '/assets/auth.jpeg'
@@ -11,6 +12,12 @@ interface AuthLayoutProps {
 }
 
 export function AuthLayout({ eyebrow, headline, description, children }: PropsWithChildren<AuthLayoutProps>) {
+  const { legal } = usePage().props
+  const legalLinks = [
+    legal?.privacy_policy_url && { href: legal.privacy_policy_url, label: t('Privacy policy') },
+    legal?.legal_notice_url && { href: legal.legal_notice_url, label: t('Legal notice') },
+  ].filter((link): link is { href: string; label: string } => !!link)
+
   return (
     <div className="flex min-h-svh w-full bg-background text-foreground">
       <div className="relative hidden flex-1 flex-col justify-between overflow-hidden bg-sidebar p-10 text-white lg:flex">
@@ -40,6 +47,15 @@ export function AuthLayout({ eyebrow, headline, description, children }: PropsWi
 
         <div className="relative mx-auto w-full max-w-sm rounded-2xl border bg-background/90 p-6 shadow-xl backdrop-blur-md lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none lg:backdrop-blur-none">
           {children}
+          {legalLinks.length > 0 && (
+            <nav aria-label={t('Legal')} className="mt-8 flex justify-center gap-4 text-xs text-muted-foreground">
+              {legalLinks.map((link) => (
+                <a key={link.href} href={link.href} target="_blank" rel="noreferrer" className="hover:text-foreground hover:underline">
+                  {link.label}
+                </a>
+              ))}
+            </nav>
+          )}
         </div>
       </div>
     </div>

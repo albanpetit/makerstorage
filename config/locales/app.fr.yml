@@ -537,13 +537,16 @@ fr:
         one: '%{count} tag'
         other: '%{count} tags'
     profiles:
+      account_deleted: "Votre compte a été supprimé."
       app_disconnected: "%{name} est déconnecté."
       changes_allowed: "%{name} peut désormais modifier l’inventaire."
       confirm_from_the_email_we_sent: ' Confirmez %{unconfirmed_email} depuis l''e-mail que nous y avons envoyé pour vous connecter avec cette adresse.'
       enter_your_current_password_to_change: Saisissez votre mot de passe actuel pour changer d'adresse e-mail.
+      enter_your_current_password_to_delete: "Saisissez votre mot de passe actuel pour supprimer votre compte."
       failed_to_update_password: Impossible de mettre à jour le mot de passe.
       failed_to_update_profile: Impossible de mettre à jour le profil.
       locale_updated: Langue mise à jour.
+      name_another_owner_first: "Nommez d’abord un autre propriétaire de %{organizations}, ou supprimez-la : les autres membres se retrouveraient sans propriétaire."
       notifications_off: Notifications par e-mail désactivées pour %{organization}.
       notifications_on: Notifications par e-mail activées pour %{organization}.
       now_read_only: "%{name} est désormais en lecture seule."

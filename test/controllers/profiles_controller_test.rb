@@ -314,4 +314,57 @@ class ProfilesControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to profile_path
     assert_nil OauthAuthorization.authenticate(tokens[:access_token])
   end
+
+  test "destroy deletes the account with the current password and signs out" do
+    user = create_user
+    org = user.personal_organization
+    sign_in user
+
+    delete profile_path, params: { user: { current_password: "password123" } }
+
+    assert_redirected_to new_user_session_path
+    assert_not User.exists?(user.id)
+    assert_not Organization.exists?(org.id)
+    get profile_path
+    assert_redirected_to new_user_session_path
+  end
+
+  test "destroy refuses a wrong password" do
+    user = create_user
+    sign_in user
+
+    delete profile_path, params: { user: { current_password: "wrong" } }
+
+    assert_redirected_to profile_path
+    assert User.exists?(user.id)
+    assert_equal 1, user.reload.failed_attempts
+  end
+
+  test "destroy refuses while the user is the only owner of a shared organization" do
+    user = create_user
+    shared = create_organization(name: "Fablab")
+    OrganizationMembership.create!(organization: shared, user: user, role: "owner")
+    OrganizationMembership.create!(organization: shared, user: create_user, role: "member")
+    sign_in user
+
+    get profile_path
+    assert_equal [ "Fablab" ], inertia_props["deletion_blocked_by"]
+
+    delete profile_path, params: { user: { current_password: "password123" } }
+
+    assert_redirected_to profile_path
+    assert_match "Fablab", flash[:alert]
+    assert User.exists?(user.id)
+  end
+
+  test "legal links follow the install's configuration" do
+    get new_user_session_path
+    assert_nil inertia_props.dig("legal", "privacy_policy_url")
+
+    Rails.configuration.x.privacy_policy_url = "https://example.org/privacy"
+    get new_user_session_path
+    assert_equal "https://example.org/privacy", inertia_props.dig("legal", "privacy_policy_url")
+  ensure
+    Rails.configuration.x.privacy_policy_url = nil
+  end
 end
