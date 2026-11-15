@@ -74,7 +74,7 @@ group :test do
 
   # minitest 6.x changed Runnable#run's signature in a way that's incompatible
   # with Rails 8.1.1's test_unit/line_filtering railtie (breaks `bin/rails test`).
-  gem "minitest", "~> 6.0"
+  gem "minitest", "~> 6.1"
 end
 
 gem "inertia_rails", "~> 3.23"
