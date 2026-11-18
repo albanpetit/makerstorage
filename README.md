@@ -5,7 +5,7 @@
 ![Rails](https://img.shields.io/badge/Rails-8.1-CC0000?logo=rubyonrails&logoColor=white)
 ![React](https://img.shields.io/badge/React-19-149ECA?logo=react&logoColor=white)
 
-A multi-tenant inventory manager for makerspaces and fablabs, purpose-built for electronic components. Catalog parts, keep stock accurate down to the drawer, and reorder before you run out, all scoped per organization.
+An inventory manager purpose-built for electronic components. It started as a tool for my own parts drawers and grew into a multi-tenant app that makerspaces, fablabs and classrooms can share: catalog parts, keep stock accurate down to the drawer, and reorder before you run out, all scoped per organization.
 
 **[Website](https://makerstorage.io)** · **[Hosted app](https://app.makerstorage.io)** · **[Self-host it](#getting-started)**
 
@@ -17,17 +17,20 @@ A multi-tenant inventory manager for makerspaces and fablabs, purpose-built for 
 - **Parts**: SKU / MPN / IPN / barcode, manufacturer, datasheets, images, attached files (app notes, 3D models, firmware…) and per-supplier pricing
 - **Classification**: hierarchical categories, reusable footprints and free-form tags
 - **Parameters & parametric search**: typed values with units ("4k7", "100nF", "3V3") and range filters, e.g. every 0603 resistor between 1 kΩ and 10 kΩ; categories carry parameter templates
+- **Alternatives**: link parts that can stand in for each other (second sources), and see equivalents suggested from their parameters (same footprint, value, ratings at least as good)
+- **Fill in with AI**: create a part from photos of it or its datasheet with Claude, using your organization's own Anthropic API key (off until an admin adds one)
 - **Duplicate finder**: spots parts sharing a part number or the same value and footprint, and merges them with their stock and history
 
 **Stock**
 - **Storage zones**: a location tree (room → cabinet → shelf → bench → drawer → box), with stock per zone and moves between zones
 - **Ledger**: every quantity change is an append-only stock movement
+- **Units**: count parts by the piece, or wire, filament and solder in meters, grams or liters (up to three decimals), with a "+1 pack" shortcut
 - **Scanning**: look up parts and zones from a phone camera, a webcam or a hardware scanner, even offline: counts and bag receipts wait on the device and are sent once the server answers again
 - **Supplier bags**: scan the label on a DigiKey, Mouser or LCSC bag to receive it into stock, or to create the part when it's new
 - **QR labels**: print part and zone labels from the browser, or send them straight to a Brother QL or Zebra printer on the local network
 - **Stocktakes**: count a zone (typed or scanned, blind counts optional) and post the differences as adjustments, with a list of zones due for a count
 - **Loans**: lend tools and parts to members with a due date, then record returns or losses
-- **Low-stock alerts**: reorder suggestions from per-part thresholds that account for what's already on order
+- **Low-stock alerts**: reorder suggestions from per-part thresholds that account for what's already on order, and thresholds suggested from each part's actual consumption
 
 **Buying**
 - **Suppliers & purchase orders**: preferred suppliers, pricing, lead times, and orders tracked from pending to received, with deliveries split across storage zones
@@ -38,12 +41,15 @@ A multi-tenant inventory manager for makerspaces and fablabs, purpose-built for 
 
 **Projects & KiCad**
 - **Projects**: import a BOM (KiCad, EasyEDA or CSV) or build it by hand, check what you can build, order the shortfall, and deduct parts when you build, with revisions and build history
+- **Sub-assemblies**: a BOM line can be another project, up to five levels deep, either built along with the parent or built ahead and kept in stock
+- **Project cost**: what building 1, 10, 100 or any number of copies costs, from the stock you can count on and then supplier price breaks, with a CSV export
 - **KiCad files**: attach a KiCad project (or link a GitHub repository) and read the BOM straight from its schematics
 - **KiCad library**: browse stocked parts in KiCad's symbol chooser (HTTP library) and place them with footprint, MPN, IPN and supplier filled in
 - **Reservations**: confirmed projects hold their parts, first come first served, so two projects never count the same stock
 
 **Organizations**
 - **Multi-tenant**: every organization has isolated data, its own members invited with roles (owner / admin / member / viewer), and a configurable internal part-number (IPN) scheme
+- **Guided start**: templates (makerspace, home lab, classroom) that set up categories, parameters, footprints and storage zones, a "first steps" checklist, and a demo organization with sample data, created and deleted in one click
 - **Dashboard**: stock value, 30 days of activity, what needs attention, open orders and project buildability
 - **Activity log**: admins see who created, changed or deleted parts, zones, orders, projects, members and settings, with before and after values, per member or per record
 - **CSV import & backups**: bulk-load parts (UTF-8 or Excel's Windows-1252), export a whole organization as a ZIP and restore it
@@ -271,7 +277,7 @@ is the hosted instance's and can serve as a model.
 
 ## How this project is developed
 
-Makerstorage is designed and maintained by Alban Petit, with AI-assisted tooling
+Makerstorage is designed and maintained by Alban Petit, who first built it to sort out his own electronic components, with AI-assisted tooling
 ([Claude Code](https://claude.com/claude-code)) used during development. Every change
 is reviewed, covered by tests and checked in CI before it's merged.
 
