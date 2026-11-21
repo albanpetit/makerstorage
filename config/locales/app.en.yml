@@ -101,6 +101,7 @@ en:
       token_unreadable: DigiKey returned an unreadable token response
       unreachable: 'Could not reach DigiKey: %{error}'
     github:
+      busy: Another GitHub fetch is running on the server. Try again in a moment.
       file_too_large: '%{name} is too large to keep.'
       files_too_large: The KiCad files in %{location} are too large to keep (over %{size} zipped).
       forbidden: GitHub refused access to %{repository}.
@@ -204,6 +205,7 @@ en:
       skipped_files:
         one: ' Skipped %{count} file that couldn''t be restored.'
         other: ' Skipped %{count} files that couldn''t be restored.'
+      too_many_exports: Too many backups downloaded. Please try again later.
       too_many_restores_please_try_again: Too many restores. Please try again later.
     categories:
       category_created: Category "%{category_name}" created.
@@ -506,6 +508,7 @@ en:
         one: Fetched %{count} KiCad file from %{location} (%{sha}).
         other: Fetched %{count} KiCad files from %{location} (%{sha}).
       no_schematic: No schematic with components among them, so the BOM is unchanged.
+      too_many_syncs: Too many GitHub fetches. Please try again later.
       unlinked: Unlinked from GitHub. The files fetched so far stay with the project.
       up_to_date: Already up to date with %{location} (%{sha}).
     project_lines:

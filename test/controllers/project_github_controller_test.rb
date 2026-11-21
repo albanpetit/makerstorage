@@ -73,6 +73,33 @@ class ProjectGithubControllerTest < ActionDispatch::IntegrationTest
     assert_equal "Fetched 3 KiCad files from maker/rover/hw (bbbbbbb). The BOM hasn't changed.", flash[:notice]
   end
 
+  test "fetches are limited per user" do
+    sign_in @user
+    @project.update!(github_repository: "maker/rover", github_path: "hw")
+    fake = FakeGithub.new(commits: { nil => SHA1 }, archives: { SHA1 => repo_files })
+
+    with_fake_github(fake) do
+      ProjectGithubController::SYNC_RATE_LIMIT.times { post sync_project_github_path(@project) }
+      post sync_project_github_path(@project)
+    end
+    assert_equal "Too many GitHub fetches. Please try again later.", flash[:alert]
+  end
+
+  test "one fetch at a time per server process" do
+    sign_in @user
+    @project.update!(github_repository: "maker/rover", github_path: "hw")
+    fake = FakeGithub.new(commits: { nil => SHA1 }, archives: { SHA1 => repo_files })
+
+    ProjectGithubSync::SLOTS.acquire
+    begin
+      with_fake_github(fake) { post sync_project_github_path(@project) }
+    ensure
+      ProjectGithubSync::SLOTS.release
+    end
+    assert_equal "Another GitHub fetch is running on the server. Try again in a moment.", flash[:alert]
+    assert_nil @project.reload.github_synced_sha
+  end
+
   test "changing the folder fetches again at the same commit" do
     sign_in @user
     @project.update!(github_repository: "maker/rover", github_path: "hw", github_synced_sha: SHA1)

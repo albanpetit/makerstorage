@@ -8,6 +8,11 @@ class ProjectGithubController < ApplicationController
   before_action :verify_organization_access
   before_action :verify_organization_writer
   before_action :set_project
+  # Each fetch downloads the repository (up to 200 MB) within the request and
+  # spends the server's GitHub quota (60 calls an hour without a token).
+  rate_limit to: SYNC_RATE_LIMIT = 10, within: 1.hour, only: %i[update sync], by: -> { current_user.id },
+             store: AUTH_RATE_LIMIT_STORE,
+             with: -> { redirect_back_or_to projects_path, alert: t("flash.project_github.too_many_syncs") }
 
   LINK_COLUMNS = %w[github_repository github_ref github_path].freeze
 

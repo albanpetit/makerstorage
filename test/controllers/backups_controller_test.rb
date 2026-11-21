@@ -127,6 +127,18 @@ class BackupsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "Too many restores. Please try again later.", flash[:alert]
   end
 
+  test "exports are limited per user" do
+    sign_in @owner
+
+    BackupsController::EXPORT_RATE_LIMIT.times do
+      get export_backup_path
+      assert_response :success
+    end
+    get export_backup_path
+    assert_redirected_to settings_path
+    assert_equal "Too many backups downloaded. Please try again later.", flash[:alert]
+  end
+
   private
 
   def upload(bytes)
