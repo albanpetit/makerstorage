@@ -220,16 +220,6 @@ class ProjectFilesControllerTest < ActionDispatch::IntegrationTest
     Rack::Test::UploadedFile.new(file.path, "application/zip", original_filename: filename)
   end
 
-  def stub_const(mod, name, value)
-    original = mod.const_get(name)
-    mod.send(:remove_const, name)
-    mod.const_set(name, value)
-    yield
-  ensure
-    mod.send(:remove_const, name)
-    mod.const_set(name, original)
-  end
-
   def inertia_props
     JSON.parse(@response.body[/data-page="app" type="application\/json"[^>]*>(.*?)<\/script>/m, 1])["props"]
   end
