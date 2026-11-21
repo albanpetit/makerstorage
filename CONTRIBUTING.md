@@ -47,6 +47,8 @@ bin/rubocop             # Ruby style
 bin/brakeman            # security static analysis
 bin/bundler-audit       # known gem CVEs
 npm run check           # TypeScript type check
+npm run lint            # frontend lint (oxlint, react-hooks rules)
+npm test                # frontend unit tests (Vitest)
 ```
 
 Every model, controller, and non-trivial piece of business logic must ship with tests in the same change.
@@ -175,6 +177,8 @@ bin/rubocop              # Ruby style
 bin/brakeman             # security static analysis
 bin/bundler-audit        # known gem CVEs
 npm run check            # TypeScript type check
+npm run lint             # frontend lint (oxlint, react-hooks rules)
+npm test                 # frontend unit tests (Vitest)
 ```
 
 Run everything at once with `bin/ci`.

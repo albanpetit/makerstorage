@@ -82,6 +82,13 @@ jobs:
       - name: Type-check the frontend
         run: npm run check
 
+      # Hooks rules (react-hooks) and common bugs; style-only findings are warnings.
+      - name: Lint the frontend
+        run: npm run lint
+
+      - name: Unit-test the frontend
+        run: npm test
+
       # Build assets up front so the manifest exists before any controller test
       # renders a view. Relying on vite_ruby's on-demand autoBuild races under
       # parallel tests and intermittently fails with a missing-manifest error.

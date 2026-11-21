@@ -9,6 +9,8 @@ CI.run do
   step "Security: Brakeman code analysis", "bin/brakeman --quiet --no-pager --exit-on-warn --exit-on-error"
 
   step "Types: TypeScript", "npm run check"
+  step "Style: Frontend", "npm run lint"
+  step "Tests: Frontend", "npm test"
 
   step "Tests: Rails", "bin/rails test"
   step "Tests: System", "bin/rails test:system"
