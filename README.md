@@ -168,6 +168,7 @@ confirmed.
 | `CSP_ENFORCE`         | —                                      | Set to `true` to enforce the Content-Security-Policy. By default it is report-only: violations are logged as `[CSP] …` but nothing is blocked. Check those logs before turning it on. |
 | `NETWORK_PRINTING`    | on                                     | Set to `false` to turn off direct printing to network label printers (Settings → Label printers), e.g. on a shared instance. When on, the server only connects to local-network addresses (10.x, 172.16–31.x, 192.168.x, 100.64/10, fc00::/7) on printer ports (9100–9109, 6101). |
 | `ORGANIZATION_STORAGE_QUOTA` | no limit                         | Total size of each organization's files (images, datasheets, attachments, KiCad files, logos), e.g. `1GB`. Set one on a shared instance where anyone can sign up, so a single account can't fill the disk. |
+| `MAX_ORGANIZATIONS_PER_USER` | no limit | How many organizations one account may own (creating or restoring one is refused past it). The quota above is per organization, so set both on a shared instance. |
 | `PRIVACY_POLICY_URL`  | —                                      | Your privacy policy, linked from the sign-in pages and the profile. See [Privacy (GDPR)](#privacy-gdpr). |
 | `LEGAL_NOTICE_URL`    | —                                      | Your legal notice (e.g. *mentions légales* in France), linked next to it. |
 

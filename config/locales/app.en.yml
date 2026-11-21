@@ -75,6 +75,7 @@ en:
       unreadable: Claude's answer could not be read. Please try again.
       unsupported_file: '%{name} is not a JPEG, PNG, GIF or WebP photo or a PDF.'
     backup:
+      organization_limit_reached: You already own %{count} organizations, the most this server allows. Delete one first.
       data_too_large: '%{file} is too large.'
       inconsistent: 'The backup could not be restored (%{error}): its data is inconsistent.'
       invalid_json: '%{file} is not valid JSON.'
@@ -164,6 +165,7 @@ en:
       invalid: "This scan couldn't be read."
       not_found: "The part or the zone no longer exists."
     organization_merge:
+      storage_quota_exceeded: The merged files would exceed the organization's %{quota} of storage.
       into_demo: Nothing can be merged into a demo organization.
       into_itself: An organization can't be merged into itself.
       personal: A personal organization can't be merged into another one.
@@ -337,6 +339,8 @@ en:
         other: '%{count} BOM lines had no matching part and were skipped.'
       use_mark_received_to_receive_an: Use “Mark received” to receive an order so stock is credited.
     organizations:
+      organization_limit_reached: You already own %{count} organizations, the most this server allows.
+      too_many_created: Too many organizations created. Please try again later.
       reset_done:
         one: "\"%{name}\" was reset (%{count} part removed)."
         other: "\"%{name}\" was reset (%{count} parts removed)."

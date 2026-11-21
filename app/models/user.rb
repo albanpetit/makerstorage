@@ -71,6 +71,19 @@ class User < ApplicationRecord
   end
 
   # Check if the user is an owner of an organization
+  # Organizations the user is an active owner of.
+  def owned_organizations_count
+    active_organization_memberships.where(role: "owner").count
+  end
+
+  # Whether the user already owns as many organizations as the install allows
+  # (config.x.max_organizations_per_user, nil = no limit). Checked before
+  # creating or restoring one: each organization has its own storage quota.
+  def organization_limit_reached?
+    limit = Rails.configuration.x.max_organizations_per_user
+    limit.present? && owned_organizations_count >= limit
+  end
+
   def owner_of?(organization)
     active_organization_memberships.exists?(organization: organization, role: "owner")
   end

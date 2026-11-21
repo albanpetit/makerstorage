@@ -27,6 +27,10 @@ module OrganizationBackup
     end
 
     def import!
+      # A restore makes a new organization the user owns (with its own quota).
+      if @user.organization_limit_reached?
+        raise Error, I18n.t("errors.backup.organization_limit_reached", count: Rails.configuration.x.max_organizations_per_user)
+      end
       raise Error, I18n.t("errors.backup.too_large", size: ActiveSupport::NumberHelper.number_to_human_size(MAX_ARCHIVE_SIZE)) if File.size(@path) > MAX_ARCHIVE_SIZE
 
       Zip::File.open(@path) do |zip|
