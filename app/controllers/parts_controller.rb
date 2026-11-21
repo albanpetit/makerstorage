@@ -362,6 +362,10 @@ class PartsController < ApplicationController
     file = params[:file]
     return redirect_to(parts_path, alert: t("flash.parts.please_choose_a_csv_file_to")) unless file.respond_to?(:path)
     return redirect_to(parts_path, alert: BomParser.too_large_message) if BomParser.too_large?(file)
+    # One import at a time per user: the next one waits until this one is over.
+    running = current_organization.part_imports.where(user: current_user).unfinished.order(:id).last
+    running&.give_up_if_stalled!
+    return redirect_to(parts_path, alert: t("flash.parts.import_already_running")) if running && !running.finished?
 
     rows = begin
       PartCsvImport.count_rows(file.path)

@@ -3,6 +3,11 @@
 # PartCsvImport::PROGRESS_EVERY rows for the inventory page to show.
 class PartCsvImportJob < ApplicationJob
   queue_as :default
+  # One import at a time on the server: a big sheet takes minutes, and the
+  # queue's few threads (in the web process) must stay free for other jobs
+  # (digests, datasheet downloads, purges). The others wait their turn,
+  # blocked without holding a thread. The lock lasts as long as an import can.
+  limits_concurrency to: 1, key: "part_csv_import", duration: 1.hour
 
   discard_on ActiveJob::DeserializationError
 
@@ -11,6 +16,11 @@ class PartCsvImportJob < ApplicationJob
 
     unless File.exist?(part_import.file_path)
       return part_import.update!(status: "failed", error: "file_missing")
+    end
+
+    # The user may have lost write access (or left) since the import was queued.
+    unless part_import.user&.writer_of?(part_import.organization)
+      return part_import.update!(status: "failed", error: "no_longer_allowed")
     end
 
     # Movements and the summary event are signed with the importing user.

@@ -9,9 +9,12 @@ class PartImport < ApplicationRecord
   MAX_ROWS = 20_000
   # Finished imports are kept this long, then swept when a new one starts.
   KEPT_FOR = 7.days
-  # An unfinished import with no progress for this long died with its worker
-  # (a deploy, a crash): it's reported as failed rather than polled forever.
+  # A running import with no progress for this long died with its worker (a
+  # deploy, a crash): it's reported as failed rather than polled forever.
   STALLED_AFTER = 15.minutes
+  # Imports run one at a time on the server (PartCsvImportJob), so a queued
+  # one may wait behind others: it's only given up after this long.
+  QUEUED_FOR_AT_MOST = 1.day
   DIRECTORY = Rails.root.join("tmp", "imports")
 
   belongs_to :organization
@@ -23,6 +26,7 @@ class PartImport < ApplicationRecord
   validates :status, inclusion: { in: STATUSES }
 
   scope :unseen, -> { where(seen_at: nil) }
+  scope :unfinished, -> { where(status: %w[queued running]) }
 
   def file_path
     DIRECTORY.join("#{file_token}.csv").to_s
@@ -33,7 +37,8 @@ class PartImport < ApplicationRecord
   end
 
   def give_up_if_stalled!
-    return if finished? || updated_at > STALLED_AFTER.ago
+    return if finished?
+    return if updated_at > (status == "running" ? STALLED_AFTER : QUEUED_FOR_AT_MOST).ago
 
     update!(status: "failed", error: "unexpected")
     FileUtils.rm_f(file_path)

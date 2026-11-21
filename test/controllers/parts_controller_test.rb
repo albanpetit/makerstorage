@@ -1124,6 +1124,39 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
     assert_match(/went wrong/i, response.parsed_body["message"])
   end
 
+  test "an import waiting its turn is not given up as stalled before a day" do
+    user = create_user
+    part_import = user.organizations.first.part_imports.create!(user: user, filename: "a.csv", total_rows: 1)
+    part_import.update_column(:updated_at, (PartImport::STALLED_AFTER + 1.minute).ago)
+
+    sign_in user
+    get import_status_parts_path(part_import), as: :json
+    assert_equal "queued", response.parsed_body["status"]
+
+    part_import.update_column(:updated_at, (PartImport::QUEUED_FOR_AT_MOST + 1.minute).ago)
+    get import_status_parts_path(part_import), as: :json
+    assert_equal "failed", response.parsed_body["status"]
+  end
+
+  test "a user can't start an import while their previous one is unfinished" do
+    user = create_user
+    org = user.organizations.first
+    sign_in user
+
+    post import_parts_path, params: { file: csv_upload("Name,Category\nResistor,Resistors\n") }
+    assert_no_enqueued_jobs(only: PartCsvImportJob) do
+      post import_parts_path, params: { file: csv_upload("Name,Category\nCap,Capacitors\n") }
+    end
+    assert_match(/still running/, flash[:alert])
+    assert_equal 1, org.part_imports.count
+
+    # Once it's over (or given up), the next one starts.
+    perform_enqueued_jobs
+    assert_enqueued_with(job: PartCsvImportJob) do
+      post import_parts_path, params: { file: csv_upload("Name,Category\nCap,Capacitors\n") }
+    end
+  end
+
   test "import refuses an empty sheet and one over the row cap" do
     user = create_user
     sign_in user
