@@ -98,12 +98,20 @@ export function useBarcodeScanner(onDecoded: (code: string) => void, { continuou
   const scannedRef = useRef(false)
   const lastReadRef = useRef<{ code: string; at: number } | null>(null)
   const onDecodedRef = useRef(onDecoded)
-  onDecodedRef.current = onDecoded
+  // Bumped by every stop(): a start() still awaiting the camera, play() or the
+  // decoder checks it after each await and bails out (releasing a stream that
+  // arrived late) instead of leaving the camera on after the page closed it.
+  const sessionRef = useRef(0)
   const [active, setActive] = useState(false)
   const [starting, setStarting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  useEffect(() => {
+    onDecodedRef.current = onDecoded
+  }, [onDecoded])
+
   const stop = () => {
+    sessionRef.current += 1
     if (rafRef.current != null) {
       cancelAnimationFrame(rafRef.current)
       rafRef.current = null
@@ -118,6 +126,7 @@ export function useBarcodeScanner(onDecoded: (code: string) => void, { continuou
     streamRef.current = null
     if (videoRef.current) videoRef.current.srcObject = null
     setActive(false)
+    setStarting(false)
   }
 
   const handleDecoded = (text: string) => {
@@ -147,6 +156,8 @@ export function useBarcodeScanner(onDecoded: (code: string) => void, { continuou
       )
       return
     }
+    const session = ++sessionRef.current
+    const cancelled = () => sessionRef.current !== session
     setStarting(true)
     setActive(true)
     scannedRef.current = false
@@ -156,23 +167,31 @@ export function useBarcodeScanner(onDecoded: (code: string) => void, { continuou
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: VIDEO_CONSTRAINTS })
+      if (cancelled() || !videoRef.current) {
+        // Stopped (or unmounted) while the permission prompt was open.
+        stream.getTracks().forEach((track) => track.stop())
+        return
+      }
       streamRef.current = stream
       keepFocusing(stream)
-      const video = videoRef.current!
+      const video = videoRef.current
       video.srcObject = stream
       await video.play()
+      if (cancelled()) return
 
       if (BarcodeDetectorCtor) {
         // Preferred path: the browser-native detector (Chrome/Android/Edge) is
         // far faster and more reliable than decoding every frame in JS.
         const supported = (await BarcodeDetectorCtor.getSupportedFormats?.()) ?? []
+        if (cancelled()) return
         const formats = SCAN_FORMATS.filter((f) => supported.length === 0 || supported.includes(f))
         const detector = new BarcodeDetectorCtor(formats.length ? { formats: [ ...formats ] } : undefined)
 
         const scan = async () => {
-          if (scannedRef.current || !streamRef.current) return
+          if (scannedRef.current || !streamRef.current || cancelled()) return
           try {
             const codes = await detector.detect(video)
+            if (cancelled()) return
             if (codes.length > 0 && codes[0].rawValue) {
               handleDecoded(codes[0].rawValue)
               if (!continuous) return
@@ -191,6 +210,7 @@ export function useBarcodeScanner(onDecoded: (code: string) => void, { continuou
           import('@zxing/browser'),
           import('@zxing/library'),
         ])
+        if (cancelled()) return
         const hints = new Map([
           [ DecodeHintType.POSSIBLE_FORMATS, [
             BarcodeFormat.QR_CODE, BarcodeFormat.DATA_MATRIX, BarcodeFormat.CODE_128,
@@ -204,7 +224,7 @@ export function useBarcodeScanner(onDecoded: (code: string) => void, { continuou
         restoreWarnRef.current = silenceZxingWarnings()
 
         const scan = () => {
-          if (scannedRef.current || !streamRef.current) return
+          if (scannedRef.current || !streamRef.current || cancelled()) return
           const { videoWidth: width, videoHeight: height } = video
           if (width > 0 && height > 0) {
             const side = Math.min(width, height)
@@ -226,10 +246,11 @@ export function useBarcodeScanner(onDecoded: (code: string) => void, { continuou
         scan()
       }
     } catch (err) {
+      if (cancelled()) return
       stop()
       setError(describeCameraError(err))
     } finally {
-      setStarting(false)
+      if (!cancelled()) setStarting(false)
     }
   }
 
