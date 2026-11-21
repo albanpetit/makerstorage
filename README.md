@@ -269,7 +269,9 @@ does for you:
 - **Erasure**: users delete their account from Profile → Delete account. Organizations nobody else uses go
   with it; elsewhere their history stays but reads "Deleted user".
 - **Retention**: activity log entries are deleted after 2 years, and a loan's
-  borrower contact is cleared a year after the loan closed (`PurgePersonalDataJob`, daily).
+  borrower contact is cleared a year after the loan closed, along with the name of a
+  borrower who has no account (`PurgePersonalDataJob`, daily). Loan contacts and names
+  are kept out of the server logs.
 - **Portability**: organization admins download everything as a ZIP (Settings → Backup).
 - Integrations an organization turns on (Mouser, DigiKey, LCSC, GitHub, AI-assisted
   entry with Anthropic) send it data with that organization's own keys.

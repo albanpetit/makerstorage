@@ -137,6 +137,37 @@ class Loan < ApplicationRecord
     [ reference, borrower_name ].compact_blank.join(" · ")
   end
 
+  # Name kept on old loans of someone without an account, once the retention
+  # period is over (PurgePersonalDataJob).
+  FORMER_BORROWER_NAME = "Former borrower"
+
+  # Replaces the borrower's name (and clears the contact) on +loans+ and
+  # wherever it was copied: the reasons of the loans' stock movements ("Lent
+  # to …", "Returned by …") and their activity entries. Stock and the ledger's
+  # quantities are left as they are.
+  def self.anonymize_borrower(loans, replacement)
+    loans.find_each do |loan|
+      name = loan.borrower_name.to_s
+      if name.present? && name != replacement
+        StockMovement.where(organization_id: loan.organization_id, reference: loan.reference)
+          .where(reason: [ "Lent to #{name}", "Returned by #{name}" ])
+          .update_all([ "reason = REPLACE(reason, ?, ?)", name, replacement ])
+        ActivityEvent.where(subject_type: "Loan", subject_id: loan.id).find_each do |event|
+          event.update_columns(subject_label: event.subject_label.to_s.split(" · ").map { |part| part == name ? replacement : part }.join(" · "),
+                               details: replace_name_in_details(event.details, name, replacement))
+        end
+      end
+      loan.update_columns(borrower_name: replacement, borrower_contact: nil)
+    end
+  end
+
+  def self.replace_name_in_details(details, name, replacement)
+    details = details.to_h
+    return details unless details["borrower_name"].is_a?(Array)
+
+    details.merge("borrower_name" => details["borrower_name"].map { |value| value == name ? replacement : value })
+  end
+
   private
 
   def settle!(entries)
