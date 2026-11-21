@@ -49,7 +49,43 @@ class BomParser::KicadSchematicTest < ActiveSupport::TestCase
     end
   end
 
+  test "keeps only the symbols of a sheet, so its tree stays small" do
+    root = BomParser::KicadSchematic::SExpression.parse(file_fixture("kicad/board/board.kicad_sch").read,
+                                                       keep: BomParser::KicadSchematic::BOM_NODES)
+
+    assert_equal "kicad_sch", root.first
+    assert root.drop(1).all? { |child| !child.is_a?(Array) || BomParser::KicadSchematic::BOM_NODES.include?(child.first) }
+    assert_equal parse("board/board.kicad_sch"), BomParser::KicadSchematic.parse([ [ "board.kicad_sch", file_fixture("kicad/board/board.kicad_sch").read ] ])
+  end
+
+  test "refuses sheets far beyond any real schematic instead of reading them whole" do
+    stub_const(:MAX_TOKENS_PER_SHEET, 1_000) do
+      error = assert_raises(BomParser::KicadSchematic::TooLarge) do
+        BomParser::KicadSchematic.parse([ [ "huge.kicad_sch", "(kicad_sch #{'(wire (pts) (xy 1 2)) ' * 200})" ] ])
+      end
+      assert_equal "huge.kicad_sch", error.message
+    end
+
+    # Symbols count against a budget shared by every sheet of the BOM.
+    symbol = '(symbol (lib_id "Device:R") (property "Reference" "R1") (property "Value" "10k")) '
+    stub_const(:MAX_KEPT_TOKENS, 100) do
+      assert_raises(BomParser::KicadSchematic::TooLarge) do
+        BomParser::KicadSchematic.parse([ [ "a.kicad_sch", "(kicad_sch #{symbol * 4})" ], [ "b.kicad_sch", "(kicad_sch #{symbol * 4})" ] ])
+      end
+    end
+  end
+
   private
+
+  def stub_const(name, value)
+    previous = BomParser::KicadSchematic.const_get(name)
+    BomParser::KicadSchematic.send(:remove_const, name)
+    BomParser::KicadSchematic.const_set(name, value)
+    yield
+  ensure
+    BomParser::KicadSchematic.send(:remove_const, name)
+    BomParser::KicadSchematic.const_set(name, previous)
+  end
 
   def parse(*names)
     BomParser::KicadSchematic.parse(names.map { |name| [ File.basename(name), file_fixture("kicad/#{name}").read ] })

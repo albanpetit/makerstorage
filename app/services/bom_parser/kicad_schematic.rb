@@ -17,13 +17,31 @@ module BomParser
   module KicadSchematic
     # The text isn't a KiCad 6+ schematic (KiCad 5 ".sch" files, or junk).
     class NotASchematic < StandardError; end
+    # The sheets hold more than MAX_TOKENS_PER_SHEET / MAX_KEPT_TOKENS: far
+    # beyond any real schematic, and reading them would take too much memory.
+    class TooLarge < StandardError; end
+
+    # A real sheet runs about 5 bytes a token, so 2 million tokens is a 10 MB
+    # sheet; the symbols the BOM keeps are a small part of that.
+    MAX_TOKENS_PER_SHEET = 2_000_000
+    MAX_KEPT_TOKENS = 1_000_000
 
     module_function
 
+    # The only top-level lists the BOM needs. Everything else (library symbol
+    # drawings, wires, labels, graphics: most of a sheet) is dropped as soon as
+    # it is read, so a sheet's tree stays a fraction of its text's size.
+    BOM_NODES = %w[symbol symbol_instances].freeze
+
     # +sources+ is a list of [filename, text] pairs, one per sheet.
     def parse(sources)
+      kept = { left: MAX_KEPT_TOKENS }
       sheets = sources.map do |name, text|
-        root = SExpression.parse(text)
+        root = begin
+          SExpression.parse(text, keep: BOM_NODES, max_tokens: MAX_TOKENS_PER_SHEET, kept: kept)
+        rescue TooLarge
+          raise TooLarge, name
+        end
         raise NotASchematic, name unless root.is_a?(Array) && root.first == "kicad_sch"
 
         [ name, root ]
@@ -112,25 +130,44 @@ module BomParser
     end
 
     # A minimal S-expression reader for KiCad's file format: lists become
-    # arrays, atoms and quoted strings become strings.
+    # arrays, atoms and quoted strings become strings. With +keep+, only the
+    # root's child lists headed by one of those names are kept. Raises TooLarge
+    # past +max_tokens+ tokens read, or once the kept lists hold more tokens
+    # than +kept+[:left] (a budget shared by the sheets of one BOM).
     module SExpression
       TOKEN = /\s*(?:(\()|(\))|"((?:[^"\\]|\\.)*)"|([^\s()"]+))/m
       ESCAPES = { "n" => "\n", "t" => "\t", "r" => "\r" }.freeze
 
       module_function
 
-      def parse(text)
+      def parse(text, keep: nil, max_tokens: nil, kept: nil)
         scanner = StringScanner.new(text)
         stack = [ [] ]
+        tokens = 0
+        child_start = 0
         until scanner.eos?
           break unless scanner.scan(TOKEN)
 
+          tokens += 1
+          raise TooLarge if max_tokens && tokens > max_tokens
+
           if scanner[1]
+            child_start = tokens if stack.size == 2
             stack.push([])
           elsif scanner[2]
             raise NotASchematic, "unbalanced parentheses" if stack.size < 2
 
             list = stack.pop
+            # stack.size == 2: +list+ is a direct child of the root list.
+            if keep && stack.size == 2
+              next unless keep.include?(list.first)
+
+              if kept
+                kept[:left] -= tokens - child_start
+                raise TooLarge if kept[:left].negative?
+              end
+            end
+
             stack.last << list
           elsif scanner[3]
             stack.last << scanner[3].gsub(/\\(.)/m) { ESCAPES.fetch(::Regexp.last_match(1), ::Regexp.last_match(1)) }
