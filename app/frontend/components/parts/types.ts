@@ -129,6 +129,19 @@ export interface PartListPagination {
   total: number
 }
 
+// A CSV import running in the background (PartImport#as_status_json).
+export interface PartImportStatus {
+  id: number
+  filename: string
+  status: 'queued' | 'running' | 'done' | 'failed'
+  total_rows: number
+  processed_rows: number
+  created: number
+  updated: number
+  skipped: number
+  message: string | null
+}
+
 export interface PartsIndexProps {
   // Only the current page of matching parts.
   parts: Part[]
@@ -158,4 +171,6 @@ export interface PartsIndexProps {
   // Groups of parts PartDuplicates pairs (the Duplicates button shows when > 0).
   /** Deferred: undefined until the page has loaded it. */
   duplicate_groups_count?: number
+  // The current user's latest CSV import not seen to its end yet.
+  part_import: PartImportStatus | null
 }

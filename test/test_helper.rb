@@ -40,6 +40,18 @@ module ActiveSupport
       singleton.send(:define_method, name, original)
     end
 
+    # Temporarily gives a constant another value (a size limit, say), for a
+    # test that would otherwise need a huge fixture.
+    def stub_const(mod, name, value)
+      original = mod.const_get(name)
+      mod.send(:remove_const, name)
+      mod.const_set(name, value)
+      yield
+    ensure
+      mod.send(:remove_const, name)
+      mod.const_set(name, original)
+    end
+
     # Runs the block with email verification (config.x.email_verification) on
     # or off, as an instance with or without SMTP would.
     def with_email_verification(enabled)

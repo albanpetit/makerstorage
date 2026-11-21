@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_24_113600) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_21_170000) do
   create_table "active_storage_attachments", force: :cascade do |t|
     t.bigint "blob_id", null: false
     t.datetime "created_at", null: false
@@ -320,6 +320,26 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_24_113600) do
     t.index ["other_part_id"], name: "index_part_duplicate_dismissals_on_other_part_id"
     t.index ["part_id", "other_part_id"], name: "index_part_duplicate_dismissals_on_pair", unique: true
     t.index ["part_id"], name: "index_part_duplicate_dismissals_on_part_id"
+  end
+
+  create_table "part_imports", force: :cascade do |t|
+    t.integer "organization_id", null: false
+    t.integer "user_id"
+    t.string "filename", null: false
+    t.string "file_token", null: false
+    t.string "status", default: "queued", null: false
+    t.integer "total_rows", default: 0, null: false
+    t.integer "processed_rows", default: 0, null: false
+    t.integer "created_count", default: 0, null: false
+    t.integer "updated_count", default: 0, null: false
+    t.integer "skipped_count", default: 0, null: false
+    t.string "error"
+    t.datetime "seen_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["organization_id", "user_id", "created_at"], name: "idx_on_organization_id_user_id_created_at_37d6815f72"
+    t.index ["organization_id"], name: "index_part_imports_on_organization_id"
+    t.index ["user_id"], name: "index_part_imports_on_user_id"
   end
 
   create_table "part_parameters", force: :cascade do |t|
@@ -643,6 +663,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_24_113600) do
   add_foreign_key "part_alternatives", "parts", column: "alternative_part_id"
   add_foreign_key "part_duplicate_dismissals", "parts"
   add_foreign_key "part_duplicate_dismissals", "parts", column: "other_part_id"
+  add_foreign_key "part_imports", "organizations"
+  add_foreign_key "part_imports", "users"
   add_foreign_key "part_parameters", "parameter_definitions"
   add_foreign_key "part_parameters", "parts"
   add_foreign_key "part_storages", "parts"

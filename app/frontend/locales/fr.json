@@ -615,6 +615,7 @@
   "Import lines": "Importer les lignes",
   "Import order": "Importer une commande",
   "Imported": "Importé",
+  "Importing {file}…": "Import de {file}…",
   "Importing a placed DigiKey order acts on behalf of your account, so it needs a one-time authorization. Your DigiKey app's callback URL must be set to {url}.": "Importer une commande DigiKey passée agit au nom de votre compte et demande donc une autorisation unique. L’URL de rappel de votre application DigiKey doit être {url}.",
   "In": "Entrée",
   "In category templates": "Dans des gabarits de catégorie",

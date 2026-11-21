@@ -47,6 +47,8 @@ class Organization < ApplicationRecord
   # Last: deleting an organization writes no events (see #destroy), but this
   # clears any the cascade above would leave behind.
   has_many :activity_events, dependent: :delete_all
+  # CSV imports' progress (PartImport): bookkeeping, not data.
+  has_many :part_imports, dependent: :delete_all
 
   # Active Storage
   has_one_attached :logo
