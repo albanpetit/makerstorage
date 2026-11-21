@@ -19,6 +19,22 @@ class ScansControllerTest < ActionDispatch::IntegrationTest
     assert_empty inertia_props["recent_scans"]
   end
 
+  test "a scan from the page reloads only its result, without the recent scans" do
+    user = create_user
+    part = create_part(organization: user.organizations.first, barcode: "SCAN-ME")
+    sign_in user
+
+    get scan_path(code: "SCAN-ME"), headers: {
+      "X-Inertia" => "true", "X-Inertia-Version" => ViteRuby.digest,
+      "X-Inertia-Partial-Component" => "scans/index", "X-Inertia-Partial-Data" => "code,result,preferred_location_id,flash"
+    }
+
+    props = response.parsed_body["props"]
+    assert_equal part.id, props.dig("result", "part", "id")
+    assert_not props.key?("recent_scans")
+    assert_not props.key?("today_count")
+  end
+
   test "index finds a part by barcode case-insensitively with locations sorted by quantity" do
     user = create_user
     org = user.organizations.first

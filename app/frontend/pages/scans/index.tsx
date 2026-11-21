@@ -145,6 +145,9 @@ export default function ScansIndex({ code: serverCode, result: serverResult, rec
     router.get('/scan', zoneId ? { code: raw, zone: zoneId } : { code: raw }, {
       preserveState: true,
       preserveScroll: true,
+      // Only what a scan changes: the server skips the recent scans, the
+      // day's count and the shared props, so the answer comes back sooner.
+      only: [ 'code', 'result', 'preferred_location_id', 'flash' ],
       onSuccess: () => setLocalScan(null),
       onNetworkError: () => {
         offline.markUnreachable()
