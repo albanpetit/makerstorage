@@ -67,6 +67,17 @@ class McpServerTest < ActiveSupport::TestCase
     assert call("search_parts", "query" => "Resistor", "limit" => 1)[:truncated]
   end
 
+  test "search_parts without Ruby-side filters loads only the page asked for" do
+    data = call("search_parts", "query" => "Resistor", "limit" => 1)
+    assert_equal 1, data[:parts].size
+    assert data[:truncated]
+    assert_equal call("search_parts", "query" => "Resistor")[:parts].size, data[:total_matches]
+
+    queries = count_queries { call("search_parts", "limit" => 1) }
+    3.times { create_part(organization: @org, category: @org.categories.first) }
+    assert_operator count_queries { call("search_parts", "limit" => 1) }, :<=, queries
+  end
+
   test "search_parts never returns another organization's parts" do
     assert_empty call("search_parts", "query" => "SECRET")[:parts]
     assert_raises_tool_error { call("get_part", "reference" => "SECRET-10K") }

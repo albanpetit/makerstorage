@@ -24,6 +24,17 @@ class McpControllerTest < ActionDispatch::IntegrationTest
     assert_equal [ "Theirs 10k" ], result.dig("structuredContent", "parts").map { |part| part["name"] }
   end
 
+  test "calls are limited per grant" do
+    McpController::RATE_LIMIT.times { rpc("tools/list") }
+
+    post "/mcp", params: { jsonrpc: "2.0", id: 1, method: "tools/list" }.to_json, headers: headers_for(@token)
+    assert_response :too_many_requests
+
+    # Another grant isn't affected.
+    other = connect_mcp_client(user: @user, organization: @org)[:access_token]
+    assert rpc("tools/list", {}, token: other)
+  end
+
   test "a viewer can read with the read-only tools" do
     token = connect_mcp_client(user: @user, organization: @other_org)[:access_token]
     assert rpc("tools/call", { name: "inventory_overview", arguments: {} }, token: token)["structuredContent"]
