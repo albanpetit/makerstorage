@@ -74,6 +74,13 @@ class OauthAuthorization < ApplicationRecord
   # Trades a refresh token for a new token pair, retiring the old one.
   def self.refresh!(client:, refresh_token:)
     authorization = find_by(refresh_token_digest: digest(refresh_token), oauth_client: client) if refresh_token.present?
+    if authorization.nil? && refresh_token.present?
+      reused = find_by(previous_refresh_token_digest: digest(refresh_token), oauth_client: client)
+      if reused
+        reused.destroy
+        raise InvalidGrant, "refresh token already used"
+      end
+    end
     raise InvalidGrant, "unknown refresh token" if authorization.nil?
     raise InvalidGrant, "refresh token expired" if authorization.refresh_token_expires_at.past?
     raise InvalidGrant, "access revoked" unless authorization.still_allowed?
@@ -139,6 +146,7 @@ class OauthAuthorization < ApplicationRecord
       code_challenge: nil, code_expires_at: nil,
       access_token_digest: self.class.digest(access_token), access_token_expires_at: now + ACCESS_TOKEN_TTL,
       refresh_token_digest: self.class.digest(refresh_token), refresh_token_expires_at: now + REFRESH_TOKEN_TTL,
+      previous_refresh_token_digest: refresh_token_digest,
       updated_at: now
     }
 

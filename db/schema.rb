@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_21_160000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_21_161000) do
   create_table "active_storage_attachments", force: :cascade do |t|
     t.bigint "blob_id", null: false
     t.datetime "created_at", null: false
@@ -159,10 +159,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_21_160000) do
     t.datetime "last_used_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "previous_refresh_token_digest"
     t.index ["access_token_digest"], name: "index_oauth_authorizations_on_access_token_digest", unique: true
     t.index ["code_digest"], name: "index_oauth_authorizations_on_code_digest", unique: true
     t.index ["oauth_client_id"], name: "index_oauth_authorizations_on_oauth_client_id"
     t.index ["organization_id"], name: "index_oauth_authorizations_on_organization_id"
+    t.index ["previous_refresh_token_digest"], name: "index_oauth_authorizations_on_previous_refresh_token_digest"
     t.index ["refresh_token_digest"], name: "index_oauth_authorizations_on_refresh_token_digest", unique: true
     t.index ["user_id"], name: "index_oauth_authorizations_on_user_id"
   end
