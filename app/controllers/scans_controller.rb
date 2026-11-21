@@ -23,8 +23,9 @@ class ScansController < ApplicationController
       # Set when a part is opened from a scanned zone's contents, so the count
       # targets that zone rather than the part's largest stock.
       preferred_location_id: current_organization.storage_locations.find_by(id: params[:zone])&.id,
-      recent_scans: recent_scans,
-      today_count: scanner_movements.where(created_at: Time.current.all_day).count,
+      # Lazy: a scan only reloads the props above (see the page's lookupCode).
+      recent_scans: -> { recent_scans },
+      today_count: -> { scanner_movements.where(created_at: Time.current.all_day).count },
       allow_negative_stock: current_organization.allow_negative_stock
     }
   end
