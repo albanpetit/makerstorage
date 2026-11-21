@@ -13,7 +13,8 @@ describe('labelCodeForPart', () => {
   })
 
   it('falls back to the record id, never the MPN (several parts can share one)', () => {
-    expect(labelCodeForPart({ ...part, mpn: 'RC0603' })).toBe('part:7')
+    const withMpn = { ...part, mpn: 'RC0603' }
+    expect(labelCodeForPart(withMpn)).toBe('part:7')
   })
 })
 
