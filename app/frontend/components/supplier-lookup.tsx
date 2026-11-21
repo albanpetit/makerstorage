@@ -22,6 +22,8 @@ export interface LookupResult {
   price_breaks: { quantity: number; unit_price: string }[]
   rohs_compliant: boolean
   datasheet_url: string | null
+  // What the form sends back for the server to fetch the datasheet (signed).
+  datasheet_token: string | null
   image_url: string | null
   product_url: string | null
   supplier_sku: string | null

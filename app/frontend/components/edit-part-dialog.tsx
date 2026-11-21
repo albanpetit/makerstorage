@@ -64,8 +64,8 @@ export function EditPartDialog({
 
   // Datasheet/image URLs from a chosen catalog match, downloaded + attached
   // server-side on save.
-  const [attach, setAttach] = useState<{ datasheet_url: string | null; image_url: string | null }>({
-    datasheet_url: null,
+  const [attach, setAttach] = useState<{ datasheet_token: string | null; image_url: string | null }>({
+    datasheet_token: null,
     image_url: null,
   })
 
@@ -126,7 +126,7 @@ export function EditPartDialog({
   // payload right before it goes over the wire.
   form.transform((payload) => ({
     ...payload,
-    datasheet_url: attach.datasheet_url,
+    datasheet_token: attach.datasheet_token,
     image_url: attach.image_url,
     part: {
       ...partPayload(payload.part),
@@ -142,7 +142,7 @@ export function EditPartDialog({
     suppliersController.reset()
     setDetailsOpen(false)
     setSuppliersOpen(false)
-    setAttach({ datasheet_url: null, image_url: null })
+    setAttach({ datasheet_token: null, image_url: null })
     setImageFile(null)
     setCurrentImageUrl(null)
     setLoadError('')
@@ -151,7 +151,7 @@ export function EditPartDialog({
   // Prefill the form from a chosen catalog match.
   const applyResult = (result: LookupResult) => {
     setPart(lookupResultPatch(result, data.part))
-    setAttach({ datasheet_url: result.datasheet_url, image_url: result.image_url })
+    setAttach({ datasheet_token: result.datasheet_token, image_url: result.image_url })
     setDetailsOpen(true)
     suppliersController.applySupplierFromResult(result, () => setSuppliersOpen(true))
   }

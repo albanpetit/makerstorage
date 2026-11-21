@@ -126,8 +126,8 @@ interface EditPartProps {
 export default function EditPart({ part, categories, footprints, suppliers, tags, supplier_lookup_enabled, ipn_manual_entry }: EditPartProps) {
   const [showAddSupplier, setShowAddSupplier] = useState(false)
   // Datasheet/image URLs from a catalog match, downloaded + attached server-side.
-  const [attach, setAttach] = useState<{ datasheet_url: string | null; image_url: string | null }>({
-    datasheet_url: null,
+  const [attach, setAttach] = useState<{ datasheet_token: string | null; image_url: string | null }>({
+    datasheet_token: null,
     image_url: null,
   })
 
@@ -165,7 +165,7 @@ export default function EditPart({ part, categories, footprints, suppliers, tags
   form.transform((payload) => ({
     ...payload,
     part: partPayload(payload.part),
-    datasheet_url: attach.datasheet_url,
+    datasheet_token: attach.datasheet_token,
     image_url: attach.image_url,
   }))
 
@@ -186,7 +186,7 @@ export default function EditPart({ part, categories, footprints, suppliers, tags
       unit_price: result.unit_price || data.part.unit_price,
       rohs_compliant: result.rohs_compliant || data.part.rohs_compliant,
     })
-    setAttach({ datasheet_url: result.datasheet_url, image_url: result.image_url })
+    setAttach({ datasheet_token: result.datasheet_token, image_url: result.image_url })
   }
 
   const newSupplierForm = useForm({
@@ -205,7 +205,7 @@ export default function EditPart({ part, categories, footprints, suppliers, tags
     e.preventDefault()
     form.put(`/parts/${part.id}`, {
       // Clear queued attachments so a later, unrelated save doesn't re-download them.
-      onSuccess: () => setAttach({ datasheet_url: null, image_url: null }),
+      onSuccess: () => setAttach({ datasheet_token: null, image_url: null }),
     })
   }
 
@@ -265,7 +265,7 @@ export default function EditPart({ part, categories, footprints, suppliers, tags
             <SupplierLookup
               defaultQuery={data.part.mpn}
               onApply={applyResult}
-              attached={{ datasheet: !!attach.datasheet_url, image: !!attach.image_url }}
+              attached={{ datasheet: !!attach.datasheet_token, image: !!attach.image_url }}
             />
           )}
 

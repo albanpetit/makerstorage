@@ -92,8 +92,8 @@ export function AddPartDialog({
 
   // Datasheet/image URLs from the chosen catalog match, downloaded + attached
   // server-side on create.
-  const [attach, setAttach] = useState<{ datasheet_url: string | null; image_url: string | null }>({
-    datasheet_url: null,
+  const [attach, setAttach] = useState<{ datasheet_token: string | null; image_url: string | null }>({
+    datasheet_token: null,
     image_url: null,
   })
 
@@ -148,7 +148,7 @@ export function AddPartDialog({
   // before it goes over the wire.
   form.transform((payload) => ({
     ...payload,
-    datasheet_url: datasheetFile ? null : attach.datasheet_url,
+    datasheet_token: datasheetFile ? null : attach.datasheet_token,
     image_url: attach.image_url,
     ...(datasheetFile ? { datasheet_file: datasheetFile } : {}),
     ...(activePrefill ? { return_to: 'scan' } : {}),
@@ -167,7 +167,7 @@ export function AddPartDialog({
     suppliersController.reset()
     setDetailsOpen(false)
     setSuppliersOpen(false)
-    setAttach({ datasheet_url: null, image_url: null })
+    setAttach({ datasheet_token: null, image_url: null })
     setImageFile(null)
     setDatasheetFile(null)
     setActivePrefill(null)
@@ -176,7 +176,7 @@ export function AddPartDialog({
   // Prefill the form from a chosen catalog match.
   const applyResult = (result: LookupResult) => {
     setPart(lookupResultPatch(result, data.part))
-    setAttach({ datasheet_url: result.datasheet_url, image_url: result.image_url })
+    setAttach({ datasheet_token: result.datasheet_token, image_url: result.image_url })
     setDetailsOpen(true)
     suppliersController.applySupplierFromResult(result, () => setSuppliersOpen(true))
   }
@@ -209,7 +209,7 @@ export function AddPartDialog({
     const photo = files.find((file) => file.type.startsWith('image/'))
     if (photo && !imageFile && !attach.image_url) setImageFile(photo)
     const pdf = files.find((file) => file.type === 'application/pdf')
-    if (pdf && !attach.datasheet_url) setDatasheetFile(pdf)
+    if (pdf && !attach.datasheet_token) setDatasheetFile(pdf)
     setDetailsOpen(true)
   }
 

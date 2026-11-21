@@ -109,7 +109,7 @@ export interface PartFormBodyProps {
   // A part number to look up as soon as the form shows (from a scanned label).
   autoLookup?: string | null
   onApplyLookup: (result: LookupResult) => void
-  attach: { datasheet_url: string | null; image_url: string | null }
+  attach: { datasheet_token: string | null; image_url: string | null }
 
   // Image upload
   imagePreview: string | null
@@ -241,7 +241,7 @@ export function PartFormBody({
           defaultQuery={part.mpn}
           autoQuery={autoLookup}
           onApply={onApplyLookup}
-          attached={{ datasheet: !!attach.datasheet_url, image: !!attach.image_url }}
+          attached={{ datasheet: !!attach.datasheet_token, image: !!attach.image_url }}
         />
       )}
 

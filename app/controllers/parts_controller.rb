@@ -202,7 +202,7 @@ class PartsController < ApplicationController
     return render(json: { error: t("flash.parts.enter_a_part_number_to_search") }, status: :unprocessable_entity) if mpn.blank?
 
     results = SupplierCatalog.lookup(current_organization, mpn: mpn)
-    render json: { results: results.map(&:as_json) }
+    render json: { results: results.map { |result| result.as_json.merge(datasheet_token: datasheet_token_for(result.datasheet_url)) } }
   rescue SupplierCatalog::NotConfiguredError
     render json: { error: t("flash.parts.no_supplier_catalog_is_configured_add") }, status: :unprocessable_entity
   rescue SupplierCatalog::LookupError => e
@@ -658,9 +658,35 @@ class PartsController < ApplicationController
   # client. Instead we persist the source URL (see create/update) and hotlink it
   # from the browser, which is far more likely to be allowed. A manually uploaded
   # image takes precedence over the hotlink (see #part_thumbnail_url).
+  #
+  # Only a URL a catalog lookup returned is fetched: the lookup hands it out
+  # signed (#datasheet_token_for), so a form can't make the server download
+  # any address it likes.
   def attach_remote_datasheet(part)
-    datasheet_url = params[:datasheet_url].presence
+    datasheet_url = verified_datasheet_url(params[:datasheet_token])
     AttachRemotePartAssetsJob.perform_later(part, datasheet_url: datasheet_url) if datasheet_url
+  end
+
+  # How long the add-part form may take to send a looked-up datasheet back.
+  DATASHEET_TOKEN_TTL = 1.day
+
+  def datasheet_token_for(url)
+    return nil if url.blank?
+
+    datasheet_verifier.generate(url, purpose: datasheet_token_purpose, expires_in: DATASHEET_TOKEN_TTL)
+  end
+
+  def verified_datasheet_url(token)
+    datasheet_verifier.verified(token, purpose: datasheet_token_purpose) if token.is_a?(String) && token.present?
+  end
+
+  def datasheet_verifier
+    Rails.application.message_verifier("supplier_datasheet")
+  end
+
+  # Tied to the organization: a token from one lookup can't be replayed in another.
+  def datasheet_token_purpose
+    "datasheet-#{current_organization.id}"
   end
 
   # What a scanned supplier label knows about a part that isn't in the
