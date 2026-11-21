@@ -215,7 +215,8 @@ class LoansController < ApplicationController
       id: loan.id,
       reference: loan.reference,
       borrower_name: loan.borrower_name,
-      borrower_contact: loan.borrower_contact,
+      # Personal data: members who can't edit loans don't need it.
+      borrower_contact: current_user.writer_of?(current_organization) ? loan.borrower_contact : nil,
       borrower_is_member: loan.borrower_id.present?,
       lent_by_name: loan.lent_by&.display_name,
       status: loan.status(today),

@@ -8,7 +8,9 @@
 # stored, so extending a loan or a time zone change needs no bookkeeping.
 class Loan < ApplicationRecord
   # Activity log (Auditable).
-  audited ignore: %i[lent_by_id borrower_id]
+  # The borrower's email/phone is logged as "changed" only: the log outlives
+  # the contact (PurgePersonalDataJob clears it a year after closing).
+  audited ignore: %i[lent_by_id borrower_id], secret: %i[borrower_contact]
 
   include GeneratedReference
 

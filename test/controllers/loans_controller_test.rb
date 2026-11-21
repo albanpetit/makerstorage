@@ -227,8 +227,20 @@ class LoansControllerTest < ActionDispatch::IntegrationTest
     assert_equal "Extended", loan.notes
   end
 
+  test "the borrower's contact is logged as changed, without its value" do
+    loan = lend(borrower_name: "Alice")
+    sign_in @user
+
+    patch loan_path(loan), params: { loan: { borrower_contact: "alice@example.com" } }
+
+    event = ActivityEvent.where(subject_type: "Loan", subject_id: loan.id, action: "update").last
+    assert event.details.key?("borrower_contact")
+    assert_not_includes event.details.to_json, "alice@example.com"
+  end
+
   test "a viewer sees loans but can't lend, return or edit" do
     loan = lend(borrower_name: "Alice")
+    loan.update_columns(borrower_contact: "alice@example.com")
     viewer = create_user
     OrganizationMembership.create!(organization: @org, user: viewer, role: "viewer")
     sign_in viewer
@@ -238,6 +250,8 @@ class LoansControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     get loan_path(loan)
     assert_response :success
+    # Personal data stays with the members who manage loans.
+    assert_nil inertia_props["loan"]["borrower_contact"]
 
     assert_no_difference -> { Loan.count } do
       post loans_path, params: { loan: { borrower_name: "A", lines: [ { part_id: @iron.id, storage_location_id: @shelf.id, quantity: 1 } ] } }
