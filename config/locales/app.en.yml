@@ -166,6 +166,10 @@ en:
       into_itself: An organization can't be merged into itself.
       personal: A personal organization can't be merged into another one.
       source_not_deleted: '%{name} could not be deleted once its data was moved.'
+    part_import:
+      file_missing: The file was lost before it could be read (the server restarted). Import it again.
+      unexpected: Something went wrong during the import. The rows read so far are kept.
+      unreadable: Could not parse that file as CSV.
     part_merge:
       failed: 'The parts could not be merged: %{error}'
       other_organization: Parts of another organization can't be merged.
@@ -456,7 +460,11 @@ en:
       choose_at_least_one_tag: Choose at least one tag.
       could_not_parse_that_file_as: Could not parse that file as CSV.
       enter_a_part_number_to_search: Enter a part number to search.
+      import_started:
+        one: Importing %{count} row in the background. You can keep working.
+        other: Importing %{count} rows in the background. You can keep working.
       import_complete_created_updated_skipped: 'Import complete: %{created} created, %{updated} updated, %{skipped} skipped.'
+      nothing_to_import: That file holds no row to import.
       no_supplier_catalog_is_configured_add: No supplier catalog is configured. Add a Mouser or DigiKey key, or turn on LCSC, in Settings.
       no_supplier_was_assigned: 'No supplier was assigned: %{errors}.'
       part_created_successfully: Part created successfully.
@@ -465,6 +473,7 @@ en:
       please_choose_a_csv_file_to: Please choose a CSV file to import.
       quantity_is_too_large: Quantity is too large
       select_at_least_one_part: Select at least one part.
+      too_many_import_rows: 'That file holds %{count} rows: import at most %{max} at a time.'
       too_many_ai_reads: Too many AI reads in a short time. Please wait a few minutes.
       tags:
         one: '%{count} tag'

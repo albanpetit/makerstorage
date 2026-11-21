@@ -114,7 +114,7 @@ class ActivityControllerTest < ActionDispatch::IntegrationTest
     file.rewind
 
     assert_difference -> { @org.activity_events.count }, 1 do
-      post import_parts_path, params: { file: Rack::Test::UploadedFile.new(file.path, "text/csv") }
+      perform_enqueued_jobs { post import_parts_path, params: { file: Rack::Test::UploadedFile.new(file.path, "text/csv") } }
     end
     event = @org.activity_events.newest_first.first
     assert_equal "import", event.action

@@ -667,12 +667,12 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
     CSV
 
     assert_difference -> { Part.count } => 1, -> { Category.count } => 1 do
-      post import_parts_path, params: { file: csv_upload(csv) }
+      import_csv(csv)
     end
 
     assert_redirected_to parts_path
     follow_redirect!
-    assert_match(/1 created, 0 updated, 0 skipped/, flash[:notice])
+    assert_match(/1 created, 0 updated, 0 skipped/, last_import_message)
 
     part = Part.find_by(mpn: "RES-10K")
     assert_equal "Resistor 10k", part.name
@@ -692,10 +692,10 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
 
     sign_in user
     assert_no_difference "Part.count" do
-      post import_parts_path, params: { file: csv_upload(csv) }
+      import_csv(csv)
     end
 
-    assert_match(/0 created, 1 updated, 0 skipped/, flash[:notice])
+    assert_match(/0 created, 1 updated, 0 skipped/, last_import_message)
     assert_equal "Resistor 10k", Part.find_by(mpn: "RES-10K").name
   end
 
@@ -712,10 +712,10 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
 
     sign_in user
     assert_no_difference "Part.count" do
-      post import_parts_path, params: { file: csv_upload(csv) }
+      import_csv(csv)
     end
 
-    assert_match(/0 created, 1 updated, 0 skipped/, flash[:notice])
+    assert_match(/0 created, 1 updated, 0 skipped/, last_import_message)
     assert_equal "Resistor 10k", part.reload.name
   end
 
@@ -730,10 +730,10 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
     CSV
 
     assert_no_difference "Part.count" do
-      post import_parts_path, params: { file: csv_upload(csv) }
+      import_csv(csv)
     end
 
-    assert_match(/0 created, 0 updated, 2 skipped/, flash[:notice])
+    assert_match(/0 created, 0 updated, 2 skipped/, last_import_message)
   end
 
   test "import recognizes French BOM-style column synonyms" do
@@ -746,7 +746,7 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
     CSV
 
     assert_difference -> { Part.count } => 1, -> { StorageLocation.count } => 1 do
-      post import_parts_path, params: { file: csv_upload(csv) }
+      import_csv(csv)
     end
 
     part = Part.find_by(sku: "RES-10K")
@@ -769,10 +769,10 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
     CSV
 
     sign_in user
-    post import_parts_path, params: { file: csv_upload(csv) }
+    import_csv(csv)
 
     assert_redirected_to parts_path
-    assert_match(/1 created, 0 updated, 1 skipped/, flash[:notice])
+    assert_match(/1 created, 0 updated, 1 skipped/, last_import_message)
     assert org.parts.exists?(mpn: "GOOD-1")
     assert_not org.parts.exists?(mpn: "BAD-1"), "the part of a refused row must be rolled back too"
   end
@@ -783,9 +783,9 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
     csv = "Désignation;Catégorie;MPN;Quantité;Emplacement\r\nRésistance 10k;Résistances;RC-10K;12;Étagère A\r\n"
 
     sign_in user
-    post import_parts_path, params: { file: csv_upload(csv.encode("Windows-1252").b) }
+    import_csv(csv.encode("Windows-1252").b)
 
-    assert_match(/1 created/, flash[:notice])
+    assert_match(/1 created/, last_import_message)
     part = org.parts.find_by!(mpn: "RC-10K")
     assert_equal "Résistance 10k", part.name
     assert_equal "Résistances", part.category.name
@@ -807,7 +807,7 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
 
     sign_in user
     assert_no_difference "StorageLocation.count" do
-      post import_parts_path, params: { file: csv_upload(csv) }
+      import_csv(csv)
     end
 
     assert_equal 40, PartStorage.find_by(part: part, storage_location: location).quantity
@@ -828,7 +828,7 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
 
     sign_in user
     assert_difference -> { StockMovement.where(part: part).count } => 1 do
-      post import_parts_path, params: { file: csv_upload(csv) }
+      import_csv(csv)
     end
 
     movement = StockMovement.where(part: part).order(:created_at, :id).last
@@ -853,7 +853,7 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
 
     sign_in user
     assert_no_difference -> { StockMovement.count } do
-      post import_parts_path, params: { file: csv_upload(csv) }
+      import_csv(csv)
     end
   end
 
@@ -874,7 +874,7 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
     CSV
 
     sign_in user
-    post import_parts_path, params: { file: csv_upload(csv) }
+    import_csv(csv)
 
     part.reload
     assert_equal "Resistor 10k", part.name
@@ -899,7 +899,7 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
     CSV
 
     sign_in user
-    post import_parts_path, params: { file: csv_upload(csv) }
+    import_csv(csv)
 
     part.reload
     assert_equal 0.25, part.unit_price.to_f
@@ -922,7 +922,7 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
 
     sign_in user
     assert_no_difference -> { StockMovement.count } do
-      post import_parts_path, params: { file: csv_upload(csv) }
+      import_csv(csv)
     end
     assert_equal 40, part.reload.total_quantity
   end
@@ -943,10 +943,10 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
 
     sign_in user
     assert_no_difference [ "StockMovement.count", "Part.count" ] do
-      post import_parts_path, params: { file: csv_upload(csv) }
+      import_csv(csv)
     end
     assert_equal 40, part.reload.total_quantity
-    assert_match "2 skipped", flash[:notice]
+    assert_match "2 skipped", last_import_message
   end
 
   test "import reuses an existing category whatever its case" do
@@ -961,7 +961,7 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
 
     sign_in user
     assert_no_difference -> { Category.count } do
-      post import_parts_path, params: { file: csv_upload(csv) }
+      import_csv(csv)
     end
     assert_equal category, org.parts.find_by(name: "Resistor 10k").category
   end
@@ -984,10 +984,10 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
 
     sign_in user
     assert_no_difference -> { StorageLocation.count } do
-      post import_parts_path, params: { file: csv_upload(csv) }
+      import_csv(csv)
     end
 
-    assert_match(/2 created, 0 updated, 1 skipped/, flash[:notice])
+    assert_match(/2 created, 0 updated, 1 skipped/, last_import_message)
     assert_equal 4, PartStorage.find_by(part: org.parts.find_by(mpn: "P-1"), storage_location: drawer_a).quantity
     assert_equal 6, PartStorage.find_by(part: org.parts.find_by(mpn: "P-2"), storage_location: drawer_b).quantity
     assert_nil org.parts.find_by(mpn: "P-3")
@@ -1006,7 +1006,7 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
       count = 0
       counter = ->(*, payload) { count += 1 if payload[:sql] =~ /\ASELECT.*FROM "storage_locations"/m && !payload[:cached] }
       ActiveSupport::Notifications.subscribed(counter, "sql.active_record") do
-        post import_parts_path, params: { file: csv_upload(csv) }
+        import_csv(csv)
       end
       count
     end
@@ -1027,9 +1027,9 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
     CSV
 
     sign_in user
-    post import_parts_path, params: { file: csv_upload(csv) }
+    import_csv(csv)
 
-    assert_match(/1 created, 0 updated, 1 skipped/, flash[:notice])
+    assert_match(/1 created, 0 updated, 1 skipped/, last_import_message)
     bins = org.storage_locations.where(name: "New Bin")
     assert_equal 1, bins.count
     assert_equal 3, PartStorage.find_by(part: org.parts.find_by!(mpn: "OK-1"), storage_location: bins.first).quantity
@@ -1048,7 +1048,7 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
 
     sign_in user
     assert_no_difference [ "StorageLocation.count", "PartStorage.count" ] do
-      post import_parts_path, params: { file: csv_upload(csv) }
+      import_csv(csv)
     end
   end
 
@@ -1064,6 +1064,80 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
     end
 
     assert_match(/too large/i, flash[:alert])
+  end
+
+  test "import runs in the background and the page follows it to its end" do
+    user = create_user
+    org = user.organizations.first
+    sign_in user
+
+    assert_enqueued_with(job: PartCsvImportJob) do
+      post import_parts_path, params: { file: csv_upload("Name,Category,MPN\nResistor,Resistors,R-1\nCap,Capacitors,C-1\n") }
+    end
+    assert_redirected_to parts_path
+    assert_match(/2 rows/, flash[:notice])
+    part_import = org.part_imports.sole
+    assert_equal [ "queued", 2, user ], [ part_import.status, part_import.total_rows, part_import.user ]
+    assert File.exist?(part_import.file_path)
+
+    get parts_path
+    assert_equal part_import.id, inertia_props.dig("part_import", "id")
+
+    get import_status_parts_path(part_import), as: :json
+    assert_equal "queued", response.parsed_body["status"]
+    assert_nil part_import.reload.seen_at, "an unfinished import isn't marked seen"
+
+    perform_enqueued_jobs
+    assert_not File.exist?(part_import.file_path), "the file is deleted once read"
+    assert_equal 2, org.parts.count
+
+    get import_status_parts_path(part_import), as: :json
+    assert_equal "done", response.parsed_body["status"]
+    assert_match(/2 created, 0 updated, 0 skipped/, response.parsed_body["message"])
+    assert part_import.reload.seen_at
+
+    get parts_path
+    assert_nil inertia_props["part_import"], "a finished import is reported once"
+    assert_equal "import", org.activity_events.newest_first.first.action
+  end
+
+  test "import status is only visible to the user who started the import" do
+    user = create_user
+    org = user.organizations.first
+    other = create_user
+    OrganizationMembership.create!(organization: org, user: other, role: "member")
+    part_import = org.part_imports.create!(user: user, filename: "a.csv", total_rows: 1)
+
+    sign_in other
+    get import_status_parts_path(part_import), as: :json
+    assert_response :not_found
+  end
+
+  test "import status gives up on an import whose worker died" do
+    user = create_user
+    part_import = user.organizations.first.part_imports.create!(user: user, filename: "a.csv", total_rows: 1, status: "running")
+    part_import.update_column(:updated_at, (PartImport::STALLED_AFTER + 1.minute).ago)
+
+    sign_in user
+    get import_status_parts_path(part_import), as: :json
+    assert_equal "failed", response.parsed_body["status"]
+    assert_match(/went wrong/i, response.parsed_body["message"])
+  end
+
+  test "import refuses an empty sheet and one over the row cap" do
+    user = create_user
+    sign_in user
+
+    assert_no_enqueued_jobs(only: PartCsvImportJob) do
+      post import_parts_path, params: { file: csv_upload("Name,Category\n") }
+      assert_match(/no row to import/i, flash[:alert])
+
+      stub_const(PartImport, :MAX_ROWS, 2) do
+        post import_parts_path, params: { file: csv_upload("Name,Category\na,b\nc,d\ne,f\n") }
+      end
+      assert_match(/3 rows/, flash[:alert])
+    end
+    assert_empty PartImport.all
   end
 
   test "import redirects with an alert when no file is given" do
@@ -1846,6 +1920,16 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
     file.write(content)
     file.rewind
     Rack::Test::UploadedFile.new(file.path, "text/csv")
+  end
+
+  # Posts a CSV to the import and runs the background job it enqueues.
+  def import_csv(content)
+    perform_enqueued_jobs { post import_parts_path, params: { file: csv_upload(content) } }
+  end
+
+  # What the inventory page tells the user once the last import is over.
+  def last_import_message
+    PartImport.order(:id).last&.message
   end
 
   def inertia_props

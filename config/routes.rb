@@ -57,6 +57,7 @@ Rails.application.routes.draw do
   resources :parts, except: %i[new] do
     collection do
       post :import
+      get "imports/:id", action: :import_status, as: :import_status
       post :lookup
       post :extract
       post :rows

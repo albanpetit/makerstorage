@@ -16,6 +16,7 @@ import { PartDetailSheet } from '@/components/part-detail-sheet'
 import { BulkActions } from '@/components/parts/bulk-actions'
 import { exportCsv, fetchPartRows } from '@/components/parts/csv'
 import { toast } from 'sonner'
+import { ImportProgress } from '@/components/parts/import-progress'
 import { ImportPartsDialog } from '@/components/parts/import-parts-dialog'
 import { PartsFilterBar } from '@/components/parts/parts-filter-bar'
 import { PartsTable } from '@/components/parts/parts-table'
@@ -26,7 +27,7 @@ import { t, tn } from '@/lib/i18n'
 export default function PartsIndex({
   parts, filters: listFilters, pagination, facets, parameter_columns, total_count, total_units, matching_ids, part_identifiers,
   categories, footprints, suppliers, tags, storage_locations, supplier_lookup_enabled, ai_entry_enabled, ipn_manual_entry, bag_options, bag_boxes, open_add, add_prefill,
-  duplicate_groups_count,
+  duplicate_groups_count, part_import,
 }: PartsIndexProps) {
   const { canWrite } = usePermissions()
   const filters = usePartFilters(listFilters, facets)
@@ -123,6 +124,8 @@ export default function PartsIndex({
         <div className="px-5 pt-3 empty:pt-0">
           <FlashMessages />
         </div>
+
+        <ImportProgress key={part_import?.id ?? 'none'} initial={part_import} />
 
         <PartsFilterBar filters={filters} totalCount={total_count} />
 

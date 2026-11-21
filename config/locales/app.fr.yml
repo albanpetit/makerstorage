@@ -233,6 +233,10 @@ fr:
       into_itself: Une organisation ne peut pas être fusionnée avec elle-même.
       personal: Une organisation personnelle ne peut pas être fusionnée dans une autre.
       source_not_deleted: '%{name} n''a pas pu être supprimée une fois ses données déplacées.'
+    part_import:
+      file_missing: Le fichier a été perdu avant d’être lu (le serveur a redémarré). Importez-le à nouveau.
+      unexpected: Une erreur est survenue pendant l’import. Les lignes déjà lues sont conservées.
+      unreadable: Impossible de lire ce fichier comme un CSV.
     part_merge:
       failed: 'Les composants n’ont pas pu être fusionnés : %{error}'
       other_organization: Les composants d’une autre organisation ne peuvent pas être fusionnés.
@@ -523,7 +527,11 @@ fr:
       choose_at_least_one_tag: Choisissez au moins un tag.
       could_not_parse_that_file_as: Impossible de lire ce fichier comme un CSV.
       enter_a_part_number_to_search: Saisissez une référence à rechercher.
+      import_started:
+        one: Import de %{count} ligne en cours. Vous pouvez continuer à travailler.
+        other: Import de %{count} lignes en cours. Vous pouvez continuer à travailler.
       import_complete_created_updated_skipped: 'Import terminé : %{created} créé(s), %{updated} mis à jour, %{skipped} ignoré(s).'
+      nothing_to_import: Ce fichier ne contient aucune ligne à importer.
       no_supplier_catalog_is_configured_add: Aucun catalogue fournisseur n’est configuré. Ajoutez une clé Mouser ou DigiKey, ou activez LCSC, dans les Réglages.
       no_supplier_was_assigned: 'Aucun fournisseur n''a été affecté : %{errors}.'
       part_created_successfully: Composant créé.
@@ -532,6 +540,7 @@ fr:
       please_choose_a_csv_file_to: Choisissez un fichier CSV à importer.
       quantity_is_too_large: La quantité est trop grande
       select_at_least_one_part: Sélectionnez au moins un composant.
+      too_many_import_rows: 'Ce fichier contient %{count} lignes : importez-en au plus %{max} à la fois.'
       too_many_ai_reads: Trop de lectures par l’IA en peu de temps. Patientez quelques minutes.
       tags:
         one: '%{count} tag'

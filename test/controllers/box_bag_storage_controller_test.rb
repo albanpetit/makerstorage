@@ -96,7 +96,7 @@ class BoxBagStorageControllerTest < ActionDispatch::IntegrationTest
       Diode,#{@category.name},,
     CSV
 
-    post import_parts_path, params: { file: csv_upload(csv) }
+    perform_enqueued_jobs { post import_parts_path, params: { file: csv_upload(csv) } }
 
     assert_nil Part.find_by!(name: "Resistor 10k").bag
     assert_nil Part.find_by!(name: "Diode").bag
@@ -115,7 +115,7 @@ class BoxBagStorageControllerTest < ActionDispatch::IntegrationTest
       Cap 100n,#{@category.name},A-1,10
     CSV
 
-    post import_parts_path, params: { file: csv_upload(csv) }
+    perform_enqueued_jobs { post import_parts_path, params: { file: csv_upload(csv) } }
 
     assert_nil Part.find_by(name: "Cap 100n")
     assert_equal bag, holder.reload.bag

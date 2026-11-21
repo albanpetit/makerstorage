@@ -19,27 +19,11 @@ class PartsController < ApplicationController
   rate_limit to: 20, within: 10.minutes, only: :extract, by: -> { current_user.id }, store: AUTH_RATE_LIMIT_STORE,
              with: -> { render json: { error: t("flash.parts.too_many_ai_reads") }, status: :too_many_requests }
 
-  # Raised when an import row's location names several zones; skips the row.
-  class AmbiguousLocationError < StandardError; end
-  # Raised when an import row's quantity isn't a whole number; skips the row.
-  class InvalidQuantityError < StandardError; end
   # Raised when the add-part form's opening stock can't be recorded.
   class InitialStockError < StandardError; end
 
   # Purchase prices shown in the part detail's price history.
   PRICE_HISTORY_LIMIT = 50
-
-  # Part attribute => BomParser field for the optional CSV import columns.
-  IMPORTED_ATTRIBUTES = {
-    mpn: :mpn,
-    sku: :sku,
-    manufacturer: :manufacturer,
-    value: :value,
-    package_type: :package,
-    unit_price: :unit_price,
-    min_stock_threshold: :min_stock_threshold,
-    status: :status
-  }.freeze
 
   def index
     query = PartsIndexQuery.new(current_organization, params)
@@ -71,6 +55,8 @@ class PartsController < ApplicationController
       bag_boxes: bag_boxes,
       open_add: params[:new].present?,
       add_prefill: add_prefill,
+      # The user's import still running here, or finished but not yet reported.
+      part_import: current_organization.part_imports.where(user: current_user).unseen.order(:id).last&.as_status_json,
       # Compares every part of the organization: sent after the page has
       # rendered, so a big inventory doesn't wait on it.
       duplicate_groups_count: InertiaRails.defer { PartDuplicates.new(current_organization).count }
@@ -369,74 +355,42 @@ class PartsController < ApplicationController
     bulk_error(t("flash.parts.no_supplier_was_assigned", errors: e.record.errors.full_messages.to_sentence))
   end
 
+  # Starts a CSV import (PartCsvImport) in the background: the file is kept
+  # in tmp/imports/ for PartCsvImportJob, and the inventory page follows the
+  # import through #import_status.
   def import
     file = params[:file]
-    return redirect_to(parts_path, alert: t("flash.parts.please_choose_a_csv_file_to")) unless file
+    return redirect_to(parts_path, alert: t("flash.parts.please_choose_a_csv_file_to")) unless file.respond_to?(:path)
     return redirect_to(parts_path, alert: BomParser.too_large_message) if BomParser.too_large?(file)
 
-    created = 0
-    updated = 0
-    skipped = 0
-
-    begin
-      # One "import" event for the file, not one per part.
-      ActivityEvent.without_recording do
-        BomParser.each_row(file.path) do |row|
-          name = import_value(row, :name)
-          category_name = import_value(row, :category)
-
-          if name.blank? || category_name.blank?
-            skipped += 1
-            next
-          end
-
-          part = find_existing_part(row)
-          is_new = part.nil?
-
-          # One transaction per row: a row that fails anywhere (invalid category,
-          # part, location, or a stock level the ledger refuses) is skipped as a
-          # whole instead of leaving a half-imported part or aborting the file.
-          imported = ActiveRecord::Base.transaction do
-            part ||= current_organization.parts.build(min_stock_threshold: 0, status: "active", skip_bag_claim: true)
-            part.assign_attributes(name: name, category: import_category(category_name))
-            # Only what the sheet actually states: a column the file doesn't have,
-            # or a blank cell, leaves an existing part's value alone instead of
-            # wiping it (a re-import of a partial sheet must not erase data).
-            IMPORTED_ATTRIBUTES.each do |attribute, field|
-              value = import_value(row, field)
-              next if value.nil?
-
-              value = value.tr(",", ".") if attribute == :unit_price
-              part.assign_attributes(attribute => value)
-            end
-            part.save!
-            claim_import_bag(part, row)
-            assign_stock(part, row)
-            true
-          rescue ActiveRecord::RecordInvalid, ActiveRecord::RecordNotSaved, AmbiguousLocationError, InvalidQuantityError
-            raise ActiveRecord::Rollback
-          end
-
-          if imported
-            is_new ? created += 1 : updated += 1
-          else
-            # A zone the row created was rolled back with it: reload the zone
-            # index rather than hand a later row a zone that no longer exists.
-            @import_zones = nil
-            skipped += 1
-          end
-        end
-      end
+    rows = begin
+      PartCsvImport.count_rows(file.path)
     rescue CSV::MalformedCSVError
       return redirect_to(parts_path, alert: t("flash.parts.could_not_parse_that_file_as"))
     end
-
-    if created + updated > 0
-      ActivityEvent.record!(current_organization, "import",
-        details: { "file" => file.original_filename.to_s, "created" => created, "updated" => updated, "skipped" => skipped })
+    return redirect_to(parts_path, alert: t("flash.parts.nothing_to_import")) if rows.zero?
+    if rows > PartImport::MAX_ROWS
+      return redirect_to(parts_path, alert: t("flash.parts.too_many_import_rows", count: rows, max: PartImport::MAX_ROWS))
     end
 
-    redirect_to parts_path, notice: t("flash.parts.import_complete_created_updated_skipped", created: created, updated: updated, skipped: skipped)
+    PartImport.sweep(current_organization)
+    part_import = current_organization.part_imports.create!(
+      user: current_user, filename: File.basename(file.original_filename.to_s).presence || "import.csv", total_rows: rows
+    )
+    FileUtils.mkdir_p(PartImport::DIRECTORY)
+    FileUtils.cp(file.path, part_import.file_path)
+    PartCsvImportJob.perform_later(part_import)
+
+    redirect_to parts_path, notice: t("flash.parts.import_started", count: rows)
+  end
+
+  # Progress of one of the user's imports, polled by the inventory page. A
+  # finished import is reported once: it's then marked seen.
+  def import_status
+    part_import = current_organization.part_imports.where(user: current_user).find(params[:id])
+    part_import.give_up_if_stalled!
+    part_import.update_column(:seen_at, Time.current) if part_import.finished? && part_import.seen_at.nil?
+    render json: part_import.as_status_json
   end
 
   private
@@ -496,107 +450,6 @@ class PartsController < ApplicationController
     false
   end
 
-  # Returns the first present value among the synonym columns for +field+.
-  def import_value(row, field)
-    BomParser.value(row, field)
-  end
-
-  def assign_stock(part, row)
-    location_name = import_value(row, :location)
-    quantity = import_value(row, :quantity)
-    # A row naming a location without a quantity states nothing about stock:
-    # leave it as is rather than reading the missing value as zero and
-    # emptying the location.
-    return if location_name.blank? || quantity.nil?
-    # The quantity is the absolute stock to reach, so a cell like "n/a" or "~50"
-    # must not read as 0 (to_i) and empty the location: skip the row instead.
-    raise InvalidQuantityError unless quantity.match?(/\A\d+\z/)
-
-    location = import_location(location_name)
-
-    # The import "Quantity" is the absolute stock the sheet declares for this
-    # location. Reconcile it through the ledger rather than writing
-    # PartStorage.quantity directly: stock_movements is the single source of
-    # truth (PartStorage is maintained by StockMovement's callback), so a direct
-    # write would desync the movements "Stock After" running balance. Only the
-    # delta from the current level is recorded, as an adjustment.
-    target = Quantity.parse(quantity) || 0
-    current = PartStorage.find_by(part: part, storage_location: location)&.quantity || 0
-    delta = Quantity.sum(target, -current)
-    return if delta.zero?
-
-    StockMovement.create!(
-      organization: current_organization,
-      part: part,
-      storage_location: location,
-      user: current_user,
-      movement_type: "adjustment",
-      quantity_delta: delta,
-      reason: "Import"
-    )
-  end
-
-  # The sheet's category, matched regardless of case ("resistors" is the
-  # existing "Resistors", not a new near-duplicate), created when missing. A
-  # concurrent import creating the same one trips the unique index: use theirs.
-  def import_category(name)
-    find = -> { current_organization.categories.find_by("LOWER(name) = ?", name.downcase) }
-    find.call || current_organization.categories.create!(name: name)
-  rescue ActiveRecord::RecordNotUnique
-    find.call || raise
-  end
-
-  # Resolves the sheet's location cell to a zone: by its scanner code, by its
-  # full path ("Workshop > Cabinet A > Drawer 1"), or by its bare name when only
-  # one zone has it — all case-insensitively. Several zones sharing that name
-  # (a "Drawer 1" in two cabinets) can't be told apart, so the row is skipped
-  # rather than its stock landing in an arbitrary one. An unknown location is
-  # created as a top-level shelf.
-  def import_location(label)
-    key = label.downcase
-    zones = import_zones
-
-    match = zones[:by_code][key] || zones[:by_path][key]
-    return match if match
-
-    named = zones[:by_name].fetch(key, [])
-    raise AmbiguousLocationError if named.size > 1
-
-    named.first || current_organization.storage_locations.create!(name: label, location_type: "shelf").tap do |zone|
-      zones[:by_path][key] = zone
-      zones[:by_name][key] = [ zone ]
-    end
-  end
-
-  # The organization's zones indexed by lowercased code, full path, and name,
-  # loaded once per import instead of once per row.
-  def import_zones
-    @import_zones ||= begin
-      all = current_organization.storage_locations.to_a
-      paths = all.index_by(&:id)
-
-      {
-        by_code: all.select { |zone| zone.code.present? }.index_by { |zone| zone.code.downcase },
-        by_path: all.each_with_object({}) { |zone, index| index[zone.full_path(cache: paths).downcase] ||= zone },
-        by_name: all.group_by { |zone| zone.name.downcase }
-      }
-    end
-  end
-
-  def find_existing_part(row)
-    mpn = import_value(row, :mpn)
-    sku = import_value(row, :sku)
-
-    # Case-insensitive, like the per-organization uniqueness of these columns:
-    # otherwise a row differing only in case would be skipped as a duplicate
-    # instead of updating its part.
-    if mpn.present?
-      current_organization.parts.find_by("LOWER(mpn) = ?", mpn.downcase)
-    elsif sku.present?
-      current_organization.parts.find_by("LOWER(sku) = ?", sku.downcase)
-    end
-  end
-
   # The opening stock goes to the chosen zone, else (box & bag numbering) into
   # the bag the part just took.
   # Box & bag mode: a new part whose opening stock goes into a chosen zone takes
@@ -611,18 +464,6 @@ class PartsController < ApplicationController
     else
       part.skip_bag_claim = true
     end
-  end
-
-  # Import: a new part takes the bag its row's location names, when that's a
-  # free bag, and no other one (see Part#skip_bag_claim).
-  def claim_import_bag(part, row)
-    return unless current_organization.ipn_generation_mode == "box_bag" && part.bag_id.nil?
-
-    location_name = import_value(row, :location)
-    return if location_name.blank?
-
-    location = import_location(location_name)
-    part.update!(bag: location) if location.bag? && current_organization.free_bags(for_part: part).exists?(id: location.id)
   end
 
   def assign_initial_stock(part)
