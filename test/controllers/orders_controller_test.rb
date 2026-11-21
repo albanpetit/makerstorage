@@ -458,6 +458,158 @@ class OrdersControllerTest < ActionDispatch::IntegrationTest
   private
 
   # Stands in for a configured SupplierCatalog::Mouser order client.
+  test "create with a reference taken re-prompts" do
+    create_order(organization: @org, supplier: @supplier, reference: "PO-TAKEN")
+    sign_in @user
+
+    assert_no_difference -> { Order.count } do
+      post orders_path, params: { order: { supplier_id: @supplier.id, reference: "PO-TAKEN" } }
+    end
+    assert_redirected_to orders_path
+    assert flash[:alert].present?
+  end
+
+  test "update re-prompts on an invalid change" do
+    order = create_order(organization: @org, supplier: @supplier, status: "pending", reference: "PO-1")
+    sign_in @user
+
+    patch order_path(order), params: { order: { supplier_id: "" } }
+    assert_redirected_to order_path(order)
+    assert flash[:alert].present?
+    assert_equal @supplier, order.reload.supplier
+  end
+
+  test "advance refuses a received order" do
+    order = create_order(organization: @org, supplier: @supplier, status: "received", reference: "PO-1")
+    sign_in @user
+
+    patch advance_order_path(order)
+    assert_redirected_to order_path(order)
+    assert_match(/already received/i, flash[:alert])
+  end
+
+  test "receiving a line whose part has no zone names it instead of losing it" do
+    homeless = create_part(organization: @org, category: @category, name: "Nowhere")
+    order = create_order(organization: @org, supplier: @supplier, status: "shipped", reference: "PO-1")
+    order.order_lines.create!(part: homeless, quantity: 4)
+    sign_in @user
+
+    patch advance_order_path(order)
+    assert_equal "received", order.reload.status
+    assert flash[:notice].present?
+    assert_includes flash[:alert], homeless.reference
+  end
+
+  test "import_project, assign_storage and update refuse a closed order" do
+    project = create_project(organization: @org, reference: Project.next_reference(@org))
+    order = create_order(organization: @org, supplier: @supplier, status: "cancelled", reference: "PO-1")
+    sign_in @user
+
+    post import_project_order_path(order), params: { project_id: project.id, mode: "full" }
+    assert_match(/cancelled/i, flash[:alert])
+    post assign_storage_order_path(order), params: { storage_location_id: @location.id }
+    assert_match(/cancelled/i, flash[:alert])
+    assert_no_difference -> { OrderLine.count } do
+      patch order_path(order), params: { order: { notes: "changed" } }
+    end
+    assert_match(/cancelled/i, flash[:alert])
+  end
+
+  test "import_project with nothing to order says so" do
+    project = create_project(organization: @org, reference: Project.next_reference(@org))
+    project.project_lines.create!(part: nil, quantity: 2, match_type: "none", raw_reference: "UNKNOWN")
+    order = create_order(organization: @org, supplier: @supplier, status: "pending", reference: "PO-1")
+    sign_in @user
+
+    assert_no_difference -> { OrderLine.count } do
+      post import_project_order_path(order), params: { project_id: project.id, mode: "full" }
+    end
+    assert_match(/nothing to import/i, flash[:alert])
+  end
+
+  test "assign_storage refuses a zone of another organization" do
+    order = create_order(organization: @org, supplier: @supplier, status: "pending", reference: "PO-1")
+    order.order_lines.create!(part: @part, quantity: 5)
+    foreign = create_storage_location(organization: create_user.organizations.first)
+    sign_in @user
+
+    post assign_storage_order_path(order), params: { storage_location_id: foreign.id }
+    assert_match(/choose a storage zone/i, flash[:alert])
+    assert order.order_lines.first.allocations.none?
+  end
+
+  test "push_to_cart needs a line with a Mouser part number, and reports Mouser's errors" do
+    mouser, = Supplier.ensure_catalog_provider(@org, "mouser")
+    order = create_order(organization: @org, supplier: mouser, status: "pending", reference: "PO-1")
+    order.order_lines.create!(part: @part, quantity: 3)
+    sign_in @user
+
+    stub_singleton(SupplierCatalog, :mouser_order_client, ->(_org) { FakeOrderClient.new }) do
+      post push_to_cart_order_path(order)
+    end
+    assert_match(/no line has a mouser/i, flash[:alert])
+
+    @part.part_suppliers.create!(supplier: mouser, supplier_sku: "603-RC0805")
+    failing = FakeOrderClient.new
+    failing.define_singleton_method(:create_cart) { |*, **| raise SupplierCatalog::LookupError, "Mouser is down" }
+    stub_singleton(SupplierCatalog, :mouser_order_client, ->(_org) { failing }) do
+      post push_to_cart_order_path(order)
+    end
+    assert_equal "Mouser is down", flash[:alert]
+  end
+
+  test "push_to_cart without a total still builds the cart, with checkout link and skipped lines" do
+    mouser, = Supplier.ensure_catalog_provider(@org, "mouser")
+    @part.part_suppliers.create!(supplier: mouser, supplier_sku: "603-RC0805")
+    order = create_order(organization: @org, supplier: mouser, status: "pending", reference: "PO-1")
+    order.order_lines.create!(part: @part, quantity: 3)
+    order.order_lines.create!(part: create_part(organization: @org, category: @category, name: "No SKU"), quantity: 1)
+    sign_in @user
+
+    cart = SupplierCatalog::CartResult.new(cart_key: "abc", merchandise_total: nil, currency: "EUR", lines: [], checkout_url: "https://www.mouser.com/cart")
+    stub_singleton(SupplierCatalog, :mouser_order_client, ->(_org) { FakeOrderClient.new(cart: cart) }) do
+      post push_to_cart_order_path(order)
+    end
+    assert_match(/built a mouser cart/i, flash[:notice])
+    assert_includes flash[:notice], "https://www.mouser.com/cart"
+    assert_match(/1 line/i, flash[:notice])
+  end
+
+  test "import_supplier_order needs a key, a number and lines" do
+    sign_in @user
+    post import_supplier_order_orders_path, params: { order_number: "9988" }
+    assert_match(/order api key/i, flash[:alert])
+
+    @org.update!(mouser_order_api_key: "order-key")
+    empty = SupplierCatalog::OrderResult.new(order_number: "9988", status: "Shipped", placed_at: nil, total: nil, currency: "EUR", lines: [])
+    stub_singleton(SupplierCatalog, :mouser_order_client, ->(_org) { FakeOrderClient.new(order: empty) }) do
+      post import_supplier_order_orders_path, params: { order_number: " " }
+      assert_match(/enter an order number/i, flash[:alert])
+
+      assert_no_difference -> { Order.count } do
+        post import_supplier_order_orders_path, params: { order_number: "9988" }
+      end
+      assert_match(/no importable lines/i, flash[:alert])
+    end
+  end
+
+  test "import_supplier_order reports a line that can't be saved" do
+    @org.update!(mouser_order_api_key: "order-key")
+    sign_in @user
+    result = SupplierCatalog::OrderResult.new(
+      order_number: "9988", status: "Shipped", placed_at: "2026-07-01", total: "5.0", currency: "EUR",
+      lines: [ SupplierCatalog::OrderLineResult.new(mpn: "NEW-IC-1", manufacturer: "ACME", supplier_sku: "603-new", description: "New op-amp", quantity: 2, unit_price: "-1") ]
+    )
+
+    assert_no_difference -> { Order.count } do
+      stub_singleton(SupplierCatalog, :mouser_order_client, ->(_org) { FakeOrderClient.new(order: result) }) do
+        post import_supplier_order_orders_path, params: { order_number: "9988" }
+      end
+    end
+    assert_redirected_to orders_path
+    assert flash[:alert].present?
+  end
+
   class FakeOrderClient
     def initialize(cart: nil, order: nil)
       @cart = cart

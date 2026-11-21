@@ -200,6 +200,44 @@ class McpOauthFlowTest < ActionDispatch::IntegrationTest
     assert_equal "unsupported_grant_type", response.parsed_body["error"]
   end
 
+  test "revoking either token ends the authorization" do
+    %w[access_token refresh_token].each do |kind|
+      tokens = obtain_tokens
+      post "/oauth/revoke", params: { token: tokens[kind] }
+      assert_response :success
+      assert_equal "no-store", response.headers["Cache-Control"]
+
+      post "/mcp", params: { jsonrpc: "2.0", id: 1, method: "tools/list" }.to_json,
+        headers: json_headers.merge("Authorization" => "Bearer #{tokens['access_token']}")
+      assert_response :unauthorized, "revoking the #{kind} should cut MCP access"
+
+      post "/oauth/token", params: { grant_type: "refresh_token", client_id: tokens["client_id"], refresh_token: tokens["refresh_token"] }
+      assert_equal "invalid_grant", response.parsed_body["error"]
+    end
+  end
+
+  test "revoking an unknown or missing token still answers 200" do
+    tokens = obtain_tokens
+
+    assert_no_difference -> { OauthAuthorization.count } do
+      post "/oauth/revoke", params: { token: "not-a-token" }
+      assert_response :success
+      post "/oauth/revoke"
+      assert_response :success
+    end
+    post "/mcp", params: { jsonrpc: "2.0", id: 1, method: "tools/list" }.to_json,
+      headers: json_headers.merge("Authorization" => "Bearer #{tokens['access_token']}")
+    assert_response :success
+  end
+
+  test "the token endpoint is rate limited" do
+    60.times { post "/oauth/token", params: { grant_type: "authorization_code", client_id: "nope" } }
+    post "/oauth/token", params: { grant_type: "authorization_code", client_id: "nope" }
+
+    assert_response :too_many_requests
+    assert_equal "too_many_requests", response.parsed_body["error"]
+  end
+
   test "the MCP endpoint only answers POST" do
     get "/mcp"
     assert_response :method_not_allowed
@@ -208,6 +246,21 @@ class McpOauthFlowTest < ActionDispatch::IntegrationTest
   end
 
   private
+
+  # Registers a client, signs in, allows it and exchanges the code.
+  def obtain_tokens
+    client_id = register
+    sign_in @user
+    verifier, challenge = pkce_pair
+    post "/oauth/authorize", params: authorize_params(client_id, challenge).merge(decision: "allow", organization_id: @org.id)
+    code = Rack::Utils.parse_query(URI.parse(response.location).query)["code"]
+    post "/oauth/token", params: {
+      grant_type: "authorization_code", client_id: client_id, code: code,
+      redirect_uri: "https://claude.ai/api/mcp/auth_callback", code_verifier: verifier
+    }
+    assert_response :success
+    response.parsed_body.merge("client_id" => client_id)
+  end
 
   def register
     post "/oauth/register", params: {

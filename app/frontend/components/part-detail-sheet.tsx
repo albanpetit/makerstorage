@@ -231,11 +231,23 @@ export function PartDetailSheet({
 }: PartDetailSheetProps) {
   // The part shown: the one asked for, or an alternative opened from it.
   const [partId, setPartId] = useState(requestedId)
-  useEffect(() => setPartId(requestedId), [requestedId, open])
+  // The loaded detail, with the part it belongs to: switching parts (or
+  // reopening the sheet) shows the skeleton until the new one arrives.
+  const [loaded, setLoaded] = useState<{ partId: number; body: PartShowPayload } | null>(null)
+  // The part whose last load failed (the error shows only for that part).
+  const [failedPartId, setFailedPartId] = useState<number | null>(null)
+  // Back to the requested part whenever the caller asks for another one or
+  // reopens the sheet (adjusted during render rather than in an effect).
+  const [request, setRequest] = useState({ requestedId, open })
+  if (request.requestedId !== requestedId || request.open !== open) {
+    setRequest({ requestedId, open })
+    setPartId(requestedId)
+    setLoaded(null)
+    setFailedPartId(null)
+  }
+  const payload = loaded?.partId === partId ? loaded.body : null
   const { canWrite, canAdminister } = usePermissions()
-  const [loading, setLoading] = useState(false)
-  const [loadError, setLoadError] = useState('')
-  const [payload, setPayload] = useState<PartShowPayload | null>(null)
+  const loadError = failedPartId != null && failedPartId === partId ? t('Could not load this part. Please try again.') : ''
 
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [labelOpen, setLabelOpen] = useState(false)
@@ -247,8 +259,6 @@ export function PartDetailSheet({
   const load = useCallback(() => {
     if (partId == null) return
     let cancelled = false
-    setLoading(true)
-    setLoadError('')
     fetch(`/parts/${partId}`, { headers: { Accept: 'application/json' } })
       .then((res) => {
         if (!res.ok) throw new Error('Failed to load part')
@@ -256,13 +266,12 @@ export function PartDetailSheet({
       })
       .then((body: PartShowPayload) => {
         if (cancelled) return
-        setPayload(body)
-        setLoading(false)
+        setLoaded({ partId, body })
+        setFailedPartId(null)
       })
       .catch(() => {
         if (cancelled) return
-        setLoadError(t('Could not load this part. Please try again.'))
-        setLoading(false)
+        setFailedPartId(partId)
       })
     return () => {
       cancelled = true
@@ -271,7 +280,6 @@ export function PartDetailSheet({
 
   useEffect(() => {
     if (!open || partId == null) return
-    setPayload(null)
     const cleanup = load()
     return cleanup
   }, [open, partId, load])
@@ -373,7 +381,7 @@ export function PartDetailSheet({
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent className="w-full gap-0 overflow-y-auto p-0 sm:max-w-xl">
-          {loading && !payload ? (
+          {!payload && !loadError ? (
             <div className="flex flex-1 items-center justify-center py-16">
               <Loader2 className="size-6 animate-spin text-muted-foreground" />
             </div>

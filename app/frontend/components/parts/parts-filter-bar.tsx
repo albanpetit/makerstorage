@@ -130,6 +130,7 @@ export function PartsFilterBar({ filters, totalCount }: PartsFilterBarProps) {
       </div>
 
       <ParameterFilterDialog
+        key={parameterId ?? 'none'}
         facet={parameterFacet}
         current={current.parameters.find((filter) => filter.id === parameterId)}
         onOpenChange={(open) => !open && setParameterId(null)}

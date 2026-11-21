@@ -51,6 +51,9 @@ export function TagPicker({ tags, value, onChange }: TagPickerProps) {
     const created = tags.find((t) => t.name === pendingName)
     if (created) {
       if (!value.includes(created.id)) onChange([...value, created.id])
+      // Reacts to the server's answer (the refreshed prop), which is what an
+      // effect is for: there's no event of ours to do this from.
+      // oxlint-disable-next-line react/set-state-in-effect
       setPendingName(null)
       setOpen(false)
       setName('')

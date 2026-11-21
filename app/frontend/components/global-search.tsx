@@ -43,15 +43,12 @@ export function GlobalSearch() {
   const trimmed = query.trim()
 
   useEffect(() => {
-    if (trimmed.length < MIN_QUERY_LENGTH) {
-      setResults(EMPTY)
-      setLoading(false)
-      return
-    }
+    // Short queries show no dropdown (showDropdown), so there's nothing to clear.
+    if (trimmed.length < MIN_QUERY_LENGTH) return
 
     const controller = new AbortController()
-    setLoading(true)
     const timer = setTimeout(() => {
+      setLoading(true)
       fetch(`/search?q=${encodeURIComponent(trimmed)}`, {
         headers: { Accept: 'application/json' },
         signal: controller.signal,

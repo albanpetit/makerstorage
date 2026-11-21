@@ -67,6 +67,11 @@ function formatMoney(value: number) {
   return `${value.toLocaleString(intlLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`
 }
 
+// Read at print time (outside render).
+function todayLabel() {
+  return new Date().toLocaleDateString(intlLocale())
+}
+
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString(intlLocale(), { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
@@ -146,7 +151,7 @@ export default function AlertsIndex({ alerts, orders }: AlertsPageProps) {
       t('Purchase order'),
       html`
         <h1 style="font-size:20px;margin:0 0 4px;">${t('Restock purchase order')}</h1>
-        <p style="color:#666;font-size:12px;margin:0 0 20px;">${t('Makerstorage · Generated {date}', { date: new Date().toLocaleDateString(intlLocale()) })}</p>
+        <p style="color:#666;font-size:12px;margin:0 0 20px;">${t('Makerstorage · Generated {date}', { date: todayLabel() })}</p>
         ${rows}
         <p style="margin-top:16px;font-size:14px;font-weight:bold;">${t('Estimated total: {amount}', { amount: formatMoney(poTotal) })}</p>`,
       'font-family:Arial,sans-serif;padding:32px;color:#111;',

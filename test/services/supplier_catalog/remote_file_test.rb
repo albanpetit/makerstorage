@@ -133,4 +133,81 @@ class SupplierCatalog::RemoteFileTest < ActiveSupport::TestCase
       assert_nil result, "expected an oversized response to be rejected"
     end
   end
+
+  test "safe_uri rejects a host name that resolves to a private address, or to nothing" do
+    stub_singleton(Resolv, :getaddresses, ->(host) { host == "internal.example" ? [ "93.184.216.34", "10.0.0.7" ] : [] }) do
+      assert_nil RemoteFile.safe_uri("https://internal.example/file.pdf"), "one private address is enough to refuse"
+      assert_nil RemoteFile.safe_uri("https://nowhere.example/file.pdf")
+    end
+  end
+
+  test "safe_uri refuses a host the resolver fails on" do
+    stub_singleton(Resolv, :getaddresses, ->(_) { raise Resolv::ResolvError }) do
+      assert_nil RemoteFile.safe_uri("https://broken.example/file.pdf")
+    end
+  end
+
+  test "public_ip? refuses something that isn't an address" do
+    refute RemoteFile.public_ip?("not-an-ip")
+  end
+
+  test "download follows a redirect to a public host" do
+    responses = {
+      "/old.pdf" => redirect_to("https://1.1.1.1/new"),
+      "/new" => ok("application/pdf", "%PDF-1.7")
+    }
+    with_paths(responses) do
+      result = RemoteFile.download("https://8.8.8.8/old.pdf", default_filename: "datasheet")
+      assert result
+      assert_equal "%PDF-1.7", result.io.read
+      assert_equal "new.pdf", result.filename, "the extension comes from the content type"
+    end
+  end
+
+  test "download refuses a redirect to a private address" do
+    with_paths("/file.pdf" => redirect_to("http://169.254.169.254/latest/meta-data/")) do
+      assert_nil RemoteFile.download("https://8.8.8.8/file.pdf")
+    end
+  end
+
+  test "download gives up after too many redirects" do
+    with_paths("/loop" => redirect_to("https://8.8.8.8/loop")) do
+      assert_nil RemoteFile.download("https://8.8.8.8/loop")
+    end
+  end
+
+  test "download returns nil on an error status or a failure" do
+    with_paths("/missing.pdf" => Net::HTTPNotFound.new("1.1", "404", "Not Found")) do
+      assert_nil RemoteFile.download("https://8.8.8.8/missing.pdf")
+    end
+
+    stub_singleton(Net::HTTP, :new, ->(*) { raise Errno::ECONNREFUSED }) do
+      assert_nil RemoteFile.download("https://8.8.8.8/file.pdf")
+    end
+  end
+
+  private
+
+  def ok(content_type, body)
+    Net::HTTPOK.new("1.1", "200", "OK").tap do |response|
+      response["Content-Type"] = content_type
+      response.define_singleton_method(:read_body) { |&block| block.call(body) }
+    end
+  end
+
+  def redirect_to(location)
+    Net::HTTPFound.new("1.1", "302", "Found").tap { |response| response["Location"] = location }
+  end
+
+  # Net::HTTP answering each request path from +responses+.
+  def with_paths(responses, &)
+    build = lambda do |*|
+      http = Object.new
+      %i[ipaddr= use_ssl= open_timeout= read_timeout=].each { |name| http.define_singleton_method(name) { |_| } }
+      http.define_singleton_method(:start) { |&block| block.call }
+      http.define_singleton_method(:request_get) { |path, _headers, &block| block.call(responses.fetch(path)) }
+      http
+    end
+    stub_singleton(Net::HTTP, :new, build, &)
+  end
 end

@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from 'react'
+import { FormEvent, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -26,16 +26,11 @@ interface ParameterFilterDialogProps {
 // Filters the list on one parameter: a min/max range for number parameters
 // (typed like part values: 10k, 100nF, 1/4W), a value list for text ones.
 export function ParameterFilterDialog({ facet, current, onOpenChange, onApply }: ParameterFilterDialogProps) {
-  const [min, setMin] = useState('')
-  const [max, setMax] = useState('')
-  const [values, setValues] = useState<string[]>([])
-
-  useEffect(() => {
-    if (!facet) return
-    setMin(current?.min ?? '')
-    setMax(current?.max ?? '')
-    setValues(current?.values ?? [])
-  }, [facet, current])
+  // The parent remounts the dialog per parameter (key), so the fields start
+  // from that parameter's current filter.
+  const [min, setMin] = useState(current?.min ?? '')
+  const [max, setMax] = useState(current?.max ?? '')
+  const [values, setValues] = useState<string[]>(current?.values ?? [])
 
   if (!facet) return null
 

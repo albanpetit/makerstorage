@@ -1,6 +1,11 @@
 require "test_helper"
 
 class Users::RegistrationsControllerTest < ActionDispatch::IntegrationTest
+  test "the sign-up page renders" do
+    get new_user_registration_path
+    assert_response :success
+  end
+
   test "signing up creates the user and their personal organization" do
     assert_difference -> { User.count } => 1, -> { Organization.count } => 1 do
       post user_registration_path, params: { user: signup_params("new-maker@example.com") }
