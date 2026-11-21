@@ -74,7 +74,7 @@ Electronics-parts inventory manager for makerspaces/fablabs: components, categor
 - Framework: Minitest 6 + fixtures (`test/test_helper.rb`), not RSpec. Shared factory-style helpers (`create_organization`, `create_part`, `create_order`, etc.) live in `test/test_helper.rb` — prefer them over hand-rolling setup. Minitest 6 has no bundled `minitest/mock`; use the `stub_singleton` helper.
 - Run the suite with `bin/rails test` (add `test:system` for system tests) before considering work complete.
 - In the test env Vite runs with `autoBuild: true` into `public/vite-test/`. The stalled/failed runs seen on 2026-10-07 came from parallel workers racing to rebuild a stale bundle (fixed: see the prebuild in `test_helper.rb`). Still wrap manual runs in a `timeout`, use `PARALLEL_WORKERS=1` to isolate a single file, and kill stray processes by PID rather than `pkill -f`.
-- `test/system/scanner_camera_test.rb` can be flaky when the whole system suite runs (fake camera timing); rerun it alone before treating a failure as real.
+- `test/system/scanner_camera_test.rb` runs its own browser (driver name `fake_camera_chrome`) whose fake camera films a QR label written to `tmp/` with Node: it reads the code through the ZXing fallback end to end. A system test that needs other browser flags must also pass its own `options: { name: }`, or it shares whichever browser started first.
 - `test_helper.rb` builds the frontend once before parallel workers fork (they used to race rebuilding a stale bundle). Don't run `db:seed:replant` against the test DB before tests: the seeds collide with fixtures — `bin/rails db:test:prepare` resets it.
 - Tests share `storage/test.sqlite3`: don't run two `bin/rails test` processes at once (`SQLite3::BusyException`).
 
