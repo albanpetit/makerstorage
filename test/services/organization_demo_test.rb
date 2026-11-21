@@ -1,12 +1,19 @@
 require "test_helper"
 
+# Building a demo takes about a second, so each test checks as much as it can
+# on one demo instead of building a new one per assertion.
 class OrganizationDemoTest < ActiveSupport::TestCase
   setup do
     @user = create_user
   end
 
-  test "builds a demo the user owns, filled with stock, orders, projects and loans" do
-    demo = OrganizationDemo.open_for!(@user)
+  test "builds a full demo the user owns, quietly, once, and deletes it whole" do
+    Current.user = @user
+    demo = nil
+    assert_no_difference -> { ActivityEvent.count }, "a demo writes nothing to the activity log" do
+      demo = OrganizationDemo.open_for!(@user)
+    end
+    Current.user = nil
 
     assert demo.demo?
     assert @user.owner_of?(demo)
@@ -21,32 +28,22 @@ class OrganizationDemoTest < ActiveSupport::TestCase
     assert demo.parts.out_of_stock.exists?
     assert demo.stock_movements.where(created_at: ...30.days.ago).exists?
     assert demo.stock_movements.where(created_at: 30.days.ago..).where(movement_type: "out").exists?
-  end
 
-  test "keeps every stock row equal to its movements" do
-    demo = OrganizationDemo.open_for!(@user)
-
+    # Every stock row equals its movements.
     demo.parts.includes(:part_storages).each do |part|
       part.part_storages.each do |storage|
         assert_equal part.stock_movements.where(storage_location_id: storage.storage_location_id).sum(:quantity_delta), storage.quantity
         assert_operator storage.quantity, :>=, 0
       end
     end
-  end
 
-  test "opens the user's existing demo instead of building a second one" do
-    demo = OrganizationDemo.open_for!(@user)
-
+    # Opening it again opens the same demo instead of building a second one.
     assert_no_difference -> { Organization.count } do
       assert_equal demo, OrganizationDemo.open_for!(@user)
     end
-  end
 
-  test "writes nothing to the activity log" do
-    Current.user = @user
-    assert_no_difference -> { ActivityEvent.count } do
-      OrganizationDemo.open_for!(@user)
-    end
+    assert demo.destroy
+    assert_not Organization.exists?(demo.id)
   ensure
     Current.user = nil
   end
@@ -56,12 +53,5 @@ class OrganizationDemoTest < ActiveSupport::TestCase
 
     assert_equal "Atelier de démo", demo.name
     assert demo.projects.exists?(name: "Station météo")
-  end
-
-  test "can be deleted whole" do
-    demo = OrganizationDemo.open_for!(@user)
-
-    assert demo.destroy
-    assert_not Organization.exists?(demo.id)
   end
 end

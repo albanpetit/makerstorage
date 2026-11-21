@@ -149,14 +149,10 @@ export default function CategoriesIndex({ categories, parameter_definitions }: C
     return new Set(ids)
   }
 
-  const parentOptions = useMemo(
-    () =>
-      categories
-        .filter((c) => !forbiddenParentIds.has(c.id))
-        .map((c) => ({ id: c.id, label: fullPath(c) }))
-        .sort((a, b) => a.label.localeCompare(b.label)),
-    [categories, forbiddenParentIds],
-  )
+  const parentOptions = categories
+    .filter((c) => !forbiddenParentIds.has(c.id))
+    .map((c) => ({ id: c.id, label: fullPath(c) }))
+    .sort((a, b) => a.label.localeCompare(b.label))
 
   const stats = useMemo(() => {
     const rootCount = roots.length
@@ -253,14 +249,13 @@ export default function CategoriesIndex({ categories, parameter_definitions }: C
     (sum, id) => sum + (byId.get(id)?.parts_count ?? 0),
     0,
   )
-  const deleteTargetOptions = useMemo(() => {
-    if (!deleting) return []
-    const excluded = new Set(subtreeIds(deleting.id))
-    return categories
-      .filter((c) => !excluded.has(c.id))
+  const deletingExcluded = new Set(deletingSubtree)
+  const deleteTargetOptions = deleting
+    ? categories
+      .filter((c) => !deletingExcluded.has(c.id))
       .map((c) => ({ id: c.id, label: fullPath(c) }))
       .sort((a, b) => a.label.localeCompare(b.label))
-  }, [deleting, categories, childrenOf])
+    : []
 
   const renderRows = (parentId: number | null, depth: number): React.ReactNode[] =>
     (childrenOf.get(parentId) ?? []).flatMap((category) => [

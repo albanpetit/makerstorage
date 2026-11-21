@@ -55,7 +55,7 @@ export function PartParametersSection({ categoryId, values, onChange, error }: P
   const [processing, setProcessing] = useState(false)
 
   const byId = useMemo(() => new Map(definitions.map((d) => [d.id, d])), [definitions])
-  const template = templates[categoryId] ?? []
+  const template = useMemo(() => templates[categoryId] ?? [], [templates, categoryId])
 
   const rows = useMemo(() => {
     const ids = [ ...template ]

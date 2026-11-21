@@ -40,6 +40,27 @@ module ActiveSupport
       singleton.send(:define_method, name, original)
     end
 
+    # Replaces Net::HTTP for the block: each request gets the next canned
+    # response (status, body) and is recorded, so a supplier client's whole
+    # HTTP layer (headers, errors, unreadable bodies) runs without a network.
+    #   with_fake_http([ 200, { "ok" => true }.to_json ]) { |requests| ... }
+    def with_fake_http(*responses)
+      requests = []
+      http = Object.new
+      %i[use_ssl= open_timeout= read_timeout=].each { |setter| http.define_singleton_method(setter) { |_value| } }
+      http.define_singleton_method(:request) do |request|
+        requests << request
+        status, body = responses.shift || raise("no canned response left for #{request.method} #{request.path}")
+        raise status if status.is_a?(Exception)
+
+        Net::HTTPResponse::CODE_TO_OBJ.fetch(status.to_s).new("1.1", status.to_s, "").tap do |response|
+          response.instance_variable_set(:@body, body.to_s)
+          response.instance_variable_set(:@read, true)
+        end
+      end
+      stub_singleton(Net::HTTP, :new, ->(*) { http }) { yield requests }
+    end
+
     # Runs the block with email verification (config.x.email_verification) on
     # or off, as an instance with or without SMTP would.
     def with_email_verification(enabled)
