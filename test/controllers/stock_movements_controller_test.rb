@@ -28,6 +28,8 @@ class StockMovementsControllerTest < ActionDispatch::IntegrationTest
     assert_equal 30, second_json["balance_after"]
     assert_equal "RES-10K", first_json["part"]["reference"]
     assert_equal "Shelf A", first_json["location_name"]
+    # The new-movement dialog searches parts on the server (PartPicker).
+    assert_not inertia_props.key?("parts")
   end
 
   test "index paginates the ledger newest first with balances over full history" do

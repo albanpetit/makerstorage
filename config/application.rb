@@ -86,6 +86,15 @@ module Makerstorage
     ENV["ALLOWED_HOSTS"].to_s.split(",").map(&:strip).compact_blank.presence
   end
 
+  # How many organizations one account may own (MAX_ORGANIZATIONS_PER_USER).
+  # Unset or blank means no limit, the right default for a private install; a
+  # shared instance sets one, since the storage quota is per organization and
+  # creating organizations would otherwise get around it.
+  def self.max_organizations_per_user_from_env
+    value = ENV["MAX_ORGANIZATIONS_PER_USER"].to_s.strip
+    value.match?(/\A\d+\z/) ? value.to_i.nonzero? : nil
+  end
+
   # Disk space an organization's files may take in all (ORGANIZATION_STORAGE_QUOTA:
   # bytes, or a number with KB/MB/GB/TB, e.g. "2GB"). Unset or blank means no
   # limit, the right default for a private install; a shared instance where
@@ -141,6 +150,8 @@ module Makerstorage
 
     # Total size of an organization's files (AttachmentValidation), nil = no limit.
     config.x.organization_storage_quota = Makerstorage.storage_quota_from_env
+    # Organizations one account may own, nil = no limit (User#organization_limit_reached?).
+    config.x.max_organizations_per_user = Makerstorage.max_organizations_per_user_from_env
 
     # Privacy policy and legal notice of the instance's operator (GDPR art. 13,
     # French LCEN), linked from the sign-in pages and the profile. Each install

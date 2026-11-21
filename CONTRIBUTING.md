@@ -160,6 +160,29 @@ git push origin v0.4.0   # → creates the GitHub Release and deploys to product
 
 The `/commit` command will suggest a version bump and print these commands when a commit is a good moment to release — it never tags automatically.
 
+The deploy refuses a tag whose commit has no successful `Tests` run (wait for CI on
+`main`, then re-run the deploy); a manual run can skip that check for an emergency.
+
+### Deploy and backup settings
+
+The `Deploy to Production` and `Backup` workflows hold the server's SSH key and the
+app's secrets, so they check what they download and connect to. Repository settings
+(Settings → Secrets and variables → Actions):
+
+| Name | Kind | What it does |
+|---|---|---|
+| `SSH_KNOWN_HOSTS` | secret | The server's host key, as a `known_hosts` line for `DEPLOY_HOST` (e.g. `<DEPLOY_HOST> ssh-ed25519 AAAA…`, from `/etc/ssh/ssh_host_ed25519_key.pub` on the server). Unset, any key is accepted, with a warning. |
+| `CLOUDFLARED_VERSION` | variable | cloudflared release the runners install (unset: latest). |
+| `CLOUDFLARED_SHA256` | variable | SHA-256 of that release's `cloudflared-linux-amd64.deb`; a mismatch stops the job. Unset, the job prints the hash it got, with a warning. |
+| `BACKUP_OFFSITE_REMOTE` | secret | An rclone remote on the server (make it a `crypt` remote so the copy is encrypted). Each nightly archive is then also copied there, straight from the server. |
+
+### Backups
+
+`bin/backup-storage` (run nightly by the `Backup` workflow) keeps the last 7 archives in
+`/srv/apps/makerstorage` on the server. To keep a copy elsewhere, install rclone on the
+server for the deploy user, configure a remote (`rclone config`, ideally a `crypt` remote
+over an object store), and put its name in `BACKUP_OFFSITE_REMOTE`.
+
 ## AI-assisted contributions
 
 Using an AI coding assistant is fine. Whatever tools you use, you're responsible for

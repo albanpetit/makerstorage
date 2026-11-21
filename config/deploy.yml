@@ -78,8 +78,15 @@ env:
     # connections at the server's own private network. Labels print through
     # the browser instead.
     NETWORK_PRINTING: false
+
+    # Enforce the Content-Security-Policy (report-only otherwise). The whole
+    # system suite runs clean with it on; violations still reach the logs as
+    # [CSP] …, and removing this line goes back to report-only.
+    CSP_ENFORCE: true
     # Anyone can sign up on the hosted instance: cap each organization's files.
     ORGANIZATION_STORAGE_QUOTA: <%= ENV["ORGANIZATION_STORAGE_QUOTA"] || "1GB" %>
+    # The quota is per organization: also cap how many one account owns.
+    MAX_ORGANIZATIONS_PER_USER: <%= ENV["MAX_ORGANIZATIONS_PER_USER"] || "10" %>
 
     # The operator's privacy policy and legal notice, linked from the sign-in
     # pages and the profile (pages of the marketing site, site/).

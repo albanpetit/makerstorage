@@ -3,7 +3,15 @@
 class OrganizationsController < ApplicationController
   include Auth
 
+  rate_limit to: CREATE_RATE_LIMIT = 10, within: 1.hour, only: :create, by: -> { current_user.id }, store: AUTH_RATE_LIMIT_STORE,
+             with: -> { redirect_back_or_to root_path, alert: t("flash.organizations.too_many_created") }
+
   def create
+    if current_user.organization_limit_reached?
+      return redirect_back_or_to root_path,
+        alert: t("flash.organizations.organization_limit_reached", count: Rails.configuration.x.max_organizations_per_user)
+    end
+
     organization = Organization.new(organization_params)
 
     ActiveRecord::Base.transaction do

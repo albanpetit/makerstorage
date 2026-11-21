@@ -53,6 +53,21 @@ class StorageQuotaTest < ActiveSupport::TestCase
 
   private
 
+  test "a merge is refused when the source's files don't fit in the target's quota" do
+    source = create_organization(name: "Club")
+    attach(create_part(organization: source), :images, 100, "a.png", "image/png")
+    attach(@part, :images, 100, "b.png", "image/png")
+
+    with_quota(150) do
+      error = assert_raises(OrganizationMerge::Error) { OrganizationMerge.new(source: source, target: @org).merge! }
+      assert_match(/150 Bytes/, error.message)
+      assert Organization.exists?(source.id)
+    end
+
+    with_quota(250) { OrganizationMerge.new(source: source, target: @org).merge! }
+    assert_not Organization.exists?(source.id)
+  end
+
   def attach(record, name, size, filename, type)
     record.public_send(name).attach(io: StringIO.new("x" * size), filename: filename, content_type: type)
     record.save!

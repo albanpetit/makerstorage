@@ -142,6 +142,7 @@ fr:
       unreadable: La réponse de Claude est illisible. Veuillez réessayer.
       unsupported_file: '%{name} n’est ni une photo JPEG, PNG, GIF ou WebP, ni un PDF.'
     backup:
+      organization_limit_reached: Vous possédez déjà %{count} organisations, le maximum autorisé sur ce serveur. Supprimez-en une d’abord.
       data_too_large: '%{file} est trop volumineux.'
       inconsistent: 'La sauvegarde n''a pas pu être restaurée (%{error}) : ses données sont incohérentes.'
       invalid_json: '%{file} n''est pas un JSON valide.'
@@ -231,6 +232,7 @@ fr:
       invalid: "Ce scan est illisible."
       not_found: "Le composant ou la zone n’existe plus."
     organization_merge:
+      storage_quota_exceeded: Les fichiers fusionnés dépasseraient l’espace de %{quota} de l’organisation.
       into_demo: Rien ne peut être fusionné dans une organisation de démo.
       into_itself: Une organisation ne peut pas être fusionnée avec elle-même.
       personal: Une organisation personnelle ne peut pas être fusionnée dans une autre.
@@ -404,6 +406,8 @@ fr:
         other: '%{count} lignes de nomenclature sans composant correspondant ont été ignorées.'
       use_mark_received_to_receive_an: Utilisez « Marquer comme reçue » pour réceptionner une commande et créditer le stock.
     organizations:
+      organization_limit_reached: Vous possédez déjà %{count} organisations, le maximum autorisé sur ce serveur.
+      too_many_created: Trop d’organisations créées. Réessayez plus tard.
       reset_done:
         one: "« %{name} » a été remise à zéro (%{count} composant supprimé)."
         other: "« %{name} » a été remise à zéro (%{count} composants supprimés)."

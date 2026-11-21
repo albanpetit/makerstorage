@@ -71,6 +71,19 @@ class User < ApplicationRecord
   end
 
   # Check if the user is an owner of an organization
+  # Organizations the user is an active owner of.
+  def owned_organizations_count
+    active_organization_memberships.where(role: "owner").count
+  end
+
+  # Whether the user already owns as many organizations as the install allows
+  # (config.x.max_organizations_per_user, nil = no limit). Checked before
+  # creating or restoring one: each organization has its own storage quota.
+  def organization_limit_reached?
+    limit = Rails.configuration.x.max_organizations_per_user
+    limit.present? && owned_organizations_count >= limit
+  end
+
   def owner_of?(organization)
     active_organization_memberships.exists?(organization: organization, role: "owner")
   end
@@ -132,7 +145,8 @@ class User < ApplicationRecord
         end
         activity_events.update_all(user_id: nil, user_name: DELETED_USER_NAME)
         anonymize_events_about_me
-        borrowed_loans.update_all(borrower_id: nil, borrower_name: DELETED_USER_NAME, borrower_contact: nil)
+        Loan.anonymize_borrower(borrowed_loans, DELETED_USER_NAME)
+        borrowed_loans.update_all(borrower_id: nil)
         destroy!
       end
     end
@@ -147,22 +161,12 @@ class User < ApplicationRecord
 
   private
 
-  # Entries whose subject is the user (their memberships: invited, role
-  # changed, removed) or a loan they borrowed carry their name in the label,
-  # and a loan's in its borrower_name changes: rewrite those too.
+  # Entries whose subject is the user's membership (invited, role changed,
+  # removed) carry their name in the label. (Loans they borrowed, with their
+  # movements and entries, are rewritten by Loan.anonymize_borrower.)
   def anonymize_events_about_me
     ActivityEvent.where(subject_type: "OrganizationMembership", subject_id: organization_memberships.select(:id))
       .update_all(subject_label: DELETED_USER_NAME)
-
-    name = display_name
-    ActivityEvent.where(subject_type: "Loan", subject_id: borrowed_loans.select(:id)).find_each do |event|
-      label = event.subject_label.to_s.split(" · ").map { |part| part == name ? DELETED_USER_NAME : part }.join(" · ")
-      details = event.details.to_h
-      if details["borrower_name"].is_a?(Array)
-        details = details.merge("borrower_name" => details["borrower_name"].map { |value| value == name ? DELETED_USER_NAME : value })
-      end
-      event.update_columns(subject_label: label, details: details)
-    end
   end
 
   # Account emails go out in the language the user picked, else in the one of

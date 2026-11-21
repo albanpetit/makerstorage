@@ -1214,6 +1214,65 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "YAGEO", body["results"].first["manufacturer"]
   end
 
+  test "lookup hands out each datasheet URL signed for the organization" do
+    user = create_user
+    org = user.organizations.first
+    org.update!(mouser_api_key: "abc123")
+    sign_in user
+
+    result = SupplierCatalog::PartResult.new(mpn: "NE555", provider: "mouser", datasheet_url: "https://www.mouser.com/ds.pdf")
+    stub_singleton(SupplierCatalog, :lookup, ->(*, **) { [ result ] }) do
+      post lookup_parts_path, params: { mpn: "NE555" }
+    end
+
+    token = JSON.parse(@response.body)["results"].first["datasheet_token"]
+    assert_equal "https://www.mouser.com/ds.pdf",
+                 Rails.application.message_verifier("supplier_datasheet").verified(token, purpose: "datasheet-#{org.id}")
+  end
+
+  test "create fetches only a datasheet the lookup signed for this organization" do
+    user = create_user
+    org = user.organizations.first
+    category = create_category(organization: org)
+    sign_in user
+
+    assert_no_enqueued_jobs(only: AttachRemotePartAssetsJob) do
+      post parts_path, params: { part: { name: "Raw URL", category_id: category.id }, datasheet_url: "https://example.com/big.iso" }
+      post parts_path, params: { part: { name: "Forged", category_id: category.id }, datasheet_token: "forged--token" }
+      post parts_path, params: { part: { name: "Other org", category_id: category.id },
+                                 datasheet_token: datasheet_token(create_organization, "https://www.mouser.com/ds.pdf") }
+    end
+    assert_equal 3, org.parts.where(name: [ "Raw URL", "Forged", "Other org" ]).count
+
+    assert_enqueued_with(job: AttachRemotePartAssetsJob) do
+      post parts_path, params: { part: { name: "Signed", category_id: category.id },
+                                 datasheet_token: datasheet_token(org, "https://www.mouser.com/ds.pdf") }
+    end
+  end
+
+  test "options searches the organization's parts, twenty at a time" do
+    user = create_user
+    org = user.organizations.first
+    sign_in user
+    category = create_category(organization: org)
+    25.times { |i| create_part(organization: org, category: category, name: "Resistor #{i.to_s.rjust(2, '0')}") }
+    capacitor = create_part(organization: org, category: category, name: "Capacitor", mpn: "GRM21", unit: "meter")
+    create_part(organization: create_organization, name: "Resistor elsewhere")
+
+    get options_parts_path, as: :json
+    assert_equal PartsController::OPTIONS_LIMIT, response.parsed_body["parts"].size
+
+    get options_parts_path(q: "grm"), as: :json
+    assert_equal [ { "id" => capacitor.id, "reference" => capacitor.reference, "name" => "Capacitor", "unit" => "meter", "pack_size" => nil } ],
+                 response.parsed_body["parts"]
+
+    get options_parts_path(q: capacitor.ipn), as: :json
+    assert_equal [ capacitor.id ], response.parsed_body["parts"].pluck("id") if capacitor.ipn.present?
+
+    get options_parts_path(q: "elsewhere"), as: :json
+    assert_empty response.parsed_body["parts"]
+  end
+
   test "lookup rejects a blank part number" do
     user = create_user
     user.organizations.first.update!(mouser_api_key: "abc123")
@@ -1261,7 +1320,7 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
       stub_singleton(SupplierCatalog::RemoteFile, :download, ->(*, **) { download }) do
         post parts_path, params: {
           part: { name: "Resistor 10k", category_id: category.id },
-          datasheet_url: "https://www.mouser.com/ds.pdf",
+          datasheet_token: datasheet_token(org, "https://www.mouser.com/ds.pdf"),
           image_url: "https://www.mouser.com/img.png"
         }
       end
@@ -1361,7 +1420,7 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
       stub_singleton(SupplierCatalog::RemoteFile, :download, ->(*, **) { download }) do
         patch part_path(part), params: {
           part: { name: part.name, category_id: part.category_id },
-          datasheet_url: "https://www.mouser.com/ds.pdf",
+          datasheet_token: datasheet_token(org, "https://www.mouser.com/ds.pdf"),
           image_url: "https://www.mouser.com/img.png"
         }
       end
@@ -1396,7 +1455,7 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
     stub_singleton(SupplierCatalog::RemoteFile, :download, ->(*, **) { nil }) do
       post parts_path, params: {
         part: { name: "Resistor 20k", category_id: category.id },
-        datasheet_url: "https://www.mouser.com/ds.pdf"
+        datasheet_token: datasheet_token(org, "https://www.mouser.com/ds.pdf")
       }
     end
 
@@ -1906,5 +1965,10 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
     assert_equal [ { "quantity" => 100, "unit_price" => 0.0425 } ], body["part"]["part_suppliers"].first["price_breaks"]
     assert_equal [ [ "PO-A", "2026-01-05", 0.045, "Mouser" ], [ "PO-B", "2026-07-05", 0.04, "Mouser" ] ],
                  body["price_history"].map { |entry| entry.values_at("order_reference", "date", "unit_price", "supplier_name") }
+  end
+
+  # What PartsController#lookup hands the form for a datasheet URL.
+  def datasheet_token(organization, url)
+    Rails.application.message_verifier("supplier_datasheet").generate(url, purpose: "datasheet-#{organization.id}", expires_in: 1.day)
   end
 end

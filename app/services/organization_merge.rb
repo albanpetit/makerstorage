@@ -52,6 +52,11 @@ class OrganizationMerge
     raise Error, I18n.t("errors.organization_merge.personal") if source.personal?
     # A demo is deleted in one click: real data doesn't belong in one.
     raise Error, I18n.t("errors.organization_merge.into_demo") if target.demo?
+    # The source's files move to the target: they must fit in its quota.
+    unless AttachmentValidation.fits_quota?(target, AttachmentValidation.storage_used(source))
+      raise Error, I18n.t("errors.organization_merge.storage_quota_exceeded",
+        quota: ActiveSupport::NumberHelper.number_to_human_size(AttachmentValidation.quota))
+    end
 
     @codes_renamed = 0
     result = ActiveRecord::Base.transaction do

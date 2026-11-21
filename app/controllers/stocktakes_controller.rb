@@ -41,8 +41,6 @@ class StocktakesController < ApplicationController
                   .sort_by { |zone| zone[:name].downcase },
       current_zone_id: current_zone&.id,
       focus_line_id: params[:line].presence&.to_i,
-      # Pick-list for adding a part the ledger didn't expect in the zone.
-      parts: @stocktake.in_progress? ? current_organization.parts.alphabetical.map { |part| { id: part.id, reference: part.reference, name: part.name } } : [],
       currency: current_organization.currency
     }
   end

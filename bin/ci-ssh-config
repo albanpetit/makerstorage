@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# Writes the SSH key and config a workflow uses to reach the server through
+# the Cloudflare Tunnel. Env: SSH_PRIVATE_KEY, DEPLOY_HOST, DEPLOY_USER, and
+# SSH_KNOWN_HOSTS (the server's host key line(s), as `ssh-keyscan` prints
+# them). With SSH_KNOWN_HOSTS the server's key is checked on every connection;
+# without it any key is accepted, with a warning.
+#   ci-ssh-config [--proxy]   --proxy adds the cloudflared ProxyCommand (plain
+#                             ssh; Kamal sets its own in config/deploy.yml)
+set -euo pipefail
+
+mkdir -p ~/.ssh
+chmod 700 ~/.ssh
+printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+chmod 600 ~/.ssh/id_ed25519
+
+if [ -n "${SSH_KNOWN_HOSTS:-}" ]; then
+  printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+  checking="yes"
+else
+  echo "::warning::SSH_KNOWN_HOSTS is not set: the server's host key isn't checked. Add it as a repository secret (ssh-keyscan output)."
+  checking="no"
+fi
+chmod 600 ~/.ssh/known_hosts 2>/dev/null || true
+
+{
+  echo "Host ${DEPLOY_HOST}"
+  echo "  User ${DEPLOY_USER}"
+  echo "  IdentityFile ~/.ssh/id_ed25519"
+  [ "${1:-}" = "--proxy" ] && echo "  ProxyCommand cloudflared access ssh --hostname %h"
+  echo "  StrictHostKeyChecking ${checking}"
+} > ~/.ssh/config
+chmod 600 ~/.ssh/config

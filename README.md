@@ -168,6 +168,7 @@ confirmed.
 | `CSP_ENFORCE`         | —                                      | Set to `true` to enforce the Content-Security-Policy. By default it is report-only: violations are logged as `[CSP] …` but nothing is blocked. Check those logs before turning it on. |
 | `NETWORK_PRINTING`    | on                                     | Set to `false` to turn off direct printing to network label printers (Settings → Label printers), e.g. on a shared instance. When on, the server only connects to local-network addresses (10.x, 172.16–31.x, 192.168.x, 100.64/10, fc00::/7) on printer ports (9100–9109, 6101). |
 | `ORGANIZATION_STORAGE_QUOTA` | no limit                         | Total size of each organization's files (images, datasheets, attachments, KiCad files, logos), e.g. `1GB`. Set one on a shared instance where anyone can sign up, so a single account can't fill the disk. |
+| `MAX_ORGANIZATIONS_PER_USER` | no limit | How many organizations one account may own (creating or restoring one is refused past it). The quota above is per organization, so set both on a shared instance. |
 | `PRIVACY_POLICY_URL`  | —                                      | Your privacy policy, linked from the sign-in pages and the profile. See [Privacy (GDPR)](#privacy-gdpr). |
 | `LEGAL_NOTICE_URL`    | —                                      | Your legal notice (e.g. *mentions légales* in France), linked next to it. |
 
@@ -268,7 +269,9 @@ does for you:
 - **Erasure**: users delete their account from Profile → Delete account. Organizations nobody else uses go
   with it; elsewhere their history stays but reads "Deleted user".
 - **Retention**: activity log entries are deleted after 2 years, and a loan's
-  borrower contact is cleared a year after the loan closed (`PurgePersonalDataJob`, daily).
+  borrower contact is cleared a year after the loan closed, along with the name of a
+  borrower who has no account (`PurgePersonalDataJob`, daily). Loan contacts and names
+  are kept out of the server logs.
 - **Portability**: organization admins download everything as a ZIP (Settings → Backup).
 - Integrations an organization turns on (Mouser, DigiKey, LCSC, GitHub, AI-assisted
   entry with Anthropic) send it data with that organization's own keys.

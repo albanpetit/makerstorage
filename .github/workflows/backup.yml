@@ -11,34 +11,32 @@ on:
     - cron: "17 3 * * *" # 03:17 UTC daily
   workflow_dispatch:
 
+# Only the repository's scripts are needed: no write access.
+permissions:
+  contents: read
+
 jobs:
   backup:
     runs-on: ubuntu-latest
 
     steps:
+      # bin/ci-install-cloudflared and bin/ci-ssh-config.
+      - name: Checkout code
+        uses: actions/checkout@v7
+
       - name: Install cloudflared
-        run: |
-          # Cloudflare's apt repository has no suite for every Ubuntu release
-          # (ubuntu-latest moved to 26.04 "resolute": 404), so install the
-          # .deb from cloudflared's GitHub releases instead.
-          curl -fsSL -o "$RUNNER_TEMP/cloudflared.deb" \
-            https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
-          sudo dpkg -i "$RUNNER_TEMP/cloudflared.deb"
-          cloudflared --version
+        env:
+          CLOUDFLARED_VERSION: ${{ vars.CLOUDFLARED_VERSION }}
+          CLOUDFLARED_SHA256: ${{ vars.CLOUDFLARED_SHA256 }}
+        run: bin/ci-install-cloudflared
 
       - name: Set up SSH through the Cloudflare Tunnel
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
-          printf '%s\n' \
-            "Host ${{ secrets.DEPLOY_HOST }}" \
-            "  User ${{ secrets.DEPLOY_USER }}" \
-            "  IdentityFile ~/.ssh/id_ed25519" \
-            "  ProxyCommand cloudflared access ssh --hostname %h" \
-            "  StrictHostKeyChecking no" \
-            > ~/.ssh/config
-          chmod 600 ~/.ssh/config
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+        run: bin/ci-ssh-config --proxy
 
       - name: Run backup on the server
         env:
@@ -57,3 +55,23 @@ jobs:
             echo "--- backups currently on the server (/srv/apps/makerstorage) ---"
             docker exec "$cid" ls -lh /rails/backups
           '
+
+      # Off-site copy: the archives above sit on the server's own disk, so a
+      # lost disk or server takes them too. With BACKUP_OFFSITE_REMOTE set (an
+      # rclone remote, e.g. "b2crypt:makerstorage" — make it a crypt remote so
+      # the copy is encrypted), the server uploads the new archive itself: the
+      # data never passes through GitHub. rclone must be installed and
+      # configured on the server (see CONTRIBUTING.md, "Backups").
+      - name: Copy the new archive off the server
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          BACKUP_OFFSITE_REMOTE: ${{ secrets.BACKUP_OFFSITE_REMOTE }}
+        run: |
+          set -euo pipefail
+          if [ -z "$BACKUP_OFFSITE_REMOTE" ]; then
+            echo "::warning::No off-site copy: set the BACKUP_OFFSITE_REMOTE secret (an rclone remote on the server)."
+            exit 0
+          fi
+          latest=$(ssh "$DEPLOY_HOST" 'ls -1t /srv/apps/makerstorage/makerstorage-*.tar.gz | head -1')
+          ssh "$DEPLOY_HOST" "rclone copy --no-traverse $(printf '%q' "$latest") $(printf '%q' "$BACKUP_OFFSITE_REMOTE")"
+          echo "Copied $(basename "$latest") to the off-site remote."

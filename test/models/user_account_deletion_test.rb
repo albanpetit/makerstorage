@@ -68,6 +68,25 @@ class UserAccountDeletionTest < ActiveSupport::TestCase
     assert_equal "LN-2 · Grace Hopper", unrelated.reload.subject_label
   end
 
+  test "the stock movements of a loan the user borrowed no longer name them" do
+    shared = create_organization(name: "Fablab")
+    add_member(shared, create_user, role: "owner")
+    add_member(shared, @user)
+    part = create_part(organization: shared)
+    zone = create_storage_location(organization: shared)
+    StockMovement.create!(organization: shared, part: part, storage_location: zone, movement_type: "in", quantity_delta: 5)
+    loan = loan_for(shared, borrower: @user, borrower_name: "Ada Lovelace", reference: "LN-1")
+    out = StockMovement.create!(organization: shared, part: part, storage_location: zone, movement_type: "out",
+                                quantity_delta: -1, reason: "Lent to Ada Lovelace", reference: loan.reference)
+    other = StockMovement.create!(organization: shared, part: part, storage_location: zone, movement_type: "out",
+                                  quantity_delta: -1, reason: "Lent to Ada Lovelace", reference: "LN-9")
+
+    assert @user.destroy_account!
+
+    assert_equal "Lent to #{User::DELETED_USER_NAME}", out.reload.reason
+    assert_equal "Lent to Ada Lovelace", other.reload.reason, "another loan's movement is left alone"
+  end
+
   test "an organization with only pending invitees or inactive members goes with its only owner" do
     org = create_organization(name: "Solo")
     add_member(org, @user, role: "owner")
