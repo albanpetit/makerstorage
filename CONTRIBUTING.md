@@ -14,7 +14,7 @@ bin/setup
 
 ### Manual setup
 
-Requires Ruby 3.4.12 and Node 24+.
+Requires Ruby 3.4.13 and Node 24+.
 
 ```bash
 bundle install
