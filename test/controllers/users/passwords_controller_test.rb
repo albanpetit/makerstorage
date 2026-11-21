@@ -66,4 +66,41 @@ class Users::PasswordsControllerTest < ActionDispatch::IntegrationTest
     end
     assert_match(/too many reset requests/i, flash[:alert])
   end
+
+  test "the forgot and reset password pages render" do
+    get new_user_password_path
+    assert_response :success
+
+    get edit_user_password_path(reset_password_token: "abc")
+    assert_response :success
+    assert_includes response.body, "abc"
+  end
+
+  test "a reset with a bad token or mismatched passwords goes back to the form" do
+    user = create_user
+    token = user.send_reset_password_instructions
+
+    put update_user_password_path, params: { user: { reset_password_token: "wrong", password: "brand-new-pass1", password_confirmation: "brand-new-pass1" } }
+    assert_redirected_to edit_user_password_path(reset_password_token: "wrong")
+    assert flash[:alert].present?
+
+    put update_user_password_path, params: { user: { reset_password_token: token, password: "brand-new-pass1", password_confirmation: "other-pass-22" } }
+    assert_redirected_to edit_user_password_path(reset_password_token: token)
+    assert_not user.reload.valid_password?("brand-new-pass1")
+  end
+
+  test "a reset signs in, or sends to the sign-in page when sign-in after reset is off" do
+    user = create_user
+    put update_user_password_path, params: { user: { reset_password_token: user.send_reset_password_instructions, password: "brand-new-pass1", password_confirmation: "brand-new-pass1" } }
+    assert_redirected_to root_path
+
+    delete destroy_user_session_path
+    previous = Devise.sign_in_after_reset_password
+    Devise.sign_in_after_reset_password = false
+    put update_user_password_path, params: { user: { reset_password_token: user.send_reset_password_instructions, password: "brand-new-pass2", password_confirmation: "brand-new-pass2" } }
+    assert_redirected_to new_user_session_path
+    assert user.reload.valid_password?("brand-new-pass2")
+  ensure
+    Devise.sign_in_after_reset_password = previous unless previous.nil?
+  end
 end

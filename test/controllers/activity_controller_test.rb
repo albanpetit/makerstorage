@@ -140,4 +140,47 @@ class ActivityControllerTest < ActionDispatch::IntegrationTest
     assert_equal [ "update", "OrganizationMembership", { "role" => %w[member admin] } ],
       [ event.action, event.subject_type, event.details ]
   end
+
+  test "each kind of record links to where it is shown" do
+    org = OrganizationDemo.new(@owner).create!
+    expected = {
+      "Category" => "/categories", "Tag" => "/tags", "Supplier" => "/suppliers", "Organization" => "/settings",
+      "OrganizationMembership" => "/members"
+    }
+    records = ActivityController::SUBJECT_PATHS.keys.filter_map do |type|
+      record = type == "Organization" ? org : type.constantize.where(organization_id: org.id).first
+      [ type, record ] if record
+    end.to_h
+    records.merge!("StorageLocation" => org.storage_locations.first, "Order" => org.orders.first, "Project" => org.projects.first).compact!
+    assert_operator records.size, :>=, 8, "the demo should hold most kinds of records"
+    expected.merge!(
+      "StorageLocation" => "/storage_locations?zone=#{records['StorageLocation'].id}",
+      "Order" => "/orders/#{records['Order'].id}",
+      "Project" => "/projects/#{records['Project'].id}"
+    )
+
+    ActivityEvent.without_recording { ActivityEvent.where(organization: org).delete_all }
+    records.each do |type, record|
+      ActivityEvent.create!(organization: org, user: @owner, action: "update", subject_type: type, subject_id: record.id, subject_label: "#{type} label")
+    end
+    # A record of another organization, and a type with no page, never link.
+    ActivityEvent.create!(organization: org, user: @owner, action: "update", subject_type: "Tag", subject_id: create_tag(organization: @org).id, subject_label: "foreign tag")
+    ActivityEvent.create!(organization: org, user: @owner, action: "update", subject_type: "Widget", subject_id: 1, subject_label: "widget")
+
+    sign_in @owner
+    post switch_organization_path(org)
+    get activity_path
+    events = inertia_props["events"].index_by { |event| event["subject_label"] }
+
+    records.each_key do |type|
+      event = events.fetch("#{type} label")
+      assert event["subject_exists"], type
+      url = ActivityController::SUBJECT_PATHS[type].call(records[type].id)
+      url ? assert_equal(url, event["subject_url"], type) : assert_nil(event["subject_url"], type)
+    end
+    expected.each { |type, url| assert_equal url, events.fetch("#{type} label")["subject_url"], type if records[type] }
+    assert_nil events.dig("Part label", "subject_url"), "parts open in the detail sheet" if records["Part"]
+    assert_not events.fetch("foreign tag")["subject_exists"]
+    assert_not events.fetch("widget")["subject_exists"]
+  end
 end
