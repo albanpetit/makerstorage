@@ -1,5 +1,5 @@
 import { Link, usePage, router, useForm } from '@inertiajs/react'
-import { FormEvent, useEffect, useState } from 'react'
+import { FormEvent, useState, useSyncExternalStore } from 'react'
 import { useTheme } from 'next-themes'
 import {
   LayoutDashboard,
@@ -96,11 +96,12 @@ const ORG_BADGE_COLORS = [
   'bg-blue-600', 'bg-purple-600', 'bg-emerald-600', 'bg-amber-600', 'bg-pink-600', 'bg-cyan-600',
 ]
 
+const subscribeNothing = () => () => {}
+
 function ThemeToggle() {
   const { resolvedTheme, setTheme } = useTheme()
-  const [mounted, setMounted] = useState(false)
-
-  useEffect(() => setMounted(true), [])
+  // The theme is only known in the browser: false while server-rendering.
+  const mounted = useSyncExternalStore(subscribeNothing, () => true, () => false)
 
   return (
     <Button

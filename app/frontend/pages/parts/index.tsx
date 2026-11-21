@@ -1,5 +1,5 @@
 import { Head, Link } from '@inertiajs/react'
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Plus, Search, Download, Upload, Copy } from 'lucide-react'
 
 import { AppLayout } from '@/layouts/app-layout'
@@ -46,7 +46,9 @@ export default function PartsIndex({
   // Every part seen on a page so far, so bulk labels/export only fetch the
   // selected parts that were never displayed.
   const knownParts = useRef(new Map<number, Part>())
-  parts.forEach((part) => knownParts.current.set(part.id, part))
+  useEffect(() => {
+    parts.forEach((part) => knownParts.current.set(part.id, part))
+  }, [parts])
 
   const hiddenSelectedCount = useMemo(() => {
     const visible = new Set(matching_ids)

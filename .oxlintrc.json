@@ -12,9 +12,9 @@
   "rules": {
     "react-hooks/rules-of-hooks": "error",
     "react-hooks/exhaustive-deps": "error",
-    "react/set-state-in-effect": "warn",
-    "react/refs": "warn",
-    "react/purity": "warn"
+    "react/set-state-in-effect": "error",
+    "react/refs": "error",
+    "react/purity": "error"
   },
   "ignorePatterns": [
     "app/frontend/components/ui/**",

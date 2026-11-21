@@ -51,25 +51,29 @@ export function ReassignIpnsCard({ organization, formatChanged }: ReassignIpnsCa
   const boxBag = organization.ipn_generation_mode === 'box_bag'
   const [open, setOpen] = useState(false)
   const [clearUnbagged, setClearUnbagged] = useState(false)
-  const [preview, setPreview] = useState<ReassignPreview | null>(null)
-  const [loadError, setLoadError] = useState('')
+  // Each result remembers the request it answers, so a stale one (dialog
+  // reopened, checkbox toggled) reads as still loading.
+  const requestKey = `${open}-${clearUnbagged}`
+  const [loaded, setLoaded] = useState<{ key: string; preview?: ReassignPreview; error?: string } | null>(null)
+  const current = loaded?.key === requestKey ? loaded : null
+  const preview = current?.preview ?? null
+  const loadError = current?.error ?? ''
   const [reassigning, setReassigning] = useState(false)
 
   useEffect(() => {
     if (!open) return
     let cancelled = false
-    setPreview(null)
-    setLoadError('')
+    const key = `${open}-${clearUnbagged}`
     fetch(`/settings/reassign_ipns_preview?clear_unbagged=${clearUnbagged}`, { headers: { Accept: 'application/json' } })
       .then((res) => {
         if (!res.ok) throw new Error('Failed to load preview')
         return res.json()
       })
       .then((body: ReassignPreview) => {
-        if (!cancelled) setPreview(body)
+        if (!cancelled) setLoaded({ key, preview: body })
       })
       .catch(() => {
-        if (!cancelled) setLoadError(t('Could not load the preview. Please try again.'))
+        if (!cancelled) setLoaded({ key, error: t('Could not load the preview. Please try again.') })
       })
     return () => {
       cancelled = true

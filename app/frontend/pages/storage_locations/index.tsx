@@ -195,9 +195,11 @@ export default function StorageLocationsIndex({ storage_locations, zone_stock, r
 
   // Clear the component selection whenever the viewed zone changes — the
   // checkboxes only make sense against the currently displayed table.
-  useEffect(() => {
+  const [selectionZoneId, setSelectionZoneId] = useState(effectiveSelected?.id)
+  if (selectionZoneId !== effectiveSelected?.id) {
+    setSelectionZoneId(effectiveSelected?.id)
     setSelectedPartIds(new Set())
-  }, [effectiveSelected?.id])
+  }
 
 
   // Build editable move rows for the given parts, sourced from the zone they
