@@ -168,6 +168,7 @@ en:
       source_not_deleted: '%{name} could not be deleted once its data was moved.'
     part_import:
       file_missing: The file was lost before it could be read (the server restarted). Import it again.
+      no_longer_allowed: You can no longer change parts in this organization, so the import didn't run.
       unexpected: Something went wrong during the import. The rows read so far are kept.
       unreadable: Could not parse that file as CSV.
     part_merge:
@@ -460,6 +461,7 @@ en:
       choose_at_least_one_tag: Choose at least one tag.
       could_not_parse_that_file_as: Could not parse that file as CSV.
       enter_a_part_number_to_search: Enter a part number to search.
+      import_already_running: Your previous import is still running. Start the next one when it's over.
       import_started:
         one: Importing %{count} row in the background. You can keep working.
         other: Importing %{count} rows in the background. You can keep working.

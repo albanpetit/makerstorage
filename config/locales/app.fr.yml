@@ -235,6 +235,7 @@ fr:
       source_not_deleted: '%{name} n''a pas pu être supprimée une fois ses données déplacées.'
     part_import:
       file_missing: Le fichier a été perdu avant d’être lu (le serveur a redémarré). Importez-le à nouveau.
+      no_longer_allowed: 'Vous ne pouvez plus modifier les composants de cette organisation : l’import n’a pas été lancé.'
       unexpected: Une erreur est survenue pendant l’import. Les lignes déjà lues sont conservées.
       unreadable: Impossible de lire ce fichier comme un CSV.
     part_merge:
@@ -527,6 +528,7 @@ fr:
       choose_at_least_one_tag: Choisissez au moins un tag.
       could_not_parse_that_file_as: Impossible de lire ce fichier comme un CSV.
       enter_a_part_number_to_search: Saisissez une référence à rechercher.
+      import_already_running: Votre import précédent est encore en cours. Lancez le suivant quand il sera terminé.
       import_started:
         one: Import de %{count} ligne en cours. Vous pouvez continuer à travailler.
         other: Import de %{count} lignes en cours. Vous pouvez continuer à travailler.

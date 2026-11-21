@@ -27,6 +27,24 @@ class PartCsvImportJobTest < ActiveJob::TestCase
     assert_nil Current.user
   end
 
+  test "a user who can no longer write when the job starts gets a failed import, and nothing is imported" do
+    part_import = import_of("Name,Category\nResistor,Resistors\n")
+    OrganizationMembership.create!(organization: @org, user: create_user, role: "owner")
+    @org.organization_memberships.find_by!(user: @user).update!(role: "viewer")
+
+    PartCsvImportJob.perform_now(part_import)
+
+    assert_equal [ "failed", "no_longer_allowed" ], part_import.reload.values_at(:status, :error)
+    assert_equal 0, @org.parts.count
+    assert_not File.exist?(part_import.file_path)
+  end
+
+  test "imports run one at a time on the server" do
+    assert_equal 1, PartCsvImportJob.concurrency_limit
+    assert_equal "part_csv_import", PartCsvImportJob.new(import_of("x")).concurrency_key.split("/").last
+    assert PartCsvImportJob.concurrency_duration >= 1.hour
+  end
+
   test "an unreadable file fails the import with a reason" do
     part_import = import_of("Name,Category\n\"broken,quote\n")
 
