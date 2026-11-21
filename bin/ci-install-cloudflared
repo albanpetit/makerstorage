@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# Installs cloudflared on a GitHub Actions runner (deploy and backup workflows
+# reach the server's SSH through a Cloudflare Tunnel).
+#
+# The jobs that run this hold the server's SSH key and the app's secrets, so
+# the download is checked when the repository says what to expect:
+#   CLOUDFLARED_VERSION  release to install, e.g. 2026.11.0 (default: latest)
+#   CLOUDFLARED_SHA256   SHA-256 of cloudflared-linux-amd64.deb for that release;
+#                        a mismatch stops the job. Unset, the hash is printed
+#                        with a warning so it can be pinned.
+# Both come from repository variables (Settings → Secrets and variables →
+# Actions → Variables).
+set -euo pipefail
+
+version="${CLOUDFLARED_VERSION:-}"
+asset="cloudflared-linux-amd64.deb"
+if [ -n "$version" ]; then
+  url="https://github.com/cloudflare/cloudflared/releases/download/${version}/${asset}"
+else
+  url="https://github.com/cloudflare/cloudflared/releases/latest/download/${asset}"
+fi
+
+deb="${RUNNER_TEMP:-/tmp}/cloudflared.deb"
+curl -fsSL -o "$deb" "$url"
+
+actual="$(sha256sum "$deb" | cut -d' ' -f1)"
+if [ -n "${CLOUDFLARED_SHA256:-}" ]; then
+  if [ "$actual" != "$CLOUDFLARED_SHA256" ]; then
+    echo "::error::cloudflared checksum mismatch (expected $CLOUDFLARED_SHA256, got $actual)"
+    exit 1
+  fi
+else
+  echo "::warning::cloudflared ${version:-latest} is not pinned: set the CLOUDFLARED_VERSION and CLOUDFLARED_SHA256 repository variables (SHA-256 of this download: $actual)"
+fi
+
+sudo dpkg -i "$deb"
+cloudflared --version
