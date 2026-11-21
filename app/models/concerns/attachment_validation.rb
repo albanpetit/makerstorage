@@ -39,8 +39,44 @@ module AttachmentValidation
             errors.add(name, :attachment_size, size: ActiveSupport::NumberHelper.number_to_human_size(max_size))
           end
         end
+
+        # Files being added now (their blob isn't stored yet) must fit in what's
+        # left of the organization's quota. Checked before upload, so a refused
+        # file never reaches the disk.
+        added = blobs.select(&:new_record?).sum(&:byte_size)
+        organization = is_a?(Organization) ? self : try(:organization)
+        if added.positive? && organization && !AttachmentValidation.fits_quota?(organization, added)
+          errors.add(name, :storage_quota_exceeded, quota: ActiveSupport::NumberHelper.number_to_human_size(AttachmentValidation.quota))
+        end
       end
     end
+  end
+
+  # Models whose files count against their organization's quota, with how
+  # their rows tie to it.
+  QUOTA_RECORDS = {
+    "Organization" => :id, "Part" => :organization_id, "Project" => :organization_id,
+    "Supplier" => :organization_id, "Footprint" => :organization_id
+  }.freeze
+
+  def self.quota
+    Rails.configuration.x.organization_storage_quota
+  end
+
+  # Whether +bytes+ more still fit in +organization+'s quota (always, without one).
+  def self.fits_quota?(organization, bytes)
+    quota.nil? || storage_used(organization) + bytes <= quota
+  end
+
+  # Bytes of files held by +organization+'s records, each file once (a project
+  # revision shares its files with the original).
+  def self.storage_used(organization)
+    scopes = QUOTA_RECORDS.map do |type, column|
+      ids = type.constantize.where(column => organization.id).select(:id)
+      ActiveStorage::Attachment.where(record_type: type, record_id: ids)
+    end
+    blob_ids = scopes.reduce { |all, scope| all.or(scope) }.select(:blob_id)
+    ActiveStorage::Blob.where(id: blob_ids).sum(:byte_size)
   end
 
   def self.allowed_type?(content_types, content_type)

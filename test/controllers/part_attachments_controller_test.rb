@@ -63,6 +63,19 @@ class PartAttachmentsControllerTest < ActionDispatch::IntegrationTest
     assert_match(/big.bin is larger than 50 MB/, flash[:alert])
   end
 
+  test "refuses files past the organization's storage quota" do
+    sign_in @user
+    previous = Rails.configuration.x.organization_storage_quota
+    Rails.configuration.x.organization_storage_quota = 20
+
+    assert_no_difference -> { ActiveStorage::Blob.count } do
+      post part_attachments_path(@part), params: { files: [ upload("body.step", "x" * 30) ] }, headers: { "Referer" => parts_url }
+    end
+    assert_match "would exceed the organization's 20 Bytes of storage", flash[:alert]
+  ensure
+    Rails.configuration.x.organization_storage_quota = previous
+  end
+
   test "viewers can open files but not add or remove them" do
     @part.attachments.attach(io: StringIO.new("notes"), filename: "notes.txt")
     viewer = create_user

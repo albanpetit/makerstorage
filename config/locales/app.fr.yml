@@ -10,6 +10,7 @@ fr:
         assembly_too_deep: imbriquerait les sous-ensembles sur plus de %{count} niveaux
         attachment_size: doit faire moins de %{size}
         attachment_type: doit être un fichier %{types}
+        storage_quota_exceeded: dépasserait l’espace de %{quota} de l’organisation
         bag_codes_taken: 'donnerait aux sachets des codes déjà utilisés : %{codes}'
         bag_held_by: '%{code} est le sachet de %{part} : choisissez un autre sachet'
         bag_is_other_ipn: '%{code} est déjà l''IPN d''un autre composant'

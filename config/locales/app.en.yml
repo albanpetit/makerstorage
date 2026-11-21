@@ -10,6 +10,7 @@ en:
         assembly_too_deep: would nest sub-assemblies more than %{count} levels deep
         attachment_size: must be smaller than %{size}
         attachment_type: must be a %{types} file
+        storage_quota_exceeded: would exceed the organization's %{quota} of storage
         bag_codes_taken: 'would give bags codes already in use: %{codes}'
         bag_held_by: '%{code} is %{part}''s bag: pick another bag'
         bag_is_other_ipn: '%{code} is already another part''s IPN'
