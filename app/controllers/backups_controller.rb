@@ -14,6 +14,9 @@ class BackupsController < ApplicationController
   before_action :verify_confirmed_email, only: :import
   rate_limit to: IMPORT_RATE_LIMIT = 5, within: 1.hour, only: :import, by: -> { current_user.id }, store: AUTH_RATE_LIMIT_STORE,
              with: -> { redirect_back_or_to settings_path, alert: t("flash.backups.too_many_restores_please_try_again") }
+  # An export writes every file of the organization to disk before sending it.
+  rate_limit to: EXPORT_RATE_LIMIT = 5, within: 1.hour, only: :export, by: -> { current_user.id }, store: AUTH_RATE_LIMIT_STORE,
+             with: -> { redirect_back_or_to settings_path, alert: t("flash.backups.too_many_exports") }
 
   # The archive is built in a temporary file and streamed from disk (the file
   # is deleted once the response is sent), so a large organization doesn't

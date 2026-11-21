@@ -63,6 +63,16 @@ class OauthAuthorizationTest < ActiveSupport::TestCase
     assert_raises(OauthAuthorization::InvalidGrant) { OauthAuthorization.refresh!(client: create_oauth_client, refresh_token: refreshed[:refresh_token]) }
   end
 
+  test "reusing a rotated refresh token revokes the grant" do
+    tokens = exchange(grant)
+    refreshed = OauthAuthorization.refresh!(client: @client, refresh_token: tokens[:refresh_token])
+
+    error = assert_raises(OauthAuthorization::InvalidGrant) { OauthAuthorization.refresh!(client: @client, refresh_token: tokens[:refresh_token]) }
+    assert_equal "refresh token already used", error.message
+    assert_nil OauthAuthorization.authenticate(refreshed[:access_token])
+    assert_raises(OauthAuthorization::InvalidGrant) { OauthAuthorization.refresh!(client: @client, refresh_token: refreshed[:refresh_token]) }
+  end
+
   test "access tokens expire" do
     tokens = exchange(grant)
 

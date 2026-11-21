@@ -78,6 +78,27 @@ module Makerstorage
     }
   end
 
+  # Host names the app answers to (ALLOWED_HOSTS, comma-separated; a leading
+  # dot also allows subdomains). Unset, any Host is served, as LAN installs
+  # reached by IP need. Set, other Host headers get a 403, so absolute URLs
+  # built from the request (OAuth/MCP metadata) can't be pointed elsewhere.
+  def self.allowed_hosts_from_env
+    ENV["ALLOWED_HOSTS"].to_s.split(",").map(&:strip).compact_blank.presence
+  end
+
+  # Disk space an organization's files may take in all (ORGANIZATION_STORAGE_QUOTA:
+  # bytes, or a number with KB/MB/GB/TB, e.g. "2GB"). Unset or blank means no
+  # limit, the right default for a private install; a shared instance where
+  # anyone can sign up should set one. nil when unset or unreadable.
+  def self.storage_quota_from_env
+    value = ENV["ORGANIZATION_STORAGE_QUOTA"].to_s.strip.upcase.delete(" ")
+    match = value.match(/\A(\d+(?:\.\d+)?)(B|KB|MB|GB|TB)?\z/)
+    return nil unless match
+
+    units = { "B" => 1, "KB" => 1.kilobyte, "MB" => 1.megabyte, "GB" => 1.gigabyte, "TB" => 1.terabyte }
+    (match[1].to_f * units.fetch(match[2] || "B")).to_i.nonzero?
+  end
+
   class Application < Rails::Application
     # Initialize configuration defaults for originally generated Rails version.
     config.load_defaults 8.1
@@ -117,6 +138,9 @@ module Makerstorage
     # Direct printing to network label printers (LabelPrinting::Network). On
     # unless NETWORK_PRINTING=false, e.g. on a shared instance with no printers.
     config.x.network_printing = !%w[0 false no off].include?(ENV["NETWORK_PRINTING"].to_s.strip.downcase)
+
+    # Total size of an organization's files (AttachmentValidation), nil = no limit.
+    config.x.organization_storage_quota = Makerstorage.storage_quota_from_env
 
     # Privacy policy and legal notice of the instance's operator (GDPR art. 13,
     # French LCEN), linked from the sign-in pages and the profile. Each install

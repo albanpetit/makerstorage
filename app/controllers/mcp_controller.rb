@@ -11,6 +11,12 @@ class McpController < ActionController::API
   MAX_BODY_SIZE = 1.megabyte
 
   before_action :authenticate_bearer!, only: :create
+  # Per grant (after authentication): an assistant chains a few calls per
+  # question, never hundreds a minute.
+  RATE_LIMIT = 120
+  rate_limit to: RATE_LIMIT, within: 1.minute, only: :create, by: -> { @authorization.id },
+             store: ApplicationController::AUTH_RATE_LIMIT_STORE,
+             with: -> { render json: McpServer.error_response(nil, McpServer::INVALID_REQUEST, "Too many requests, slow down"), status: :too_many_requests }
 
   def create
     if request.content_length.to_i > MAX_BODY_SIZE

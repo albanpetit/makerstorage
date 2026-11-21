@@ -11,7 +11,9 @@
 # to disk, so archive paths don't matter. KiCad's autosaves and the
 # "<project>-backups" folder are skipped.
 module ProjectKicadFiles
-  MAX_SCHEMATICS_SIZE = 50.megabytes
+  # Real schematics weigh a few hundred KB to a few MB a sheet; reading costs
+  # memory and CPU well beyond the text's size, so the total stays modest.
+  MAX_SCHEMATICS_SIZE = 20.megabytes
   MAX_ZIP_ENTRIES = 5_000
 
   # The files can't be read: an unreadable ZIP, a schematic over the limits, or
@@ -26,6 +28,8 @@ module ProjectKicadFiles
     BomParser::KicadSchematic.parse(schematics(files))
   rescue BomParser::KicadSchematic::NotASchematic => e
     raise Unreadable, I18n.t("errors.kicad_files.not_a_schematic", name: File.basename(e.message))
+  rescue BomParser::KicadSchematic::TooLarge => e
+    raise Unreadable, I18n.t("errors.kicad_files.too_large_for_bom", name: File.basename(e.message))
   end
 
   # Same, from the files attached to +project+.

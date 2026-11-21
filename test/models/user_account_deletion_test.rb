@@ -43,6 +43,31 @@ class UserAccountDeletionTest < ActiveSupport::TestCase
     assert_nil loan.borrower_contact
   end
 
+  test "entries about the user (memberships, borrowed loans) no longer name them" do
+    shared = create_organization(name: "Fablab")
+    owner = create_user
+    add_member(shared, owner, role: "owner")
+    membership = add_member(shared, @user)
+    loan = loan_for(shared, borrower: @user, borrower_name: "Ada Lovelace", reference: "LN-1")
+    other_loan = loan_for(shared, borrower_name: "Grace Hopper", reference: "LN-2")
+    about_membership = ActivityEvent.create!(organization: shared, user: owner, user_name: "Owner", action: "update",
+                                             subject_type: "OrganizationMembership", subject_id: membership.id,
+                                             subject_label: "Ada Lovelace", details: { "role" => %w[member admin] })
+    about_loan = ActivityEvent.create!(organization: shared, user: owner, user_name: "Owner", action: "update",
+                                       subject_type: "Loan", subject_id: loan.id, subject_label: "LN-1 · Ada Lovelace",
+                                       details: { "borrower_name" => [ "Ada Lovelace", "Ada L." ] })
+    unrelated = ActivityEvent.create!(organization: shared, user: owner, user_name: "Owner", action: "update",
+                                      subject_type: "Loan", subject_id: other_loan.id, subject_label: "LN-2 · Grace Hopper")
+
+    assert @user.destroy_account!
+
+    assert_equal User::DELETED_USER_NAME, about_membership.reload.subject_label
+    about_loan.reload
+    assert_equal "LN-1 · #{User::DELETED_USER_NAME}", about_loan.subject_label
+    assert_equal [ User::DELETED_USER_NAME, "Ada L." ], about_loan.details["borrower_name"]
+    assert_equal "LN-2 · Grace Hopper", unrelated.reload.subject_label
+  end
+
   test "an organization with only pending invitees or inactive members goes with its only owner" do
     org = create_organization(name: "Solo")
     add_member(org, @user, role: "owner")

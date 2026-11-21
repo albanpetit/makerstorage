@@ -228,6 +228,7 @@ module OrganizationBackup
 
       file = zip.find_entry(entry["path"].to_s)
       return false if file.nil? || file.directory? || file.size > limits[:max_size]
+      return false unless AttachmentValidation.fits_quota?(organization, file.size)
 
       blob = ActiveStorage::Blob.create_and_upload!(
         io: StringIO.new(file.get_input_stream.read),

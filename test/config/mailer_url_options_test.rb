@@ -41,4 +41,12 @@ class MailerUrlOptionsTest < ActiveSupport::TestCase
       with_env("FORCE_SSL" => value) { assert_not Makerstorage.force_ssl_from_env?, value }
     end
   end
+
+  test "ALLOWED_HOSTS lists the host names to answer to, unset meaning any" do
+    with_env("ALLOWED_HOSTS" => nil) { assert_nil Makerstorage.allowed_hosts_from_env }
+    with_env("ALLOWED_HOSTS" => " ") { assert_nil Makerstorage.allowed_hosts_from_env }
+    with_env("ALLOWED_HOSTS" => "app.example.org, .example.net") do
+      assert_equal [ "app.example.org", ".example.net" ], Makerstorage.allowed_hosts_from_env
+    end
+  end
 end

@@ -10,6 +10,7 @@ fr:
         assembly_too_deep: imbriquerait les sous-ensembles sur plus de %{count} niveaux
         attachment_size: doit faire moins de %{size}
         attachment_type: doit être un fichier %{types}
+        storage_quota_exceeded: dépasserait l’espace de %{quota} de l’organisation
         bag_codes_taken: 'donnerait aux sachets des codes déjà utilisés : %{codes}'
         bag_held_by: '%{code} est le sachet de %{part} : choisissez un autre sachet'
         bag_is_other_ipn: '%{code} est déjà l''IPN d''un autre composant'
@@ -168,6 +169,7 @@ fr:
       token_unreadable: DigiKey a renvoyé un jeton illisible
       unreachable: 'Impossible de joindre DigiKey : %{error}'
     github:
+      busy: Une autre récupération GitHub est en cours sur le serveur. Réessayez dans un instant.
       file_too_large: '%{name} est trop volumineux pour être conservé.'
       files_too_large: Les fichiers KiCad de %{location} sont trop volumineux pour être conservés (plus de %{size} compressés).
       forbidden: GitHub a refusé l’accès à %{repository}.
@@ -271,6 +273,7 @@ fr:
       skipped_files:
         one: ' %{count} fichier n''a pas pu être restauré et a été ignoré.'
         other: ' %{count} fichiers n''ont pas pu être restaurés et ont été ignorés.'
+      too_many_exports: Trop de sauvegardes téléchargées. Réessayez plus tard.
       too_many_restores_please_try_again: Trop de restaurations. Réessayez plus tard.
     categories:
       category_created: Catégorie « %{category_name} » créée.
@@ -573,6 +576,7 @@ fr:
         one: '%{count} fichier KiCad récupéré depuis %{location} (%{sha}).'
         other: '%{count} fichiers KiCad récupérés depuis %{location} (%{sha}).'
       no_schematic: Aucun schéma avec des composants parmi eux, la nomenclature est donc inchangée.
+      too_many_syncs: Trop de récupérations GitHub. Réessayez plus tard.
       unlinked: Délié de GitHub. Les fichiers déjà récupérés restent dans le projet.
       up_to_date: Déjà à jour avec %{location} (%{sha}).
     project_lines:

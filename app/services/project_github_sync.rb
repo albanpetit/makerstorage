@@ -21,6 +21,11 @@ module ProjectGithubSync
   Result = Struct.new(:status, :sha, :file_count, :bom, :line_count, keyword_init: true)
 
   SNAPSHOT_KEY = "github_sha"
+  # An archive runs to GithubClient::MAX_ARCHIVE_SIZE and is fetched within the
+  # request: one fetch at a time per server process keeps the other threads
+  # free (same approach as PartExtraction).
+  MAX_CONCURRENT = 1
+  SLOTS = Concurrent::Semaphore.new(MAX_CONCURRENT)
 
   module_function
 
@@ -34,7 +39,13 @@ module ProjectGithubSync
       return Result.new(status: :up_to_date, sha: sha)
     end
 
-    client.download_archive(project.github_repository, sha) { |path| store(project, path, sha) }
+    raise Error, I18n.t("errors.github.busy") unless SLOTS.try_acquire(1)
+
+    begin
+      client.download_archive(project.github_repository, sha) { |path| store(project, path, sha) }
+    ensure
+      SLOTS.release
+    end
   rescue GithubClient::Error, ProjectKicadFiles::Unreadable => e
     raise Error, e.message
   end

@@ -131,6 +131,7 @@ class User < ApplicationRecord
           organization.destroy! if organization.organization_memberships.granting_access.where.not(user_id: id).none?
         end
         activity_events.update_all(user_id: nil, user_name: DELETED_USER_NAME)
+        anonymize_events_about_me
         borrowed_loans.update_all(borrower_id: nil, borrower_name: DELETED_USER_NAME, borrower_contact: nil)
         destroy!
       end
@@ -145,6 +146,24 @@ class User < ApplicationRecord
   end
 
   private
+
+  # Entries whose subject is the user (their memberships: invited, role
+  # changed, removed) or a loan they borrowed carry their name in the label,
+  # and a loan's in its borrower_name changes: rewrite those too.
+  def anonymize_events_about_me
+    ActivityEvent.where(subject_type: "OrganizationMembership", subject_id: organization_memberships.select(:id))
+      .update_all(subject_label: DELETED_USER_NAME)
+
+    name = display_name
+    ActivityEvent.where(subject_type: "Loan", subject_id: borrowed_loans.select(:id)).find_each do |event|
+      label = event.subject_label.to_s.split(" · ").map { |part| part == name ? DELETED_USER_NAME : part }.join(" · ")
+      details = event.details.to_h
+      if details["borrower_name"].is_a?(Array)
+        details = details.merge("borrower_name" => details["borrower_name"].map { |value| value == name ? DELETED_USER_NAME : value })
+      end
+      event.update_columns(subject_label: label, details: details)
+    end
+  end
 
   # Account emails go out in the language the user picked, else in the one of
   # the request that triggered them (their browser's).

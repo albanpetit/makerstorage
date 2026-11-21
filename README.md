@@ -1,7 +1,7 @@
 # Makerstorage
 
 [![test](https://github.com/albanpetit/makerstorage/actions/workflows/test.yml/badge.svg)](https://github.com/albanpetit/makerstorage/actions/workflows/test.yml)
-![Ruby](https://img.shields.io/badge/Ruby-3.4.12-CC342D?logo=ruby&logoColor=white)
+![Ruby](https://img.shields.io/badge/Ruby-3.4.13-CC342D?logo=ruby&logoColor=white)
 ![Rails](https://img.shields.io/badge/Rails-8.1-CC0000?logo=rubyonrails&logoColor=white)
 ![React](https://img.shields.io/badge/React-19-149ECA?logo=react&logoColor=white)
 
@@ -163,9 +163,11 @@ confirmed.
 | `MAILER_SENDER`       | `Makerstorage <no-reply@example.com>`  | `From` address (may include a display name).                            |
 | `APP_HOST`            | `localhost`                            | Public hostname used to build links in emails (e.g. `parts.example.org`). |
 | `APP_PROTOCOL`        | `https` with `FORCE_SSL`, else `http`  | Protocol of links in emails. Set to `https` when a proxy serves HTTPS without `FORCE_SSL`. |
+| `ALLOWED_HOSTS`       | any host                               | Comma-separated host names the app answers to (`.example.org` also allows subdomains); other `Host` headers get a 403. Set it when the app is reachable from the internet; leave it unset for a LAN install reached by IP. |
 | `FORCE_SSL`           | —                                      | Set to `true` behind a TLS-terminating proxy: redirects to HTTPS, sends HSTS, and marks the session cookie `Secure`. Leave unset for plain-HTTP LAN installs. |
 | `CSP_ENFORCE`         | —                                      | Set to `true` to enforce the Content-Security-Policy. By default it is report-only: violations are logged as `[CSP] …` but nothing is blocked. Check those logs before turning it on. |
 | `NETWORK_PRINTING`    | on                                     | Set to `false` to turn off direct printing to network label printers (Settings → Label printers), e.g. on a shared instance. When on, the server only connects to local-network addresses (10.x, 172.16–31.x, 192.168.x, 100.64/10, fc00::/7) on printer ports (9100–9109, 6101). |
+| `ORGANIZATION_STORAGE_QUOTA` | no limit                         | Total size of each organization's files (images, datasheets, attachments, KiCad files, logos), e.g. `1GB`. Set one on a shared instance where anyone can sign up, so a single account can't fill the disk. |
 | `PRIVACY_POLICY_URL`  | —                                      | Your privacy policy, linked from the sign-in pages and the profile. See [Privacy (GDPR)](#privacy-gdpr). |
 | `LEGAL_NOTICE_URL`    | —                                      | Your legal notice (e.g. *mentions légales* in France), linked next to it. |
 

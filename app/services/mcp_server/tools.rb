@@ -238,17 +238,29 @@ class McpServer
       packages = BomParser::Matcher.package_candidates(string_argument(arguments, "package"))
       scope = scope.where.not(value: [ nil, "" ]) if value
 
-      parts = scope.includes(:category, :footprint, :part_storages).alphabetical.to_a
-      parts.select! { |part| BomParser::Matcher.normalize_value(part.value) == value } if value
-      parts.select! { |part| part_packages(part).intersect?(packages) } if packages.any?
+      in_stock_only = boolean_argument(arguments, "in_stock_only")
+      scope = scope.includes(:category, :footprint, :part_storages).alphabetical
 
-      stock = stock_figures(parts)
-      parts.select! { |part| stock[part.id][:available].positive? } if boolean_argument(arguments, "in_stock_only")
+      # Filters SQL can't express run in Ruby over every match; without them
+      # only the page asked for is loaded.
+      if value || packages.any? || in_stock_only
+        parts = scope.to_a
+        parts.select! { |part| BomParser::Matcher.normalize_value(part.value) == value } if value
+        parts.select! { |part| part_packages(part).intersect?(packages) } if packages.any?
+        stock = stock_figures(parts)
+        parts.select! { |part| stock[part.id][:available].positive? } if in_stock_only
+        total = parts.size
+        parts = parts.first(limit)
+      else
+        total = scope.count
+        parts = scope.limit(limit).to_a
+        stock = stock_figures(parts)
+      end
 
       {
-        total_matches: parts.size,
-        truncated: parts.size > limit,
-        parts: parts.first(limit).map { |part| part_summary(part, stock[part.id]) }
+        total_matches: total,
+        truncated: total > limit,
+        parts: parts.map { |part| part_summary(part, stock[part.id]) }
       }
     end
 
