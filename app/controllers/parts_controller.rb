@@ -194,6 +194,25 @@ class PartsController < ApplicationController
     end
   end
 
+  # Parts matching ?q= (IPN, name, MPN, SKU, value…), OPTIONS_LIMIT at a
+  # time, for pickers that search on the server (PartPicker) instead of
+  # receiving the whole inventory with the page.
+  OPTIONS_LIMIT = 20
+
+  def options
+    query = params[:q].to_s.strip
+    scope = current_organization.parts
+    if query.present?
+      like = "%#{Part.sanitize_sql_like(query)}%"
+      scope = scope.search(query).or(scope.where("parts.ipn LIKE ? ESCAPE '\\'", like))
+    end
+
+    parts = scope.alphabetical.limit(OPTIONS_LIMIT).map do |part|
+      { id: part.id, reference: part.reference, name: part.name, unit: part.unit, pack_size: part.pack_size }
+    end
+    render json: { parts: parts }
+  end
+
   # Queries the organization's configured supplier catalogs (Mouser, DigiKey, LCSC) for a
   # manufacturer part number and returns normalized matches as JSON for the
   # add-part dialog to prefill from. Async fetch, not an Inertia visit.

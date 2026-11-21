@@ -60,6 +60,7 @@ Rails.application.routes.draw do
       post :lookup
       post :extract
       post :rows
+      get :options
       post :bulk_move
       delete :bulk_destroy
       post :bulk_update_category

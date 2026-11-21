@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Combobox, type ComboboxOption } from '@/components/ui/combobox'
+import { PartPicker } from '@/components/part-picker'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
@@ -72,19 +72,12 @@ interface StocktakeLine {
   adjustment: { id: number; quantity_delta: number } | null
 }
 
-interface PartOption {
-  id: number
-  reference: string
-  name: string
-}
-
 interface StocktakeShowProps {
   stocktake: Stocktake
   lines: StocktakeLine[]
   zones: StorageLocationOption[]
   current_zone_id: number | null
   focus_line_id: number | null
-  parts: PartOption[]
   currency: string
   errors?: Record<string, string | string[]>
 }
@@ -132,7 +125,7 @@ function DifferenceBadge({ difference, unit }: { difference: number | null; unit
   )
 }
 
-export default function StocktakeShow({ stocktake, lines, zones, current_zone_id, focus_line_id, parts, currency, errors }: StocktakeShowProps) {
+export default function StocktakeShow({ stocktake, lines, zones, current_zone_id, focus_line_id, currency, errors }: StocktakeShowProps) {
   const { canWrite } = usePermissions()
   const counting = canWrite && stocktake.status === 'in_progress'
   const [code, setCode] = useState('')
@@ -233,11 +226,6 @@ export default function StocktakeShow({ stocktake, lines, zones, current_zone_id
       },
     })
   }
-
-  const partOptions = useMemo<ComboboxOption[]>(
-    () => parts.map((part) => ({ value: String(part.id), label: `${part.reference} — ${part.name}` })),
-    [parts]
-  )
 
   const visibleLines = useMemo(() => {
     const query = search.trim().toLowerCase()
@@ -372,13 +360,11 @@ export default function StocktakeShow({ stocktake, lines, zones, current_zone_id
                   <div className="space-y-2">
                     <Label htmlFor="stocktake-add-part">{t('Found something else?')}</Label>
                     <div className="flex gap-2">
-                      <Combobox
+                      <PartPicker
                         id="stocktake-add-part"
-                        options={partOptions}
                         value={addPartId}
-                        onValueChange={setAddPartId}
+                        onPick={(part) => setAddPartId(part ? String(part.id) : '')}
                         placeholder={t('Add a part…')}
-                        searchPlaceholder={t('Search parts…')}
                         className="min-w-0 flex-1"
                       />
                       <Button type="button" variant="outline" disabled={!addPartId} onClick={addPart} aria-label={t('Add part to the count')}>

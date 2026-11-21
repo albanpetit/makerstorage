@@ -100,6 +100,8 @@ class StocktakesControllerTest < ActionDispatch::IntegrationTest
     assert_nil lines[[ @resistor.id, @drawer.id ]]["expected_quantity"]
     assert_equal 10, lines[[ @cap.id, @cabinet.id ]]["expected_quantity"]
     assert_equal(-1, lines[[ @cap.id, @cabinet.id ]]["difference"])
+    # Parts found in the zone are searched on the server (PartPicker).
+    assert_not inertia_props.key?("parts")
   end
 
   test "show summarises the differences and their value" do

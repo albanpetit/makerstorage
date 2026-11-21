@@ -8,6 +8,7 @@ import { usePermissions } from '@/hooks/use-permissions'
 import { PageHeader } from '@/components/page-header'
 import { FlashMessages } from '@/components/flash-messages'
 import { StorageLocationSelect, type StorageLocationOption } from '@/components/storage-location-select'
+import { PartPicker, type PickedPart } from '@/components/part-picker'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Field, FieldContent, FieldError, FieldLabel } from '@/components/ui/field'
@@ -77,20 +78,11 @@ interface Movement {
   part: MovementPart
 }
 
-interface PartOption {
-  id: number
-  reference: string
-  name: string
-  unit: string
-  pack_size: number | null
-}
-
 interface StockMovementsPageProps {
   movements: Movement[]
   pagination: Pagination
   filter: MovementFilter
   stats: MovementStats
-  parts: PartOption[]
   storage_locations: StorageLocationOption[]
 }
 
@@ -119,9 +111,10 @@ interface MovementFormData {
   }
 }
 
-export default function StockMovementsIndex({ movements, pagination, filter, stats, parts, storage_locations }: StockMovementsPageProps) {
+export default function StockMovementsIndex({ movements, pagination, filter, stats, storage_locations }: StockMovementsPageProps) {
   const { canWrite } = usePermissions()
   const [newOpen, setNewOpen] = useState(false)
+  const [selectedPart, setSelectedPart] = useState<PickedPart | null>(null)
 
   // Filtering and paging are driven by the server: navigate with the desired
   // type/page and Inertia swaps in the matching page, stats, and counts.
@@ -157,6 +150,7 @@ export default function StockMovementsIndex({ movements, pagination, filter, sta
   const openNewDialog = () => {
     newForm.reset()
     newForm.clearErrors()
+    setSelectedPart(null)
     setNewOpen(true)
   }
 
@@ -169,7 +163,6 @@ export default function StockMovementsIndex({ movements, pagination, filter, sta
   }
 
   const net = sumQuantities([ stats.inbound, -stats.outbound ])
-  const selectedPart = parts.find((part) => String(part.id) === newForm.data.stock_movement.part_id)
   const statCards = [
     { label: t('Inbound'), value: `+${formatQuantity(stats.inbound)}`, icon: ArrowDown, className: 'text-emerald-600 dark:text-emerald-400' },
     { label: t('Outbound'), value: `−${formatQuantity(stats.outbound)}`, icon: ArrowUp, className: 'text-red-600 dark:text-red-400' },
@@ -364,19 +357,14 @@ export default function StockMovementsIndex({ movements, pagination, filter, sta
                 <Label>{t('Part')}</Label>
               </FieldLabel>
               <FieldContent>
-                <Select
+                <PartPicker
                   value={newForm.data.stock_movement.part_id}
-                  onValueChange={(value) => newForm.setData('stock_movement', { ...newForm.data.stock_movement, part_id: value })}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder={t('Select a part')} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {parts.map((part) => (
-                      <SelectItem key={part.id} value={part.id.toString()}>{part.reference} · {part.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  onPick={(part) => {
+                    setSelectedPart(part)
+                    newForm.setData('stock_movement', { ...newForm.data.stock_movement, part_id: part ? String(part.id) : '' })
+                  }}
+                  className="w-full"
+                />
               </FieldContent>
               {newForm.errors['stock_movement.part_id'] && <FieldError>{newForm.errors['stock_movement.part_id']}</FieldError>}
             </Field>

@@ -35,7 +35,6 @@ class StockMovementsController < ApplicationController
       pagination: { page: page, page_count: page_count, total: total, page_size: PAGE_SIZE },
       filter: type || "all",
       stats: movement_stats,
-      parts: serialize_parts,
       storage_locations: serialize_storage_locations
     }
   end
@@ -191,11 +190,5 @@ class StockMovementsController < ApplicationController
         category: part.category ? { name: part.category.name, color: part.category.color } : nil
       }
     }
-  end
-
-  def serialize_parts
-    current_organization.parts.alphabetical.map do |part|
-      { id: part.id, reference: part.reference, name: part.name, unit: part.unit, pack_size: part.pack_size }
-    end
   end
 end

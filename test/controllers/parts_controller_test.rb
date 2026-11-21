@@ -1250,6 +1250,29 @@ class PartsControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "options searches the organization's parts, twenty at a time" do
+    user = create_user
+    org = user.organizations.first
+    sign_in user
+    category = create_category(organization: org)
+    25.times { |i| create_part(organization: org, category: category, name: "Resistor #{i.to_s.rjust(2, '0')}") }
+    capacitor = create_part(organization: org, category: category, name: "Capacitor", mpn: "GRM21", unit: "meter")
+    create_part(organization: create_organization, name: "Resistor elsewhere")
+
+    get options_parts_path, as: :json
+    assert_equal PartsController::OPTIONS_LIMIT, response.parsed_body["parts"].size
+
+    get options_parts_path(q: "grm"), as: :json
+    assert_equal [ { "id" => capacitor.id, "reference" => capacitor.reference, "name" => "Capacitor", "unit" => "meter", "pack_size" => nil } ],
+                 response.parsed_body["parts"]
+
+    get options_parts_path(q: capacitor.ipn), as: :json
+    assert_equal [ capacitor.id ], response.parsed_body["parts"].pluck("id") if capacitor.ipn.present?
+
+    get options_parts_path(q: "elsewhere"), as: :json
+    assert_empty response.parsed_body["parts"]
+  end
+
   test "lookup rejects a blank part number" do
     user = create_user
     user.organizations.first.update!(mouser_api_key: "abc123")
