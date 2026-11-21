@@ -78,6 +78,14 @@ module Makerstorage
     }
   end
 
+  # Host names the app answers to (ALLOWED_HOSTS, comma-separated; a leading
+  # dot also allows subdomains). Unset, any Host is served, as LAN installs
+  # reached by IP need. Set, other Host headers get a 403, so absolute URLs
+  # built from the request (OAuth/MCP metadata) can't be pointed elsewhere.
+  def self.allowed_hosts_from_env
+    ENV["ALLOWED_HOSTS"].to_s.split(",").map(&:strip).compact_blank.presence
+  end
+
   # Disk space an organization's files may take in all (ORGANIZATION_STORAGE_QUOTA:
   # bytes, or a number with KB/MB/GB/TB, e.g. "2GB"). Unset or blank means no
   # limit, the right default for a private install; a shared instance where
